@@ -1,6 +1,6 @@
 backend:
   name: github
-  repo: alpacaA1/alpacaA1.github.io
+  repo: alpacaA1/Alpaca-Notes-CMS
   branch: main
   # Vercel OAuth service URL
   base_url: https://alpaca-notes-cms.vercel.app
