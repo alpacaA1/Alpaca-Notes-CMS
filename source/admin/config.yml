@@ -2,11 +2,13 @@ backend:
   name: github
   repo: alpacaA1/alpacaA1.github.io
   branch: main
-  # Replace this with your Vercel project URL, for example https://alpaca-notes-oauth.vercel.app
-  base_url: PLACEHOLDER_VERCEL_PROJECT_URL
+  # Vercel OAuth service URL
+  base_url: https://alpaca-notes-cms.vercel.app
   auth_endpoint: /api/auth
 
 site_url: https://alpacaA1.github.io
+media_folder: source/uploads
+public_folder: /uploads
 
 collections:
   - name: posts
