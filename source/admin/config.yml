@@ -1,0 +1,63 @@
+backend:
+  name: github
+  repo: alpacaA1/alpacaA1.github.io
+  branch: main
+  # Replace this with your Vercel project URL, for example https://alpaca-notes-oauth.vercel.app
+  base_url: PLACEHOLDER_VERCEL_PROJECT_URL
+  auth_endpoint: /api/auth
+
+site_url: https://alpacaA1.github.io
+
+collections:
+  - name: posts
+    label: 文章
+    label_singular: 文章
+    folder: source/_posts
+    create: true
+    extension: md
+    format: frontmatter
+    identifier_field: title
+    slug: '{{year}}{{month}}{{day}}{{hour}}{{minute}}{{second}}'
+    summary: '{{title}}|||{{published}}|||{{date}}'
+    sortable_fields:
+      - date
+      - title
+    editor:
+      preview: false
+    fields:
+      - label: 标题
+        name: title
+        widget: string
+      - label: 日期
+        name: date
+        widget: datetime
+        format: YYYY-MM-DD HH:mm:ss
+        date_format: YYYY-MM-DD
+        time_format: HH:mm:ss
+      - label: 摘要
+        name: desc
+        widget: text
+      - label: 已发布
+        name: published
+        widget: boolean
+        default: false
+        required: false
+        hint: 新文章可保存为草稿或直接发布；已发布文章不能改回草稿。
+      - label: 分类
+        name: categories
+        widget: list
+        required: false
+        default: []
+      - label: 标签
+        name: tags
+        widget: list
+        required: false
+        default: []
+      - label: 永久链接
+        name: permalink
+        widget: string
+        required: false
+        hint: 新建文章首次保存前必填；旧文章如果原本没有 permalink，可保持为空以保留现有日期路径。
+      - label: 正文
+        name: body
+        widget: markdown

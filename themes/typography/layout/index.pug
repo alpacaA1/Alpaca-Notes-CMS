@@ -1,0 +1,14 @@
+extends partial/layout
+block content
+    .autopagerize_page_element: .content
+        .post-container.home-intro
+            p.post-title 写给长期主义者的个人主页
+            p.post-abstract 这里记录产品、数据与 IoT，也写生活、阶段感受和零碎观察。先把东西写清楚，再慢慢把页面打磨得更像自己。
+            p.post-meta
+                span.meta-item 慢一点也没关系，先把想法留下。
+        - page.posts.each(function (item) {
+            include mixins
+            +make_post(item, false)
+        - })
+        include mixins
+        +make_pager(__('prev'), __('next'))
