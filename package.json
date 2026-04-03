@@ -2,8 +2,12 @@
   "name": "hexo-site",
   "version": "0.0.0",
   "private": true,
+  "workspaces": [
+    "admin-app"
+  ],
   "scripts": {
-    "build": "hexo generate",
+    "build": "npm run build:admin && hexo generate",
+    "build:admin": "npm run build --workspace admin-app",
     "clean": "hexo clean",
     "deploy": "hexo deploy",
     "server": "hexo server"
