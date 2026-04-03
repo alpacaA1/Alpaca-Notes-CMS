@@ -1,11 +1,12 @@
 import { execFileSync } from 'node:child_process'
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 
 const workspaceRoot = resolve(__dirname, '..', '..')
 const adminAppRoot = resolve(workspaceRoot, 'admin-app')
 const sourceAdminDir = resolve(workspaceRoot, 'source', 'admin')
+const sourceAdminAssetsDir = resolve(sourceAdminDir, 'assets')
 const generatedIndexPath = resolve(sourceAdminDir, 'index.html')
 const legacyIndexPath = resolve(workspaceRoot, 'docs', 'legacy-admin', 'index.html')
 const staleSentinelPath = resolve(sourceAdminDir, '__stale-sentinel__.txt')
@@ -31,8 +32,12 @@ describe('custom admin build smoke test', () => {
     expect(existsSync(generatedIndexPath)).toBe(true)
 
     const generatedIndex = readFileSync(generatedIndexPath, 'utf8')
+    const generatedAssetFiles = readdirSync(sourceAdminAssetsDir)
 
     expect(generatedIndex).toContain('Alpaca Notes Admin')
+    expect(generatedAssetFiles.length).toBeGreaterThan(0)
+    expect(generatedAssetFiles.some((file) => file.endsWith('.js'))).toBe(true)
+    expect(generatedAssetFiles.some((file) => file.endsWith('.css'))).toBe(true)
     expect(generatedIndex).not.toContain('window.CMS_MANUAL_INIT = true')
     expect(generatedIndex).not.toContain('decap-cms')
     expect(generatedIndex).not.toContain('config.yml')
