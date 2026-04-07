@@ -2,18 +2,15 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { legacyAdminDir, sourceAdminAssetsDir, sourceAdminDir, workspaceRoot } from '../build-paths'
 
-const workspaceRoot = resolve(__dirname, '..', '..')
-const adminAppRoot = resolve(workspaceRoot, 'admin-app')
-const sourceAdminDir = resolve(workspaceRoot, 'source', 'admin')
-const sourceAdminAssetsDir = resolve(sourceAdminDir, 'assets')
 const generatedIndexPath = resolve(sourceAdminDir, 'index.html')
-const legacyIndexPath = resolve(workspaceRoot, 'docs', 'legacy-admin', 'index.html')
+const legacyIndexPath = resolve(legacyAdminDir, 'index.html')
 const staleSentinelPath = resolve(sourceAdminDir, '__stale-sentinel__.txt')
 
 function runBuild() {
-  execFileSync('npm', ['run', 'build'], {
-    cwd: adminAppRoot,
+  execFileSync('npm', ['run', 'build:admin'], {
+    cwd: workspaceRoot,
     stdio: 'pipe',
   })
 }
@@ -28,8 +25,6 @@ describe('custom admin build smoke test', () => {
     writeFileSync(staleSentinelPath, 'stale output that build should remove', 'utf8')
 
     runBuild()
-
-    expect(existsSync(generatedIndexPath)).toBe(true)
 
     const generatedIndex = readFileSync(generatedIndexPath, 'utf8')
     const generatedAssetFiles = readdirSync(sourceAdminAssetsDir)

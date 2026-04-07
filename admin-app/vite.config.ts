@@ -1,23 +1,12 @@
-import { rmSync } from 'node:fs'
-import { resolve } from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
-
-const outputDir = resolve(__dirname, '..', 'source', 'admin')
+import { sourceAdminDir } from './build-paths'
 
 export default defineConfig({
   base: '/admin/',
   build: {
-    outDir: outputDir,
-    emptyOutDir: false,
+    outDir: sourceAdminDir,
+    emptyOutDir: true,
   },
-  plugins: [
-    react(),
-    {
-      name: 'clean-admin-output',
-      buildStart() {
-        rmSync(outputDir, { recursive: true, force: true })
-      },
-    },
-  ],
+  plugins: [react()],
 })
