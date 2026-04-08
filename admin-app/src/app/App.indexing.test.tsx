@@ -49,6 +49,6 @@ describe('App indexing flow', () => {
       expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     })
 
-    expect(screen.getByText('GitHub session expired. Please sign in again.')).toBeTruthy()
+    expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
   })
 })

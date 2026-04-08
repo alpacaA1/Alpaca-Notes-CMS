@@ -12,21 +12,24 @@ import SettingsPanel from './layout/settings-panel'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import LoginGate from './login-gate'
 import { createNewPost } from './posts/new-post'
-import { buildPostIndex } from './posts/index-posts'
+import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
 import type { PostIndexItem } from './posts/post-types'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
+const SAVE_SUCCESS_MESSAGE = '已保存。'
+
 type EditorChoice = Exclude<EditorMode, 'preview'>
 
 function EmptyState({ error }: { error: string | null }) {
   return (
     <section className="hero-card">
-      <p className="eyebrow">Custom admin</p>
-      <h1>Alpaca Notes Admin</h1>
-      <p>Select a post to start editing, or create a new draft.</p>
+      <div className="hero-card__grid" />
+      <p className="eyebrow">写作后台</p>
+      <h1>内容编辑台</h1>
+      <p>请选择一篇文章开始编辑，或新建一篇草稿。</p>
       {error ? <p className="error-message">{error}</p> : null}
     </section>
   )
@@ -44,6 +47,7 @@ export default function App() {
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [lastEditorMode, setLastEditorMode] = useState<EditorChoice>('markdown')
   const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(null)
   const {
@@ -63,36 +67,42 @@ export default function App() {
     setHasUnsupportedRichContent,
   } = useEditorDocument()
 
-  const filteredPosts = posts.filter((post) => {
-    const normalizedSearch = search.trim().toLowerCase()
-    if (!normalizedSearch) {
-      return true
-    }
+  const filteredPosts = useMemo(
+    () =>
+      filterPostIndex(posts, {
+        query: search,
+        publishState: 'all',
+        category: null,
+        tag: null,
+        sort: 'date-desc',
+      }),
+    [posts, search],
+  )
+  const { categories: availableCategories, tags: availableTags } = useMemo(
+    () => collectPostIndexFacets(posts),
+    [posts],
+  )
 
-    return (
-      post.title.toLowerCase().includes(normalizedSearch) ||
-      (post.permalink || '').toLowerCase().includes(normalizedSearch)
-    )
-  })
-
-  const documentBody = document?.body || null
+  const richMarkdownSupport = useMemo(
+    () => (document ? detectRichMarkdownSupport(document.body) : null),
+    [document?.body],
+  )
 
   useEffect(() => {
-    if (!document) {
+    if (!richMarkdownSupport) {
       setHasUnsupportedRichContent(false)
       setUnsupportedMessage(null)
       return
     }
 
-    const support = detectRichMarkdownSupport(document.body)
-    setHasUnsupportedRichContent(!support.supported)
-    setUnsupportedMessage(support.reason)
+    setHasUnsupportedRichContent(!richMarkdownSupport.supported)
+    setUnsupportedMessage(richMarkdownSupport.reason)
 
-    if (!support.supported && mode === 'rich') {
+    if (!richMarkdownSupport.supported && mode === 'rich') {
       setLastEditorMode('markdown')
       setMode('markdown')
     }
-  }, [document, documentBody, mode])
+  }, [mode, richMarkdownSupport, setHasUnsupportedRichContent, setMode])
 
   useEffect(() => {
     if (!session) {
@@ -118,16 +128,11 @@ export default function App() {
         }
 
         if (caughtError instanceof GitHubAuthError) {
-          sessionStore.logout()
-          setSession(null)
-          setPosts([])
-          setActivePostPath(null)
-          replaceDocument(null)
-          setError(caughtError.message)
+          handleAuthExpiry(caughtError.message)
           return
         }
 
-        setError(caughtError instanceof Error ? caughtError.message : 'Failed to load posts.')
+        setError(caughtError instanceof Error ? caughtError.message : '加载文章列表失败。')
       } finally {
         if (!cancelled) {
           setIsIndexing(false)
@@ -150,8 +155,8 @@ export default function App() {
     setActivePostPath(nextPost.path)
     setLastEditorMode(nextMode)
     setMode(nextMode)
-    setHasUnsupportedRichContent(!support.supported)
-    setUnsupportedMessage(support.reason)
+    setIsImmersive(false)
+    setSuccessMessage(null)
     setError(null)
   }
 
@@ -160,11 +165,12 @@ export default function App() {
       return true
     }
 
-    return window.confirm('You have unsaved changes. Discard them and continue?')
+    return window.confirm('当前有未保存的修改。确认丢弃并继续吗？')
   }
 
   const handleLogin = async () => {
     setIsLoading(true)
+    setSuccessMessage(null)
     setError(null)
 
     try {
@@ -173,23 +179,36 @@ export default function App() {
       setSession(nextSession)
     } catch (caughtError) {
       const message =
-        caughtError instanceof AuthError ? caughtError.message : 'GitHub authorization failed.'
+        caughtError instanceof AuthError ? caughtError.message : 'GitHub 授权失败。'
       setError(message)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleLogout = () => {
-    sessionStore.logout()
-    setSession(null)
+  const resetWorkspace = () => {
     setPosts([])
     setActivePostPath(null)
     setIsOpeningPost(false)
-    setError(null)
+    setSuccessMessage(null)
     replaceDocument(null)
     setLastEditorMode('markdown')
     setUnsupportedMessage(null)
+    setIsImmersive(false)
+  }
+
+  const handleAuthExpiry = (message: string) => {
+    sessionStore.logout()
+    setSession(null)
+    resetWorkspace()
+    setError(message)
+  }
+
+  const handleLogout = () => {
+    sessionStore.logout()
+    setSession(null)
+    resetWorkspace()
+    setError(null)
   }
 
   const handleNewPost = () => {
@@ -207,6 +226,7 @@ export default function App() {
 
     setIsOpeningPost(true)
     setActivePostPath(post.path)
+    setSuccessMessage(null)
     setError(null)
 
     try {
@@ -223,7 +243,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : 'Failed to open post.')
+      setError(caughtError instanceof Error ? caughtError.message : '打开文章失败。')
     } finally {
       setIsOpeningPost(false)
     }
@@ -240,6 +260,7 @@ export default function App() {
     }
 
     setIsSaving(true)
+    setSuccessMessage(null)
     setError(null)
 
     try {
@@ -254,11 +275,23 @@ export default function App() {
         path: savedFile.path,
         sha: savedFile.sha,
       }
-      const nextPosts = await buildPostIndex(session)
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content,
+      })
       markSaved(savedDocument)
       setActivePostPath(savedFile.path)
-      setPosts(nextPosts)
-      setError('Saved.')
+      setPosts((currentPosts) =>
+        sortPostIndex(
+          [
+            ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedFile.path),
+            savedPostIndexItem,
+          ],
+          'date-desc',
+        ),
+      )
+      setSuccessMessage(SAVE_SUCCESS_MESSAGE)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         sessionStore.logout()
@@ -275,7 +308,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : 'Failed to save post.')
+      setError(caughtError instanceof Error ? caughtError.message : '保存文章失败。')
     } finally {
       setIsSaving(false)
     }
@@ -308,7 +341,20 @@ export default function App() {
     setMode(nextMode)
   }
 
+  const clearSuccessMessageOnDirty = () => {
+    if (successMessage) {
+      setSuccessMessage(null)
+    }
+  }
+
+  const handleFrontmatterChange: typeof updateFrontmatter = (...args) => {
+    clearSuccessMessageOnDirty()
+    return updateFrontmatter(...args)
+  }
+
   const handleEditorChange = (value: string) => {
+    clearSuccessMessageOnDirty()
+
     if (mode === 'rich') {
       updateBody(richTextToMarkdown(value))
       return
@@ -317,24 +363,36 @@ export default function App() {
     updateBody(value)
   }
 
+  const saveLabel = isSaving ? '保存中…' : document ? (isDirty ? '保存' : '已保存') : '保存'
+  const isSaveDisabled = !document || isSaving || !isDirty
+  const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
+
   const status = isSaving && document
-    ? `Saving ${document.path}`
+    ? `正在保存 ${document.path}`
     : isOpeningPost && activePostPath
-      ? `Opening ${activePostPath}`
+      ? `正在打开 ${activePostPath}`
       : document
         ? isDirty
-          ? `Unsaved changes · ${document.path}`
-          : `Editing ${document.path}`
+          ? `未保存修改 · ${document.path}`
+          : `编辑中 · ${document.path}`
         : isIndexing
-          ? 'Loading posts…'
-          : 'Ready'
+          ? '正在加载文章…'
+          : '已就绪'
 
   if (!session) {
     return <LoginGate isLoading={isLoading} error={error} onLogin={handleLogin} />
   }
 
+  const isPreviewing = mode === 'preview'
+  const showImmersiveCanvas = Boolean(document) && (isImmersive || isPreviewing)
+  const isPostListHidden = showImmersiveCanvas
+  const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
+  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas
+
   return (
-    <main className="admin-shell">
+    <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}`}>
+      <div className="admin-shell__glow admin-shell__glow--left" />
+      <div className="admin-shell__glow admin-shell__glow--right" />
       <TopBar
         search={search}
         onSearchChange={setSearch}
@@ -344,63 +402,91 @@ export default function App() {
         }}
         onTogglePreview={handleTogglePreview}
         onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-        isPreviewing={mode === 'preview'}
+        isPreviewing={isPreviewing}
         isImmersive={isImmersive}
+        hasActiveDocument={Boolean(document)}
+        saveLabel={saveLabel}
+        isSaveDisabled={isSaveDisabled}
+        isSaveQuiet={isSaveQuiet}
         status={status}
         onLogout={handleLogout}
       />
       <div className="admin-layout">
-        <PostListPane posts={filteredPosts} hidden={isImmersive} onOpenPost={handleOpenPost} />
-        <section className="editor-layout">
+        <PostListPane
+          posts={filteredPosts}
+          hidden={isPostListHidden}
+          activePostPath={activePostPath}
+          onOpenPost={handleOpenPost}
+        />
+        <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
           <div className="editor-stack">
             {document ? (
               <>
-                <div className="editor-mode-bar">
-                  <button
-                    type="button"
-                    aria-pressed={mode === 'rich'}
-                    disabled={hasUnsupportedRichContent}
-                    onClick={() => handleSelectMode('rich')}
-                  >
-                    Rich
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={mode === 'markdown'}
-                    onClick={() => handleSelectMode('markdown')}
-                  >
-                    Markdown
-                  </button>
-                </div>
-                {error ? (
-                  <p className={error === 'Saved.' ? 'success-message' : 'error-message'}>{error}</p>
+                {showDocumentFrame ? (
+                  <section className="editor-frame">
+                    <div className="editor-frame__header">
+                      <div>
+                        <p className="editor-frame__eyebrow">当前稿件</p>
+                        <h1>{document.frontmatter.title?.trim() || '未命名草稿'}</h1>
+                      </div>
+                      <div className="editor-mode-bar">
+                        <button
+                          type="button"
+                          aria-pressed={mode === 'rich'}
+                          disabled={hasUnsupportedRichContent}
+                          onClick={() => handleSelectMode('rich')}
+                        >
+                          可视编辑
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={mode === 'markdown'}
+                          onClick={() => handleSelectMode('markdown')}
+                        >
+                          Markdown
+                        </button>
+                      </div>
+                    </div>
+                    <div className="editor-frame__meta">
+                      <span>{document.path}</span>
+                      <span>{mode === 'preview' ? '预览模式' : '编辑模式'}</span>
+                    </div>
+                  </section>
                 ) : null}
+                {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
+                {error ? <p className="error-message">{error}</p> : null}
                 {unsupportedMessage ? <UnsupportedBanner message={unsupportedMessage} /> : null}
                 {mode === 'preview' ? (
-                  <PreviewPane markdown={document.body} />
-                ) : mode === 'rich' ? (
-                  <RichEditor
-                    value={markdownToRichText(document.body)}
-                    onChange={handleEditorChange}
+                  <PreviewPane
+                    title={document.frontmatter.title}
+                    date={document.frontmatter.date}
+                    markdown={document.body}
                   />
+                ) : mode === 'rich' ? (
+                  <RichEditor value={markdownToRichText(document.body)} onChange={handleEditorChange} />
                 ) : (
                   <MarkdownEditor value={document.body} onChange={handleEditorChange} />
                 )}
               </>
             ) : isOpeningPost ? (
               <section className="hero-card">
-                <p>Loading post…</p>
+                <div className="hero-card__grid" />
+                <p>正在加载文章…</p>
               </section>
             ) : (
               <EmptyState error={error} />
             )}
           </div>
-          <SettingsPanel
-            document={document}
-            validationErrors={validationErrors}
-            publishLocked={publishLocked}
-            onFieldChange={updateFrontmatter}
-          />
+          {showSettingsPanel ? (
+            <SettingsPanel
+              document={document}
+              validationErrors={validationErrors}
+              publishLocked={publishLocked}
+              availableCategories={availableCategories}
+              availableTags={availableTags}
+              onFieldChange={handleFrontmatterChange}
+            />
+          ) : null}
         </section>
       </div>
     </main>

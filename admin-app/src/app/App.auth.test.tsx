@@ -26,8 +26,9 @@ describe('App auth flow', () => {
 
     render(<App />)
 
-    expect(screen.getByText('Select a post to start editing, or create a new draft.')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Log out' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '内容编辑台' })).toBeTruthy()
+    expect(screen.getByText('请选择一篇文章开始编辑，或新建一篇草稿。')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 
   it('starts popup login and renders the authenticated workspace on success', async () => {
@@ -39,10 +40,10 @@ describe('App auth flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with GitHub' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Select a post to start editing, or create a new draft.')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: '内容编辑台' })).toBeTruthy()
     })
 
-    expect(screen.getByRole('button', { name: 'Log out' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 
   it('shows the login error and keeps the user at the gate when login fails', async () => {
@@ -60,9 +61,9 @@ describe('App auth flow', () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
 
     render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Log out' }))
+    fireEvent.click(screen.getByRole('button', { name: '退出登录' }))
 
     expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
-    expect(screen.queryByText('Select a post to start editing, or create a new draft.')).not.toBeTruthy()
+    expect(screen.queryByText('请选择一篇文章开始编辑，或新建一篇草稿。')).not.toBeTruthy()
   })
 })

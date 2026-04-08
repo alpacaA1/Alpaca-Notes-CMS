@@ -22,6 +22,30 @@ export function formatPostDate(date: Date) {
   )}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
+export function toPostDateTimeInputValue(value: string) {
+  const normalized = value.trim().replace(/\.\d{1,3}$/, '')
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::(\d{2}))?$/)
+
+  if (!match) {
+    return ''
+  }
+
+  const [, date, time, seconds] = match
+  return seconds ? `${date}T${time}:${seconds}` : `${date}T${time}`
+}
+
+export function fromPostDateTimeInputValue(value: string) {
+  const normalized = value.trim().replace(/\.\d{1,3}$/, '')
+  const match = normalized.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})(?::(\d{2}))?$/)
+
+  if (!match) {
+    return ''
+  }
+
+  const [, date, time, seconds = '00'] = match
+  return `${date} ${time}:${seconds}`
+}
+
 export function createNewPost(date = new Date()): ParsedPost {
   return {
     path: `source/_posts/${formatPostTimestamp(date)}.md`,
@@ -44,19 +68,19 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
   const errors: PostValidationErrors = {}
 
   if (!post.frontmatter.title.trim()) {
-    errors.title = 'Title is required.'
+    errors.title = '请填写标题。'
   }
 
   if (!post.frontmatter.date.trim()) {
-    errors.date = 'Date is required.'
+    errors.date = '请填写日期。'
   }
 
   if (!post.frontmatter.desc.trim()) {
-    errors.desc = 'Description is required.'
+    errors.desc = '请填写摘要。'
   }
 
   if (options?.isNewPost && !post.frontmatter.permalink?.trim()) {
-    errors.permalink = 'Permalink is required before the first save.'
+    errors.permalink = '首次保存前请填写永久链接。'
   }
 
   return errors

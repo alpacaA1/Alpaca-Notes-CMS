@@ -5,15 +5,15 @@ export type RichMarkdownSupport = {
 
 export function detectRichMarkdownSupport(markdown: string): RichMarkdownSupport {
   if (/^<[^>]+>/m.test(markdown)) {
-    return { supported: false, reason: 'HTML blocks are not supported in rich mode.' }
+    return { supported: false, reason: '富文本模式暂不支持 HTML 片段。' }
   }
 
   if (/^\{[%{]/m.test(markdown)) {
-    return { supported: false, reason: 'Custom markdown extensions are not supported in rich mode.' }
+    return { supported: false, reason: '富文本模式暂不支持自定义 Markdown 扩展。' }
   }
 
   if (/!\[[^\]]*\]\([^)]*\)/.test(markdown)) {
-    return { supported: false, reason: 'Image syntax is not supported in rich mode.' }
+    return { supported: false, reason: '富文本模式暂不支持图片语法。' }
   }
 
   return { supported: true, reason: null }

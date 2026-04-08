@@ -30,7 +30,7 @@ describe('management layout components', () => {
     render(<PostListPane posts={posts} hidden={false} onOpenPost={onOpenPost} />)
 
     expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
-    expect(screen.getByText('Published')).toBeTruthy()
+    expect(screen.getByText('已发布')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
     expect(onOpenPost).toHaveBeenCalledWith(posts[0])
   })
@@ -52,18 +52,25 @@ describe('management layout components', () => {
         onLogout={vi.fn()}
         isPreviewing={false}
         isImmersive={false}
-        status="Ready"
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
       />,
     )
 
-    expect(screen.getByRole('button', { name: 'New post' })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: 'Search' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Filter' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Sort' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Save' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Preview' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Immersive' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Log out' })).toBeTruthy()
-    expect(screen.getByText('Ready')).toBeTruthy()
+    expect(screen.getByText('内容编辑台')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '新建文章' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '筛选' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '排序' })).toBeTruthy()
+    const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(saveButton.disabled).toBe(true)
+    expect(screen.getByRole('button', { name: '预览' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '放大编辑框' })).toBeNull()
+    expect(screen.getByRole('button', { name: '沉浸模式' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
+    expect(screen.getByText('已就绪')).toBeTruthy()
   })
 })

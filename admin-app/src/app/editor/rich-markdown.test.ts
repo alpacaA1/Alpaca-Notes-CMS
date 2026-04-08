@@ -28,21 +28,21 @@ const x = 1
   it('rejects raw HTML blocks', () => {
     expect(detectRichMarkdownSupport('<div>unsafe</div>')).toEqual({
       supported: false,
-      reason: 'HTML blocks are not supported in rich mode.',
+      reason: '富文本模式暂不支持 HTML 片段。',
     })
   })
 
   it('rejects custom markdown extensions', () => {
     expect(detectRichMarkdownSupport('{% note %}\nhello\n{% endnote %}')).toEqual({
       supported: false,
-      reason: 'Custom markdown extensions are not supported in rich mode.',
+      reason: '富文本模式暂不支持自定义 Markdown 扩展。',
     })
   })
 
   it('rejects image syntax for safe markdown fallback', () => {
     expect(detectRichMarkdownSupport('![alt](/uploads/example.png)')).toEqual({
       supported: false,
-      reason: 'Image syntax is not supported in rich mode.',
+      reason: '富文本模式暂不支持图片语法。',
     })
   })
 })

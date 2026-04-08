@@ -1,7 +1,35 @@
 import type { ReactNode } from 'react'
 
 type PreviewPaneProps = {
+  title: string
+  date: string
   markdown: string
+}
+
+const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
+
+function sanitizeLinkHref(linkHref: string) {
+  const trimmedHref = linkHref.trim()
+
+  if (!trimmedHref) {
+    return null
+  }
+
+  if (trimmedHref.startsWith('//')) {
+    return null
+  }
+
+  if (/^(#|\/(?!\/)|\.\.?\/|\?)/.test(trimmedHref)) {
+    return trimmedHref
+  }
+
+  const normalizedHref = trimmedHref.replace(/[\u0000-\u0020\u007F]+/g, '')
+  const protocolMatch = normalizedHref.match(/^([a-z][a-z0-9+.-]*):/i)
+  if (!protocolMatch) {
+    return trimmedHref
+  }
+
+  return SAFE_LINK_PROTOCOLS.has(protocolMatch[1].toLowerCase()) ? trimmedHref : null
 }
 
 function renderInline(markdown: string): ReactNode[] {
@@ -19,10 +47,15 @@ function renderInline(markdown: string): ReactNode[] {
     }
 
     if (linkLabel && linkHref) {
+      const sanitizedHref = sanitizeLinkHref(linkHref)
       nodes.push(
-        <a key={`inline-${matchIndex}`} href={linkHref} rel="noreferrer" target="_blank">
-          {linkLabel}
-        </a>,
+        sanitizedHref ? (
+          <a key={`inline-${matchIndex}`} href={sanitizedHref} rel="noreferrer" target="_blank">
+            {linkLabel}
+          </a>
+        ) : (
+          <span key={`inline-${matchIndex}`}>{linkLabel}</span>
+        ),
       )
     } else if (boldText) {
       nodes.push(<strong key={`inline-${matchIndex}`}>{boldText}</strong>)
@@ -166,11 +199,16 @@ function renderBlocks(markdown: string) {
   return nodes
 }
 
-export default function PreviewPane({ markdown }: PreviewPaneProps) {
+export default function PreviewPane({ title, date, markdown }: PreviewPaneProps) {
   return (
-    <section className="preview-pane">
-      <p className="preview-note">Approximate client-side preview. Final Hexo or theme rendering may differ.</p>
-      <article className="preview-content">{renderBlocks(markdown)}</article>
+    <section className="preview-pane preview-pane--reading-canvas">
+      <article className="preview-content">
+        <header className="preview-content__header">
+          <h1>{title.trim() || '未命名草稿'}</h1>
+          <p className="preview-content__date">{date}</p>
+        </header>
+        {renderBlocks(markdown)}
+      </article>
     </section>
   )
 }

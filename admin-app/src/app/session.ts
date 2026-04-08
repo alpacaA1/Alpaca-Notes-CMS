@@ -159,7 +159,7 @@ export function loginWithPopup(options: LoginOptions = {}): Promise<SessionState
         return
       }
 
-      finish(() => reject(new AuthError(terminal.payload.message || 'GitHub authorization failed.')))
+      finish(() => reject(new AuthError(terminal.payload.message || 'GitHub 授权失败。')))
     }
 
     window.addEventListener('message', onMessage)

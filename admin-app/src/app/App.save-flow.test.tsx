@@ -33,6 +33,17 @@ desc: desc
 
 Original body.`
 
+function createDeferredPromise<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve
+    reject = nextReject
+  })
+
+  return { promise, resolve, reject }
+}
+
 describe('App save flow', () => {
   afterEach(() => {
     cleanup()
@@ -40,19 +51,142 @@ describe('App save flow', () => {
     window.sessionStorage.clear()
   })
 
-  it('saves serialized markdown with the current sha and refreshes list metadata', async () => {
+  it('shows 已保存 for a clean opened document, 保存 for dirty state, 保存中… while saving, and returns to 已保存 after success', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    const buildPostIndex = vi
-      .spyOn(indexPostsModule, 'buildPostIndex')
-      .mockResolvedValueOnce([existingPost])
-      .mockResolvedValueOnce([
-        {
-          ...existingPost,
-          sha: 'sha-updated',
-          title: 'Updated title',
-          desc: 'Updated desc',
-        },
-      ])
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const deferredSave = createDeferredPromise<{ path: string; sha: string; content: string }>()
+    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockReturnValue(deferredSave.promise)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    const saveButtonBeforeOpen = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(saveButtonBeforeOpen.disabled).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+
+    const cleanSaveButton = screen.getByRole('button', { name: '已保存' }) as HTMLButtonElement
+    expect(cleanSaveButton.disabled).toBe(true)
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
+
+    const dirtySaveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(dirtySaveButton.disabled).toBe(false)
+
+    fireEvent.click(dirtySaveButton)
+
+    await waitFor(() => {
+      expect(savePostFile).toHaveBeenCalledTimes(1)
+    })
+
+    const savingButton = screen.getByRole('button', { name: '保存中…' }) as HTMLButtonElement
+    expect(savingButton.disabled).toBe(true)
+
+    deferredSave.resolve({
+      path: existingPost.path,
+      sha: 'sha-updated',
+      content: 'serialized',
+    })
+
+    const savedButton = (await screen.findByRole('button', { name: '已保存' })) as HTMLButtonElement
+    expect(savedButton.disabled).toBe(true)
+    expect(await screen.findByText('已保存。')).toBeTruthy()
+  })
+
+  it('clears the save success message after the next edit following a successful save', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: 'sha-updated',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    const savedButton = (await screen.findByRole('button', { name: '已保存' })) as HTMLButtonElement
+    expect(savedButton.disabled).toBe(true)
+    expect(await screen.findByText('已保存。')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Edited again after save' } })
+
+    await waitFor(() => {
+      expect(screen.queryByText('已保存。')).toBeNull()
+    })
+
+    const dirtySaveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(dirtySaveButton.disabled).toBe(false)
+    expect(screen.getByText(/未保存修改/)).toBeTruthy()
+  })
+
+  it('does not resurface the previous save success message after reverting back to the saved content', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: 'sha-updated',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    expect(await screen.findByText('已保存。')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Edited again after save' } })
+
+    await waitFor(() => {
+      expect(screen.queryByText('已保存。')).toBeNull()
+    })
+
+    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'desc' } })
+
+    const revertedSaveButton = (await screen.findByRole('button', { name: '已保存' })) as HTMLButtonElement
+    expect(revertedSaveButton.disabled).toBe(true)
+    expect(screen.queryByText('已保存。')).toBeNull()
+  })
+
+  it('keeps invalid dirty documents actionable, shows validation errors, and does not call savePostFile', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
@@ -71,11 +205,48 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('Rich editor')).toBeTruthy()
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Updated title' } })
-    fireEvent.change(screen.getByLabelText('Description'), { target: { value: 'Updated desc' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: '' } })
+
+    const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(saveButton.disabled).toBe(false)
+
+    fireEvent.click(saveButton)
+
+    expect(await screen.findByText('请填写标题。')).toBeTruthy()
+    expect(savePostFile).not.toHaveBeenCalled()
+
+    const stillActionableSaveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
+    expect(stillActionableSaveButton.disabled).toBe(false)
+  })
+
+  it('saves serialized markdown with the current sha and updates list metadata without rebuilding the full index', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    const buildPostIndex = vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: 'sha-updated',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
+    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Updated desc' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => {
       expect(savePostFile).toHaveBeenCalledTimes(1)
@@ -92,10 +263,11 @@ describe('App save flow', () => {
     expect(savePostFile.mock.calls[0]?.[1]?.content).toContain('desc: Updated desc')
 
     await waitFor(() => {
-      expect(buildPostIndex).toHaveBeenCalledTimes(2)
+      expect(buildPostIndex).toHaveBeenCalledTimes(1)
     })
-    expect(await screen.findByText('Updated title')).toBeTruthy()
-    expect(screen.getByText('Saved.')).toBeTruthy()
+    expect(await screen.findByRole('heading', { name: 'Updated title' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /updated title/i })).toBeTruthy()
+    expect(screen.getByText('已保存。')).toBeTruthy()
   })
 
   it('surfaces stale-sha save conflicts and keeps local dirty state', async () => {
@@ -115,14 +287,14 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('Rich editor')).toBeTruthy()
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Locally changed title' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Locally changed title' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
-    expect(await screen.findByText('Remote changes detected. Reload the post before overwriting it.')).toBeTruthy()
+    expect(await screen.findByText('检测到远端内容已变更，请先重新加载文章后再覆盖保存。')).toBeTruthy()
     expect(screen.getByDisplayValue('Locally changed title')).toBeTruthy()
-    expect(screen.getByText(/Unsaved changes/)).toBeTruthy()
+    expect(screen.getByText(/未保存修改/)).toBeTruthy()
   })
 
   it('preserves dirty local state when save fails', async () => {
@@ -142,14 +314,14 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('Rich editor')).toBeTruthy()
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('Rich editor'), { target: { value: 'Changed body' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('可视编辑器'), { target: { value: 'Changed body' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     expect(await screen.findByText('save failed')).toBeTruthy()
     expect(screen.getByDisplayValue('Changed body')).toBeTruthy()
-    expect(screen.getByText(/Unsaved changes/)).toBeTruthy()
+    expect(screen.getByText(/未保存修改/)).toBeTruthy()
   })
 
   it('clears the session and returns to login when save hits auth expiry', async () => {
@@ -169,12 +341,12 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('Rich editor')).toBeTruthy()
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('Rich editor'), { target: { value: 'Changed body' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('可视编辑器'), { target: { value: 'Changed body' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
-    expect(screen.getByText('GitHub session expired. Please sign in again.')).toBeTruthy()
+    expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
   })
 })

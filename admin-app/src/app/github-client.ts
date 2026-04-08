@@ -29,14 +29,14 @@ type GitHubSaveFileResponse = {
 }
 
 export class GitHubAuthError extends AuthError {
-  constructor(message = 'GitHub session expired. Please sign in again.') {
+  constructor(message = 'GitHub 会话已过期，请重新登录。') {
     super(message)
     this.name = 'GitHubAuthError'
   }
 }
 
 export class GitHubConflictError extends Error {
-  constructor(message = 'Remote changes detected. Reload the post before overwriting it.') {
+  constructor(message = '检测到远端内容已变更，请先重新加载文章后再覆盖保存。') {
     super(message)
     this.name = 'GitHubConflictError'
   }

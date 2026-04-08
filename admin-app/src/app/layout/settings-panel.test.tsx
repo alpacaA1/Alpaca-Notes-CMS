@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SettingsPanel from './settings-panel'
 import { createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
+import type { PostValidationErrors } from '../posts/post-types'
 
 function createExistingPost(): ParsedPost {
   return {
@@ -22,32 +24,92 @@ function createExistingPost(): ParsedPost {
   }
 }
 
+type RenderSettingsPanelOptions = {
+  document?: ParsedPost
+  validationErrors?: PostValidationErrors
+  publishLocked?: boolean
+  availableCategories?: string[]
+  availableTags?: string[]
+}
+
+function renderControlledSettingsPanel({
+  document = createNewPost(new Date(2026, 3, 3, 10, 11, 12)),
+  validationErrors = {},
+  publishLocked = false,
+  availableCategories = ['专业', '思考'],
+  availableTags = ['产品', '记录'],
+}: RenderSettingsPanelOptions = {}) {
+  const onFieldChange = vi.fn()
+
+  function Harness() {
+    const [currentDocument, setCurrentDocument] = useState(document)
+
+    return (
+      <SettingsPanel
+        document={currentDocument}
+        validationErrors={validationErrors}
+        publishLocked={publishLocked}
+        availableCategories={availableCategories}
+        availableTags={availableTags}
+        onFieldChange={(field, value) => {
+          onFieldChange(field, value)
+          setCurrentDocument((current) =>
+            current
+              ? {
+                  ...current,
+                  frontmatter: {
+                    ...current.frontmatter,
+                    [field]: value,
+                  } as ParsedPost['frontmatter'],
+                }
+              : current,
+          )
+        }}
+      />
+    )
+  }
+
+  render(<Harness />)
+
+  return { onFieldChange }
+}
+
 describe('settings panel', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
   })
 
-  it('edits title/date/desc/published/categories/tags/permalink', () => {
-    const onFieldChange = vi.fn()
-    render(
-      <SettingsPanel
-        document={createNewPost(new Date(2026, 3, 3, 10, 11, 12))}
-        validationErrors={{}}
-        publishLocked={false}
-        onFieldChange={onFieldChange}
-      />,
-    )
+  it('edits title date desc published taxonomy selections and permalink', () => {
+    const { onFieldChange } = renderControlledSettingsPanel()
 
-    const textboxes = screen.getAllByRole('textbox')
-    fireEvent.change(textboxes[0], { target: { value: 'New title' } })
-    fireEvent.change(textboxes[1], {
-      target: { value: '2026-04-03 10:12:13' },
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'New title' } })
+    fireEvent.change(screen.getByLabelText('日期'), {
+      target: { value: '2026-04-03T10:12:13' },
     })
-    fireEvent.change(textboxes[2], { target: { value: 'New desc' } })
+    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'New desc' } })
     fireEvent.click(screen.getByRole('checkbox'))
 
-    expect(onFieldChange).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    fireEvent.change(screen.getByLabelText('搜索分类'), { target: { value: '思' } })
+    fireEvent.click(screen.getByRole('option', { name: '思考' }))
+    expect(screen.getByRole('button', { name: '移除分类 思考' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '选择标签' }))
+    fireEvent.click(screen.getByRole('option', { name: '记录' }))
+    expect(screen.getByRole('button', { name: '移除标签 记录' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '移除分类 思考' }))
+    fireEvent.change(screen.getByLabelText('永久链接'), { target: { value: 'new-title/' } })
+
+    expect(onFieldChange).toHaveBeenCalledWith('title', 'New title')
+    expect(onFieldChange).toHaveBeenCalledWith('date', '2026-04-03 10:12:13')
+    expect(onFieldChange).toHaveBeenCalledWith('desc', 'New desc')
+    expect(onFieldChange).toHaveBeenCalledWith('published', true)
+    expect(onFieldChange).toHaveBeenCalledWith('categories', ['思考'])
+    expect(onFieldChange).toHaveBeenCalledWith('categories', [])
+    expect(onFieldChange).toHaveBeenCalledWith('tags', ['记录'])
+    expect(onFieldChange).toHaveBeenCalledWith('permalink', 'new-title/')
   })
 
   it('shows validation errors for required fields', () => {
@@ -55,31 +117,49 @@ describe('settings panel', () => {
       <SettingsPanel
         document={createNewPost(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{
-          title: 'Title is required.',
-          desc: 'Description is required.',
-          permalink: 'Permalink is required before the first save.',
+          title: '请填写标题。',
+          desc: '请填写摘要。',
+          permalink: '首次保存前请填写永久链接。',
         }}
         publishLocked={false}
+        availableCategories={[]}
+        availableTags={[]}
         onFieldChange={vi.fn()}
       />,
     )
 
-    expect(screen.getByText('Title is required.')).toBeTruthy()
-    expect(screen.getByText('Description is required.')).toBeTruthy()
-    expect(screen.getByText('Permalink is required before the first save.')).toBeTruthy()
+    expect(screen.getByText('请填写标题。')).toBeTruthy()
+    expect(screen.getByText('请填写摘要。')).toBeTruthy()
+    expect(screen.getByText('首次保存前请填写永久链接。')).toBeTruthy()
   })
 
-  it('keeps legacy permalink omission allowed for existing posts', () => {
-    render(
-      <SettingsPanel
-        document={createExistingPost()}
-        validationErrors={{}}
-        publishLocked={true}
-        onFieldChange={vi.fn()}
-      />,
-    )
+  it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {
+    const { onFieldChange } = renderControlledSettingsPanel({
+      document: createExistingPost(),
+      publishLocked: true,
+      availableCategories: [],
+      availableTags: [],
+    })
 
-    expect(screen.getByPlaceholderText('Leave empty for legacy posts')).toBeTruthy()
+    expect((screen.getByLabelText('日期') as HTMLInputElement).value).toBe('2026-04-03T12:00')
+    expect(screen.getByPlaceholderText('旧文章可留空')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除标签 产品' })).toBeTruthy()
     expect(screen.getByRole('checkbox').hasAttribute('disabled')).toBe(true)
+
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    expect(screen.getByText('暂无已索引的分类。')).toBeTruthy()
+    expect(screen.queryByLabelText('搜索分类')).toBe(null)
+
+    fireEvent.click(screen.getByRole('button', { name: '移除分类 专业' }))
+
+    fireEvent.click(screen.getByRole('button', { name: '选择标签' }))
+    expect(screen.getByText('暂无已索引的标签。')).toBeTruthy()
+    expect(screen.queryByLabelText('搜索标签')).toBe(null)
+
+    fireEvent.click(screen.getByRole('button', { name: '移除标签 产品' }))
+
+    expect(onFieldChange).toHaveBeenCalledWith('categories', [])
+    expect(onFieldChange).toHaveBeenCalledWith('tags', [])
   })
 })

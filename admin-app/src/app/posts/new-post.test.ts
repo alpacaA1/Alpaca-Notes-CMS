@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { createNewPost, formatPostDate, formatPostTimestamp, validatePostForSave } from './new-post'
+import {
+  createNewPost,
+  formatPostDate,
+  formatPostTimestamp,
+  fromPostDateTimeInputValue,
+  toPostDateTimeInputValue,
+  validatePostForSave,
+} from './new-post'
 
 describe('new post helpers', () => {
   const fixedDate = new Date(2026, 3, 3, 6, 7, 8)
@@ -22,19 +29,26 @@ describe('new post helpers', () => {
     })
   })
 
+  it('converts between stored post date and datetime input value', () => {
+    expect(toPostDateTimeInputValue('2026-04-03 06:07:08')).toBe('2026-04-03T06:07:08')
+    expect(toPostDateTimeInputValue('2026-04-03 06:07')).toBe('2026-04-03T06:07')
+    expect(fromPostDateTimeInputValue('2026-04-03T06:07')).toBe('2026-04-03 06:07:00')
+    expect(fromPostDateTimeInputValue('2026-04-03T06:07:08')).toBe('2026-04-03 06:07:08')
+  })
+
   it('requires title, date, and desc on every save', () => {
     const errors = validatePostForSave(createNewPost(fixedDate))
 
     expect(errors).toEqual({
-      title: 'Title is required.',
-      desc: 'Description is required.',
+      title: '请填写标题。',
+      desc: '请填写摘要。',
     })
   })
 
   it('requires permalink before first save of a new post only', () => {
     const newPost = createNewPost(fixedDate)
     expect(validatePostForSave(newPost, { isNewPost: true }).permalink).toBe(
-      'Permalink is required before the first save.',
+      '首次保存前请填写永久链接。',
     )
 
     expect(validatePostForSave(newPost, { isNewPost: false }).permalink).toBeUndefined()
