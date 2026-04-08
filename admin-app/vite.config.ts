@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 import { sourceAdminDir } from './build-paths'
 
 export default defineConfig({
-  base: '/admin/',
+  base: '/Alpaca-Notes-CMS/admin/',
   build: {
     outDir: sourceAdminDir,
     emptyOutDir: true,
