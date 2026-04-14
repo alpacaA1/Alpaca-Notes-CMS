@@ -172,6 +172,18 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     event.preventDefault()
 
     if (!event.shiftKey && selectionStart === selectionEnd) {
+      const lineStart = getLineStart(value, selectionStart)
+      const lineEnd = getLineEnd(value, selectionStart)
+      const currentLine = value.slice(lineStart, lineEnd)
+      const emptyListPrefix = getListPrefixToRemove(currentLine)
+
+      if (emptyListPrefix && selectionStart === lineEnd) {
+        const nextValue = `${value.slice(0, lineStart)}${INDENT}${currentLine}${value.slice(lineEnd)}`
+        const nextCaret = selectionStart + INDENT.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
+
       const nextValue = `${value.slice(0, selectionStart)}${INDENT}${value.slice(selectionEnd)}`
       const nextCaret = selectionStart + INDENT.length
       applyValue(nextValue, { start: nextCaret, end: nextCaret })
