@@ -1,0 +1,85 @@
+<h2>新的 custom admin 编辑器表单</h2>
+<p class="subtitle">这是基于已批准方案整理的 v1 写作工作台 mockup，不是现在线上那套 Decap 页面。重点看布局和信息分组。</p>
+
+<div class="cards">
+  <div class="card" data-choice="focused" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option A · Focused Writer</div>
+        <div class="mockup-body" style="display:grid;grid-template-columns:240px 1fr 300px;min-height:540px;gap:12px;">
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+            <div class="label">文章</div>
+            <input class="mock-input" placeholder="搜索文章">
+            <div class="placeholder" style="height:74px;">草稿：产品和生活之间的记录方式</div>
+            <div class="placeholder" style="height:74px;">已发布：为什么开始写博客</div>
+            <div class="placeholder" style="height:74px;">草稿：四月月记</div>
+          </div>
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <div style="font-weight:700;">标题输入 + 写作主区域</div>
+              <div style="display:flex;gap:8px;"><button class="mock-button">富文本</button><button class="mock-button">Markdown</button><button class="mock-button">预览</button></div>
+            </div>
+            <input class="mock-input" placeholder="文章标题">
+            <div class="placeholder" style="flex:1;min-height:320px;text-align:left;">沉浸式正文编辑区\n\n- 支持富文本 / Markdown 切换\n- 顶部工具尽量轻\n- 主体更像写作软件而不是 CMS 表单</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div style="font-size:12px;color:#64748b;">自动保存状态 / 最后保存时间</div>
+              <div style="display:flex;gap:8px;"><button class="mock-button">保存草稿</button><button class="mock-button">发布</button></div>
+            </div>
+          </div>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;">
+            <div class="label">设置</div>
+            <input class="mock-input" placeholder="permalink">
+            <input class="mock-input" placeholder="日期">
+            <input class="mock-input" placeholder="摘要">
+            <input class="mock-input" placeholder="分类">
+            <input class="mock-input" placeholder="标签">
+            <div class="placeholder" style="height:68px;">发布状态、slug 规则、frontmatter 说明</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A. 写作优先</h3>
+      <p>左侧文章列表，中间主编辑区，右侧元数据设置。最符合“像写作工具而不是 CMS”的方向。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="form-first" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div class="mockup">
+        <div class="mockup-header">Option B · Form First</div>
+        <div class="mockup-body" style="display:grid;grid-template-columns:1fr 1fr;min-height:540px;gap:12px;">
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="font-weight:700;">内容字段</div>
+            <input class="mock-input" placeholder="标题">
+            <input class="mock-input" placeholder="日期">
+            <input class="mock-input" placeholder="摘要">
+            <input class="mock-input" placeholder="permalink">
+            <input class="mock-input" placeholder="分类">
+            <input class="mock-input" placeholder="标签">
+            <div class="placeholder" style="height:120px;">发布状态 / 额外 frontmatter</div>
+          </div>
+          <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:700;">正文</div><div style="display:flex;gap:8px;"><button class="mock-button">富文本</button><button class="mock-button">Markdown</button></div></div>
+            <div class="placeholder" style="flex:1;min-height:360px;text-align:left;">正文编辑区</div>
+            <div style="display:flex;gap:8px;justify-content:flex-end;"><button class="mock-button">保存</button><button class="mock-button">发布</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B. 表单优先</h3>
+      <p>更接近传统 CMS，字段和正文平分注意力，易实现，但写作感弱一些。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>这次请你重点看</h3>
+  <div class="options" data-multiselect>
+    <div class="option" data-choice="layout" onclick="toggleSelect(this)"><div class="letter">1</div><div class="content"><h3>整体布局</h3><p>三栏还是双栏更适合你</p></div></div>
+    <div class="option" data-choice="editor" onclick="toggleSelect(this)"><div class="letter">2</div><div class="content"><h3>正文编辑区</h3><p>是否足够像写作软件</p></div></div>
+    <div class="option" data-choice="settings" onclick="toggleSelect(this)"><div class="letter">3</div><div class="content"><h3>元数据位置</h3><p>右侧设置面板是否合理</p></div></div>
+    <div class="option" data-choice="actions" onclick="toggleSelect(this)"><div class="letter">4</div><div class="content"><h3>保存/发布操作</h3><p>底部操作区是否顺手</p></div></div>
+  </div>
+</div>

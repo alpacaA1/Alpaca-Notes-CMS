@@ -62,6 +62,12 @@ function encodeBase64(value: string) {
   return btoa(binary)
 }
 
+function decodeBase64(value: string) {
+  const binary = atob(value)
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
+  return new TextDecoder().decode(bytes)
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
@@ -112,7 +118,7 @@ export async function fetchPostFile(
   return {
     path: file.path,
     sha: file.sha,
-    content: atob(file.content.replace(/\n/g, '')),
+    content: decodeBase64(file.content.replace(/\n/g, '')),
   }
 }
 

@@ -438,7 +438,7 @@ acorn@^7.1.1:
   resolved "https://registry.npmjs.org/acorn/-/acorn-7.4.1.tgz"
   integrity sha512-nQyp0o1/mNdbTO1PO6kHkwSrmgZ0MT/jCCpNiwbUjGoRN4dlBhqJtoQuCnEOKzgTVwg0ZWiCoQy6SxMebQVh8A==
 
-"admin-app@file:/Users/tianxucheng/Documents/analyze-data/alpacaA1.github.io/.worktrees/custom-admin-editor-plan/admin-app":
+"admin-app@file:/Users/tianxucheng/Documents/analyze-data/alpacaA1.github.io/admin-app":
   version "0.0.0"
   resolved "file:admin-app"
   dependencies:
