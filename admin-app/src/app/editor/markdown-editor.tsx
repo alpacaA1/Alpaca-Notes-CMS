@@ -170,6 +170,7 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     }
 
     event.preventDefault()
+    event.stopPropagation()
 
     if (!event.shiftKey && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)

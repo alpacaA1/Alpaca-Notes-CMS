@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import MarkdownEditor from './markdown-editor'
 
 function renderControlledEditor(initialValue: string) {
@@ -41,6 +41,23 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(editor.value.length)
     expect(editor.selectionEnd).toBe(editor.value.length)
     expect(document.activeElement).toBe(editor)
+  })
+
+  it('stops Tab from bubbling to parent handlers', () => {
+    const onParentKeyDown = vi.fn()
+
+    render(
+      <div onKeyDown={onParentKeyDown}>
+        <MarkdownEditor value="- " onChange={() => {}} />
+      </div>,
+    )
+
+    const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(onParentKeyDown).not.toHaveBeenCalled()
   })
 
   it('removes indentation when pressing Shift+Tab', () => {
