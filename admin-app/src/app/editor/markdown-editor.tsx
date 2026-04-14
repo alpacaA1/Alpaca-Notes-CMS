@@ -61,6 +61,11 @@ function getNextOrderedMarker(marker: string) {
 }
 
 function getContinuedListPrefix(line: string) {
+  const taskListMatch = line.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s+(.+)$/)
+  if (taskListMatch) {
+    return `${taskListMatch[1]}${taskListMatch[2]} [ ] `
+  }
+
   const unorderedMatch = line.match(/^(\s*)([-*+])\s+(.+)$/)
   if (unorderedMatch) {
     return `${unorderedMatch[1]}${unorderedMatch[2]} `
@@ -75,6 +80,11 @@ function getContinuedListPrefix(line: string) {
 }
 
 function getListPrefixToRemove(line: string) {
+  const taskListMatch = line.match(/^(\s*)([-*+])\s+\[(?: |x|X)\]\s*$/)
+  if (taskListMatch) {
+    return taskListMatch[0]
+  }
+
   const unorderedMatch = line.match(/^(\s*)([-*+])\s*$/)
   if (unorderedMatch) {
     return unorderedMatch[0]

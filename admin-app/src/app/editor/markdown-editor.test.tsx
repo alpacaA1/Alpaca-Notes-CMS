@@ -85,6 +85,17 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(editor.value.length)
   })
 
+  it('continues task lists when pressing Enter', () => {
+    const editor = renderControlledEditor('- [ ] item')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('- [ ] item\n- [ ] ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+  })
+
   it('exits numbered lists when pressing Enter on an empty item', () => {
     const editor = renderControlledEditor('1. ')
 
@@ -98,6 +109,17 @@ describe('markdown editor', () => {
 
   it('exits unordered lists when pressing Enter on an empty item', () => {
     const editor = renderControlledEditor('  - ')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('')
+    expect(editor.selectionStart).toBe(0)
+  })
+
+  it('exits task lists when pressing Enter on an empty item', () => {
+    const editor = renderControlledEditor('  - [ ] ')
 
     editor.focus()
     editor.setSelectionRange(editor.value.length, editor.value.length)
