@@ -30,6 +30,19 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(9)
   })
 
+  it('indents empty list items when pressing Tab', () => {
+    const editor = renderControlledEditor('- 12\n- ')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('- 12\n  - ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+    expect(document.activeElement).toBe(editor)
+  })
+
   it('removes indentation when pressing Shift+Tab', () => {
     const editor = renderControlledEditor('1. aaa\n  a. item')
 
