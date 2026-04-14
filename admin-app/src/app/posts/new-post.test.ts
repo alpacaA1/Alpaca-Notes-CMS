@@ -53,4 +53,15 @@ describe('new post helpers', () => {
 
     expect(validatePostForSave(newPost, { isNewPost: false }).permalink).toBeUndefined()
   })
+
+  it('rejects absolute permalink URLs', () => {
+    const post = createNewPost(fixedDate)
+    post.frontmatter.title = '真爱'
+    post.frontmatter.desc = '真爱'
+    post.frontmatter.permalink = 'https://alpacaa1.github.io/Alpaca-Notes-CMS/zhenai/'
+
+    expect(validatePostForSave(post, { isNewPost: true }).permalink).toBe(
+      '永久链接请填写站内相对路径，例如 zhenai/。',
+    )
+  })
 })

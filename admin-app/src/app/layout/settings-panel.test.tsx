@@ -133,6 +133,23 @@ describe('settings panel', () => {
     expect(screen.getByText('首次保存前请填写永久链接。')).toBeTruthy()
   })
 
+  it('shows permalink validation errors for absolute URLs', () => {
+    render(
+      <SettingsPanel
+        document={createNewPost(new Date(2026, 3, 3, 10, 11, 12))}
+        validationErrors={{
+          permalink: '永久链接请填写站内相对路径，例如 zhenai/。',
+        }}
+        publishLocked={false}
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('永久链接请填写站内相对路径，例如 zhenai/。')).toBeTruthy()
+  })
+
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {
     const { onFieldChange } = renderControlledSettingsPanel({
       document: createExistingPost(),

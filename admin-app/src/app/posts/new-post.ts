@@ -66,6 +66,7 @@ export function createNewPost(date = new Date()): ParsedPost {
 
 export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: boolean }): PostValidationErrors {
   const errors: PostValidationErrors = {}
+  const permalink = post.frontmatter.permalink?.trim() || ''
 
   if (!post.frontmatter.title.trim()) {
     errors.title = '请填写标题。'
@@ -79,8 +80,12 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.desc = '请填写摘要。'
   }
 
-  if (options?.isNewPost && !post.frontmatter.permalink?.trim()) {
+  if (options?.isNewPost && !permalink) {
     errors.permalink = '首次保存前请填写永久链接。'
+  }
+
+  if (/^[a-z][a-z\d+.-]*:\/\//i.test(permalink)) {
+    errors.permalink = '永久链接请填写站内相对路径，例如 zhenai/。'
   }
 
   return errors
