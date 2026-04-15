@@ -39,10 +39,10 @@ const x = 1
     })
   })
 
-  it('rejects image syntax for safe markdown fallback', () => {
+  it('accepts markdown image syntax in the visual editor subset', () => {
     expect(detectRichMarkdownSupport('![alt](/uploads/example.png)')).toEqual({
-      supported: false,
-      reason: '富文本模式暂不支持图片语法。',
+      supported: true,
+      reason: null,
     })
   })
 })

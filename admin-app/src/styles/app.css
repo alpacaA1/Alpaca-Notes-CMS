@@ -668,6 +668,71 @@ textarea {
   min-height: 100%;
 }
 
+.rich-editor {
+  align-content: start;
+}
+
+.rich-editor__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.rich-editor__add {
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 999px;
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.rich-editor__markdown-value {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  inline-size: 1px;
+  block-size: 1px;
+}
+
+.rich-editor__blocks {
+  display: grid;
+  gap: 14px;
+}
+
+.rich-editor__block,
+.rich-editor__block--image {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.rich-editor__block > span,
+.rich-editor__block--image label > span {
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.rich-editor__block input,
+.rich-editor__block textarea,
+.rich-editor__block--image input {
+  width: 100%;
+  border-radius: 14px;
+  border: 1px solid var(--admin-line-strong);
+  padding: 12px 14px;
+  background: #fdfbf8;
+}
+
+.rich-editor__block textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
 .editor-surface__label {
   font-size: 1.4rem;
   line-height: 1.05;
@@ -693,6 +758,9 @@ textarea {
 }
 
 .editor-textarea:focus,
+.rich-editor__block input:focus,
+.rich-editor__block textarea:focus,
+.rich-editor__block--image input:focus,
 .settings-panel input:focus,
 .settings-panel textarea:focus,
 .top-bar__search input:focus {

@@ -49,17 +49,17 @@ desc: desc
 Body with [safe link](https://example.com), [relative link](/internal), [bare relative link](guide/), [asset link](assets/file.pdf), [unsafe link](javascript:alert), [tab-obfuscated link](java	script:alert(1)), [newline-obfuscated link](java
 script:alert(1)), and [protocol-relative link](//example.com).`
 
-const unsupportedPost = {
+const imagePost = {
   ...supportedPost,
-  path: 'source/_posts/preview-unsupported.md',
-  sha: 'sha-preview-unsupported',
-  title: 'Preview unsupported post',
-  permalink: 'preview-unsupported-post/',
+  path: 'source/_posts/preview-image.md',
+  sha: 'sha-preview-image',
+  title: 'Preview image post',
+  permalink: 'preview-image-post/',
 }
 
-const unsupportedContent = `---
-title: Preview unsupported post
-permalink: preview-unsupported-post/
+const imageContent = `---
+title: Preview image post
+permalink: preview-image-post/
 date: 2026-04-03 12:00:00
 published: true
 categories:
@@ -150,28 +150,28 @@ describe('App preview mode', () => {
     expect(protocolRelativeLink.tagName).toBe('SPAN')
   })
 
-  it('keeps unsupported-content warnings visible in preview mode', async () => {
+  it('renders image documents in preview mode without visual-editor fallback warnings', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([unsupportedPost])
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
-      path: unsupportedPost.path,
-      sha: unsupportedPost.sha,
-      content: unsupportedContent,
+      path: imagePost.path,
+      sha: imagePost.sha,
+      content: imageContent,
     })
 
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByText('Preview unsupported post')).toBeTruthy()
+      expect(screen.getByText('Preview image post')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /preview unsupported post/i }))
-    await screen.findByLabelText('Markdown 编辑器')
+    fireEvent.click(screen.getByRole('button', { name: /preview image post/i }))
+    await screen.findByLabelText('可视编辑器')
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
     expect(await screen.findByRole('link', { name: 'alt' })).toBeTruthy()
-    expect(screen.getByText('富文本模式暂不支持图片语法。')).toBeTruthy()
+    expect(screen.queryByText('富文本模式暂不支持图片语法。')).toBeNull()
     expect(screen.queryByText('这是客户端近似预览，最终呈现仍以 Hexo 与主题渲染结果为准。')).toBeNull()
   })
 })

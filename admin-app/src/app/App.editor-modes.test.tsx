@@ -46,11 +46,11 @@ desc: desc
 
 ![alt](/uploads/image.png)`
 
-const unsupportedPost = {
+const imagePost = {
   ...supportedPost,
-  path: 'source/_posts/unsupported.md',
-  title: 'Unsupported post',
-  permalink: 'unsupported-post/',
+  path: 'source/_posts/image.md',
+  title: 'Image post',
+  permalink: 'image-post/',
 }
 
 describe('App editor modes', () => {
@@ -107,24 +107,24 @@ describe('App editor modes', () => {
     expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
   })
 
-  it('keeps unsupported documents in markdown mode and shows the warning banner', async () => {
+  it('opens image documents in rich mode when they fit the supported visual editor subset', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([unsupportedPost])
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
-      path: unsupportedPost.path,
-      sha: unsupportedPost.sha,
+      path: imagePost.path,
+      sha: imagePost.sha,
       content: unsupportedContent,
     })
 
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByText('Unsupported post')).toBeTruthy()
+      expect(screen.getByText('Image post')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: /unsupported post/i }))
-    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
-    expect(screen.getByText('富文本模式暂不支持图片语法。')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: /image post/i }))
+    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(screen.queryByText('富文本模式暂不支持图片语法。')).toBeNull()
   })
 
   it('uses immersive mode to hide side panes and current document frame and restores them on exit', async () => {
@@ -180,7 +180,9 @@ describe('App editor modes', () => {
     expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Edited title before preview' } })
-    fireEvent.change(screen.getByLabelText('可视编辑器'), { target: { value: 'Edited body before preview with **bold** text.' } })
+    fireEvent.change(screen.getByLabelText('段落内容'), {
+      target: { value: 'Edited body before preview with **bold** text.' },
+    })
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
@@ -195,7 +197,7 @@ describe('App editor modes', () => {
     const richEditor = await screen.findByLabelText('可视编辑器')
     expect(richEditor).toBeTruthy()
     expect(screen.getByDisplayValue('Edited title before preview')).toBeTruthy()
-    expect(screen.getByDisplayValue('Edited body before preview with **bold** text.')).toBeTruthy()
+    expect(screen.getByLabelText('段落内容')).toHaveProperty('value', 'Edited body before preview with **bold** text.')
     expect(screen.getByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
