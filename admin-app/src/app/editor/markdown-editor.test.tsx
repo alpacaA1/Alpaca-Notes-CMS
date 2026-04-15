@@ -184,6 +184,30 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(6)
   })
 
+  it('preserves indentation when pressing Enter inside code blocks', () => {
+    const editor = renderControlledEditor('```js\n  const a = 1')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('```js\n  const a = 1\n  ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('inserts indentation when pressing Tab inside code blocks', () => {
+    const editor = renderControlledEditor('```js\n  const a = 1')
+
+    editor.focus()
+    editor.setSelectionRange(6, 6)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('```js\n    const a = 1')
+    expect(editor.selectionStart).toBe(8)
+    expect(editor.selectionEnd).toBe(8)
+  })
+
   it('exits numbered lists when pressing Enter on an empty item', () => {
     const editor = renderControlledEditor('1. ')
 
@@ -265,6 +289,31 @@ describe('markdown editor', () => {
     })
 
     expect(editor.value).toBe('  item\n    child')
+  })
+
+  it('normalizes common rich-text spacing when pasting content', () => {
+    const editor = renderControlledEditor('')
+
+    editor.focus()
+    editor.setSelectionRange(0, 0)
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: () => '•\u00a0item\n　quote',
+      },
+    })
+
+    expect(editor.value).toBe('- item\n quote')
+  })
+
+  it('keeps selection around inserted bold text for native undo behavior', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    editor.setSelectionRange(0, 5)
+    fireEvent.keyDown(editor, { key: 'b', metaKey: true })
+
+    expect(editor.selectionStart).toBe(2)
+    expect(editor.selectionEnd).toBe(7)
   })
 
   it('moves the current list item downward with alt+ArrowDown', () => {

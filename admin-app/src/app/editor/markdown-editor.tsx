@@ -181,8 +181,22 @@ function wrapSelection(
   }
 }
 
+function isInsideCodeFence(value: string, selectionStart: number) {
+  const contentBeforeSelection = value.slice(0, selectionStart)
+  const fenceMatches = contentBeforeSelection.match(/^\s*```.*$/gm)
+  return Boolean(fenceMatches && fenceMatches.length % 2 === 1)
+}
+
+function getCurrentLineIndent(line: string) {
+  return line.match(/^(\s*)/)?.[1] || ''
+}
+
 function normalizePastedMarkdown(text: string) {
-  return text.replace(/\t/g, INDENT).replace(/　/g, ' ')
+  return text
+    .replace(/\t/g, INDENT)
+    .replace(/　/g, ' ')
+    .replace(/\u00a0/g, ' ')
+    .replace(/^\s*[•·◦▪▫]\s*/gm, '- ')
 }
 
 function moveCurrentLine(value: string, selectionStart: number, direction: 'up' | 'down') {
@@ -323,6 +337,15 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
         return
       }
 
+      if (isInsideCodeFence(value, selectionStart)) {
+        event.preventDefault()
+        const indent = getCurrentLineIndent(currentLine)
+        const nextValue = `${value.slice(0, selectionStart)}\n${indent}${value.slice(selectionEnd)}`
+        const nextCaret = selectionStart + 1 + indent.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
+
       const blockquoteContinuationPrefix = getBlockquoteContinuationPrefix(currentLine)
       if (blockquoteContinuationPrefix) {
         event.preventDefault()
@@ -366,6 +389,13 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
       const lineEnd = getLineEnd(value, selectionStart)
       const currentLine = value.slice(lineStart, lineEnd)
       const emptyListPrefix = getListPrefixToRemove(currentLine)
+
+      if (isInsideCodeFence(value, selectionStart)) {
+        const nextValue = `${value.slice(0, selectionStart)}${INDENT}${value.slice(selectionEnd)}`
+        const nextCaret = selectionStart + INDENT.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
 
       if (selectionStart === lineStart || (emptyListPrefix && selectionStart === lineEnd)) {
         const indentedLine = indentLine(currentLine)
