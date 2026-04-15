@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef } from 'react'
 
 const INDENT = '  '
+const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
 
 type MarkdownEditorProps = {
   value: string
@@ -41,10 +42,52 @@ function removeIndent(line: string) {
   return line
 }
 
+function indentLine(line: string) {
+  const topLevelOrderedMatch = line.match(/^(\d+)([.)])(\s.*)$/)
+  if (topLevelOrderedMatch) {
+    return `${INDENT}a${topLevelOrderedMatch[2]}${topLevelOrderedMatch[3]}`
+  }
+
+  const nestedAlphaMatch = line.match(/^(\s{2})([a-zA-Z])([.)])(\s.*)$/)
+  if (nestedAlphaMatch) {
+    return `${nestedAlphaMatch[1]}${INDENT}i${nestedAlphaMatch[3]}${nestedAlphaMatch[4]}`
+  }
+
+  return `${INDENT}${line}`
+}
+
+function outdentLine(line: string) {
+  const nestedRomanMatch = line.match(/^(\s{4})i([.)])(\s.*)$/i)
+  if (nestedRomanMatch) {
+    return `${INDENT}a${nestedRomanMatch[2]}${nestedRomanMatch[3]}`
+  }
+
+  return removeIndent(line)
+}
+
+function getNextRomanMarker(marker: string) {
+  const lowerMarker = marker.toLowerCase()
+  const markerIndex = ROMAN_MARKERS.indexOf(lowerMarker)
+  if (markerIndex === -1 || markerIndex === ROMAN_MARKERS.length - 1) {
+    return null
+  }
+
+  const nextMarker = ROMAN_MARKERS[markerIndex + 1]
+  return marker === lowerMarker ? nextMarker : nextMarker.toUpperCase()
+}
+
 function getNextOrderedMarker(marker: string) {
   const numberedMatch = marker.match(/^(\d+)([.)])$/)
   if (numberedMatch) {
     return `${Number(numberedMatch[1]) + 1}${numberedMatch[2]}`
+  }
+
+  const romanMatch = marker.match(/^([ivxlcdm]+)([.)])$/i)
+  if (romanMatch) {
+    const nextRomanMarker = getNextRomanMarker(romanMatch[1])
+    if (nextRomanMarker) {
+      return `${nextRomanMarker}${romanMatch[2]}`
+    }
   }
 
   const alphaMatch = marker.match(/^([a-zA-Z])([.)])$/)
@@ -71,7 +114,7 @@ function getContinuedListPrefix(line: string) {
     return `${unorderedMatch[1]}${unorderedMatch[2]} `
   }
 
-  const orderedMatch = line.match(/^(\s*)((?:\d+|[a-zA-Z])[.)])\s+(.+)$/)
+  const orderedMatch = line.match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])\s+(.+)$/)
   if (orderedMatch) {
     return `${orderedMatch[1]}${getNextOrderedMarker(orderedMatch[2])} `
   }
@@ -90,12 +133,83 @@ function getListPrefixToRemove(line: string) {
     return unorderedMatch[0]
   }
 
-  const orderedMatch = line.match(/^(\s*)((?:\d+|[a-zA-Z])[.)])\s*$/)
+  const orderedMatch = line.match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])\s*$/)
   if (orderedMatch) {
     return orderedMatch[0]
   }
 
   return null
+}
+
+function getBlockquoteContinuationPrefix(line: string) {
+  const blockquoteMatch = line.match(/^(\s*(?:>\s?)+)(.*)$/)
+  if (!blockquoteMatch) {
+    return null
+  }
+
+  const [, prefix, content] = blockquoteMatch
+  const continuedListPrefix = getContinuedListPrefix(content)
+  if (continuedListPrefix) {
+    return `${prefix}${continuedListPrefix}`
+  }
+
+  if (getListPrefixToRemove(content) || content.trim()) {
+    return prefix.endsWith(' ') ? prefix : `${prefix} `
+  }
+
+  return null
+}
+
+function wrapSelection(
+  value: string,
+  selectionStart: number,
+  selectionEnd: number,
+  prefix: string,
+  suffix: string,
+  placeholder = '',
+) {
+  const selectedText = value.slice(selectionStart, selectionEnd)
+  const content = selectedText || placeholder
+  const nextValue = `${value.slice(0, selectionStart)}${prefix}${content}${suffix}${value.slice(selectionEnd)}`
+  const contentStart = selectionStart + prefix.length
+  return {
+    nextValue,
+    nextSelection: {
+      start: contentStart,
+      end: contentStart + content.length,
+    },
+  }
+}
+
+function normalizePastedMarkdown(text: string) {
+  return text.replace(/\t/g, INDENT).replace(/　/g, ' ')
+}
+
+function moveCurrentLine(value: string, selectionStart: number, direction: 'up' | 'down') {
+  const lines = value.split('\n')
+  const currentLineIndex = value.slice(0, selectionStart).split('\n').length - 1
+  const targetLineIndex = direction === 'down' ? currentLineIndex + 1 : currentLineIndex - 1
+
+  if (targetLineIndex < 0 || targetLineIndex >= lines.length) {
+    return null
+  }
+
+  const cursorOffset = selectionStart - getLineStart(value, selectionStart)
+  const nextLines = [...lines]
+  ;[nextLines[currentLineIndex], nextLines[targetLineIndex]] = [
+    nextLines[targetLineIndex],
+    nextLines[currentLineIndex],
+  ]
+
+  const nextLineStart = nextLines
+    .slice(0, targetLineIndex)
+    .reduce((totalLength, line) => totalLength + line.length + 1, 0)
+  const nextSelectionStart = nextLineStart + Math.min(cursorOffset, nextLines[targetLineIndex].length)
+
+  return {
+    nextValue: nextLines.join('\n'),
+    nextSelection: { start: nextSelectionStart, end: nextSelectionStart },
+  }
 }
 
 export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
@@ -121,12 +235,67 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const { selectionStart, selectionEnd } = event.currentTarget
+    const normalizedKey = event.key.toLowerCase()
+
+    if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const wrap =
+        normalizedKey === 'b'
+          ? { prefix: '**', suffix: '**', placeholder: '粗体' }
+          : normalizedKey === 'i'
+            ? { prefix: '*', suffix: '*', placeholder: '斜体' }
+            : normalizedKey === 'k'
+              ? { prefix: '[', suffix: ']()', placeholder: '链接文本' }
+              : null
+
+      if (wrap) {
+        event.preventDefault()
+        event.stopPropagation()
+        const { nextValue, nextSelection } = wrapSelection(
+          value,
+          selectionStart,
+          selectionEnd,
+          wrap.prefix,
+          wrap.suffix,
+          wrap.placeholder,
+        )
+        applyValue(nextValue, nextSelection)
+        return
+      }
+    }
+
+    if (event.altKey && selectionStart === selectionEnd) {
+      const direction = event.key === 'ArrowDown' ? 'down' : event.key === 'ArrowUp' ? 'up' : null
+      if (direction) {
+        event.preventDefault()
+        event.stopPropagation()
+        const nextState = moveCurrentLine(value, selectionStart, direction)
+        if (nextState) {
+          applyValue(nextState.nextValue, nextState.nextSelection)
+        }
+        return
+      }
+    }
 
     if (event.key === 'Backspace' && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)
-      const currentLine = value.slice(lineStart, getLineEnd(value, selectionStart))
+      const lineEnd = getLineEnd(value, selectionStart)
+      const currentLine = value.slice(lineStart, lineEnd)
+      const emptyListPrefix = getListPrefixToRemove(currentLine)
       const indentOnlyPrefix = currentLine.match(/^(\s+)/)?.[0] || ''
       const cursorOffset = selectionStart - lineStart
+
+      if (
+        emptyListPrefix &&
+        selectionStart === lineEnd &&
+        (currentLine.startsWith(INDENT) || currentLine.startsWith('\t'))
+      ) {
+        event.preventDefault()
+        const nextLine = outdentLine(currentLine)
+        const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
+        const nextCaret = lineStart + nextLine.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
 
       if (cursorOffset > 0 && cursorOffset <= indentOnlyPrefix.length) {
         const removedWidth = indentOnlyPrefix.startsWith('\t', Math.max(0, cursorOffset - 1))
@@ -143,6 +312,26 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     if (event.key === 'Enter' && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)
       const currentLine = value.slice(lineStart, selectionStart)
+      const codeFenceMatch = currentLine.match(/^(\s*)```(?:[^`]*)$/)
+
+      if (codeFenceMatch) {
+        event.preventDefault()
+        const indent = codeFenceMatch[1]
+        const nextValue = `${value.slice(0, selectionStart)}\n${indent}\n${indent}\`\`\`${value.slice(selectionEnd)}`
+        const nextCaret = selectionStart + 1 + indent.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
+
+      const blockquoteContinuationPrefix = getBlockquoteContinuationPrefix(currentLine)
+      if (blockquoteContinuationPrefix) {
+        event.preventDefault()
+        const nextValue = `${value.slice(0, selectionStart)}\n${blockquoteContinuationPrefix}${value.slice(selectionEnd)}`
+        const nextCaret = selectionStart + 1 + blockquoteContinuationPrefix.length
+        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        return
+      }
+
       const listPrefixToRemove = getListPrefixToRemove(currentLine)
 
       if (listPrefixToRemove) {
@@ -178,9 +367,10 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
       const currentLine = value.slice(lineStart, lineEnd)
       const emptyListPrefix = getListPrefixToRemove(currentLine)
 
-      if (emptyListPrefix && selectionStart === lineEnd) {
-        const nextValue = `${value.slice(0, lineStart)}${INDENT}${currentLine}${value.slice(lineEnd)}`
-        const nextCaret = selectionStart + INDENT.length
+      if (selectionStart === lineStart || (emptyListPrefix && selectionStart === lineEnd)) {
+        const indentedLine = indentLine(currentLine)
+        const nextValue = `${value.slice(0, lineStart)}${indentedLine}${value.slice(lineEnd)}`
+        const nextCaret = selectionStart + (indentedLine.length - currentLine.length)
         applyValue(nextValue, { start: nextCaret, end: nextCaret })
         return
       }
@@ -195,14 +385,14 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
       const currentLine = value.slice(lineStart, lineEnd)
-      const unindentedLine = removeIndent(currentLine)
-      const removedCount = currentLine.length - unindentedLine.length
+      const outdentedLine = outdentLine(currentLine)
+      const removedCount = currentLine.length - outdentedLine.length
 
       if (removedCount === 0) {
         return
       }
 
-      const nextValue = `${value.slice(0, lineStart)}${unindentedLine}${value.slice(lineEnd)}`
+      const nextValue = `${value.slice(0, lineStart)}${outdentedLine}${value.slice(lineEnd)}`
       const nextCaret = Math.max(lineStart, selectionStart - removedCount)
       applyValue(nextValue, { start: nextCaret, end: nextCaret })
       return
@@ -212,11 +402,27 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
     const selectedBlock = value.slice(start, end)
     const nextBlock = selectedBlock
       .split('\n')
-      .map((line) => (event.shiftKey ? removeIndent(line) : `${INDENT}${line}`))
+      .map((line) => (event.shiftKey ? outdentLine(line) : indentLine(line)))
       .join('\n')
     const nextValue = `${value.slice(0, start)}${nextBlock}${value.slice(end)}`
 
     applyValue(nextValue, { start, end: start + nextBlock.length })
+  }
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const pastedText = event.clipboardData.getData('text/plain')
+    if (!pastedText) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    const { selectionStart, selectionEnd } = event.currentTarget
+    const normalizedText = normalizePastedMarkdown(pastedText)
+    const nextValue = `${value.slice(0, selectionStart)}${normalizedText}${value.slice(selectionEnd)}`
+    const nextCaret = selectionStart + normalizedText.length
+    applyValue(nextValue, { start: nextCaret, end: nextCaret })
   }
 
   return (
@@ -230,6 +436,7 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
         value={value}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
       />
     </label>
   )

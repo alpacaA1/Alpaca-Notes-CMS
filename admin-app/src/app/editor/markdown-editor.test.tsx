@@ -60,6 +60,30 @@ describe('markdown editor', () => {
     expect(onParentKeyDown).not.toHaveBeenCalled()
   })
 
+  it('converts empty ordered items to alphabetic markers when indenting with Tab', () => {
+    const editor = renderControlledEditor('1. aaa\n2. ')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('1. aaa\n  a. ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('converts alphabetic ordered items to roman markers when indenting with Tab', () => {
+    const editor = renderControlledEditor('1. aaa\n  a. item')
+
+    editor.focus()
+    editor.setSelectionRange(7, 7)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('1. aaa\n    i. item')
+    expect(editor.selectionStart).toBe(9)
+    expect(editor.selectionEnd).toBe(9)
+  })
+
   it('removes indentation when pressing Shift+Tab', () => {
     const editor = renderControlledEditor('1. aaa\n  a. item')
 
@@ -126,6 +150,40 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(editor.value.length)
   })
 
+  it('continues blockquotes when pressing Enter', () => {
+    const editor = renderControlledEditor('> quote')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('> quote\n> ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+  })
+
+  it('continues blockquote lists when pressing Enter', () => {
+    const editor = renderControlledEditor('> 1. item')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('> 1. item\n> 2. ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+  })
+
+  it('continues fenced code blocks when pressing Enter', () => {
+    const editor = renderControlledEditor('```js')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('```js\n\n```')
+    expect(editor.selectionStart).toBe(6)
+    expect(editor.selectionEnd).toBe(6)
+  })
+
   it('exits numbered lists when pressing Enter on an empty item', () => {
     const editor = renderControlledEditor('1. ')
 
@@ -169,6 +227,54 @@ describe('markdown editor', () => {
     expect(editor.value).toBe('  a. item')
     expect(editor.selectionStart).toBe(2)
     expect(editor.selectionEnd).toBe(2)
+  })
+
+  it('outdents empty list items when pressing Backspace at the end', () => {
+    const editor = renderControlledEditor('  - ')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+
+    expect(editor.value).toBe('- ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('wraps selected text in bold markers with mod+b', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    editor.setSelectionRange(0, 5)
+    fireEvent.keyDown(editor, { key: 'b', metaKey: true })
+
+    expect(editor.value).toBe('**hello**')
+    expect(editor.selectionStart).toBe(2)
+    expect(editor.selectionEnd).toBe(7)
+  })
+
+  it('normalizes tabs when pasting content', () => {
+    const editor = renderControlledEditor('')
+
+    editor.focus()
+    editor.setSelectionRange(0, 0)
+    fireEvent.paste(editor, {
+      clipboardData: {
+        getData: () => '\titem\n\t\tchild',
+      },
+    })
+
+    expect(editor.value).toBe('  item\n    child')
+  })
+
+  it('moves the current list item downward with alt+ArrowDown', () => {
+    const editor = renderControlledEditor('- first\n- second')
+
+    editor.focus()
+    editor.setSelectionRange(2, 2)
+    fireEvent.keyDown(editor, { key: 'ArrowDown', altKey: true })
+
+    expect(editor.value).toBe('- second\n- first')
   })
 
   it('keeps normal Backspace behavior outside leading indentation', () => {
