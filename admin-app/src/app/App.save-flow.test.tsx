@@ -72,7 +72,7 @@ describe('App save flow', () => {
     expect(saveButtonBeforeOpen.disabled).toBe(true)
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     const cleanSaveButton = screen.getByRole('button', { name: '已保存' }) as HTMLButtonElement
     expect(cleanSaveButton.disabled).toBe(true)
@@ -123,7 +123,7 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
@@ -164,7 +164,7 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
@@ -205,7 +205,7 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: '' } })
 
@@ -242,7 +242,7 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
     fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Updated desc' } })
@@ -287,7 +287,7 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Locally changed title' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
@@ -314,9 +314,9 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('可视编辑器'), { target: { value: 'Changed body' } })
+    fireEvent.change(screen.getByLabelText('Markdown 编辑器'), { target: { value: 'Changed body' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     expect(await screen.findByText('save failed')).toBeTruthy()
@@ -341,9 +341,9 @@ describe('App save flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('可视编辑器'), { target: { value: 'Changed body' } })
+    fireEvent.change(screen.getByLabelText('Markdown 编辑器'), { target: { value: 'Changed body' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()

@@ -1,11 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
-import { fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile } from './github-client'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
+import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import MarkdownEditor from './editor/markdown-editor'
-import RichEditor from './editor/rich-editor'
-import UnsupportedBanner from './editor/unsupported-banner'
 import PreviewPane from './editor/preview-pane'
-import { markdownToRichText, detectRichMarkdownSupport, richTextToMarkdown } from './editor/rich-markdown'
-import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
+import { useEditorDocument } from './editor/use-editor-document'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import SettingsPanel from './layout/settings-panel'
@@ -20,8 +18,6 @@ import type { PostIndexItem } from './posts/post-types'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
 const SAVE_SUCCESS_MESSAGE = '已保存。'
-
-type EditorChoice = Exclude<EditorMode, 'preview'>
 
 function EmptyState({ error }: { error: string | null }) {
   return (
@@ -48,14 +44,13 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [lastEditorMode, setLastEditorMode] = useState<EditorChoice>('markdown')
-  const [unsupportedMessage, setUnsupportedMessage] = useState<string | null>(null)
+  const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
+  const previewObjectUrlsRef = useRef<string[]>([])
   const {
     document,
     mode,
     isDirty,
     publishLocked,
-    hasUnsupportedRichContent,
     validationErrors,
     canNavigateAway,
     setMode,
@@ -64,7 +59,6 @@ export default function App() {
     updateBody,
     validate,
     markSaved,
-    setHasUnsupportedRichContent,
   } = useEditorDocument()
 
   const filteredPosts = useMemo(
@@ -83,26 +77,25 @@ export default function App() {
     [posts],
   )
 
-  const richMarkdownSupport = useMemo(
-    () => (document ? detectRichMarkdownSupport(document.body) : null),
-    [document?.body],
-  )
+  const revokePreviewObjectUrls = () => {
+    if (typeof URL.revokeObjectURL === 'function') {
+      previewObjectUrlsRef.current.forEach((objectUrl) => {
+        URL.revokeObjectURL(objectUrl)
+      })
+    }
+    previewObjectUrlsRef.current = []
+  }
+
+  const resetPreviewImageUrls = () => {
+    revokePreviewObjectUrls()
+    setPreviewImageUrls({})
+  }
 
   useEffect(() => {
-    if (!richMarkdownSupport) {
-      setHasUnsupportedRichContent(false)
-      setUnsupportedMessage(null)
-      return
+    return () => {
+      revokePreviewObjectUrls()
     }
-
-    setHasUnsupportedRichContent(!richMarkdownSupport.supported)
-    setUnsupportedMessage(richMarkdownSupport.reason)
-
-    if (!richMarkdownSupport.supported && mode === 'rich') {
-      setLastEditorMode('markdown')
-      setMode('markdown')
-    }
-  }, [mode, richMarkdownSupport, setHasUnsupportedRichContent, setMode])
+  }, [])
 
   useEffect(() => {
     if (!session) {
@@ -148,13 +141,9 @@ export default function App() {
   }, [session, sessionStore])
 
   const applyDocument = (nextPost: ParsedPost) => {
-    const support = detectRichMarkdownSupport(nextPost.body)
-    const nextMode: EditorChoice = support.supported ? 'rich' : 'markdown'
-
+    resetPreviewImageUrls()
     replaceDocument(nextPost)
     setActivePostPath(nextPost.path)
-    setLastEditorMode(nextMode)
-    setMode(nextMode)
     setIsImmersive(false)
     setSuccessMessage(null)
     setError(null)
@@ -187,13 +176,12 @@ export default function App() {
   }
 
   const resetWorkspace = () => {
+    resetPreviewImageUrls()
     setPosts([])
     setActivePostPath(null)
     setIsOpeningPost(false)
     setSuccessMessage(null)
     replaceDocument(null)
-    setLastEditorMode('markdown')
-    setUnsupportedMessage(null)
     setIsImmersive(false)
   }
 
@@ -319,26 +307,7 @@ export default function App() {
       return
     }
 
-    if (mode === 'preview') {
-      setMode(lastEditorMode)
-      return
-    }
-
-    setLastEditorMode(mode)
-    setMode('preview')
-  }
-
-  const handleSelectMode = (nextMode: EditorChoice) => {
-    if (!document) {
-      return
-    }
-
-    if (nextMode === 'rich' && hasUnsupportedRichContent) {
-      return
-    }
-
-    setLastEditorMode(nextMode)
-    setMode(nextMode)
+    setMode(mode === 'preview' ? 'markdown' : 'preview')
   }
 
   const clearSuccessMessageOnDirty = () => {
@@ -354,13 +323,46 @@ export default function App() {
 
   const handleEditorChange = (value: string) => {
     clearSuccessMessageOnDirty()
+    updateBody(value)
+  }
 
-    if (mode === 'rich') {
-      updateBody(richTextToMarkdown(value))
-      return
+  const handleUploadImage = async (file: File) => {
+    if (!session) {
+      throw new Error('GitHub 会话已过期，请重新登录。')
     }
 
-    updateBody(value)
+    clearSuccessMessageOnDirty()
+    setError(null)
+
+    try {
+      const descriptor = buildImageUploadDescriptor(file)
+      await uploadImageFile(session, {
+        path: descriptor.repoPath,
+        file,
+      })
+
+      const objectUrl = typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : null
+      if (objectUrl) {
+        previewObjectUrlsRef.current.push(objectUrl)
+        setPreviewImageUrls((currentUrls) => ({
+          ...currentUrls,
+          [descriptor.publicUrl]: objectUrl,
+        }))
+      }
+
+      return {
+        markdown: buildImageMarkdown(descriptor.defaultAlt, descriptor.publicUrl),
+      }
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        throw caughtError
+      }
+
+      const message = caughtError instanceof Error ? caughtError.message : '上传图片失败。'
+      setError(message)
+      throw caughtError instanceof Error ? caughtError : new Error(message)
+    }
   }
 
   const saveLabel = isSaving ? '保存中…' : document ? (isDirty ? '保存' : '已保存') : '保存'
@@ -429,23 +431,6 @@ export default function App() {
                         <p className="editor-frame__eyebrow">当前稿件</p>
                         <h1>{document.frontmatter.title?.trim() || '未命名草稿'}</h1>
                       </div>
-                      <div className="editor-mode-bar">
-                        <button
-                          type="button"
-                          aria-pressed={mode === 'rich'}
-                          disabled={hasUnsupportedRichContent}
-                          onClick={() => handleSelectMode('rich')}
-                        >
-                          可视编辑
-                        </button>
-                        <button
-                          type="button"
-                          aria-pressed={mode === 'markdown'}
-                          onClick={() => handleSelectMode('markdown')}
-                        >
-                          Markdown
-                        </button>
-                      </div>
                     </div>
                     <div className="editor-frame__meta">
                       <span>{document.path}</span>
@@ -455,17 +440,19 @@ export default function App() {
                 ) : null}
                 {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
                 {error ? <p className="error-message">{error}</p> : null}
-                {unsupportedMessage ? <UnsupportedBanner message={unsupportedMessage} /> : null}
                 {mode === 'preview' ? (
                   <PreviewPane
                     title={document.frontmatter.title}
                     date={document.frontmatter.date}
                     markdown={document.body}
+                    previewImageUrls={previewImageUrls}
                   />
-                ) : mode === 'rich' ? (
-                  <RichEditor value={markdownToRichText(document.body)} onChange={handleEditorChange} />
                 ) : (
-                  <MarkdownEditor value={document.body} onChange={handleEditorChange} />
+                  <MarkdownEditor
+                    value={document.body}
+                    onChange={handleEditorChange}
+                    onUploadImage={handleUploadImage}
+                  />
                 )}
               </>
             ) : isOpeningPost ? (

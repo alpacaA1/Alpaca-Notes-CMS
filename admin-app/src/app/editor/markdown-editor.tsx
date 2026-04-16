@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react'
+import { useId, useLayoutEffect, useRef, useState } from 'react'
 
 const INDENT = '  '
 const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
@@ -6,6 +6,7 @@ const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', '
 type MarkdownEditorProps = {
   value: string
   onChange: (value: string) => void
+  onUploadImage?: (file: File) => Promise<{ markdown: string }>
 }
 
 function getLineStart(value: string, index: number) {
@@ -226,9 +227,39 @@ function moveCurrentLine(value: string, selectionStart: number, direction: 'up' 
   }
 }
 
-export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps) {
+function getImageFileFromClipboardData(clipboardData: DataTransfer) {
+  for (const item of Array.from(clipboardData.items)) {
+    if (item.kind === 'file' && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        return file
+      }
+    }
+  }
+
+  for (const file of Array.from(clipboardData.files)) {
+    if (file.type.startsWith('image/')) {
+      return file
+    }
+  }
+
+  return null
+}
+
+export default function MarkdownEditor({
+  value,
+  onChange,
+  onUploadImage,
+}: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const textareaId = useId()
+
+  currentValueRef.current = value
 
   useLayoutEffect(() => {
     if (!textareaRef.current || !pendingSelectionRef.current) {
@@ -245,6 +276,62 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
   const applyValue = (nextValue: string, nextSelection: { start: number; end: number }) => {
     pendingSelectionRef.current = nextSelection
     onChange(nextValue)
+  }
+
+  const insertUploadedMarkdown = async (
+    file: File,
+    selection: { start: number; end: number },
+  ) => {
+    if (!onUploadImage) {
+      return
+    }
+
+    setIsUploadingImage(true)
+
+    try {
+      const { markdown } = await onUploadImage(file)
+      const latestValue = currentValueRef.current
+      const nextValue = `${latestValue.slice(0, selection.start)}${markdown}${latestValue.slice(selection.end)}`
+      const nextCaret = selection.start + markdown.length
+      applyValue(nextValue, { start: nextCaret, end: nextCaret })
+    } catch {
+      // App-level error handling is intentionally deferred.
+    } finally {
+      setIsUploadingImage(false)
+    }
+  }
+
+  const handleUploadButtonMouseDown = () => {
+    if (!textareaRef.current || !onUploadImage) {
+      return
+    }
+
+    uploadSelectionRef.current = {
+      start: textareaRef.current.selectionStart,
+      end: textareaRef.current.selectionEnd,
+    }
+  }
+
+  const handleUploadButtonClick = () => {
+    if (!fileInputRef.current || !onUploadImage) {
+      return
+    }
+
+    fileInputRef.current.value = ''
+    fileInputRef.current.click()
+  }
+
+  const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file || !onUploadImage) {
+      return
+    }
+
+    const selection = uploadSelectionRef.current ?? {
+      start: textareaRef.current?.selectionStart ?? 0,
+      end: textareaRef.current?.selectionEnd ?? 0,
+    }
+    await insertUploadedMarkdown(file, selection)
   }
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -440,6 +527,18 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
   }
 
   const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const imageFile = onUploadImage ? getImageFileFromClipboardData(event.clipboardData) : null
+    if (imageFile) {
+      event.preventDefault()
+      event.stopPropagation()
+
+      void insertUploadedMarkdown(imageFile, {
+        start: event.currentTarget.selectionStart,
+        end: event.currentTarget.selectionEnd,
+      })
+      return
+    }
+
     const pastedText = event.clipboardData.getData('text/plain')
     if (!pastedText) {
       return
@@ -456,18 +555,50 @@ export default function MarkdownEditor({ value, onChange }: MarkdownEditorProps)
   }
 
   return (
-    <label className="editor-surface editor-surface--editor-canvas">
-      <span className="editor-surface__label">Markdown 编辑</span>
-      <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
+    <section className="editor-surface editor-surface--editor-canvas">
+      <div className="markdown-editor__toolbar">
+        <div className="markdown-editor__meta">
+          <label className="editor-surface__label" htmlFor={textareaId}>
+            Markdown 编辑
+          </label>
+          <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
+        </div>
+        {onUploadImage ? (
+          <>
+            <input
+              ref={fileInputRef}
+              aria-label="上传图片文件"
+              className="sr-only"
+              type="file"
+              accept="image/*"
+              tabIndex={-1}
+              onChange={(event) => {
+                void handleFileInputChange(event)
+              }}
+            />
+            <button
+              type="button"
+              className="markdown-editor__upload-button"
+              disabled={isUploadingImage}
+              onMouseDown={handleUploadButtonMouseDown}
+              onClick={handleUploadButtonClick}
+            >
+              上传图片
+            </button>
+          </>
+        ) : null}
+      </div>
       <textarea
+        id={textareaId}
         ref={textareaRef}
         aria-label="Markdown 编辑器"
         className="editor-textarea editor-textarea--editor-canvas"
         value={value}
+        disabled={isUploadingImage}
         onChange={(event) => onChange(event.target.value)}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
       />
-    </label>
+    </section>
   )
 }

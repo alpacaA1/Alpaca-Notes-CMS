@@ -38,16 +38,20 @@ describe('useEditorDocument', () => {
     expect(result.current.isDirty).toBe(true)
   })
 
-  it('supports mode switching and unsupported rich-mode fallback flag', () => {
+  it('supports switching between markdown and preview modes', () => {
     const { result } = renderHook(() => useEditorDocument(createExistingPost()))
 
     act(() => {
-      result.current.setMode('rich')
-      result.current.setHasUnsupportedRichContent(true)
+      result.current.setMode('preview')
     })
 
-    expect(result.current.mode).toBe('rich')
-    expect(result.current.hasUnsupportedRichContent).toBe(true)
+    expect(result.current.mode).toBe('preview')
+
+    act(() => {
+      result.current.setMode('markdown')
+    })
+
+    expect(result.current.mode).toBe('markdown')
   })
 
   it('enforces publish lock for already-published posts', () => {
@@ -81,13 +85,15 @@ describe('useEditorDocument', () => {
     expect(result.current.isDirty).toBe(false)
   })
 
-  it('supports switching to another post or starting a new post', () => {
+  it('supports switching to another post or starting a new post and resets mode to markdown', () => {
     const { result } = renderHook(() => useEditorDocument(createExistingPost()))
 
     act(() => {
+      result.current.setMode('preview')
       result.current.updateBody('Changed body')
     })
 
+    expect(result.current.mode).toBe('preview')
     expect(result.current.canNavigateAway).toBe(false)
 
     const nextPost = createNewPost(new Date(2026, 3, 4, 10, 11, 12))
@@ -95,6 +101,7 @@ describe('useEditorDocument', () => {
       result.current.replaceDocument(nextPost)
     })
 
+    expect(result.current.mode).toBe('markdown')
     expect(result.current.document?.path).toBe('source/_posts/20260404101112.md')
     expect(result.current.document?.frontmatter.published).toBe(false)
     expect(result.current.isDirty).toBe(false)

@@ -3,7 +3,7 @@ import type { ParsedPost } from '../posts/parse-post'
 import { validatePostForSave } from '../posts/new-post'
 import type { PostValidationErrors } from '../posts/post-types'
 
-export type EditorMode = 'rich' | 'markdown' | 'preview'
+export type EditorMode = 'markdown' | 'preview'
 
 function clonePost(post: ParsedPost): ParsedPost {
   return {
@@ -28,7 +28,6 @@ export function useEditorDocument(initialPost: ParsedPost | null = null) {
     initialPost ? clonePost(initialPost) : null,
   )
   const [mode, setMode] = useState<EditorMode>('markdown')
-  const [hasUnsupportedRichContent, setHasUnsupportedRichContent] = useState(false)
   const [validationErrors, setValidationErrors] = useState<PostValidationErrors>({})
 
   const isDirty = useMemo(() => !samePost(savedPost, draftPost), [draftPost, savedPost])
@@ -54,7 +53,6 @@ export function useEditorDocument(initialPost: ParsedPost | null = null) {
     setSavedPost(nextPost)
     setDraftPost(nextPost ? clonePost(nextPost) : null)
     setMode('markdown')
-    setHasUnsupportedRichContent(false)
     setValidationErrors({})
   }
 
@@ -119,7 +117,6 @@ export function useEditorDocument(initialPost: ParsedPost | null = null) {
     mode,
     isDirty,
     publishLocked,
-    hasUnsupportedRichContent,
     validationErrors,
     canNavigateAway,
     setMode,
@@ -128,6 +125,5 @@ export function useEditorDocument(initialPost: ParsedPost | null = null) {
     updateBody,
     validate,
     markSaved,
-    setHasUnsupportedRichContent,
   }
 }

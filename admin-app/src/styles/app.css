@@ -284,8 +284,7 @@ textarea {
 .top-bar__eyebrow,
 .post-pane__eyebrow,
 .settings-panel__eyebrow,
-.editor-frame__eyebrow,
-.unsupported-banner__eyebrow {
+.editor-frame__eyebrow {
   margin: 0;
   color: var(--admin-soft);
   font-size: 0.68rem;
@@ -299,7 +298,6 @@ textarea {
 .post-pane h2,
 .settings-panel h2,
 .editor-surface__label,
-.unsupported-banner strong,
 .preview-content h1,
 .preview-content h2,
 .preview-content h3,
@@ -454,7 +452,6 @@ textarea {
 .editor-frame,
 .editor-surface,
 .settings-panel,
-.unsupported-banner,
 .preview-pane {
   border-radius: 24px;
   border: 1px solid var(--admin-line);
@@ -657,8 +654,7 @@ textarea {
 
 .editor-surface,
 .settings-panel,
-.preview-pane,
-.unsupported-banner {
+.preview-pane {
   display: grid;
   gap: 14px;
   padding: 24px;
@@ -668,74 +664,57 @@ textarea {
   min-height: 100%;
 }
 
-.rich-editor {
-  align-content: start;
+.editor-surface__label {
+  font-size: 1.4rem;
+  line-height: 1.05;
 }
 
-.rich-editor__header {
+.markdown-editor__toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 14px;
 }
 
-.rich-editor__add {
-  border: 1px solid var(--admin-line-strong);
-  border-radius: 999px;
-  padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.rich-editor__markdown-value {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-  inline-size: 1px;
-  block-size: 1px;
-}
-
-.rich-editor__blocks {
+.markdown-editor__meta {
   display: grid;
   gap: 14px;
 }
 
-.rich-editor__block,
-.rich-editor__block--image {
-  display: grid;
-  gap: 10px;
-  padding: 16px;
-  border-radius: 18px;
+.markdown-editor__upload-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 15px;
+  border-radius: 999px;
   border: 1px solid var(--admin-line-strong);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
 }
 
-.rich-editor__block > span,
-.rich-editor__block--image label > span {
-  color: var(--admin-soft);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+.markdown-editor__upload-button:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-warm);
+  background: var(--admin-surface-strong);
+  color: var(--admin-text);
+  box-shadow: 0 12px 24px rgba(54, 42, 28, 0.08);
 }
 
-.rich-editor__block input,
-.rich-editor__block textarea,
-.rich-editor__block--image input {
-  width: 100%;
-  border-radius: 14px;
-  border: 1px solid var(--admin-line-strong);
-  padding: 12px 14px;
-  background: #fdfbf8;
-}
-
-.rich-editor__block textarea {
-  min-height: 96px;
-  resize: vertical;
-}
-
-.editor-surface__label {
-  font-size: 1.4rem;
-  line-height: 1.05;
+.markdown-editor__upload-button:disabled {
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+  opacity: 0.72;
 }
 
 .editor-textarea {
@@ -758,9 +737,6 @@ textarea {
 }
 
 .editor-textarea:focus,
-.rich-editor__block input:focus,
-.rich-editor__block textarea:focus,
-.rich-editor__block--image input:focus,
 .settings-panel input:focus,
 .settings-panel textarea:focus,
 .top-bar__search input:focus {
@@ -1071,16 +1047,6 @@ textarea {
   box-shadow: none;
 }
 
-.unsupported-banner {
-  border-color: rgba(141, 113, 77, 0.24);
-  background: linear-gradient(180deg, rgba(249, 244, 236, 0.96), rgba(244, 236, 225, 0.96));
-  color: var(--admin-text);
-}
-
-.unsupported-banner strong {
-  font-size: 1.15rem;
-}
-
 .preview-pane {
   gap: 18px;
 }
@@ -1178,6 +1144,16 @@ textarea {
 
 .preview-content a:hover {
   text-decoration-color: rgba(74, 74, 74, 0.7);
+}
+
+.preview-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.2rem 0;
+  border-radius: 18px;
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .preview-content pre {
@@ -1309,8 +1285,7 @@ textarea {
   .editor-frame,
   .editor-surface,
   .settings-panel,
-  .preview-pane,
-  .unsupported-banner {
+  .preview-pane {
     padding: 18px;
   }
 
