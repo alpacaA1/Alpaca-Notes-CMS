@@ -723,7 +723,7 @@ textarea {
   resize: vertical;
   border-radius: 20px;
   border: 1px solid var(--admin-line-strong);
-  padding: 18px;
+  padding: 18px 24px;
   background: #fdfbf8;
   color: var(--admin-text);
   font-family: Inconsolata, 'Roboto Mono', 'SFMono-Regular', Consolas, monospace;
@@ -1299,6 +1299,7 @@ textarea {
 
   .editor-textarea {
     min-height: 360px;
+    padding: 18px;
   }
 
   .preview-content blockquote {

@@ -3,6 +3,8 @@ import { useId, useLayoutEffect, useRef, useState } from 'react'
 const INDENT = '  '
 const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
 
+type OrderedMarkerKind = 'numeric' | 'alpha' | 'roman'
+
 type MarkdownEditorProps = {
   value: string
   onChange: (value: string) => void
@@ -102,6 +104,108 @@ function getNextOrderedMarker(marker: string) {
   }
 
   return marker
+}
+
+function parseOrderedMarker(marker: string) {
+  const numberedMatch = marker.match(/^(\d+)([.)])$/)
+  if (numberedMatch) {
+    return {
+      kind: 'numeric' as OrderedMarkerKind,
+      ordinal: Number(numberedMatch[1]),
+      separator: numberedMatch[2],
+      uppercase: false,
+    }
+  }
+
+  const romanMatch = marker.match(/^([ivxlcdm]+)([.)])$/i)
+  if (romanMatch) {
+    const normalizedMarker = romanMatch[1].toLowerCase()
+    const ordinal = ROMAN_MARKERS.indexOf(normalizedMarker) + 1
+    if (ordinal > 0) {
+      return {
+        kind: 'roman' as OrderedMarkerKind,
+        ordinal,
+        separator: romanMatch[2],
+        uppercase: romanMatch[1] !== normalizedMarker,
+      }
+    }
+  }
+
+  const alphaMatch = marker.match(/^([a-zA-Z])([.)])$/)
+  if (alphaMatch) {
+    const normalizedMarker = alphaMatch[1].toLowerCase()
+    return {
+      kind: 'alpha' as OrderedMarkerKind,
+      ordinal: normalizedMarker.charCodeAt(0) - 96,
+      separator: alphaMatch[2],
+      uppercase: alphaMatch[1] !== normalizedMarker,
+    }
+  }
+
+  return null
+}
+
+function formatOrderedMarker(kind: OrderedMarkerKind, ordinal: number, separator: string, uppercase: boolean) {
+  if (kind === 'numeric') {
+    return `${Math.max(1, ordinal)}${separator}`
+  }
+
+  if (kind === 'roman') {
+    const romanMarker = ROMAN_MARKERS[Math.max(1, ordinal) - 1] ?? ROMAN_MARKERS[0]
+    return `${uppercase ? romanMarker.toUpperCase() : romanMarker}${separator}`
+  }
+
+  const clampedOrdinal = Math.min(Math.max(1, ordinal), 26)
+  const baseCode = uppercase ? 64 : 96
+  return `${String.fromCharCode(baseCode + clampedOrdinal)}${separator}`
+}
+
+function getOutdentedEmptyOrderedLine(value: string, lineStart: number, currentLine: string) {
+  const orderedMatch = currentLine.match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])\s*$/)
+  if (!orderedMatch) {
+    return null
+  }
+
+  const currentMarker = parseOrderedMarker(orderedMatch[2])
+  if (!currentMarker) {
+    return null
+  }
+
+  const targetKind =
+    currentMarker.kind === 'alpha' ? 'numeric' : currentMarker.kind === 'roman' ? 'alpha' : null
+
+  if (!targetKind) {
+    return null
+  }
+
+  const targetIndent = removeIndent(orderedMatch[1])
+  const previousLines = value.slice(0, lineStart).split('\n')
+
+  for (let index = previousLines.length - 1; index >= 0; index -= 1) {
+    const previousMatch = previousLines[index].match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])(?:\s.*)?$/)
+    if (!previousMatch || previousMatch[1] !== targetIndent) {
+      continue
+    }
+
+    const previousMarker = parseOrderedMarker(previousMatch[2])
+    if (!previousMarker || previousMarker.kind !== targetKind) {
+      continue
+    }
+
+    return `${targetIndent}${formatOrderedMarker(
+      targetKind,
+      previousMarker.ordinal + 1,
+      previousMarker.separator,
+      previousMarker.uppercase,
+    )} `
+  }
+
+  return `${targetIndent}${formatOrderedMarker(
+    targetKind,
+    1,
+    currentMarker.separator,
+    currentMarker.uppercase,
+  )} `
 }
 
 function getContinuedListPrefix(line: string) {
@@ -391,7 +495,7 @@ export default function MarkdownEditor({
         (currentLine.startsWith(INDENT) || currentLine.startsWith('\t'))
       ) {
         event.preventDefault()
-        const nextLine = outdentLine(currentLine)
+        const nextLine = getOutdentedEmptyOrderedLine(value, lineStart, currentLine) ?? outdentLine(currentLine)
         const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
         const nextCaret = lineStart + nextLine.length
         applyValue(nextValue, { start: nextCaret, end: nextCaret })

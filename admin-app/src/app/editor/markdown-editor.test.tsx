@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import MarkdownEditor from './markdown-editor'
+
+const appStyles = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8')
 
 function renderControlledEditor(initialValue: string) {
   function Harness() {
@@ -311,6 +315,23 @@ describe('markdown editor', () => {
     expect(editor.value).toBe('- ')
     expect(editor.selectionStart).toBe(editor.value.length)
     expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('renumbers alphabetic empty list items when pressing Backspace to outdent', () => {
+    const editor = renderControlledEditor('1. first\n  a. \n  b. ')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+
+    expect(editor.value).toBe('1. first\n  a. \n2. ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('keeps the editor textarea horizontal padding aligned with the editor surface', () => {
+    expect(appStyles).toMatch(/\.editor-surface,\s*\.settings-panel,\s*\.preview-pane\s*\{[^}]*padding:\s*24px;/s)
+    expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*padding:\s*18px 24px;/s)
   })
 
   it('wraps selected text in bold markers with mod+b', () => {
