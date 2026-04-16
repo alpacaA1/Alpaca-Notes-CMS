@@ -103,4 +103,29 @@ describe('post indexing helpers', () => {
       tags: ['产品', '观察', '信息架构'],
     })
   })
+
+  it('drops blank category and tag values after trimming quotes and whitespace', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_posts/blank-taxonomy.md',
+      sha: 'blank-taxonomy-sha',
+      content: `---
+title: Blank taxonomy post
+date: 2026-04-04 09:00:00
+desc: Blank taxonomy content
+categories:
+  - ""
+  - '   '
+  - "专业"
+tags:
+  - ''
+  - "  "
+  - '产品'
+---
+
+Body`,
+    })
+
+    expect(parsed.categories).toEqual(['专业'])
+    expect(parsed.tags).toEqual(['产品'])
+  })
 })

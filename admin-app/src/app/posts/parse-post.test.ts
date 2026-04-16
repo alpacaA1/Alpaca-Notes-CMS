@@ -51,4 +51,29 @@ Legacy body`,
     expect(parsed.frontmatter.permalink).toBeUndefined()
     expect(parsed.hasExplicitPermalink).toBe(false)
   })
+
+  it('drops blank category and tag values after trimming quotes and whitespace', () => {
+    const parsed = parsePost({
+      path: 'source/_posts/blank-taxonomy.md',
+      sha: 'sha-blank-taxonomy',
+      content: `---
+title: Blank taxonomy post
+date: 2026-04-04 09:00:00
+desc: Blank taxonomy content
+categories:
+  - ""
+  - '   '
+  - "专业"
+tags:
+  - ''
+  - "  "
+  - '产品'
+---
+
+Body`,
+    })
+
+    expect(parsed.frontmatter.categories).toEqual(['专业'])
+    expect(parsed.frontmatter.tags).toEqual(['产品'])
+  })
 })

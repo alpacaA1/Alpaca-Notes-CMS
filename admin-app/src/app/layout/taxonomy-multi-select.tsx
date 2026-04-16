@@ -11,6 +11,10 @@ function uniqueValues(values: string[]) {
   return values.filter((value, index) => values.indexOf(value) === index)
 }
 
+function normalizeOption(value: string) {
+  return value.trim().replace(/^['"]|['"]$/g, '').trim()
+}
+
 function toggleValue(currentValues: string[], nextValue: string) {
   return currentValues.includes(nextValue)
     ? currentValues.filter((value) => value !== nextValue)
@@ -29,7 +33,10 @@ export default function TaxonomyMultiSelect({
   const searchLabel = `搜索${label}`
   const triggerLabel = `选择${label}`
   const listboxLabel = `${label}选项`
-  const indexedOptions = useMemo(() => uniqueValues(availableOptions), [availableOptions])
+  const indexedOptions = useMemo(
+    () => uniqueValues(availableOptions.map(normalizeOption).filter((option) => option.length > 0)),
+    [availableOptions],
+  )
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const filteredOptions = useMemo(() => {
     if (!normalizedQuery) {
@@ -99,6 +106,7 @@ export default function TaxonomyMultiSelect({
               <span className="taxonomy-multi-select__search-label">{searchLabel}</span>
               <input
                 aria-label={searchLabel}
+                autoFocus
                 value={query}
                 placeholder={`筛选${label}`}
                 onChange={(event) => setQuery(event.target.value)}

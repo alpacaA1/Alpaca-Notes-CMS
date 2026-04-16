@@ -3,7 +3,7 @@ import type { SessionState } from '../session'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
 function trimQuotes(value: string) {
-  return value.replace(/^['"]|['"]$/g, '').trim()
+  return value.trim().replace(/^['"]|['"]$/g, '').trim()
 }
 
 function readScalar(frontmatter: string, field: string): string | null {
@@ -29,9 +29,9 @@ function readList(frontmatter: string, field: string): string[] {
 
   return block
     .split('\n')
-    .map((line) => line.match(/^\s*-\s*(.*)$/)?.[1]?.trim())
-    .filter((value): value is string => Boolean(value && value.length > 0))
+    .map((line) => line.match(/^\s*-\s*(.*)$/)?.[1] || '')
     .map(trimQuotes)
+    .filter((value) => value.length > 0)
 }
 
 export function parsePostIndexItem(input: { path: string; sha: string; content: string }): PostIndexItem {

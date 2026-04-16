@@ -124,4 +124,14 @@ describe('taxonomy multi select', () => {
     expect(screen.queryByRole('option', { name: '自定义分类' })).toBe(null)
     expect(screen.queryByRole('button', { name: '移除分类 自定义分类' })).toBe(null)
   })
+
+  it('filters out blank taxonomy options, normalizes quoted values, and auto-focuses search when opened', () => {
+    renderControl({ availableOptions: ['  "专业"   ', '', '   ', '""', "''", " '思考'   "] })
+
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+
+    const searchInput = screen.getByLabelText('搜索分类')
+    expect(document.activeElement).toBe(searchInput)
+    expect(screen.getAllByRole('option').map((option) => option.textContent?.trim())).toEqual(['专业', '思考'])
+  })
 })
