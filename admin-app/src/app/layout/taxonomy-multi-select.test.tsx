@@ -1,7 +1,11 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
+
+const appStyles = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8')
 
 type RenderControlOptions = {
   label?: '分类' | '标签'
@@ -133,5 +137,25 @@ describe('taxonomy multi select', () => {
     const searchInput = screen.getByLabelText('搜索分类')
     expect(document.activeElement).toBe(searchInput)
     expect(screen.getAllByRole('option').map((option) => option.textContent?.trim())).toEqual(['专业', '思考'])
+  })
+
+  it('normalizes already selected taxonomy chips and matches options against the normalized values', () => {
+    renderControl({ initialValue: ['  "专业"   ', " '思考'   "], availableOptions: ['专业', '思考'] })
+
+    expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '移除分类 思考' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+
+    expect(screen.getByRole('option', { name: '专业' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('option', { name: '思考' }).getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('uses a floating overlay panel instead of expanding the document flow', () => {
+    expect(appStyles).toMatch(/\.taxonomy-multi-select\s*\{[^}]*position:\s*relative;/s)
+    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100%\s*\+\s*10px\);[^}]*left:\s*0;[^}]*right:\s*0;/s)
+    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*z-index:\s*20;/s)
+    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*box-shadow:\s*0 20px 48px rgba\(36, 24, 10, 0\.18\);/s)
+    expect(appStyles).not.toMatch(/@media \(max-width: 720px\)[\s\S]*?\.taxonomy-multi-select__panel\s*\{[^}]*position:\s*static;/s)
   })
 })

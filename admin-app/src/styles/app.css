@@ -846,6 +846,7 @@ textarea {
 }
 
 .taxonomy-multi-select {
+  position: relative;
   display: grid;
   gap: 10px;
 }
@@ -910,13 +911,21 @@ textarea {
 }
 
 .taxonomy-multi-select__panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid var(--admin-line);
+  border: 1px solid rgba(214, 190, 164, 0.92);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.54);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.52);
+  background: rgba(255, 252, 247, 0.98);
+  box-shadow: 0 20px 48px rgba(36, 24, 10, 0.18);
+  backdrop-filter: blur(14px);
+  transform-origin: top center;
+  animation: taxonomy-panel-enter 180ms ease;
 }
 
 .taxonomy-multi-select__search {
@@ -942,6 +951,18 @@ textarea {
 
 .taxonomy-multi-select__search input::placeholder {
   color: var(--admin-soft);
+}
+
+@keyframes taxonomy-panel-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .taxonomy-multi-select__options {

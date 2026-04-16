@@ -33,6 +33,10 @@ export default function TaxonomyMultiSelect({
   const searchLabel = `搜索${label}`
   const triggerLabel = `选择${label}`
   const listboxLabel = `${label}选项`
+  const normalizedValue = useMemo(
+    () => uniqueValues(value.map(normalizeOption).filter((option) => option.length > 0)),
+    [value],
+  )
   const indexedOptions = useMemo(
     () => uniqueValues(availableOptions.map(normalizeOption).filter((option) => option.length > 0)),
     [availableOptions],
@@ -56,7 +60,7 @@ export default function TaxonomyMultiSelect({
       : null
 
   function handleToggleOption(option: string) {
-    onChange(toggleValue(value, option))
+    onChange(toggleValue(normalizedValue, option))
   }
 
   function handleToggleOpen() {
@@ -71,15 +75,15 @@ export default function TaxonomyMultiSelect({
 
   return (
     <div className="taxonomy-multi-select">
-      {value.length ? (
+      {normalizedValue.length ? (
         <div className="taxonomy-multi-select__chip-group" aria-label={`已选${label}`}>
-          {value.map((selectedValue) => (
+          {normalizedValue.map((selectedValue) => (
             <button
               key={selectedValue}
               type="button"
               className="taxonomy-multi-select__chip taxonomy-multi-select__chip--selected"
               aria-label={`移除${label} ${selectedValue}`}
-              onClick={() => onChange(value.filter((item) => item !== selectedValue))}
+              onClick={() => onChange(normalizedValue.filter((item) => item !== selectedValue))}
             >
               <span>{selectedValue}</span>
               <span aria-hidden="true">移除</span>
@@ -130,7 +134,7 @@ export default function TaxonomyMultiSelect({
               className="taxonomy-multi-select__options"
             >
               {filteredOptions.map((option) => {
-                const isSelected = value.includes(option)
+                const isSelected = normalizedValue.includes(option)
 
                 return (
                   <div
