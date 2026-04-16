@@ -1150,13 +1150,48 @@ textarea {
 
 .preview-content p,
 .preview-content ul,
-.preview-content ol {
+.preview-content ol,
+.preview-content table {
   margin: 1em 0 0;
 }
 
 .preview-content ul,
 .preview-content ol {
   padding-left: 1.4rem;
+}
+
+.preview-content table {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e5e5e5;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 1rem;
+}
+
+.preview-content th,
+.preview-content td {
+  padding: 0.55rem 1rem;
+  border-right: 1px solid #e5e5e5;
+  border-bottom: 1px solid #e5e5e5;
+  text-align: left;
+  vertical-align: top;
+}
+
+.preview-content th:last-child,
+.preview-content td:last-child {
+  border-right: 0;
+}
+
+.preview-content thead th {
+  color: #666666;
+  background: #fdfdfd;
+  font-weight: 700;
+}
+
+.preview-content tbody tr:nth-child(odd) td,
+.preview-content tbody tr:nth-child(odd) th {
+  background: #f9f9f9;
 }
 
 .preview-content li + li {

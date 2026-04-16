@@ -116,6 +116,22 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
   return nodes.length > 0 ? nodes : [markdown]
 }
 
+function splitTableCells(line: string) {
+  return line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
+}
+
+function isTableRow(line: string) {
+  return splitTableCells(line).length > 1
+}
+
+function isTableDivider(line: string) {
+  return splitTableCells(line).every((cell) => /^:?-{3,}:?$/.test(cell))
+}
+
+function normalizeTableCells(cells: string[], columnCount: number) {
+  return Array.from({ length: columnCount }, (_, index) => cells[index] ?? '')
+}
+
 function flushParagraph(
   lines: string[],
   nodes: ReactNode[],
@@ -152,6 +168,46 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       const level = headingMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6
       const HeadingTag = `h${level}` as const
       nodes.push(<HeadingTag key={`heading-${nodes.length}`}>{renderInline(headingMatch[2], previewImageUrls)}</HeadingTag>)
+      continue
+    }
+
+    if (
+      isTableRow(line) &&
+      index + 1 < lines.length &&
+      isTableDivider(lines[index + 1])
+    ) {
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      const headers = splitTableCells(line)
+      const columnCount = headers.length
+      const rows: string[][] = []
+
+      index += 2
+      while (index < lines.length && lines[index].trim() && isTableRow(lines[index])) {
+        rows.push(normalizeTableCells(splitTableCells(lines[index]), columnCount))
+        index += 1
+      }
+      index -= 1
+
+      nodes.push(
+        <table key={`table-${nodes.length}`}>
+          <thead>
+            <tr>
+              {headers.map((header, headerIndex) => (
+                <th key={`table-head-${headerIndex}`}>{renderInline(header, previewImageUrls)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={`table-row-${rowIndex}`}>
+                {row.map((cell, cellIndex) => (
+                  <td key={`table-cell-${rowIndex}-${cellIndex}`}>{renderInline(cell, previewImageUrls)}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>,
+      )
       continue
     }
 

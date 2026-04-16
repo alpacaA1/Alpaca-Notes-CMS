@@ -85,6 +85,31 @@ desc: desc
 
 ![bad](javascript:alert(1))`
 
+const tablePost = {
+  ...supportedPost,
+  path: 'source/_posts/preview-table.md',
+  sha: 'sha-preview-table',
+  title: 'Preview table post',
+  permalink: 'preview-table-post/',
+}
+
+const tableContent = `---
+title: Preview table post
+permalink: preview-table-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+| 列一 | 列二 |
+| --- | --- |
+| A | B |
+| C | D |`
+
 describe('App preview mode', () => {
   afterEach(() => {
     cleanup()
@@ -213,5 +238,33 @@ describe('App preview mode', () => {
 
     await screen.findByRole('heading', { name: 'Preview image post' })
     expect(screen.queryByRole('img', { name: 'bad' })).toBeNull()
+  })
+
+  it('renders markdown tables in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([tablePost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: tablePost.path,
+      sha: tablePost.sha,
+      content: tableContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview table post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview table post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    await screen.findByRole('heading', { name: 'Preview table post' })
+    expect(screen.getByRole('table')).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: '列一' })).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: '列二' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'A' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'D' })).toBeTruthy()
   })
 })
