@@ -15,6 +15,7 @@ import {
   REPO_BRANCH,
   REPO_NAME,
   REPO_OWNER,
+  SITE_ROOT_PATH,
 } from './config'
 
 describe('session config and popup flow', () => {
@@ -31,6 +32,7 @@ describe('session config and popup flow', () => {
     expect(REPO_NAME).toBe('Alpaca-Notes-CMS')
     expect(REPO_BRANCH).toBe('main')
     expect(POSTS_PATH).toBe('source/_posts')
+    expect(SITE_ROOT_PATH).toBe('/Alpaca-Notes-CMS')
   })
 
   it('stores and clears the session in sessionStorage', () => {

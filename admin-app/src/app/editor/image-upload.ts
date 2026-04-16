@@ -1,3 +1,5 @@
+import { SITE_ROOT_PATH } from '../config'
+
 export const ALLOWED_IMAGE_MIME_TYPES = [
   'image/png',
   'image/jpeg',
@@ -80,7 +82,7 @@ export function buildImageUploadDescriptor(file: File, now = new Date()) {
 
   return {
     repoPath: `source/images/${year}/${month}/${filename}`,
-    publicUrl: `/images/${year}/${month}/${filename}`,
+    publicUrl: `${SITE_ROOT_PATH}/images/${year}/${month}/${filename}`,
     defaultAlt,
   }
 }

@@ -13,7 +13,7 @@ describe('image upload helpers', () => {
 
     expect(buildImageUploadDescriptor(file, fixedDate)).toEqual({
       repoPath: `source/images/2026/04/${fixedDate.getTime()}-pasted-image.png`,
-      publicUrl: `/images/2026/04/${fixedDate.getTime()}-pasted-image.png`,
+      publicUrl: `/Alpaca-Notes-CMS/images/2026/04/${fixedDate.getTime()}-pasted-image.png`,
       defaultAlt: 'pasted-image',
     })
   })
@@ -26,7 +26,7 @@ describe('image upload helpers', () => {
 
     expect(buildImageUploadDescriptor(file, fixedDate)).toEqual({
       repoPath: `source/images/2026/04/${fixedDate.getTime()}-renamed.png`,
-      publicUrl: `/images/2026/04/${fixedDate.getTime()}-renamed.png`,
+      publicUrl: `/Alpaca-Notes-CMS/images/2026/04/${fixedDate.getTime()}-renamed.png`,
       defaultAlt: 'renamed',
     })
   })
@@ -46,8 +46,8 @@ describe('image upload helpers', () => {
   })
 
   it('builds markdown image syntax from alt text and public URL', () => {
-    expect(buildImageMarkdown('pasted-image', '/images/2026/04/example.png')).toBe(
-      '![pasted-image](/images/2026/04/example.png)',
+    expect(buildImageMarkdown('pasted-image', '/Alpaca-Notes-CMS/images/2026/04/example.png')).toBe(
+      '![pasted-image](/Alpaca-Notes-CMS/images/2026/04/example.png)',
     )
   })
 })

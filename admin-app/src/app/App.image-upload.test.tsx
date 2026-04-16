@@ -84,7 +84,7 @@ describe('App image upload flow', () => {
     fireEvent.change(screen.getByLabelText('上传图片文件'), { target: { files: [file] } })
 
     await waitFor(() => {
-      expect(editor.value).toMatch(/!\[cover\]\(\/images\/\d{4}\/\d{2}\/\d+-cover\.png\)/)
+      expect(editor.value).toMatch(/!\[cover\]\(\/Alpaca-Notes-CMS\/images\/\d{4}\/\d{2}\/\d+-cover\.png\)/)
     })
 
     expect(uploadImageFile).toHaveBeenCalledWith(
@@ -130,6 +130,84 @@ describe('App image upload flow', () => {
     expect(await screen.findByText('图片大小不能超过 10 MB。')).toBeTruthy()
     expect(editor.value).toBe(originalValue)
     expect(uploadImageFile).not.toHaveBeenCalled()
+  })
+
+  it('saves pasted image markdown with the repo site root so it still renders after reopening', async () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:preview-image')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(global.URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: createObjectURL,
+    })
+    Object.defineProperty(global.URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: revokeObjectURL,
+    })
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+
+    let savedContent = existingContent
+    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile')
+    fetchPostFile
+      .mockResolvedValueOnce({
+        path: existingPost.path,
+        sha: existingPost.sha,
+        content: existingContent,
+      })
+      .mockImplementation(async () => ({
+        path: existingPost.path,
+        sha: 'sha-saved',
+        content: savedContent,
+      }))
+
+    vi.spyOn(githubClientModule, 'uploadImageFile').mockResolvedValue({
+      path: 'source/images/2026/04/example-cover.png',
+      sha: 'sha-image',
+    })
+    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockImplementation(async (_session, file) => {
+      savedContent = file.content
+      return {
+        path: file.path,
+        sha: 'sha-saved',
+        content: file.content,
+      }
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Image upload post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /image upload post/i }))
+    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
+    const file = new File(['image'], 'cover.png', { type: 'image/png' })
+
+    fireEvent.change(screen.getByLabelText('上传图片文件'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect(editor.value).toContain('![cover](')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await screen.findByText('已保存。')
+
+    expect(savePostFile).toHaveBeenCalledTimes(1)
+    expect(savePostFile.mock.calls[0]?.[1]?.content).toContain('![cover](/Alpaca-Notes-CMS/images/')
+
+    fireEvent.click(screen.getByRole('button', { name: /image upload post/i }))
+    await waitFor(() => {
+      expect(fetchPostFile).toHaveBeenCalledTimes(2)
+    })
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const image = await screen.findByRole('img', { name: 'cover' })
+    expect(image.getAttribute('src')).toContain('/Alpaca-Notes-CMS/images/')
   })
 
   it('shows an error and keeps the draft unchanged when upload fails', async () => {
