@@ -69,7 +69,21 @@ tags:
 desc: desc
 ---
 
-![alt](/uploads/image.png)`
+Before ![alt](/uploads/image.png) after`
+
+const unsafeImageContent = `---
+title: Preview image post
+permalink: preview-image-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+![bad](javascript:alert(1))`
 
 describe('App preview mode', () => {
   afterEach(() => {
@@ -94,7 +108,7 @@ describe('App preview mode', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
-    await screen.findByLabelText('可视编辑器')
+    await screen.findByLabelText('Markdown 编辑器')
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
@@ -121,7 +135,7 @@ describe('App preview mode', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
-    await screen.findByLabelText('可视编辑器')
+    await screen.findByLabelText('Markdown 编辑器')
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
@@ -150,7 +164,7 @@ describe('App preview mode', () => {
     expect(protocolRelativeLink.tagName).toBe('SPAN')
   })
 
-  it('renders image documents in preview mode without visual-editor fallback warnings', async () => {
+  it('renders markdown images inline in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
@@ -166,12 +180,38 @@ describe('App preview mode', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /preview image post/i }))
-    await screen.findByLabelText('可视编辑器')
+    await screen.findByLabelText('Markdown 编辑器')
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
-    expect(await screen.findByRole('link', { name: 'alt' })).toBeTruthy()
+    expect(await screen.findByText(/Before/)).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'alt' })).toBeTruthy()
+    expect(screen.getByText(/after/)).toBeTruthy()
     expect(screen.queryByText('富文本模式暂不支持图片语法。')).toBeNull()
     expect(screen.queryByText('这是客户端近似预览，最终呈现仍以 Hexo 与主题渲染结果为准。')).toBeNull()
+  })
+
+  it('rejects unsafe markdown image URLs in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: imagePost.path,
+      sha: imagePost.sha,
+      content: unsafeImageContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview image post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview image post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    await screen.findByRole('heading', { name: 'Preview image post' })
+    expect(screen.queryByRole('img', { name: 'bad' })).toBeNull()
   })
 })

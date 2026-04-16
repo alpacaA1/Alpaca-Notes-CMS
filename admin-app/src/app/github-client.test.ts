@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fetchPostFile } from './github-client'
+import { REPO_BRANCH } from './config'
+import { fetchPostFile, uploadImageFile } from './github-client'
 
 const chineseMarkdown = `---
 title: 中文标题
@@ -33,5 +34,55 @@ describe('github client encoding', () => {
     const file = await fetchPostFile({ token: 'token' }, 'source/_posts/chinese.md')
 
     expect(file.content).toBe(chineseMarkdown)
+  })
+
+  it('uploads image files with base64 content from binary bytes', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        content: {
+          path: 'source/images/2026/04/example.png',
+          sha: 'image-sha',
+        },
+      }),
+    } as Response)
+
+    const bytes = Uint8Array.of(0x00, 0xff, 0x10, 0x80)
+    const file = new File([bytes], 'example.png', {
+      type: 'image/png',
+    })
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: vi.fn().mockResolvedValue(bytes.buffer),
+    })
+
+    const uploaded = await uploadImageFile(
+      { token: 'token' },
+      { path: 'source/images/2026/04/example.png', file },
+    )
+
+    expect(uploaded).toEqual({
+      path: 'source/images/2026/04/example.png',
+      sha: 'image-sha',
+    })
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    const [requestUrl, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(requestUrl).toMatch(
+      /^https:\/\/api\.github\.com\/repos\/[^/]+\/[^/]+\/contents\//,
+    )
+    expect(requestUrl).toContain('/contents/source/images/2026/04/example.png')
+    expect(requestInit.method).toBe('PUT')
+    expect(requestInit.headers).toMatchObject({
+      Accept: 'application/vnd.github+json',
+      Authorization: 'Bearer token',
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    })
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      message: 'Create source/images/2026/04/example.png',
+      content: Buffer.from(bytes).toString('base64'),
+      branch: REPO_BRANCH,
+    })
   })
 })

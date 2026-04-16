@@ -32,7 +32,7 @@ desc: desc
 
 Body with **bold** text.`
 
-const unsupportedContent = `---
+const imageContent = `---
 title: Unsupported post
 permalink: unsupported-post/
 date: 2026-04-03 12:00:00
@@ -60,7 +60,7 @@ describe('App editor modes', () => {
     window.sessionStorage.clear()
   })
 
-  it('keeps markdown mode available for supported documents', async () => {
+  it('opens supported documents directly in markdown mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
@@ -76,13 +76,12 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    await screen.findByLabelText('可视编辑器')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '可视编辑' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
-  it('opens supported documents in rich mode and preserves canonical markdown through switches', async () => {
+  it('returns to markdown mode after leaving preview', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
@@ -98,22 +97,22 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
     expect(await screen.findByRole('heading', { name: 'Supported post' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
   })
 
-  it('opens image documents in rich mode when they fit the supported visual editor subset', async () => {
+  it('opens image documents directly in markdown mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
       path: imagePost.path,
       sha: imagePost.sha,
-      content: unsupportedContent,
+      content: imageContent,
     })
 
     render(<App />)
@@ -123,7 +122,7 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /image post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
     expect(screen.queryByText('富文本模式暂不支持图片语法。')).toBeNull()
   })
 
@@ -143,7 +142,7 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
     expect(screen.getByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
@@ -161,7 +160,7 @@ describe('App editor modes', () => {
     expect(screen.getByText('发布设置')).toBeTruthy()
   })
 
-  it('renders unsaved title and body edits in preview and restores the prior editor mode on exit', async () => {
+  it('renders unsaved title and body edits in preview and returns to markdown mode on exit', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
@@ -177,10 +176,10 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
+    const markdownEditor = await screen.findByLabelText('Markdown 编辑器')
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Edited title before preview' } })
-    fireEvent.change(screen.getByLabelText('段落内容'), {
+    fireEvent.change(markdownEditor, {
       target: { value: 'Edited body before preview with **bold** text.' },
     })
 
@@ -194,10 +193,10 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
 
-    const richEditor = await screen.findByLabelText('可视编辑器')
-    expect(richEditor).toBeTruthy()
+    const restoredMarkdownEditor = await screen.findByLabelText('Markdown 编辑器')
+    expect(restoredMarkdownEditor).toBeTruthy()
     expect(screen.getByDisplayValue('Edited title before preview')).toBeTruthy()
-    expect(screen.getByLabelText('段落内容')).toHaveProperty('value', 'Edited body before preview with **bold** text.')
+    expect(screen.getByDisplayValue('Edited body before preview with **bold** text.')).toBeTruthy()
     expect(screen.getByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
@@ -219,9 +218,6 @@ describe('App editor modes', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    expect(await screen.findByLabelText('可视编辑器')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     const markdownEditor = await screen.findByLabelText('Markdown 编辑器')
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Markdown preview title' } })
     fireEvent.change(markdownEditor, {
@@ -259,7 +255,7 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: '放大编辑框' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    await screen.findByLabelText('可视编辑器')
+    await screen.findByLabelText('Markdown 编辑器')
 
     expect(screen.queryByRole('button', { name: '放大编辑框' })).toBeNull()
   })

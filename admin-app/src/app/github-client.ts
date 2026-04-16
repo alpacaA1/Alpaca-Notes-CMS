@@ -51,8 +51,7 @@ function createHeaders(session: SessionState) {
   }
 }
 
-function encodeBase64(value: string) {
-  const bytes = new TextEncoder().encode(value)
+function encodeBase64Bytes(bytes: Uint8Array) {
   let binary = ''
 
   bytes.forEach((byte) => {
@@ -60,6 +59,10 @@ function encodeBase64(value: string) {
   })
 
   return btoa(binary)
+}
+
+function encodeBase64(value: string) {
+  return encodeBase64Bytes(new TextEncoder().encode(value))
 }
 
 function decodeBase64(value: string) {
@@ -145,5 +148,30 @@ export async function savePostFile(
     path: response.content.path,
     sha: response.content.sha,
     content: file.content,
+  }
+}
+
+export async function uploadImageFile(
+  session: SessionState,
+  file: { path: string; file: File },
+): Promise<{ path: string; sha: string }> {
+  const apiPath = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${file.path}`
+  const bytes = new Uint8Array(await file.file.arrayBuffer())
+  const response = await requestGitHub<GitHubSaveFileResponse>(session, apiPath, {
+    method: 'PUT',
+    body: JSON.stringify({
+      message: `Create ${file.path}`,
+      content: encodeBase64Bytes(bytes),
+      branch: REPO_BRANCH,
+    }),
+  })
+
+  if (!response.content?.path || !response.content.sha) {
+    throw new Error('GitHub did not return saved file metadata.')
+  }
+
+  return {
+    path: response.content.path,
+    sha: response.content.sha,
   }
 }
