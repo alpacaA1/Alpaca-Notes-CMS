@@ -51,12 +51,6 @@ export default function TopBar({
         <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
           新建文章
         </button>
-        <button className="top-bar__button" type="button">
-          筛选
-        </button>
-        <button className="top-bar__button" type="button">
-          排序
-        </button>
         <button
           className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
           type="button"
