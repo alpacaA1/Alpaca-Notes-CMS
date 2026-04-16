@@ -403,10 +403,8 @@ export default function App() {
           void handleSave()
         }}
         onTogglePreview={handleTogglePreview}
-        onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-        isPreviewing={isPreviewing}
-        isImmersive={isImmersive}
         hasActiveDocument={Boolean(document)}
+        isPreviewing={isPreviewing}
         saveLabel={saveLabel}
         isSaveDisabled={isSaveDisabled}
         isSaveQuiet={isSaveQuiet}
@@ -451,6 +449,8 @@ export default function App() {
                   <MarkdownEditor
                     value={document.body}
                     onChange={handleEditorChange}
+                    onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
+                    isImmersive={isImmersive}
                     onUploadImage={handleUploadImage}
                   />
                 )}

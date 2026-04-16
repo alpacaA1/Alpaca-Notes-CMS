@@ -8,6 +8,8 @@ type OrderedMarkerKind = 'numeric' | 'alpha' | 'roman'
 type MarkdownEditorProps = {
   value: string
   onChange: (value: string) => void
+  onToggleImmersive?: () => void
+  isImmersive?: boolean
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
 }
 
@@ -353,6 +355,8 @@ function getImageFileFromClipboardData(clipboardData: DataTransfer) {
 export default function MarkdownEditor({
   value,
   onChange,
+  onToggleImmersive,
+  isImmersive = false,
   onUploadImage,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -667,30 +671,37 @@ export default function MarkdownEditor({
           </label>
           <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
         </div>
-        {onUploadImage ? (
-          <>
-            <input
-              ref={fileInputRef}
-              aria-label="上传图片文件"
-              className="sr-only"
-              type="file"
-              accept="image/*"
-              tabIndex={-1}
-              onChange={(event) => {
-                void handleFileInputChange(event)
-              }}
-            />
-            <button
-              type="button"
-              className="markdown-editor__upload-button"
-              disabled={isUploadingImage}
-              onMouseDown={handleUploadButtonMouseDown}
-              onClick={handleUploadButtonClick}
-            >
-              上传图片
+        <div className="markdown-editor__actions">
+          {onUploadImage ? (
+            <>
+              <input
+                ref={fileInputRef}
+                aria-label="上传图片文件"
+                className="sr-only"
+                type="file"
+                accept="image/*"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFileInputChange(event)
+                }}
+              />
+              <button
+                type="button"
+                className="markdown-editor__upload-button"
+                disabled={isUploadingImage}
+                onMouseDown={handleUploadButtonMouseDown}
+                onClick={handleUploadButtonClick}
+              >
+                上传图片
+              </button>
+            </>
+          ) : null}
+          {onToggleImmersive ? (
+            <button type="button" className="markdown-editor__upload-button" onClick={onToggleImmersive}>
+              {isImmersive ? '退出沉浸' : '沉浸模式'}
             </button>
-          </>
-        ) : null}
+          ) : null}
+        </div>
       </div>
       <textarea
         id={textareaId}

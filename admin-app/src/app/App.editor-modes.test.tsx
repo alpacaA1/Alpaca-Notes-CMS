@@ -126,7 +126,7 @@ describe('App editor modes', () => {
     expect(screen.queryByText('富文本模式暂不支持图片语法。')).toBeNull()
   })
 
-  it('uses immersive mode to hide side panes and current document frame and restores them on exit', async () => {
+  it('uses immersive mode from the editor toolbar and keeps it beside upload image', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
     vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
@@ -147,11 +147,19 @@ describe('App editor modes', () => {
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
 
+    expect(screen.queryByRole('button', { name: '沉浸模式' })).toBeTruthy()
+    expect(screen.queryAllByRole('button', { name: '沉浸模式' })).toHaveLength(1)
+    expect(screen.getByRole('button', { name: '沉浸模式' }).closest('.markdown-editor__toolbar')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '上传图片' }).closest('.markdown-editor__toolbar')).toBe(
+      screen.getByRole('button', { name: '沉浸模式' }).closest('.markdown-editor__toolbar'),
+    )
+
     fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
 
     expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
+    expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.markdown-editor__toolbar')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 

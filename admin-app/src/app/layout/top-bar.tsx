@@ -4,10 +4,8 @@ type TopBarProps = {
   onNewPost: () => void
   onSave: () => void
   onTogglePreview: () => void
-  onToggleImmersive: () => void
   onLogout: () => void
   isPreviewing: boolean
-  isImmersive: boolean
   hasActiveDocument: boolean
   saveLabel: string
   isSaveDisabled: boolean
@@ -21,10 +19,8 @@ export default function TopBar({
   onNewPost,
   onSave,
   onTogglePreview,
-  onToggleImmersive,
   onLogout,
   isPreviewing,
-  isImmersive,
   hasActiveDocument,
   saveLabel,
   isSaveDisabled,
@@ -71,9 +67,6 @@ export default function TopBar({
         </button>
         <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
           {isPreviewing ? '继续编辑' : '预览'}
-        </button>
-        <button className="top-bar__button" type="button" onClick={onToggleImmersive} disabled={!hasActiveDocument}>
-          {isImmersive ? '退出沉浸' : '沉浸模式'}
         </button>
         <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
           退出登录

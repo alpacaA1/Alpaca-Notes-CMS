@@ -682,6 +682,12 @@ textarea {
   gap: 14px;
 }
 
+.markdown-editor__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .markdown-editor__upload-button {
   appearance: none;
   display: inline-flex;
