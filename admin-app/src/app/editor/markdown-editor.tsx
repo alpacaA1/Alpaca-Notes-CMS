@@ -1,6 +1,8 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 
 const INDENT = '  '
+const DEFAULT_LINK_URL = 'https://'
+const DEFAULT_LINK_TEXT = '链接文本'
 const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
 
 type OrderedMarkerKind = 'numeric' | 'alpha' | 'roman'
@@ -364,6 +366,7 @@ export default function MarkdownEditor({
   const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const linkSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const textareaId = useId()
 
@@ -384,6 +387,19 @@ export default function MarkdownEditor({
   const applyValue = (nextValue: string, nextSelection: { start: number; end: number }) => {
     pendingSelectionRef.current = nextSelection
     onChange(nextValue)
+  }
+
+  const insertLinkMarkdown = (selection: { start: number; end: number }) => {
+    const { nextValue } = wrapSelection(
+      currentValueRef.current,
+      selection.start,
+      selection.end,
+      '[',
+      `](${DEFAULT_LINK_URL})`,
+      DEFAULT_LINK_TEXT,
+    )
+    const urlStart = nextValue.lastIndexOf(DEFAULT_LINK_URL)
+    applyValue(nextValue, { start: urlStart, end: urlStart + DEFAULT_LINK_URL.length })
   }
 
   const insertUploadedMarkdown = async (
@@ -420,6 +436,25 @@ export default function MarkdownEditor({
     }
   }
 
+  const handleInsertLinkButtonMouseDown = () => {
+    if (!textareaRef.current) {
+      return
+    }
+
+    linkSelectionRef.current = {
+      start: textareaRef.current.selectionStart,
+      end: textareaRef.current.selectionEnd,
+    }
+  }
+
+  const handleInsertLinkButtonClick = () => {
+    const selection = linkSelectionRef.current ?? {
+      start: textareaRef.current?.selectionStart ?? 0,
+      end: textareaRef.current?.selectionEnd ?? 0,
+    }
+    insertLinkMarkdown(selection)
+  }
+
   const handleUploadButtonClick = () => {
     if (!fileInputRef.current || !onUploadImage) {
       return
@@ -452,9 +487,14 @@ export default function MarkdownEditor({
           ? { prefix: '**', suffix: '**', placeholder: '粗体' }
           : normalizedKey === 'i'
             ? { prefix: '*', suffix: '*', placeholder: '斜体' }
-            : normalizedKey === 'k'
-              ? { prefix: '[', suffix: ']()', placeholder: '链接文本' }
-              : null
+            : null
+
+      if (normalizedKey === 'k') {
+        event.preventDefault()
+        event.stopPropagation()
+        insertLinkMarkdown({ start: selectionStart, end: selectionEnd })
+        return
+      }
 
       if (wrap) {
         event.preventDefault()
@@ -672,6 +712,15 @@ export default function MarkdownEditor({
           <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
         </div>
         <div className="markdown-editor__actions">
+          <button
+            type="button"
+            className="markdown-editor__upload-button"
+            disabled={isUploadingImage}
+            onMouseDown={handleInsertLinkButtonMouseDown}
+            onClick={handleInsertLinkButtonClick}
+          >
+            插入链接
+          </button>
           {onUploadImage ? (
             <>
               <input

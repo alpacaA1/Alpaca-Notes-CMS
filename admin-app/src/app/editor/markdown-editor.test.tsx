@@ -346,6 +346,111 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(7)
   })
 
+  it('wraps selected text in link markdown with mod+k and selects the url placeholder', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    editor.setSelectionRange(0, 5)
+    fireEvent.keyDown(editor, { key: 'k', metaKey: true })
+
+    const expectedValue = '[hello](https://)'
+    const urlStart = expectedValue.lastIndexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
+  it('selects the url placeholder even when selected text already contains a protocol', () => {
+    const editor = renderControlledEditor('https://example.com')
+
+    editor.focus()
+    editor.setSelectionRange(0, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'k', metaKey: true })
+
+    const expectedValue = '[https://example.com](https://)'
+    const urlStart = expectedValue.lastIndexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
+  it('wraps selected text in link markdown with ctrl+k and selects the url placeholder', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    editor.setSelectionRange(0, 5)
+    fireEvent.keyDown(editor, { key: 'k', ctrlKey: true })
+
+    const expectedValue = '[hello](https://)'
+    const urlStart = expectedValue.lastIndexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
+  it('inserts a placeholder link with mod+k when nothing is selected', () => {
+    const editor = renderControlledEditor('')
+
+    editor.focus()
+    editor.setSelectionRange(0, 0)
+    fireEvent.keyDown(editor, { key: 'k', metaKey: true })
+
+    const expectedValue = '[链接文本](https://)'
+    const urlStart = expectedValue.indexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
+  it('keeps the pre-click selection when inserting a link from the toolbar', () => {
+    function Harness() {
+      const [value, setValue] = useState('hello world')
+      return <MarkdownEditor value={value} onChange={setValue} />
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    const insertLinkButton = screen.getByRole('button', { name: '插入链接' }) as HTMLButtonElement
+
+    editor.focus()
+    editor.setSelectionRange(6, 11)
+    fireEvent.mouseDown(insertLinkButton)
+    insertLinkButton.focus()
+    editor.setSelectionRange(0, 0)
+    fireEvent.click(insertLinkButton)
+
+    const expectedValue = 'hello [world](https://)'
+    const urlStart = expectedValue.lastIndexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
+  it('inserts a placeholder link from the toolbar when nothing is selected', () => {
+    function Harness() {
+      const [value, setValue] = useState('hello')
+      return <MarkdownEditor value={value} onChange={setValue} />
+    }
+
+    render(<Harness />)
+
+    const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    const insertLinkButton = screen.getByRole('button', { name: '插入链接' }) as HTMLButtonElement
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.mouseDown(insertLinkButton)
+    insertLinkButton.focus()
+    fireEvent.click(insertLinkButton)
+
+    const expectedValue = 'hello[链接文本](https://)'
+    const urlStart = expectedValue.lastIndexOf('https://')
+    expect(editor.value).toBe(expectedValue)
+    expect(editor.selectionStart).toBe(urlStart)
+    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+  })
+
   it('keeps the pre-picker selection when focus shifts before the picker click handler runs', async () => {
     const onUploadImage = vi.fn().mockResolvedValue({ markdown: '![alt](/uploads/image.png)' })
     const { editor, uploadButton, uploadInput } = renderControlledEditorWithUpload(
