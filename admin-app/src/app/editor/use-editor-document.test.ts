@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
 import { useEditorDocument } from './use-editor-document'
@@ -105,5 +105,35 @@ describe('useEditorDocument', () => {
     expect(result.current.document?.path).toBe('source/_posts/20260404101112.md')
     expect(result.current.document?.frontmatter.published).toBe(false)
     expect(result.current.isDirty).toBe(false)
+  })
+
+  it('treats reverting frontmatter arrays back to their saved values as clean', () => {
+    const { result } = renderHook(() => useEditorDocument(createExistingPost()))
+
+    act(() => {
+      result.current.updateFrontmatter('categories', ['专业', '新分类'])
+    })
+
+    expect(result.current.isDirty).toBe(true)
+
+    act(() => {
+      result.current.updateFrontmatter('categories', ['专业'])
+    })
+
+    expect(result.current.isDirty).toBe(false)
+    expect(result.current.canNavigateAway).toBe(true)
+  })
+
+  it('does not rely on JSON.stringify for dirty tracking', () => {
+    const originalJsonStringify = JSON.stringify
+    const stringifySpy = vi.fn(originalJsonStringify)
+    JSON.stringify = stringifySpy
+
+    try {
+      renderHook(() => useEditorDocument(createExistingPost()))
+      expect(stringifySpy).not.toHaveBeenCalled()
+    } finally {
+      JSON.stringify = originalJsonStringify
+    }
   })
 })

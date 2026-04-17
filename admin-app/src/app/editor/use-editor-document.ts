@@ -16,8 +16,33 @@ function clonePost(post: ParsedPost): ParsedPost {
   }
 }
 
+function sameStringArray(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
 function samePost(left: ParsedPost | null, right: ParsedPost | null) {
-  return JSON.stringify(left) === JSON.stringify(right)
+  if (left === right) {
+    return true
+  }
+
+  if (!left || !right) {
+    return false
+  }
+
+  return (
+    left.path === right.path &&
+    left.sha === right.sha &&
+    left.body === right.body &&
+    left.hasExplicitPublished === right.hasExplicitPublished &&
+    left.hasExplicitPermalink === right.hasExplicitPermalink &&
+    left.frontmatter.title === right.frontmatter.title &&
+    left.frontmatter.date === right.frontmatter.date &&
+    left.frontmatter.desc === right.frontmatter.desc &&
+    left.frontmatter.published === right.frontmatter.published &&
+    left.frontmatter.permalink === right.frontmatter.permalink &&
+    sameStringArray(left.frontmatter.categories, right.frontmatter.categories) &&
+    sameStringArray(left.frontmatter.tags, right.frontmatter.tags)
+  )
 }
 
 export function useEditorDocument(initialPost: ParsedPost | null = null) {

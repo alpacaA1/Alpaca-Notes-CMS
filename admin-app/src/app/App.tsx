@@ -222,12 +222,7 @@ export default function App() {
       applyDocument(parsePost(file))
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
-        sessionStore.logout()
-        setSession(null)
-        setPosts([])
-        setActivePostPath(null)
-        replaceDocument(null)
-        setError(caughtError.message)
+        handleAuthExpiry(caughtError.message)
         return
       }
 
@@ -282,12 +277,7 @@ export default function App() {
       setSuccessMessage(SAVE_SUCCESS_MESSAGE)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
-        sessionStore.logout()
-        setSession(null)
-        setPosts([])
-        setActivePostPath(null)
-        replaceDocument(null)
-        setError(caughtError.message)
+        handleAuthExpiry(caughtError.message)
         return
       }
 

@@ -234,4 +234,40 @@ describe('App image upload flow', () => {
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
   })
+
+  it('revokes existing preview image object URLs when upload auth expiry resets the workspace', async () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:upload-preview-image')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(global.URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: createObjectURL,
+    })
+    Object.defineProperty(global.URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: revokeObjectURL,
+    })
+
+    vi.spyOn(githubClientModule, 'uploadImageFile')
+      .mockResolvedValueOnce({
+        path: 'source/images/2026/04/example-cover.png',
+        sha: 'sha-image',
+      })
+      .mockRejectedValueOnce(new GitHubAuthError())
+
+    await openPost()
+    const file = new File(['image'], 'cover.png', { type: 'image/png' })
+
+    fireEvent.change(screen.getByLabelText('上传图片文件'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toContain('![cover](')
+    })
+
+    fireEvent.change(screen.getByLabelText('上传图片文件'), { target: { files: [file] } })
+
+    expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:upload-preview-image')
+  })
 })

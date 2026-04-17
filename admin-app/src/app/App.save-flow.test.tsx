@@ -349,4 +349,53 @@ describe('App save flow', () => {
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
   })
+
+  it('revokes preview image object URLs when save auth expiry resets the workspace', async () => {
+    const createObjectURL = vi.fn().mockReturnValue('blob:save-preview-image')
+    const revokeObjectURL = vi.fn()
+    Object.defineProperty(global.URL, 'createObjectURL', {
+      configurable: true,
+      writable: true,
+      value: createObjectURL,
+    })
+    Object.defineProperty(global.URL, 'revokeObjectURL', {
+      configurable: true,
+      writable: true,
+      value: revokeObjectURL,
+    })
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    vi.spyOn(githubClientModule, 'uploadImageFile').mockResolvedValue({
+      path: 'source/images/2026/04/example-cover.png',
+      sha: 'sha-image',
+    })
+    vi.spyOn(githubClientModule, 'savePostFile').mockRejectedValue(new GitHubAuthError())
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    const file = new File(['image'], 'cover.png', { type: 'image/png' })
+    fireEvent.change(screen.getByLabelText('上传图片文件'), { target: { files: [file] } })
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toContain('![cover](')
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:save-preview-image')
+  })
 })
