@@ -49,6 +49,188 @@ desc: desc
 Body with [safe link](https://example.com), [relative link](/internal), [bare relative link](guide/), [asset link](assets/file.pdf), [unsafe link](javascript:alert), [tab-obfuscated link](java	script:alert(1)), [newline-obfuscated link](java
 script:alert(1)), and [protocol-relative link](//example.com).`
 
+const bareUrlContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with https://example.com and https://alpaca.example/docs?a=1.`
+
+const unsafeBareUrlContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with javascript:alert(1), http://safe.example/path, and //protocol-relative.example`
+
+const bareUrlWithParenthesesContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with https://en.wikipedia.org/wiki/Function_(mathematics).`
+
+const bareUrlWithFullWidthClosingParenContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with（https://alpaca.example/docs）`
+
+const bareUrlWithFullWidthClosingParenAndFollowingTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+详情见https://alpaca.example/docs）谢谢`
+
+const bareUrlWithAsciiClosingParenAndFollowingTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+See https://alpaca.example/docs)thanks`
+
+const bareUrlWithCommaAndFollowingTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+See https://alpaca.example/docs,thanks`
+
+const bareUrlWithPeriodAndFollowingChineseTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+详见https://alpaca.example/docs.谢谢`
+
+const bareUrlWithModernTldContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with https://example.technology`
+
+const bareUrlWithDottedPathSegmentContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with https://example.com/report.finaldraft`
+
+const bareUrlWithCommaInQueryValueContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Body with https://example.com/path?tags=alpha,betatest`
+
+const bareUrlWithExclamationAndFollowingTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+See https://example.com!thanks`
+
+const bareUrlWithColonAndFollowingChineseTextContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+详见https://example.com:后文`
+
 const imagePost = {
   ...supportedPost,
   path: 'source/_posts/preview-image.md',
@@ -187,6 +369,395 @@ describe('App preview mode', () => {
 
     const protocolRelativeLink = screen.getByText('protocol-relative link')
     expect(protocolRelativeLink.tagName).toBe('SPAN')
+  })
+
+  it('auto-links bare https urls in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const primaryUrl = await screen.findByRole('link', { name: 'https://example.com' })
+    expect(primaryUrl.getAttribute('href')).toBe('https://example.com')
+
+    const queryUrl = screen.getByRole('link', { name: 'https://alpaca.example/docs?a=1' })
+    expect(queryUrl.getAttribute('href')).toBe('https://alpaca.example/docs?a=1')
+  })
+
+  it('only auto-links safe bare urls in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: unsafeBareUrlContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const safeBareUrl = await screen.findByRole('link', { name: 'http://safe.example/path' })
+    expect(safeBareUrl.getAttribute('href')).toBe('http://safe.example/path')
+
+    const unsafeBareUrl = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('javascript:alert(1),') === true,
+    )
+    expect(unsafeBareUrl.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'javascript:alert(1)' })).toBeNull()
+
+    const protocolRelativeBareUrl = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('//protocol-relative.example') === true,
+    )
+    expect(protocolRelativeBareUrl.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: '//protocol-relative.example' })).toBeNull()
+  })
+
+  it('auto-links bare urls that contain balanced parentheses in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithParenthesesContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const parenthesesUrl = await screen.findByRole('link', {
+      name: 'https://en.wikipedia.org/wiki/Function_(mathematics)',
+    })
+    expect(parenthesesUrl.getAttribute('href')).toBe('https://en.wikipedia.org/wiki/Function_(mathematics)')
+  })
+
+  it('excludes full-width closing punctuation from bare preview links', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithFullWidthClosingParenContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://alpaca.example/docs',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://alpaca.example/docs')
+    expect(screen.queryByRole('link', { name: 'https://alpaca.example/docs）' })).toBeNull()
+  })
+
+  it('excludes full-width closing punctuation from bare links when more text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithFullWidthClosingParenAndFollowingTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://alpaca.example/docs',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://alpaca.example/docs')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('详情见https://alpaca.example/docs）谢谢') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://alpaca.example/docs）。谢谢' })).toBeNull()
+  })
+
+  it('excludes ascii closing punctuation from bare links when latin text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithAsciiClosingParenAndFollowingTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://alpaca.example/docs',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://alpaca.example/docs')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('See https://alpaca.example/docs)thanks') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://alpaca.example/docs)thanks' })).toBeNull()
+  })
+
+  it('excludes ascii commas from bare links when latin text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithCommaAndFollowingTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://alpaca.example/docs',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://alpaca.example/docs')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('See https://alpaca.example/docs,thanks') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://alpaca.example/docs,thanks' })).toBeNull()
+  })
+
+  it('excludes ascii periods from bare links when chinese text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithPeriodAndFollowingChineseTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://alpaca.example/docs',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://alpaca.example/docs')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('详见https://alpaca.example/docs.谢谢') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://alpaca.example/docs.谢谢' })).toBeNull()
+  })
+
+  it('keeps modern bare-url tlds intact in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithModernTldContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const intactUrl = await screen.findByRole('link', {
+      name: 'https://example.technology',
+    })
+    expect(intactUrl.getAttribute('href')).toBe('https://example.technology')
+    expect(screen.queryByRole('link', { name: 'https://example' })).toBeNull()
+  })
+
+  it('keeps dotted path segments intact in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithDottedPathSegmentContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const intactUrl = await screen.findByRole('link', {
+      name: 'https://example.com/report.finaldraft',
+    })
+    expect(intactUrl.getAttribute('href')).toBe('https://example.com/report.finaldraft')
+    expect(screen.queryByRole('link', { name: 'https://example.com/report' })).toBeNull()
+  })
+
+  it('keeps commas inside bare-url query values intact in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithCommaInQueryValueContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const intactUrl = await screen.findByRole('link', {
+      name: 'https://example.com/path?tags=alpha,betatest',
+    })
+    expect(intactUrl.getAttribute('href')).toBe('https://example.com/path?tags=alpha,betatest')
+    expect(screen.queryByRole('link', { name: 'https://example.com/path?tags=alpha' })).toBeNull()
+  })
+
+  it('excludes exclamation marks from bare links when latin text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithExclamationAndFollowingTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://example.com',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://example.com')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('See https://example.com!thanks') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://example.com!thanks' })).toBeNull()
+  })
+
+  it('excludes colons from bare links when chinese text follows immediately', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareUrlWithColonAndFollowingChineseTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const punctuationTrimmedUrl = await screen.findByRole('link', {
+      name: 'https://example.com',
+    })
+    expect(punctuationTrimmedUrl.getAttribute('href')).toBe('https://example.com')
+
+    const paragraph = screen.getByText(
+      (_, element) => element?.tagName === 'P' && element.textContent?.includes('详见https://example.com:后文') === true,
+    )
+    expect(paragraph.tagName).toBe('P')
+    expect(screen.queryByRole('link', { name: 'https://example.com:后文' })).toBeNull()
   })
 
   it('renders markdown images inline in preview mode', async () => {

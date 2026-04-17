@@ -9,6 +9,38 @@ type PreviewPaneProps = {
 
 const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
 const IMAGE_MARKDOWN_PATTERN = /!\[([^\]]*)\]\(([^)]+)\)/g
+const BARE_URL_SCHEME_PATTERN = /https?:\/\//gi
+const BARE_URL_TERMINATOR_PATTERN = /[\s<>]/
+const MID_URL_BARE_URL_TERMINATOR_CHARS = new Set(['，', '。', '！', '？', '；', '：', '“', '”', '‘', '’'])
+const ALWAYS_TRAILING_BARE_URL_CHARS = new Set([
+  '.',
+  ',',
+  '!',
+  '?',
+  ';',
+  ':',
+  '，',
+  '。',
+  '！',
+  '？',
+  '；',
+  '：',
+  '"',
+  "'",
+  '“',
+  '”',
+  '‘',
+  '’',
+])
+const BARE_URL_ATTACHED_TEXT_PATTERN = /^[\p{L}\p{N}]+$/u
+const BALANCED_BARE_URL_PAIRS = [
+  ['(', ')'],
+  ['（', '）'],
+  ['[', ']'],
+  ['【', '】'],
+  ['{', '}'],
+  ['｛', '｝'],
+] as const
 
 function sanitizeLinkHref(linkHref: string) {
   const trimmedHref = linkHref.trim()
@@ -43,6 +75,161 @@ function sanitizeImageSrc(imageSrc: string) {
   return /^https?:|^(#|\/(?!\/)|\.\.?\/|\?)/.test(sanitizedHref) ? sanitizedHref : null
 }
 
+function hasUnmatchedBareUrlClosingCharacter(url: string, closingCharacter: string) {
+  const balancedPair = BALANCED_BARE_URL_PAIRS.find(([, closing]) => closing === closingCharacter)
+  if (!balancedPair) {
+    return false
+  }
+
+  const [openingCharacter] = balancedPair
+  const openingCount = [...url].filter((character) => character === openingCharacter).length
+  const closingCount = [...url].filter((character) => character === closingCharacter).length
+
+  return closingCount > openingCount
+}
+
+function getBareUrlAttachedTextSplitIndex(url: string) {
+  const lastCommaIndex = url.lastIndexOf(',')
+  if (lastCommaIndex > 0 && lastCommaIndex < url.length - 1) {
+    const commaSuffix = url.slice(lastCommaIndex + 1)
+    if (
+      BARE_URL_ATTACHED_TEXT_PATTERN.test(commaSuffix) &&
+      /[A-Za-z]/.test(commaSuffix) &&
+      !url.slice(0, lastCommaIndex).includes('?') &&
+      !url.slice(0, lastCommaIndex).includes('#')
+    ) {
+      return lastCommaIndex
+    }
+  }
+
+  const lastPeriodIndex = url.lastIndexOf('.')
+  if (lastPeriodIndex > 0 && lastPeriodIndex < url.length - 1) {
+    const periodSuffix = url.slice(lastPeriodIndex + 1)
+    if (BARE_URL_ATTACHED_TEXT_PATTERN.test(periodSuffix) && /[^\x00-\x7F]/.test(periodSuffix)) {
+      return lastPeriodIndex
+    }
+  }
+
+  const lastExclamationIndex = url.lastIndexOf('!')
+  if (lastExclamationIndex > 0 && lastExclamationIndex < url.length - 1) {
+    const exclamationSuffix = url.slice(lastExclamationIndex + 1)
+    if (BARE_URL_ATTACHED_TEXT_PATTERN.test(exclamationSuffix) && /[A-Za-z]/.test(exclamationSuffix)) {
+      return lastExclamationIndex
+    }
+  }
+
+  const lastColonIndex = url.lastIndexOf(':')
+  const schemeSeparatorIndex = url.indexOf('://')
+  if (lastColonIndex > 'https://'.length && lastColonIndex < url.length - 1 && schemeSeparatorIndex >= 0) {
+    const colonSuffix = url.slice(lastColonIndex + 1)
+    const afterSchemeBeforeColon = url.slice(schemeSeparatorIndex + 3, lastColonIndex)
+    if (
+      BARE_URL_ATTACHED_TEXT_PATTERN.test(colonSuffix) &&
+      /[^\x00-\x7F]/.test(colonSuffix) &&
+      !afterSchemeBeforeColon.includes('/') &&
+      !afterSchemeBeforeColon.includes('?') &&
+      !afterSchemeBeforeColon.includes('#')
+    ) {
+      return lastColonIndex
+    }
+  }
+
+  return -1
+}
+
+function trimBareUrlCandidate(url: string) {
+  let trimmedUrl = url
+  let trailingText = ''
+
+  while (trimmedUrl) {
+    const lastCharacter = trimmedUrl.at(-1)
+    if (!lastCharacter) {
+      break
+    }
+
+    if (ALWAYS_TRAILING_BARE_URL_CHARS.has(lastCharacter)) {
+      trimmedUrl = trimmedUrl.slice(0, -1)
+      trailingText = `${lastCharacter}${trailingText}`
+      continue
+    }
+
+    if (hasUnmatchedBareUrlClosingCharacter(trimmedUrl, lastCharacter)) {
+      trimmedUrl = trimmedUrl.slice(0, -1)
+      trailingText = `${lastCharacter}${trailingText}`
+      continue
+    }
+
+    const splitIndex = getBareUrlAttachedTextSplitIndex(trimmedUrl)
+    if (splitIndex >= 0) {
+      trailingText = `${trimmedUrl.slice(splitIndex)}${trailingText}`
+      trimmedUrl = trimmedUrl.slice(0, splitIndex)
+      continue
+    }
+
+    break
+  }
+
+  return { trimmedUrl, trailingText }
+}
+
+function renderBareUrls(markdown: string, startIndex: number) {
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+  let matchIndex = startIndex
+
+  for (const match of markdown.matchAll(BARE_URL_SCHEME_PATTERN)) {
+    const start = match.index || 0
+    let end = start
+
+    while (end < markdown.length && !BARE_URL_TERMINATOR_PATTERN.test(markdown[end])) {
+      const character = markdown[end]
+      if (MID_URL_BARE_URL_TERMINATOR_CHARS.has(character)) {
+        break
+      }
+
+      if (hasUnmatchedBareUrlClosingCharacter(markdown.slice(start, end + 1), character)) {
+        break
+      }
+
+      end += 1
+    }
+
+    const matchedUrl = markdown.slice(start, end)
+    const { trimmedUrl, trailingText } = trimBareUrlCandidate(matchedUrl)
+
+    if (start > lastIndex) {
+      nodes.push(markdown.slice(lastIndex, start))
+    }
+
+    const sanitizedHref = sanitizeLinkHref(trimmedUrl)
+
+    if (sanitizedHref) {
+      nodes.push(
+        <a key={`inline-${matchIndex}`} href={sanitizedHref} rel="noreferrer" target="_blank">
+          {trimmedUrl}
+        </a>,
+      )
+      if (trailingText) {
+        nodes.push(trailingText)
+      }
+    } else {
+      nodes.push(matchedUrl)
+    }
+
+    lastIndex = end
+    matchIndex += 1
+  }
+
+  if (lastIndex < markdown.length) {
+    nodes.push(markdown.slice(lastIndex))
+  }
+
+  return {
+    nodes: nodes.length > 0 ? nodes : [markdown],
+    nextMatchIndex: matchIndex,
+  }
+}
+
 function renderTextInline(markdown: string): ReactNode[] {
   const nodes: ReactNode[] = []
   const pattern = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
@@ -54,7 +241,9 @@ function renderTextInline(markdown: string): ReactNode[] {
     const start = match.index || 0
 
     if (start > lastIndex) {
-      nodes.push(markdown.slice(lastIndex, start))
+      const renderedText = renderBareUrls(markdown.slice(lastIndex, start), matchIndex)
+      nodes.push(...renderedText.nodes)
+      matchIndex = renderedText.nextMatchIndex
     }
 
     if (linkLabel && linkHref) {
@@ -81,7 +270,8 @@ function renderTextInline(markdown: string): ReactNode[] {
   }
 
   if (lastIndex < markdown.length) {
-    nodes.push(markdown.slice(lastIndex))
+    const renderedText = renderBareUrls(markdown.slice(lastIndex), matchIndex)
+    nodes.push(...renderedText.nodes)
   }
 
   return nodes.length > 0 ? nodes : [markdown]
