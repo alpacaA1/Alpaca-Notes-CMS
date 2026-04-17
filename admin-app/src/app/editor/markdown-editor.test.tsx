@@ -402,53 +402,10 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
   })
 
-  it('keeps the pre-click selection when inserting a link from the toolbar', () => {
-    function Harness() {
-      const [value, setValue] = useState('hello world')
-      return <MarkdownEditor value={value} onChange={setValue} />
-    }
+  it('does not render the insert-link toolbar button', () => {
+    renderControlledEditor('hello world')
 
-    render(<Harness />)
-
-    const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    const insertLinkButton = screen.getByRole('button', { name: '插入链接' }) as HTMLButtonElement
-
-    editor.focus()
-    editor.setSelectionRange(6, 11)
-    fireEvent.mouseDown(insertLinkButton)
-    insertLinkButton.focus()
-    editor.setSelectionRange(0, 0)
-    fireEvent.click(insertLinkButton)
-
-    const expectedValue = 'hello [world](https://)'
-    const urlStart = expectedValue.lastIndexOf('https://')
-    expect(editor.value).toBe(expectedValue)
-    expect(editor.selectionStart).toBe(urlStart)
-    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
-  })
-
-  it('inserts a placeholder link from the toolbar when nothing is selected', () => {
-    function Harness() {
-      const [value, setValue] = useState('hello')
-      return <MarkdownEditor value={value} onChange={setValue} />
-    }
-
-    render(<Harness />)
-
-    const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    const insertLinkButton = screen.getByRole('button', { name: '插入链接' }) as HTMLButtonElement
-
-    editor.focus()
-    editor.setSelectionRange(editor.value.length, editor.value.length)
-    fireEvent.mouseDown(insertLinkButton)
-    insertLinkButton.focus()
-    fireEvent.click(insertLinkButton)
-
-    const expectedValue = 'hello[链接文本](https://)'
-    const urlStart = expectedValue.lastIndexOf('https://')
-    expect(editor.value).toBe(expectedValue)
-    expect(editor.selectionStart).toBe(urlStart)
-    expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
+    expect(screen.queryByRole('button', { name: '插入链接' })).toBeNull()
   })
 
   it('keeps the pre-picker selection when focus shifts before the picker click handler runs', async () => {

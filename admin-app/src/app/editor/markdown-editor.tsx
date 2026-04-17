@@ -366,7 +366,6 @@ export default function MarkdownEditor({
   const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
-  const linkSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const textareaId = useId()
 
@@ -434,25 +433,6 @@ export default function MarkdownEditor({
       start: textareaRef.current.selectionStart,
       end: textareaRef.current.selectionEnd,
     }
-  }
-
-  const handleInsertLinkButtonMouseDown = () => {
-    if (!textareaRef.current) {
-      return
-    }
-
-    linkSelectionRef.current = {
-      start: textareaRef.current.selectionStart,
-      end: textareaRef.current.selectionEnd,
-    }
-  }
-
-  const handleInsertLinkButtonClick = () => {
-    const selection = linkSelectionRef.current ?? {
-      start: textareaRef.current?.selectionStart ?? 0,
-      end: textareaRef.current?.selectionEnd ?? 0,
-    }
-    insertLinkMarkdown(selection)
   }
 
   const handleUploadButtonClick = () => {
@@ -712,15 +692,6 @@ export default function MarkdownEditor({
           <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
         </div>
         <div className="markdown-editor__actions">
-          <button
-            type="button"
-            className="markdown-editor__upload-button"
-            disabled={isUploadingImage}
-            onMouseDown={handleInsertLinkButtonMouseDown}
-            onClick={handleInsertLinkButtonClick}
-          >
-            插入链接
-          </button>
           {onUploadImage ? (
             <>
               <input
