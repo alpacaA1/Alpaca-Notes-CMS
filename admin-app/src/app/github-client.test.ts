@@ -36,6 +36,25 @@ describe('github client encoding', () => {
     expect(file.content).toBe(chineseMarkdown)
   })
 
+  it('bypasses browser caches when fetching a post file after saves', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/_posts/chinese.md',
+        sha: 'sha-1',
+        encoding: 'base64',
+        content: Buffer.from(chineseMarkdown, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    await fetchPostFile({ token: 'token' }, 'source/_posts/chinese.md')
+
+    const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(requestInit.cache).toBe('no-store')
+  })
+
   it('uploads image files with base64 content from binary bytes', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,

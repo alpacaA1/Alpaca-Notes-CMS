@@ -112,7 +112,9 @@ export async function fetchPostFile(
   path: string,
 ): Promise<{ path: string; sha: string; content: string }> {
   const apiPath = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${encodeURIComponent(REPO_BRANCH)}`
-  const file = await requestGitHub<GitHubContentFile>(session, apiPath)
+  const file = await requestGitHub<GitHubContentFile>(session, apiPath, {
+    cache: 'no-store',
+  })
 
   if (file.type !== 'file' || file.encoding !== 'base64' || typeof file.content !== 'string') {
     throw new Error('GitHub did not return a decodable markdown file.')

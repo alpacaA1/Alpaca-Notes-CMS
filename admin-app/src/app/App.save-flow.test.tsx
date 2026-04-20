@@ -33,6 +33,33 @@ desc: desc
 
 Original body.`
 
+const otherPost = {
+  path: 'source/_posts/other-post.md',
+  sha: 'sha-other',
+  title: 'Other post',
+  date: '2026-04-04 12:00:00',
+  desc: 'other desc',
+  published: true,
+  hasExplicitPublished: true,
+  categories: ['生活'],
+  tags: ['记录'],
+  permalink: 'other-post/',
+}
+
+const otherContent = `---
+title: Other post
+permalink: other-post/
+date: 2026-04-04 12:00:00
+published: true
+categories:
+  - 生活
+tags:
+  - 记录
+desc: other desc
+---
+
+Other body.`
+
 function createDeferredPromise<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
   let reject!: (reason?: unknown) => void
@@ -268,6 +295,66 @@ describe('App save flow', () => {
     expect(await screen.findByRole('heading', { name: 'Updated title' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /updated title/i })).toBeTruthy()
     expect(screen.getByText('已保存。')).toBeTruthy()
+  })
+
+  it('keeps saved permalink changes after switching away and reopening the post', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
+    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile')
+    fetchPostFile
+      .mockResolvedValueOnce({
+        path: existingPost.path,
+        sha: existingPost.sha,
+        content: existingContent,
+      })
+      .mockResolvedValueOnce({
+        path: otherPost.path,
+        sha: otherPost.sha,
+        content: otherContent,
+      })
+      .mockResolvedValueOnce({
+        path: existingPost.path,
+        sha: 'sha-updated',
+        content: `---
+title: Save flow post
+permalink: updated-save-flow/
+date: 2026-04-03 12:00:00
+published: false
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+Original body.`,
+      })
+    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: 'sha-updated',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('永久链接'), { target: { value: 'updated-save-flow/' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    expect(await screen.findByText('已保存。')).toBeTruthy()
+    expect((screen.getByLabelText('永久链接') as HTMLInputElement).value).toBe('updated-save-flow/')
+
+    fireEvent.click(screen.getByRole('button', { name: /other post/i }))
+    await screen.findByDisplayValue('other-post/')
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByDisplayValue('updated-save-flow/')).toBeTruthy()
   })
 
   it('surfaces stale-sha save conflicts and keeps local dirty state', async () => {
