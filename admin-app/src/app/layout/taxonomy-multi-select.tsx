@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 
 type TaxonomyMultiSelectProps = {
   label: '分类' | '标签'
@@ -38,6 +38,7 @@ export default function TaxonomyMultiSelect({
   const [editingOption, setEditingOption] = useState<string | null>(null)
   const [editingValue, setEditingValue] = useState('')
   const editInputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const listboxId = useId()
   const searchLabel = `搜索${label}`
   const triggerLabel = `选择${label}`
@@ -58,6 +59,29 @@ export default function TaxonomyMultiSelect({
 
     return indexedOptions.filter((option) => option.toLocaleLowerCase().includes(normalizedQuery))
   }, [indexedOptions, normalizedQuery])
+
+  useEffect(() => {
+    if (!isOpen) {
+      return
+    }
+
+    const handleDocumentClick = (event: MouseEvent | TouchEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+        setQuery('')
+        setEditingOption(null)
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentClick)
+    document.addEventListener('touchstart', handleDocumentClick)
+
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick)
+      document.removeEventListener('touchstart', handleDocumentClick)
+    }
+  }, [isOpen])
+
   const hasIndexedOptions = indexedOptions.length > 0
   const hasFilteredOptions = filteredOptions.length > 0
   const showSearch = hasIndexedOptions || Boolean(onCreateOption)
@@ -150,7 +174,7 @@ export default function TaxonomyMultiSelect({
   }
 
   return (
-    <div className="taxonomy-multi-select">
+    <div className="taxonomy-multi-select" ref={containerRef}>
       {normalizedValue.length ? (
         <div className="taxonomy-multi-select__chip-group" aria-label={`已选${label}`}>
           {normalizedValue.map((selectedValue) => (

@@ -227,6 +227,7 @@ export default function App() {
 
     setIsOpeningPost(true)
     setActivePostPath(post.path)
+    replaceDocument(null)
     setSuccessMessage(null)
     setError(null)
 
