@@ -3,6 +3,8 @@ import { fromPostDateTimeInputValue, toPostDateTimeInputValue } from '../posts/n
 import type { PostValidationErrors } from '../posts/post-types'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
 
+type TaxonomyType = 'categories' | 'tags'
+
 type SettingsPanelProps = {
   document: ParsedPost | null
   validationErrors: PostValidationErrors
@@ -13,6 +15,9 @@ type SettingsPanelProps = {
     field: K,
     value: ParsedPost['frontmatter'][K],
   ) => void
+  onTaxonomyCreate?: (type: TaxonomyType, name: string) => void
+  onTaxonomyRename?: (type: TaxonomyType, oldName: string, newName: string) => void
+  onTaxonomyDelete?: (type: TaxonomyType, name: string) => void
 }
 
 
@@ -23,6 +28,9 @@ export default function SettingsPanel({
   availableCategories,
   availableTags,
   onFieldChange,
+  onTaxonomyCreate,
+  onTaxonomyRename,
+  onTaxonomyDelete,
 }: SettingsPanelProps) {
   if (!document) {
     return null
@@ -82,6 +90,9 @@ export default function SettingsPanel({
           value={frontmatter.categories}
           availableOptions={availableCategories}
           onChange={(value) => onFieldChange('categories', value)}
+          onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
+          onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
+          onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
         />
       </div>
 
@@ -93,6 +104,9 @@ export default function SettingsPanel({
           value={frontmatter.tags}
           availableOptions={availableTags}
           onChange={(value) => onFieldChange('tags', value)}
+          onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
+          onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
+          onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
         />
       </div>
 

@@ -177,3 +177,61 @@ export async function uploadImageFile(
     sha: response.content.sha,
   }
 }
+
+export type BatchUpdateResult = {
+  success: string[]
+  failed: { path: string; error: string }[]
+}
+
+/**
+ * Serially fetch, mutate, and save a list of posts.
+ * Runs one at a time to avoid hitting GitHub API rate limits.
+ *
+ * @param mutate - A function that receives the raw file content and returns
+ *   the new content. Return `null` to skip the file (no changes needed).
+ * @param onProgress - Called after each file is processed.
+ */
+export async function batchUpdatePostContents(
+  session: SessionState,
+  paths: string[],
+  commitMessage: string,
+  mutate: (content: string) => string | null,
+  onProgress?: (completed: number, total: number) => void,
+): Promise<BatchUpdateResult> {
+  const result: BatchUpdateResult = { success: [], failed: [] }
+
+  for (let i = 0; i < paths.length; i++) {
+    const path = paths[i]
+
+    try {
+      const file = await fetchPostFile(session, path)
+      const newContent = mutate(file.content)
+
+      if (newContent === null || newContent === file.content) {
+        result.success.push(path)
+        onProgress?.(i + 1, paths.length)
+        continue
+      }
+
+      await savePostFile(session, {
+        path: file.path,
+        sha: file.sha,
+        content: newContent,
+      })
+      result.success.push(path)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        throw caughtError
+      }
+
+      result.failed.push({
+        path,
+        error: caughtError instanceof Error ? caughtError.message : '更新失败。',
+      })
+    }
+
+    onProgress?.(i + 1, paths.length)
+  }
+
+  return result
+}

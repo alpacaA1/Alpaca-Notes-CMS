@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
+import { batchUpdatePostContents, fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
@@ -7,6 +7,7 @@ import { useEditorDocument } from './editor/use-editor-document'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import SettingsPanel from './layout/settings-panel'
+import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import LoginGate from './login-gate'
 import { createNewPost } from './posts/new-post'
@@ -15,9 +16,16 @@ import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
 import type { PostIndexItem } from './posts/post-types'
+import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent } from './posts/taxonomy-operations'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
+type TaxonomyType = 'categories' | 'tags'
+type TaxonomyConfirmAction =
+  | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
+  | { kind: 'delete'; type: TaxonomyType; name: string; affectedPaths: string[] }
+
 const SAVE_SUCCESS_MESSAGE = '已保存。'
+const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function EmptyState({ error }: { error: string | null }) {
   return (
@@ -46,6 +54,9 @@ export default function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const previewObjectUrlsRef = useRef<string[]>([])
+  const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
+  const [isBatchUpdating, setIsBatchUpdating] = useState(false)
+  const [batchProgress, setBatchProgress] = useState('')
   const {
     document,
     mode,
@@ -355,8 +366,156 @@ export default function App() {
     }
   }
 
+  // ---- Taxonomy CRUD handlers ----
+
+  const handleTaxonomyCreate = (type: TaxonomyType, name: string) => {
+    if (!document) {
+      return
+    }
+
+    clearSuccessMessageOnDirty()
+    // Add the new taxonomy value to the current document's frontmatter
+    const currentValues = document.frontmatter[type]
+    if (!currentValues.includes(name)) {
+      updateFrontmatter(type, [...currentValues, name])
+    }
+  }
+
+  const handleTaxonomyRename = (type: TaxonomyType, oldName: string, newName: string) => {
+    const affectedPaths = findPostsWithTaxonomy(posts, type, oldName)
+
+    if (affectedPaths.length === 0) {
+      // No posts use this taxonomy — just update the current document if it has it
+      if (document) {
+        const currentValues = document.frontmatter[type]
+        if (currentValues.includes(oldName)) {
+          updateFrontmatter(
+            type,
+            currentValues.map((v) => (v === oldName ? newName : v)),
+          )
+        }
+      }
+      return
+    }
+
+    setTaxonomyConfirm({ kind: 'rename', type, oldName, newName, affectedPaths })
+  }
+
+  const handleTaxonomyDelete = (type: TaxonomyType, name: string) => {
+    const affectedPaths = findPostsWithTaxonomy(posts, type, name)
+
+    if (affectedPaths.length === 0) {
+      // No posts use this taxonomy — just remove from current document if present
+      if (document) {
+        const currentValues = document.frontmatter[type]
+        if (currentValues.includes(name)) {
+          updateFrontmatter(
+            type,
+            currentValues.filter((v) => v !== name),
+          )
+        }
+      }
+      return
+    }
+
+    setTaxonomyConfirm({ kind: 'delete', type, name, affectedPaths })
+  }
+
+  const handleTaxonomyConfirm = async () => {
+    if (!taxonomyConfirm || !session) {
+      return
+    }
+
+    setIsBatchUpdating(true)
+    setBatchProgress('')
+    setError(null)
+
+    try {
+      const { affectedPaths } = taxonomyConfirm
+
+      if (taxonomyConfirm.kind === 'rename') {
+        const { type, oldName, newName } = taxonomyConfirm
+        const result = await batchUpdatePostContents(
+          session,
+          affectedPaths,
+          `Rename ${type} "${oldName}" to "${newName}"`,
+          (content) => renameTaxonomyInContent(content, type, oldName, newName),
+          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+        )
+
+        // Update current document's frontmatter if it contains the old name
+        if (document) {
+          const currentValues = document.frontmatter[type]
+          if (currentValues.includes(oldName)) {
+            updateFrontmatter(
+              type,
+              currentValues.map((v) => (v === oldName ? newName : v)),
+            )
+          }
+        }
+
+        if (result.failed.length > 0) {
+          setError(`重命名完成，但 ${result.failed.length} 篇文章更新失败。`)
+        } else {
+          setSuccessMessage(`已将${TAXONOMY_LABELS[type]}「${oldName}」重命名为「${newName}」。`)
+        }
+      } else {
+        const { type, name } = taxonomyConfirm
+        const result = await batchUpdatePostContents(
+          session,
+          affectedPaths,
+          `Delete ${type} "${name}"`,
+          (content) => deleteTaxonomyFromContent(content, type, name),
+          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+        )
+
+        // Update current document's frontmatter if it contains the deleted name
+        if (document) {
+          const currentValues = document.frontmatter[type]
+          if (currentValues.includes(name)) {
+            updateFrontmatter(
+              type,
+              currentValues.filter((v) => v !== name),
+            )
+          }
+        }
+
+        if (result.failed.length > 0) {
+          setError(`删除完成，但 ${result.failed.length} 篇文章更新失败。`)
+        } else {
+          setSuccessMessage(`已从所有文章中删除${TAXONOMY_LABELS[type]}「${name}」。`)
+        }
+      }
+
+      // Refresh post index to reflect the changes
+      try {
+        const indexedPosts = await buildPostIndex(session)
+        setPosts(indexedPosts)
+      } catch {
+        // If re-indexing fails, the UI still reflects the old data but the operation succeeded
+      }
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '批量更新失败。')
+    } finally {
+      setIsBatchUpdating(false)
+      setBatchProgress('')
+      setTaxonomyConfirm(null)
+    }
+  }
+
+  const handleTaxonomyCancel = () => {
+    if (!isBatchUpdating) {
+      setTaxonomyConfirm(null)
+    }
+  }
+
   const saveLabel = isSaving ? '保存中…' : document ? (isDirty ? '保存' : '已保存') : '保存'
-  const isSaveDisabled = !document || isSaving || !isDirty
+  const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
   const status = isSaving && document
@@ -462,10 +621,33 @@ export default function App() {
               availableCategories={availableCategories}
               availableTags={availableTags}
               onFieldChange={handleFrontmatterChange}
+              onTaxonomyCreate={handleTaxonomyCreate}
+              onTaxonomyRename={handleTaxonomyRename}
+              onTaxonomyDelete={handleTaxonomyDelete}
             />
           ) : null}
         </section>
       </div>
+      {taxonomyConfirm ? (
+        <ConfirmDialog
+          title={
+            taxonomyConfirm.kind === 'rename'
+              ? `重命名${TAXONOMY_LABELS[taxonomyConfirm.type]}`
+              : `删除${TAXONOMY_LABELS[taxonomyConfirm.type]}`
+          }
+          message={
+            taxonomyConfirm.kind === 'rename'
+              ? `确定将${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.oldName}」重命名为「${taxonomyConfirm.newName}」吗？这将修改 ${taxonomyConfirm.affectedPaths.length} 篇文章。`
+              : `确定删除${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.name}」吗？这将从 ${taxonomyConfirm.affectedPaths.length} 篇文章中移除该${TAXONOMY_LABELS[taxonomyConfirm.type]}。`
+          }
+          confirmLabel={taxonomyConfirm.kind === 'rename' ? '确认重命名' : '确认删除'}
+          isDangerous={taxonomyConfirm.kind === 'delete'}
+          isProcessing={isBatchUpdating}
+          processingMessage={batchProgress}
+          onConfirm={() => { void handleTaxonomyConfirm() }}
+          onCancel={handleTaxonomyCancel}
+        />
+      ) : null}
     </main>
   )
 }
