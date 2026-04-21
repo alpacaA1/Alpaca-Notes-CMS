@@ -9,6 +9,7 @@ import PostListPane from './layout/post-list-pane'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
+import { useColorMode } from './layout/use-color-mode'
 import LoginGate from './login-gate'
 import { createNewPost } from './posts/new-post'
 import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
@@ -42,6 +43,7 @@ function EmptyState({ error }: { error: string | null }) {
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
   const [session, setSession] = useState(() => sessionStore.getSession())
+  const { isDark, toggle: toggleColorMode } = useColorMode()
   const [posts, setPosts] = useState<PostIndexItem[]>([])
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -541,7 +543,7 @@ export default function App() {
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas
 
   return (
-    <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}`}>
+    <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}`}>
       <div className="admin-shell__glow admin-shell__glow--left" />
       <div className="admin-shell__glow admin-shell__glow--right" />
       <TopBar
@@ -554,11 +556,13 @@ export default function App() {
         onTogglePreview={handleTogglePreview}
         hasActiveDocument={Boolean(document)}
         isPreviewing={isPreviewing}
+        isDarkMode={isDark}
         saveLabel={saveLabel}
         isSaveDisabled={isSaveDisabled}
         isSaveQuiet={isSaveQuiet}
         status={status}
         onLogout={handleLogout}
+        onToggleColorMode={toggleColorMode}
       />
       <div className="admin-layout">
         <PostListPane

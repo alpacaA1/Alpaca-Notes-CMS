@@ -5,7 +5,9 @@ type TopBarProps = {
   onSave: () => void
   onTogglePreview: () => void
   onLogout: () => void
+  onToggleColorMode: () => void
   isPreviewing: boolean
+  isDarkMode: boolean
   hasActiveDocument: boolean
   saveLabel: string
   isSaveDisabled: boolean
@@ -20,7 +22,9 @@ export default function TopBar({
   onSave,
   onTogglePreview,
   onLogout,
+  onToggleColorMode,
   isPreviewing,
+  isDarkMode,
   hasActiveDocument,
   saveLabel,
   isSaveDisabled,
@@ -61,6 +65,15 @@ export default function TopBar({
         </button>
         <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
           {isPreviewing ? '继续编辑' : '预览'}
+        </button>
+        <button
+          className="top-bar__button top-bar__button--theme"
+          type="button"
+          onClick={onToggleColorMode}
+          aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+          title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+        >
+          {isDarkMode ? '☀️' : '🌙'}
         </button>
         <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
           退出登录

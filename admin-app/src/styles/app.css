@@ -216,6 +216,362 @@ textarea {
   background-size: auto, auto, auto, 32px 32px, 32px 32px, auto;
 }
 
+/* ---- Dark mode ---- */
+
+.admin-shell--dark {
+  --admin-bg: #13110e;
+  --admin-bg-deep: #0d0b09;
+  --admin-surface: rgba(28, 25, 21, 0.92);
+  --admin-surface-strong: #1e1a16;
+  --admin-line: rgba(255, 255, 255, 0.08);
+  --admin-line-strong: rgba(255, 255, 255, 0.12);
+  --admin-text: #ede6dc;
+  --admin-muted: #a09585;
+  --admin-soft: #7a6e60;
+  --admin-accent: #d6c8b8;
+  --admin-accent-soft: rgba(214, 200, 184, 0.1);
+  --admin-save: #e4a358;
+  --admin-save-hover: #d89040;
+  --admin-save-disabled: #4a3f34;
+  --admin-save-disabled-hover: #554839;
+  --admin-save-text: #13110e;
+  --admin-save-muted-text: #2a2318;
+  --admin-new-post: rgba(228, 163, 88, 0.1);
+  --admin-new-post-line: rgba(228, 163, 88, 0.3);
+  --admin-warm: #d4a56a;
+  --admin-warm-soft: rgba(212, 165, 106, 0.12);
+  --admin-code-bg: #1a1714;
+  --admin-code-border: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+  background:
+    radial-gradient(circle at top left, rgba(212, 165, 106, 0.06), transparent 24%),
+    radial-gradient(circle at right 14%, rgba(100, 80, 55, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 34%),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+    linear-gradient(180deg, var(--admin-bg), var(--admin-bg-deep));
+}
+
+.admin-shell--dark::after {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 26%);
+  opacity: 0.4;
+}
+
+.admin-shell--dark .admin-shell__glow--left {
+  background: rgba(212, 165, 106, 0.08);
+}
+
+.admin-shell--dark .admin-shell__glow--right {
+  background: rgba(100, 80, 55, 0.1);
+}
+
+.admin-shell--dark .top-bar {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(22, 19, 16, 0.92), rgba(18, 16, 13, 0.88));
+}
+
+.admin-shell--dark .top-bar__search input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .top-bar__button,
+.admin-shell--dark .editor-mode-bar button {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .top-bar__button:hover,
+.admin-shell--dark .editor-mode-bar button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--admin-warm);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .top-bar__button--new-post {
+  background: rgba(228, 163, 88, 0.1);
+  border-color: rgba(228, 163, 88, 0.25);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .top-bar__button--new-post:hover {
+  background: rgba(228, 163, 88, 0.16);
+  border-color: var(--admin-warm);
+}
+
+.admin-shell--dark .top-bar__button--save {
+  background: linear-gradient(180deg, #e4a358, #d89040);
+  border-color: #d89040;
+  color: #13110e;
+}
+
+.admin-shell--dark .top-bar__button--save:hover {
+  background: linear-gradient(180deg, #eab06a, #dca050);
+}
+
+.admin-shell--dark .top-bar__button--save.top-bar__button--save-quiet,
+.admin-shell--dark .top-bar__button--save.top-bar__button--save-quiet:disabled {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .post-pane,
+.admin-shell--dark .editor-frame,
+.admin-shell--dark .editor-surface,
+.admin-shell--dark .settings-panel,
+.admin-shell--dark .preview-pane {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.2);
+}
+
+.admin-shell--dark .post-list-item {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-shell--dark .post-list-item.is-active {
+  border-color: var(--admin-warm);
+  background: rgba(212, 165, 106, 0.06);
+  box-shadow:
+    inset 3px 0 0 var(--admin-warm),
+    0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.admin-shell--dark .editor-textarea {
+  background: #16140f;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--admin-text);
+  box-shadow: none;
+}
+
+.admin-shell--dark .editor-textarea:focus,
+.admin-shell--dark .settings-panel input:focus,
+.admin-shell--dark .settings-panel textarea:focus,
+.admin-shell--dark .top-bar__search input:focus {
+  border-color: var(--admin-warm);
+  box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.1);
+}
+
+.admin-shell--dark .settings-panel input,
+.admin-shell--dark .settings-panel textarea {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.admin-shell--dark .settings-panel__toggle input {
+  accent-color: var(--admin-warm);
+}
+
+.admin-shell--dark .post-status-badge--published {
+  background: rgba(98, 180, 120, 0.1);
+  color: #7ec98a;
+}
+
+.admin-shell--dark .post-status-badge--draft {
+  background: rgba(212, 165, 106, 0.1);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .taxonomy-multi-select__trigger {
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+.admin-shell--dark .taxonomy-multi-select__panel {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(22, 19, 16, 0.98);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.4);
+}
+
+.admin-shell--dark .taxonomy-multi-select__search input {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
+.admin-shell--dark .taxonomy-multi-select__option {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .taxonomy-multi-select__option.is-selected {
+  background: rgba(212, 165, 106, 0.1);
+  border-color: rgba(212, 165, 106, 0.25);
+}
+
+.admin-shell--dark .taxonomy-multi-select__chip {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .taxonomy-multi-select__chip--selected {
+  background: rgba(212, 165, 106, 0.1);
+  border-color: rgba(212, 165, 106, 0.3);
+}
+
+.admin-shell--dark .taxonomy-multi-select__status {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .taxonomy-multi-select__create-btn {
+  background: rgba(212, 165, 106, 0.06);
+  border-color: rgba(212, 165, 106, 0.25);
+}
+
+.admin-shell--dark .taxonomy-multi-select__create-btn:hover {
+  background: rgba(212, 165, 106, 0.12);
+}
+
+.admin-shell--dark .taxonomy-multi-select__action-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .taxonomy-multi-select__edit-input {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-shell--dark .markdown-editor__upload-button {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .error-message {
+  color: #ffb3a5;
+  background: rgba(98, 28, 20, 0.32);
+  border-color: rgba(255, 122, 92, 0.24);
+}
+
+.admin-shell--dark .success-message {
+  color: #b7f3c5;
+  background: rgba(20, 75, 41, 0.28);
+  border-color: rgba(98, 227, 140, 0.22);
+}
+
+.admin-shell--dark .preview-content {
+  border-color: rgba(255, 255, 255, 0.06);
+  background:
+    linear-gradient(180deg, rgba(28, 25, 21, 0.98), rgba(22, 19, 16, 0.98)),
+    none;
+  color: var(--admin-text);
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.2);
+}
+
+.admin-shell--dark .preview-content__header {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .preview-content__date {
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .preview-content a {
+  color: var(--admin-warm);
+  text-decoration-color: rgba(212, 165, 106, 0.3);
+}
+
+.admin-shell--dark .preview-content pre {
+  background: #16140f;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .preview-content code {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #e4a358;
+}
+
+.admin-shell--dark .preview-content pre code {
+  background: transparent;
+  border-color: transparent;
+  color: inherit;
+}
+
+.admin-shell--dark .preview-content hr {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .preview-content blockquote {
+  border-left-color: var(--admin-warm);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .preview-content table {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-shell--dark .preview-content th,
+.admin-shell--dark .preview-content td {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .preview-content thead th {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .preview-content tbody tr:nth-child(odd) td,
+.admin-shell--dark .preview-content tbody tr:nth-child(odd) th {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.admin-shell--dark .preview-content img {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .confirm-dialog__overlay {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.admin-shell--dark .confirm-dialog {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.98), rgba(18, 16, 13, 0.98));
+  box-shadow: 0 32px 72px rgba(0, 0, 0, 0.5);
+}
+
+.admin-shell--dark .confirm-dialog__btn--cancel {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .confirm-dialog__btn--confirm {
+  background: linear-gradient(180deg, #e4a358, #d89040);
+  border-color: #d89040;
+  color: #13110e;
+}
+
+.admin-shell--dark .confirm-dialog__processing {
+  background: rgba(212, 165, 106, 0.06);
+  border-color: rgba(212, 165, 106, 0.15);
+}
+
+.admin-shell--dark .editor-mode-bar button[aria-pressed='true'] {
+  background: rgba(212, 165, 106, 0.1);
+  border-color: rgba(212, 165, 106, 0.25);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .top-bar__button:focus-visible,
+.admin-shell--dark .editor-mode-bar button:focus-visible,
+.admin-shell--dark .post-row-button:focus-visible,
+.admin-shell--dark .editor-textarea:focus-visible,
+.admin-shell--dark .settings-panel input:focus-visible,
+.admin-shell--dark .settings-panel textarea:focus-visible,
+.admin-shell--dark .top-bar__search input:focus-visible {
+  box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.15);
+}
+
+/* ---- end dark mode ---- */
+
 .admin-shell::after {
   content: '';
   position: absolute;
