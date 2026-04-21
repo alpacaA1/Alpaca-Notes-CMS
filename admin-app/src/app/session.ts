@@ -44,7 +44,7 @@ export function getSessionStorageKey() {
   return SESSION_STORAGE_KEY
 }
 
-export function readStoredSession(storage: Pick<Storage, 'getItem'> = window.sessionStorage): SessionState | null {
+export function readStoredSession(storage: Pick<Storage, 'getItem'> = window.localStorage): SessionState | null {
   const raw = storage.getItem(SESSION_STORAGE_KEY)
   if (!raw) {
     return null
@@ -63,12 +63,12 @@ export function readStoredSession(storage: Pick<Storage, 'getItem'> = window.ses
 
 export function persistSession(
   session: SessionState,
-  storage: Pick<Storage, 'setItem'> = window.sessionStorage,
+  storage: Pick<Storage, 'setItem'> = window.localStorage,
 ) {
   storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
 }
 
-export function clearStoredSession(storage: Pick<Storage, 'removeItem'> = window.sessionStorage) {
+export function clearStoredSession(storage: Pick<Storage, 'removeItem'> = window.localStorage) {
   storage.removeItem(SESSION_STORAGE_KEY)
 }
 
