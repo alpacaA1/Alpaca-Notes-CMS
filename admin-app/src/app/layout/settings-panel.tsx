@@ -19,6 +19,7 @@ type SettingsPanelProps = {
   onTaxonomyRename?: (type: TaxonomyType, oldName: string, newName: string) => void
   onTaxonomyDelete?: (type: TaxonomyType, name: string) => void
   onUploadImage?: (file: File) => Promise<{ markdown: string; publicUrl: string }>
+  previewImageUrls?: Record<string, string>
 }
 
 
@@ -33,6 +34,7 @@ export default function SettingsPanel({
   onTaxonomyRename,
   onTaxonomyDelete,
   onUploadImage,
+  previewImageUrls,
 }: SettingsPanelProps) {
   if (!document) {
     return null
@@ -154,7 +156,7 @@ export default function SettingsPanel({
         </div>
         {frontmatter.cover ? (
           <img
-            src={frontmatter.cover}
+            src={(previewImageUrls && previewImageUrls[frontmatter.cover]) || frontmatter.cover}
             alt="Cover Preview"
             style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
             loading="lazy"

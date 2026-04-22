@@ -673,6 +673,7 @@ export default function App() {
                 onTaxonomyRename={handleTaxonomyRename}
                 onTaxonomyDelete={handleTaxonomyDelete}
                 onUploadImage={handleUploadImage}
+                previewImageUrls={previewImageUrls}
               />
             ) : null}
           </section>
