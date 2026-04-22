@@ -55,6 +55,9 @@ describe('management layout components', () => {
         isSaveDisabled
         isSaveQuiet={false}
         status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="editor"
+        isDarkMode={false}
       />,
     )
 

@@ -142,9 +142,13 @@ function trimBareUrlCandidate(url: string) {
   let trailingText = ''
 
   while (trimmedUrl) {
-    const lastCharacter = trimmedUrl.at(-1)
+    const lastCharacter = trimmedUrl[trimmedUrl.length - 1]
     if (!lastCharacter) {
       break
+    }
+
+    if (lastCharacter === '/' || lastCharacter === '\\') {
+      // no-op
     }
 
     if (ALWAYS_TRAILING_BARE_URL_CHARS.has(lastCharacter)) {

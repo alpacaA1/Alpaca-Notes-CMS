@@ -125,15 +125,13 @@ describe('useEditorDocument', () => {
   })
 
   it('does not rely on JSON.stringify for dirty tracking', () => {
-    const originalJsonStringify = JSON.stringify
-    const stringifySpy = vi.fn(originalJsonStringify)
-    JSON.stringify = stringifySpy
+    const stringifySpy = vi.spyOn(JSON, 'stringify')
 
     try {
       renderHook(() => useEditorDocument(createExistingPost()))
       expect(stringifySpy).not.toHaveBeenCalled()
     } finally {
-      JSON.stringify = originalJsonStringify
+      stringifySpy.mockRestore()
     }
   })
 })

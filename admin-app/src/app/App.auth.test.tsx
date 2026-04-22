@@ -26,8 +26,7 @@ describe('App auth flow', () => {
 
     render(<App />)
 
-    expect(screen.getByRole('heading', { name: '内容编辑台' })).toBeTruthy()
-    expect(screen.getByText('请选择一篇文章开始编辑，或新建一篇草稿。')).toBeTruthy()
+    expect(screen.getByText('文章管理')).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 
@@ -40,7 +39,7 @@ describe('App auth flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with GitHub' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '内容编辑台' })).toBeTruthy()
+      expect(screen.getByText('文章管理')).toBeTruthy()
     })
 
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()

@@ -95,9 +95,7 @@ describe('App save flow', () => {
       expect(screen.getByText('Save flow post')).toBeTruthy()
     })
 
-    const saveButtonBeforeOpen = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
-    expect(saveButtonBeforeOpen.disabled).toBe(true)
-
+    // In dashboard mode, the save button is not visible until a post is opened
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 

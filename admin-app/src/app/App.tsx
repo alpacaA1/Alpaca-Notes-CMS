@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { batchUpdatePostContents, fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import MarkdownEditor from './editor/markdown-editor'
@@ -6,6 +6,7 @@ import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
+import PostDashboard from './layout/post-dashboard'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
@@ -40,6 +41,8 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
+type AdminView = 'dashboard' | 'editor'
+
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
   const [session, setSession] = useState(() => sessionStore.getSession())
@@ -48,6 +51,7 @@ export default function App() {
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
+  const [adminView, setAdminView] = useState<AdminView>('dashboard')
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isOpeningPost, setIsOpeningPost] = useState(false)
@@ -56,6 +60,7 @@ export default function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const previewObjectUrlsRef = useRef<string[]>([])
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [batchProgress, setBatchProgress] = useState('')
@@ -196,6 +201,7 @@ export default function App() {
     setSuccessMessage(null)
     replaceDocument(null)
     setIsImmersive(false)
+    setAdminView('dashboard')
   }
 
   const handleAuthExpiry = (message: string) => {
@@ -218,6 +224,7 @@ export default function App() {
     }
 
     applyDocument(createNewPost())
+    setAdminView('editor')
   }
 
   const handleOpenPost = async (post: PostIndexItem) => {
@@ -225,6 +232,7 @@ export default function App() {
       return
     }
 
+    setAdminView('editor')
     setIsOpeningPost(true)
     setActivePostPath(post.path)
     replaceDocument(null)
@@ -244,6 +252,20 @@ export default function App() {
     } finally {
       setIsOpeningPost(false)
     }
+  }
+
+  const handleBackToDashboard = () => {
+    if (!confirmNavigation()) {
+      return
+    }
+
+    resetPreviewImageUrls()
+    setActivePostPath(null)
+    replaceDocument(null)
+    setIsImmersive(false)
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('dashboard')
   }
 
   const handleSave = async () => {
@@ -521,22 +543,27 @@ export default function App() {
   const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
-  const status = isSaving && document
-    ? `正在保存 ${document.path}`
-    : isOpeningPost && activePostPath
-      ? `正在打开 ${activePostPath}`
-      : document
-        ? isDirty
-          ? `未保存修改 · ${document.path}`
-          : `编辑中 · ${document.path}`
-        : isIndexing
-          ? '正在加载文章…'
-          : '已就绪'
+  const status = adminView === 'dashboard'
+    ? isIndexing
+      ? '正在加载文章…'
+      : `共 ${posts.length} 篇文章`
+    : isSaving && document
+      ? `正在保存 ${document.path}`
+      : isOpeningPost && activePostPath
+        ? `正在打开 ${activePostPath}`
+        : document
+          ? isDirty
+            ? `未保存修改 · ${document.path}`
+            : `编辑中 · ${document.path}`
+          : isIndexing
+            ? '正在加载文章…'
+            : '已就绪'
 
   if (!session) {
     return <LoginGate isLoading={isLoading} error={error} onLogin={handleLogin} />
   }
 
+  const isDashboard = adminView === 'dashboard'
   const isPreviewing = mode === 'preview'
   const showImmersiveCanvas = Boolean(document) && (isImmersive || isPreviewing)
   const isPostListHidden = showImmersiveCanvas
@@ -564,75 +591,89 @@ export default function App() {
         status={status}
         onLogout={handleLogout}
         onToggleColorMode={toggleColorMode}
+        adminView={adminView}
+        onBackToDashboard={handleBackToDashboard}
+        searchInputRef={searchInputRef}
       />
-      <div className="admin-layout">
-        <PostListPane
-          posts={filteredPosts}
-          hidden={isPostListHidden}
-          activePostPath={activePostPath}
+      {isDashboard ? (
+        <PostDashboard
+          posts={posts}
+          search={search}
+          isIndexing={isIndexing}
           onOpenPost={handleOpenPost}
+          onNewPost={handleNewPost}
+          onSearchFocus={() => searchInputRef.current?.focus()}
         />
-        <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
-          <div className="editor-stack">
-            {document ? (
-              <>
-                {showDocumentFrame ? (
-                  <section className="editor-frame">
-                    <div className="editor-frame__header">
-                      <div>
-                        <p className="editor-frame__eyebrow">当前稿件</p>
-                        <h1>{document.frontmatter.title?.trim() || '未命名草稿'}</h1>
+      ) : (
+        <div className="admin-layout">
+          <PostListPane
+            posts={filteredPosts}
+            hidden={isPostListHidden}
+            activePostPath={activePostPath}
+            onOpenPost={handleOpenPost}
+          />
+          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
+            <div className="editor-stack">
+              {document ? (
+                <>
+                  {showDocumentFrame ? (
+                    <section className="editor-frame">
+                      <div className="editor-frame__header">
+                        <div>
+                          <p className="editor-frame__eyebrow">当前稿件</p>
+                          <h1>{document.frontmatter.title?.trim() || '未命名草稿'}</h1>
+                        </div>
                       </div>
-                    </div>
-                    <div className="editor-frame__meta">
-                      <span>{document.path}</span>
-                      <span>{mode === 'preview' ? '预览模式' : '编辑模式'}</span>
-                    </div>
-                  </section>
-                ) : null}
-                {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
-                {error ? <p className="error-message">{error}</p> : null}
-                {mode === 'preview' ? (
-                  <PreviewPane
-                    title={document.frontmatter.title}
-                    date={document.frontmatter.date}
-                    markdown={document.body}
-                    previewImageUrls={previewImageUrls}
-                  />
-                ) : (
-                  <MarkdownEditor
-                    value={document.body}
-                    onChange={handleEditorChange}
-                    onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-                    isImmersive={isImmersive}
-                    onUploadImage={handleUploadImage}
-                  />
-                )}
-              </>
-            ) : isOpeningPost ? (
-              <section className="hero-card">
-                <div className="hero-card__grid" />
-                <p>正在加载文章…</p>
-              </section>
-            ) : (
-              <EmptyState error={error} />
-            )}
-          </div>
-          {showSettingsPanel ? (
-            <SettingsPanel
-              document={document}
-              validationErrors={validationErrors}
-              publishLocked={publishLocked}
-              availableCategories={availableCategories}
-              availableTags={availableTags}
-              onFieldChange={handleFrontmatterChange}
-              onTaxonomyCreate={handleTaxonomyCreate}
-              onTaxonomyRename={handleTaxonomyRename}
-              onTaxonomyDelete={handleTaxonomyDelete}
-            />
-          ) : null}
-        </section>
-      </div>
+                      <div className="editor-frame__meta">
+                        <span>{document.path}</span>
+                        <span>{mode === 'preview' ? '预览模式' : '编辑模式'}</span>
+                      </div>
+                    </section>
+                  ) : null}
+                  {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
+                  {error ? <p className="error-message">{error}</p> : null}
+                  {mode === 'preview' ? (
+                    <PreviewPane
+                      title={document.frontmatter.title}
+                      date={document.frontmatter.date}
+                      markdown={document.body}
+                      previewImageUrls={previewImageUrls}
+                    />
+                  ) : (
+                    <MarkdownEditor
+                      value={document.body}
+                      onChange={handleEditorChange}
+                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
+                      isImmersive={isImmersive}
+                      onUploadImage={handleUploadImage}
+                    />
+                  )}
+                </>
+              ) : isOpeningPost ? (
+                <section className="hero-card">
+                  <div className="hero-card__grid" />
+                  <p>正在加载文章…</p>
+                </section>
+              ) : (
+                <EmptyState error={error} />
+              )}
+            </div>
+            {showSettingsPanel ? (
+              <SettingsPanel
+                document={document}
+                validationErrors={validationErrors}
+                publishLocked={publishLocked}
+                availableCategories={availableCategories}
+                availableTags={availableTags}
+                onFieldChange={handleFrontmatterChange}
+                onTaxonomyCreate={handleTaxonomyCreate}
+                onTaxonomyRename={handleTaxonomyRename}
+                onTaxonomyDelete={handleTaxonomyDelete}
+              />
+            ) : null}
+          </section>
+        </div>
+      )}
       {taxonomyConfirm ? (
         <ConfirmDialog
           title={
