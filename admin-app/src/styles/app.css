@@ -832,7 +832,17 @@ textarea {
 .post-pane {
   min-height: 0;
   padding: 22px;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+/* 隐藏滚动条让视觉更干净 (可选，如果你想隐藏的话：
+.post-pane::-webkit-scrollbar { width: 0; background: transparent; }
+.post-pane { scrollbar-width: none; }
+) */
 
 .post-pane__header {
   display: grid;
@@ -997,8 +1007,21 @@ textarea {
 }
 
 .editor-frame h1 {
-  font-size: clamp(2.15rem, 3vw, 3.35rem);
-  line-height: 0.96;
+  font-size: clamp(1.4rem, 2vw, 1.8rem);
+  line-height: 1.1;
+  font-weight: 600;
+  color: var(--admin-text);
+  opacity: 0.9;
+}
+
+.editor-frame__title--untitled {
+  color: var(--admin-soft) !important;
+  font-weight: 500 !important;
+  font-style: italic;
+}
+
+.editor-frame__eyebrow--untitled {
+  opacity: 0.6;
 }
 
 .editor-frame__meta {
@@ -1095,7 +1118,7 @@ textarea {
 
 .editor-textarea {
   width: 100%;
-  min-height: 460px;
+  min-height: 640px;
   resize: vertical;
   border-radius: 20px;
   border: 1px solid var(--admin-line-strong);

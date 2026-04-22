@@ -620,8 +620,10 @@ export default function App() {
                     <section className="editor-frame">
                       <div className="editor-frame__header">
                         <div>
-                          <p className="editor-frame__eyebrow">当前稿件</p>
-                          <h1>{document.frontmatter.title?.trim() || '未命名草稿'}</h1>
+                          <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>当前稿件</p>
+                          <h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>
+                            {document.frontmatter.title?.trim() || '未命名草稿'}
+                          </h1>
                         </div>
                       </div>
                       <div className="editor-frame__meta">
