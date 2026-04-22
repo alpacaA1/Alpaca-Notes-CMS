@@ -13,6 +13,7 @@ export function serializePost(post: ParsedPost): string {
     '---',
     `title: ${post.frontmatter.title}`,
     ...(post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
+    ...(post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
     `date: ${post.frontmatter.date}`,
     `published: ${post.hasExplicitPublished ? String(post.frontmatter.published) : 'true'}`,
     renderList('categories', post.frontmatter.categories),

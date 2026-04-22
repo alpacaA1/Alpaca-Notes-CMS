@@ -42,6 +42,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const desc = readScalar(frontmatter, 'desc') || ''
   const publishedRaw = readScalar(frontmatter, 'published')
   const permalink = readScalar(frontmatter, 'permalink')
+  const cover = readScalar(frontmatter, 'cover')
 
   return {
     path: input.path,
@@ -54,6 +55,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     categories: readList(frontmatter, 'categories'),
     tags: readList(frontmatter, 'tags'),
     permalink: permalink ? permalink : null,
+    cover: cover ? cover : null,
   }
 }
 

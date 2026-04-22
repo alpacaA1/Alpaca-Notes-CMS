@@ -2226,7 +2226,7 @@ textarea {
   flex-direction: column;
   align-items: stretch;
   text-align: left;
-  padding: 22px 24px;
+  padding: 0;
   border-radius: 20px;
   border: 1px solid var(--admin-line);
   background: var(--admin-surface);
@@ -2237,6 +2237,15 @@ textarea {
     transform 220ms cubic-bezier(.4, 0, .2, 1),
     border-color 220ms ease,
     box-shadow 220ms ease;
+  overflow: hidden;
+}
+
+.post-dashboard__card-cover {
+  width: 100%;
+  height: 150px;
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid var(--admin-line);
 }
 
 .post-dashboard__card:hover {
@@ -2250,6 +2259,7 @@ textarea {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 10px;
+  padding: 22px 24px 0;
 }
 
 .post-dashboard__card-date {
@@ -2259,6 +2269,7 @@ textarea {
 
 .post-dashboard__card-title {
   margin: 0 0 8px;
+  padding: 0 24px;
   font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
   font-size: 1.2rem;
   font-weight: 700;
@@ -2269,6 +2280,7 @@ textarea {
 
 .post-dashboard__card-desc {
   margin: 0;
+  padding: 0 24px 16px;
   font-size: 0.88rem;
   line-height: 1.6;
   color: var(--admin-muted);
@@ -2283,11 +2295,12 @@ textarea {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 14px;
-  padding-top: 12px;
+  margin-top: auto;
+  padding: 18px 24px;
   border-top: 1px solid var(--admin-line);
   font-size: 0.78rem;
   color: var(--admin-soft);
+  background: rgba(255, 255, 255, 0.4);
 }
 
 .post-dashboard__card-category {
@@ -2748,10 +2761,6 @@ textarea {
   box-shadow:
     0 18px 40px rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(212, 165, 106, 0.08);
-}
-
-.admin-shell--dark .post-dashboard__card-footer {
-  border-top-color: rgba(255, 255, 255, 0.06);
 }
 
 .admin-shell--dark .post-dashboard__card-category {

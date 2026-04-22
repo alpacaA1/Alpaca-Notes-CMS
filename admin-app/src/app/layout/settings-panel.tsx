@@ -18,6 +18,7 @@ type SettingsPanelProps = {
   onTaxonomyCreate?: (type: TaxonomyType, name: string) => void
   onTaxonomyRename?: (type: TaxonomyType, oldName: string, newName: string) => void
   onTaxonomyDelete?: (type: TaxonomyType, name: string) => void
+  onUploadImage?: (file: File) => Promise<{ markdown: string; publicUrl: string }>
 }
 
 
@@ -31,12 +32,32 @@ export default function SettingsPanel({
   onTaxonomyCreate,
   onTaxonomyRename,
   onTaxonomyDelete,
+  onUploadImage,
 }: SettingsPanelProps) {
   if (!document) {
     return null
   }
 
   const { frontmatter } = document
+
+  const handleUploadClick = () => {
+    const fileInput = window.document.createElement('input')
+    fileInput.type = 'file'
+    fileInput.accept = 'image/*'
+    fileInput.onchange = (event) => {
+      const file = (event.target as HTMLInputElement).files?.[0]
+      if (file && onUploadImage) {
+        onUploadImage(file)
+          .then((res) => {
+            onFieldChange('cover', res.publicUrl)
+          })
+          .catch(() => {
+            // Error is handled in App.tsx
+          })
+      }
+    }
+    fileInput.click()
+  }
 
   return (
     <aside className="settings-panel">
@@ -109,6 +130,37 @@ export default function SettingsPanel({
           onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
         />
       </div>
+
+      <label className="settings-panel__field">
+        <span>封面图</span>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            style={{ flex: 1 }}
+            aria-label="封面图"
+            value={frontmatter.cover || ''}
+            placeholder="图片 URL 或系统外链"
+            onChange={(event) => onFieldChange('cover', event.target.value)}
+          />
+          {onUploadImage ? (
+            <button
+              type="button"
+              className="top-bar__button"
+              style={{ minHeight: '36px', padding: '0 12px' }}
+              onClick={handleUploadClick}
+            >
+              上传封面
+            </button>
+          ) : null}
+        </div>
+        {frontmatter.cover ? (
+          <img
+            src={frontmatter.cover}
+            alt="Cover Preview"
+            style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
+            loading="lazy"
+          />
+        ) : null}
+      </label>
 
       <label>
         <span>永久链接</span>

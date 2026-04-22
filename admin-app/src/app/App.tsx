@@ -378,6 +378,7 @@ export default function App() {
 
       return {
         markdown: buildImageMarkdown(descriptor.defaultAlt, descriptor.publicUrl),
+        publicUrl: descriptor.publicUrl,
       }
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -671,6 +672,7 @@ export default function App() {
                 onTaxonomyCreate={handleTaxonomyCreate}
                 onTaxonomyRename={handleTaxonomyRename}
                 onTaxonomyDelete={handleTaxonomyDelete}
+                onUploadImage={handleUploadImage}
               />
             ) : null}
           </section>

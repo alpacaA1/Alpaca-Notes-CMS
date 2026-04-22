@@ -11,6 +11,7 @@ export type PostIndexItem = {
   categories: string[]
   tags: string[]
   permalink: string | null
+  cover: string | null
 }
 
 export type PostPublishState = 'all' | 'draft' | 'published'

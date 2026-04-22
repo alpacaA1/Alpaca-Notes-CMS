@@ -6,6 +6,7 @@ export type PostFrontmatter = {
   categories: string[]
   tags: string[]
   permalink?: string
+  cover?: string
 }
 
 export type ParsedPost = {
@@ -50,6 +51,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const body = (match?.[2] || input.content).replace(/^\n/, '')
   const publishedRaw = readScalar(frontmatterBlock, 'published')
   const permalinkRaw = readScalar(frontmatterBlock, 'permalink')
+  const coverRaw = readScalar(frontmatterBlock, 'cover')
 
   return {
     path: input.path,
@@ -65,6 +67,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       categories: readList(frontmatterBlock, 'categories'),
       tags: readList(frontmatterBlock, 'tags'),
       ...(permalinkRaw && permalinkRaw.length > 0 ? { permalink: permalinkRaw } : {}),
+      ...(coverRaw && coverRaw.length > 0 ? { cover: coverRaw } : {}),
     },
   }
 }

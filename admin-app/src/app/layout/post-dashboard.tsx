@@ -333,6 +333,9 @@ export default function PostDashboard({
               className="post-dashboard__card"
               onClick={() => onOpenPost(post)}
             >
+              {post.cover ? (
+                <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
+              ) : null}
               <div className="post-dashboard__card-top">
                 <span
                   className={`post-status-badge post-status-badge--${post.published ? 'published' : 'draft'}`}
