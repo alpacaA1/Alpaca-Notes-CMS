@@ -907,6 +907,12 @@ textarea {
     transform 180ms ease;
 }
 
+.post-list-item__actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+}
+
 .post-list-item.is-active {
   border-color: var(--admin-warm);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 241, 233, 0.95));
@@ -919,6 +925,7 @@ textarea {
   display: grid;
   gap: 10px;
   width: 100%;
+  min-width: 0;
   padding: 16px 18px;
   border: 0;
   background: transparent;
@@ -950,6 +957,42 @@ textarea {
 .post-row-button__desc {
   color: var(--admin-muted);
   line-height: 1.7;
+}
+
+.post-list-item__delete-btn {
+  appearance: none;
+  align-self: center;
+  margin-right: 16px;
+  min-width: 72px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid rgba(193, 108, 95, 0.28);
+  border-radius: 10px;
+  background: rgba(193, 108, 95, 0.08);
+  color: #8a4f46;
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+.post-list-item__delete-btn:hover {
+  background: rgba(193, 108, 95, 0.14);
+  border-color: rgba(193, 108, 95, 0.48);
+  color: #723f38;
+  transform: translateY(-1px);
+}
+
+.post-list-item__delete-btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+  transform: none;
 }
 
 .post-status-badge {

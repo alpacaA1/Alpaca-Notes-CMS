@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { batchUpdatePostContents, fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
+import { batchUpdatePostContents, deletePostFile, fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
@@ -25,6 +25,11 @@ type TaxonomyType = 'categories' | 'tags'
 type TaxonomyConfirmAction =
   | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
   | { kind: 'delete'; type: TaxonomyType; name: string; affectedPaths: string[] }
+
+type PostDeleteConfirmAction = {
+  kind: 'delete-post'
+  post: PostIndexItem
+}
 
 const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
@@ -62,7 +67,10 @@ export default function App() {
   const previewObjectUrlsRef = useRef<string[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
+  const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const [deletingPostPath, setDeletingPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
   const {
     document,
@@ -266,6 +274,75 @@ export default function App() {
     setSuccessMessage(null)
     setError(null)
     setAdminView('dashboard')
+  }
+
+  const handleDeletePost = (post: PostIndexItem) => {
+    if (isDeletingPost) {
+      return
+    }
+
+    if (document?.path === post.path && !canNavigateAway) {
+      const shouldContinue = window.confirm('当前文章有未保存的修改。删除后无法恢复，确认继续吗？')
+      if (!shouldContinue) {
+        return
+      }
+    }
+
+    setPostDeleteConfirm({ kind: 'delete-post', post })
+  }
+
+  const handleDeletePostConfirm = async () => {
+    if (!session || !postDeleteConfirm || isDeletingPost) {
+      return
+    }
+
+    const { post } = postDeleteConfirm
+    setIsDeletingPost(true)
+    setDeletingPostPath(post.path)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      await deletePostFile(session, {
+        path: post.path,
+        sha: post.sha,
+      })
+
+      setPosts((currentPosts) => currentPosts.filter((currentPost) => currentPost.path !== post.path))
+
+      if (activePostPath === post.path) {
+        resetPreviewImageUrls()
+        setActivePostPath(null)
+        replaceDocument(null)
+        setIsOpeningPost(false)
+        setIsImmersive(false)
+        setAdminView('dashboard')
+      }
+
+      setSuccessMessage(`已删除《${post.title}》。`)
+      setPostDeleteConfirm(null)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '删除文章失败。')
+    } finally {
+      setIsDeletingPost(false)
+      setDeletingPostPath(null)
+    }
+  }
+
+  const handleDeletePostCancel = () => {
+    if (!isDeletingPost) {
+      setPostDeleteConfirm(null)
+    }
   }
 
   const handleSave = async () => {
@@ -611,7 +688,10 @@ export default function App() {
             posts={filteredPosts}
             hidden={isPostListHidden}
             activePostPath={activePostPath}
+            isDeleting={isDeletingPost}
+            deletingPostPath={deletingPostPath}
             onOpenPost={handleOpenPost}
+            onDeletePost={handleDeletePost}
           />
           <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
             <div className="editor-stack">
@@ -697,6 +777,18 @@ export default function App() {
           processingMessage={batchProgress}
           onConfirm={() => { void handleTaxonomyConfirm() }}
           onCancel={handleTaxonomyCancel}
+        />
+      ) : null}
+      {postDeleteConfirm ? (
+        <ConfirmDialog
+          title="删除文章"
+          message={`确定删除《${postDeleteConfirm.post.title}》吗？该操作会直接删除仓库中的 Markdown 文件，且不可恢复。`}
+          confirmLabel="确认删除"
+          isDangerous
+          isProcessing={isDeletingPost}
+          processingMessage={deletingPostPath ? `正在删除 ${deletingPostPath}` : undefined}
+          onConfirm={() => { void handleDeletePostConfirm() }}
+          onCancel={handleDeletePostCancel}
         />
       ) : null}
     </main>

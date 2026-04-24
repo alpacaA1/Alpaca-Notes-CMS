@@ -291,7 +291,7 @@ describe('App save flow', () => {
       expect(buildPostIndex).toHaveBeenCalledTimes(1)
     })
     expect(await screen.findByRole('heading', { name: 'Updated title' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: /updated title/i })).toBeTruthy()
+    expect(screen.getByTitle('删除《Updated title》')).toBeTruthy()
     expect(screen.getByText('已保存。')).toBeTruthy()
   })
 
@@ -482,5 +482,99 @@ Original body.`,
 
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:save-preview-image')
+  })
+
+  it('deletes a post from the editor list and returns to dashboard when deleting the active post', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Other post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.click(screen.getByTitle('删除《Save flow post》'))
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
+
+    await waitFor(() => {
+      expect(deletePostFile).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        { path: existingPost.path, sha: existingPost.sha },
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /save flow post/i })).toBeNull()
+    })
+    expect(screen.getByText('Other post')).toBeTruthy()
+  })
+
+  it('asks for extra confirmation before deleting the active post with unsaved changes', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Locally changed title' } })
+    fireEvent.click(screen.getByTitle('删除《Save flow post》'))
+
+    expect(confirmSpy).toHaveBeenCalledWith('当前文章有未保存的修改。删除后无法恢复，确认继续吗？')
+    expect(deletePostFile).not.toHaveBeenCalled()
+    expect(screen.queryByText('删除文章')).toBeNull()
+  })
+
+  it('keeps a new unsaved draft untouched when deleting another post from the list', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
+    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Other post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '新建文章' }))
+    expect(await screen.findByLabelText('标题')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Temporary draft' } })
+
+    fireEvent.click(screen.getByTitle('删除《Other post》'))
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
+
+    await waitFor(() => {
+      expect(deletePostFile).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        { path: otherPost.path, sha: otherPost.sha },
+      )
+    })
+
+    expect(screen.getByDisplayValue('Temporary draft')).toBeTruthy()
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /other post/i })).toBeNull()
+    })
   })
 })

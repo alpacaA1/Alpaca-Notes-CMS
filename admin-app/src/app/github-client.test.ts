@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { REPO_BRANCH } from './config'
-import { fetchPostFile, uploadImageFile } from './github-client'
+import { deletePostFile, fetchPostFile, uploadImageFile } from './github-client'
 
 const chineseMarkdown = `---
 title: 中文标题
@@ -101,6 +101,31 @@ describe('github client encoding', () => {
     expect(JSON.parse(String(requestInit.body))).toEqual({
       message: 'Create source/images/2026/04/example.png',
       content: Buffer.from(bytes).toString('base64'),
+      branch: REPO_BRANCH,
+    })
+  })
+
+  it('deletes post files with sha and branch metadata', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as Response)
+
+    await deletePostFile({ token: 'token' }, { path: 'source/_posts/delete-me.md', sha: 'delete-sha' })
+
+    const [requestUrl, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(requestUrl).toContain('/contents/source/_posts/delete-me.md')
+    expect(requestInit.method).toBe('DELETE')
+    expect(requestInit.headers).toMatchObject({
+      Accept: 'application/vnd.github+json',
+      Authorization: 'Bearer token',
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    })
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      message: 'Delete source/_posts/delete-me.md',
+      sha: 'delete-sha',
       branch: REPO_BRANCH,
     })
   })

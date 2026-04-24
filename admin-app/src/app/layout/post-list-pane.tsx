@@ -4,10 +4,21 @@ type PostListPaneProps = {
   posts: PostIndexItem[]
   hidden: boolean
   activePostPath?: string | null
+  isDeleting?: boolean
+  deletingPostPath?: string | null
   onOpenPost: (post: PostIndexItem) => void
+  onDeletePost: (post: PostIndexItem) => void
 }
 
-export default function PostListPane({ posts, hidden, activePostPath = null, onOpenPost }: PostListPaneProps) {
+export default function PostListPane({
+  posts,
+  hidden,
+  activePostPath = null,
+  isDeleting = false,
+  deletingPostPath = null,
+  onOpenPost,
+  onDeletePost,
+}: PostListPaneProps) {
   if (hidden) {
     return null
   }
@@ -26,23 +37,36 @@ export default function PostListPane({ posts, hidden, activePostPath = null, onO
       <ul className="post-list">
         {posts.map((post) => {
           const isActive = post.path === activePostPath
+          const isDeletingThisPost = deletingPostPath === post.path
 
           return (
             <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
-              <button type="button" className="post-row-button" onClick={() => onOpenPost(post)}>
-                <div className="post-row-button__meta">
-                  <span className={`post-status-badge post-status-badge--${post.published ? 'published' : 'draft'}`}>
-                    {post.published ? '已发布' : '草稿'}
-                  </span>
-                  <span>{post.date}</span>
-                </div>
-                <strong>{post.title}</strong>
-                <span className="post-row-button__desc">{post.desc || '暂无摘要'}</span>
-                <div className="post-row-button__footer">
-                  <span>{post.permalink || '旧链接'}</span>
-                  <span>{post.categories[0] || '未分类'}</span>
-                </div>
-              </button>
+              <div className="post-list-item__actions">
+                <button type="button" className="post-row-button" onClick={() => onOpenPost(post)}>
+                  <div className="post-row-button__meta">
+                    <span className={`post-status-badge post-status-badge--${post.published ? 'published' : 'draft'}`}>
+                      {post.published ? '已发布' : '草稿'}
+                    </span>
+                    <span>{post.date}</span>
+                  </div>
+                  <strong>{post.title}</strong>
+                  <span className="post-row-button__desc">{post.desc || '暂无摘要'}</span>
+                  <div className="post-row-button__footer">
+                    <span>{post.permalink || '旧链接'}</span>
+                    <span>{post.categories[0] || '未分类'}</span>
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  className="post-list-item__delete-btn"
+                  onClick={() => onDeletePost(post)}
+                  disabled={isDeleting}
+                  aria-label="删除文章"
+                  title={`删除《${post.title}》`}
+                >
+                  {isDeletingThisPost ? '删除中…' : '删除'}
+                </button>
+              </div>
             </li>
           )
         })}

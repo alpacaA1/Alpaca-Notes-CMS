@@ -27,7 +27,7 @@ describe('management layout components', () => {
 
   it('renders normalized metadata and opens a post on click', () => {
     const onOpenPost = vi.fn()
-    render(<PostListPane posts={posts} hidden={false} onOpenPost={onOpenPost} />)
+    render(<PostListPane posts={posts} hidden={false} onOpenPost={onOpenPost} onDeletePost={vi.fn()} />)
 
     expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
     expect(screen.getByText('已发布')).toBeTruthy()
@@ -36,8 +36,17 @@ describe('management layout components', () => {
   })
 
   it('hides the pane in immersive mode', () => {
-    render(<PostListPane posts={posts} hidden onOpenPost={vi.fn()} />)
+    render(<PostListPane posts={posts} hidden onOpenPost={vi.fn()} onDeletePost={vi.fn()} />)
     expect(screen.queryByText('为什么先把博客搭起来')).toBeNull()
+  })
+
+  it('triggers delete callback from the delete button', () => {
+    const onDeletePost = vi.fn()
+    render(<PostListPane posts={posts} hidden={false} onOpenPost={vi.fn()} onDeletePost={onDeletePost} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '删除文章' }))
+
+    expect(onDeletePost).toHaveBeenCalledWith(posts[0])
   })
 
   it('shows the top bar controls without unused filter and sort buttons', () => {

@@ -153,6 +153,21 @@ export async function savePostFile(
   }
 }
 
+export async function deletePostFile(
+  session: SessionState,
+  file: { path: string; sha: string },
+): Promise<void> {
+  const apiPath = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${file.path}`
+  await requestGitHub<GitHubSaveFileResponse>(session, apiPath, {
+    method: 'DELETE',
+    body: JSON.stringify({
+      message: `Delete ${file.path}`,
+      sha: file.sha,
+      branch: REPO_BRANCH,
+    }),
+  })
+}
+
 export async function uploadImageFile(
   session: SessionState,
   file: { path: string; file: File },
