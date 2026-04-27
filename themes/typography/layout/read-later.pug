@@ -14,34 +14,34 @@ block content
     -   });
     - }
     - items.sort(function(left, right) { return String(right.date || '').localeCompare(String(left.date || '')); });
-    .autopagerize_page_element: .content: .post-page
-        .post-container.clearfix
+    - function readingStatusLabel(status) { return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'; }
+    .autopagerize_page_element: .content: .post-page.read-later-page.read-later-page--list
+        .post-container.clearfix.read-later-page__intro
             p.post-title
                 a= page.title
             if page.desc
-                p.post-abstract!= page.desc
+                p.post-abstract.read-later-page__intro-desc!= page.desc
         if items.length
             each item in items
-                .post-container.clearfix
+                .post-container.clearfix.read-later-card
                     if item.cover
-                        div.post-cover(style=`float: right; margin-left: 20px; margin-bottom: 12px; margin-top: 8px; width: 110px; height: 85px; background-image: url(${item.cover}); background-size: cover; background-position: center; border-radius: 8px;`)
-                    p.post-title
-                        a(href=url_for(item.path))= item.title
-                    p.post-meta
-                        span.date.meta-item!=__('posted_at') + "&nbsp;" + date(item.date, 'YYYY-MM-DD')
-                        if item.source_name
-                            span.meta-item
-                                | 来源：#{item.source_name}
-                        if item.reading_status
-                            span.meta-item
-                                | 状态：#{item.reading_status === 'done' ? '已读' : item.reading_status === 'reading' ? '在读' : '未读'}
-                    if item.desc
-                        p.post-abstract!= item.desc
-                    p.post-meta
-                        if item.external_url
-                            a.a-tag(href=item.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
-                        span &nbsp;
-                        a.a-tag(href=url_for(item.path)) 查看详情
+                        a.a-mute.read-later-card__cover-link(href=url_for(item.path))
+                            span.post-cover.read-later-card__cover(style=`background-image: url(${item.cover});`)
+                    .read-later-card__body
+                        p.post-title.read-later-card__title
+                            a(href=url_for(item.path))= item.title
+                        p.post-meta.read-later-card__meta
+                            span.date.meta-item.read-later-card__meta-item!=__('posted_at') + "&nbsp;" + date(item.date, 'YYYY-MM-DD')
+                            if item.source_name
+                                span.meta-item.read-later-card__meta-item 来源：#{item.source_name}
+                            if item.reading_status
+                                span.meta-item.read-later-card__meta-item.read-later-card__status(class=`read-later-card__status--${item.reading_status}`)= readingStatusLabel(item.reading_status)
+                        if item.desc
+                            p.post-abstract.read-later-card__desc!= item.desc
+                        p.post-meta.read-later-card__actions
+                            if item.external_url
+                                a.a-tag.read-later-card__action(href=item.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
+                            a.a-tag.read-later-card__action(href=url_for(item.path)) 查看详情
         else
             .post-container.clearfix
                 p.post-abstract 暂无待读文章。

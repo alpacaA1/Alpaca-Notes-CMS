@@ -1,9 +1,19 @@
 import type { ReactNode } from 'react'
+import type { ReadingStatus } from '../posts/parse-post'
+import { parseReadLaterSections } from '../read-later/parse-item'
+
+type ContentType = 'post' | 'read-later'
 
 type PreviewPaneProps = {
   title: string
   date: string
   markdown: string
+  desc?: string
+  cover?: string
+  sourceName?: string
+  externalUrl?: string
+  readingStatus?: ReadingStatus
+  contentType?: ContentType
   previewImageUrls?: Record<string, string>
 }
 
@@ -521,15 +531,87 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
   return nodes
 }
 
-export default function PreviewPane({ title, date, markdown, previewImageUrls }: PreviewPaneProps) {
+function getReadingStatusLabel(status?: ReadingStatus) {
+  return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
+}
+
+function getReadingStatusTone(status?: ReadingStatus) {
+  return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
+}
+
+function renderReadLaterSection(title: string, content: string, previewImageUrls?: Record<string, string>) {
+  if (!content.trim()) {
+    return null
+  }
+
+  return (
+    <section key={title} className="preview-content__section">
+      <h2>{title}</h2>
+      <div className="preview-content__section-body">{renderBlocks(content, previewImageUrls)}</div>
+    </section>
+  )
+}
+
+export default function PreviewPane({
+  title,
+  date,
+  markdown,
+  desc,
+  cover,
+  sourceName,
+  externalUrl,
+  readingStatus,
+  contentType = 'post',
+  previewImageUrls,
+}: PreviewPaneProps) {
+  const isReadLater = contentType === 'read-later'
+  const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
+  const hasStructuredReadLaterSections = isReadLater
+    ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
+    : false
+  const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
+  const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
+
   return (
     <section className="preview-pane preview-pane--reading-canvas">
       <article className="preview-content">
         <header className="preview-content__header">
           <h1>{title.trim() || '未命名草稿'}</h1>
           <p className="preview-content__date">{date}</p>
+          {isReadLater ? (
+            <div className="preview-content__read-later-meta">
+              {desc?.trim() ? <p className="preview-content__summary">{desc.trim()}</p> : null}
+              <div className="preview-content__meta-grid">
+                {sourceName?.trim() ? (
+                  <span className="preview-content__meta-chip">
+                    <strong>来源</strong>
+                    <span>{sourceName.trim()}</span>
+                  </span>
+                ) : null}
+                <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
+                  <strong>状态</strong>
+                  <span>{getReadingStatusLabel(readingStatus)}</span>
+                </span>
+                {safeExternalUrl ? (
+                  <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
+                    <strong>原文</strong>
+                    <span>阅读原文</span>
+                  </a>
+                ) : null}
+              </div>
+              {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} /> : null}
+            </div>
+          ) : null}
         </header>
-        {renderBlocks(markdown, previewImageUrls)}
+        {isReadLater && hasStructuredReadLaterSections ? (
+          <div className="preview-content__sections">
+            {renderReadLaterSection('原文摘录', readLaterSections?.articleExcerpt || '', previewImageUrls)}
+            {renderReadLaterSection('我的总结', readLaterSections?.summary || '', previewImageUrls)}
+            {renderReadLaterSection('我的评论', readLaterSections?.commentary || '', previewImageUrls)}
+          </div>
+        ) : (
+          renderBlocks(markdown, previewImageUrls)
+        )}
       </article>
     </section>
   )

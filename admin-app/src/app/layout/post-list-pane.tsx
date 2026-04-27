@@ -1,6 +1,15 @@
+import type { ReadingStatus } from '../posts/parse-post'
 import type { PostIndexItem } from '../posts/post-types'
 
 type ContentType = 'post' | 'read-later'
+
+function getReadLaterStatusTone(status?: ReadingStatus) {
+  return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
+}
+
+function getReadLaterStatusLabel(status?: ReadingStatus) {
+  return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
+}
 
 type PostListPaneProps = {
   posts: PostIndexItem[]
@@ -44,34 +53,16 @@ export default function PostListPane({
         {posts.map((post) => {
           const isActive = post.path === activePostPath
           const isDeletingThisPost = deletingPostPath === post.path
+          const statusTone = contentType === 'read-later' ? getReadLaterStatusTone(post.readingStatus) : post.published ? 'published' : 'draft'
+          const statusLabel = contentType === 'read-later' ? getReadLaterStatusLabel(post.readingStatus) : post.published ? '已发布' : '草稿'
 
           return (
             <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
               <div className="post-list-item__actions">
                 <button type="button" className="post-row-button" onClick={() => onOpenPost(post)}>
                   <div className="post-row-button__meta">
-                    <span
-                      className={`post-status-badge post-status-badge--${
-                        contentType === 'read-later'
-                          ? post.readingStatus === 'done'
-                            ? 'published'
-                            : post.readingStatus === 'reading'
-                              ? 'draft'
-                              : 'draft'
-                          : post.published
-                            ? 'published'
-                            : 'draft'
-                      }`}
-                    >
-                      {contentType === 'read-later'
-                        ? post.readingStatus === 'done'
-                          ? '已读'
-                          : post.readingStatus === 'reading'
-                            ? '在读'
-                            : '未读'
-                        : post.published
-                          ? '已发布'
-                          : '草稿'}
+                    <span className={`post-status-badge post-status-badge--${statusTone}`}>
+                      {statusLabel}
                     </span>
                     <span>{post.date}</span>
                   </div>

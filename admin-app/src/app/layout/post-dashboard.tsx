@@ -1,27 +1,46 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
+import type { ReadingStatus } from '../posts/parse-post'
 import type { PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
 
 type DashboardViewMode = 'grid' | 'list'
+type ContentType = 'post' | 'read-later'
+type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
+type StatusTone = Exclude<DashboardStatusFilter, 'all'>
 
 type PostDashboardProps = {
   posts: PostIndexItem[]
   search: string
   isIndexing: boolean
+  contentType: ContentType
   onOpenPost: (post: PostIndexItem) => void
   onNewPost: () => void
   onSearchFocus?: () => void
 }
 
-const PUBLISH_STATE_OPTIONS: { value: PostPublishState; label: string }[] = [
+const POST_STATUS_OPTIONS: { value: PostPublishState; label: string }[] = [
   { value: 'all', label: '全部' },
   { value: 'published', label: '已发布' },
   { value: 'draft', label: '草稿' },
 ]
 
-const SORT_OPTIONS: { value: PostSort; label: string }[] = [
+const READ_LATER_STATUS_OPTIONS: { value: DashboardStatusFilter; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'unread', label: '未读' },
+  { value: 'reading', label: '在读' },
+  { value: 'done', label: '已读' },
+]
+
+const POST_SORT_OPTIONS: { value: PostSort; label: string }[] = [
   { value: 'date-desc', label: '最新发布' },
   { value: 'date-asc', label: '最早发布' },
+  { value: 'title-asc', label: '标题 A→Z' },
+  { value: 'title-desc', label: '标题 Z→A' },
+]
+
+const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
+  { value: 'date-desc', label: '最新收录' },
+  { value: 'date-asc', label: '最早收录' },
   { value: 'title-asc', label: '标题 A→Z' },
   { value: 'title-desc', label: '标题 Z→A' },
 ]
@@ -38,6 +57,27 @@ function readStoredViewMode(): DashboardViewMode {
     // Ignore storage errors
   }
   return 'list'
+}
+
+function normalizeReadLaterStatus(status?: ReadingStatus): ReadingStatus {
+  return status === 'reading' || status === 'done' ? status : 'unread'
+}
+
+function getStatusTone(post: PostIndexItem, contentType: ContentType): StatusTone {
+  if (contentType === 'read-later') {
+    return normalizeReadLaterStatus(post.readingStatus)
+  }
+
+  return post.published ? 'published' : 'draft'
+}
+
+function getStatusLabel(post: PostIndexItem, contentType: ContentType) {
+  if (contentType === 'read-later') {
+    const status = normalizeReadLaterStatus(post.readingStatus)
+    return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
+  }
+
+  return post.published ? '已发布' : '草稿'
 }
 
 function GridIcon() {
@@ -82,32 +122,74 @@ export default function PostDashboard({
   posts,
   search,
   isIndexing,
+  contentType,
   onOpenPost,
   onNewPost,
   onSearchFocus,
 }: PostDashboardProps) {
-  const [publishState, setPublishState] = useState<PostPublishState>('all')
+  const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [sort, setSort] = useState<PostSort>('date-desc')
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const dashboardRef = useRef<HTMLElement>(null)
+  const isReadLater = contentType === 'read-later'
 
   const { categories, tags: availableTags } = useMemo(() => collectPostIndexFacets(posts), [posts])
 
+  useEffect(() => {
+    setStatusFilter('all')
+    setSelectedCategory(null)
+    setSelectedTag(null)
+    setSort('date-desc')
+  }, [contentType])
+
   const filteredPosts = useMemo(() => {
-    const filtered = filterPostIndex(posts, {
+    const basePosts = filterPostIndex(posts, {
       query: search,
-      publishState,
-      category: selectedCategory,
+      publishState: isReadLater ? 'all' : (statusFilter as PostPublishState),
+      category: isReadLater ? null : selectedCategory,
       tag: selectedTag,
       sort,
     })
-    return sortPostIndex(filtered, sort)
-  }, [posts, search, publishState, selectedCategory, selectedTag, sort])
 
-  const publishedCount = useMemo(() => posts.filter((p) => p.published).length, [posts])
-  const draftCount = useMemo(() => posts.filter((p) => !p.published).length, [posts])
+    const statusFilteredPosts =
+      isReadLater && statusFilter !== 'all'
+        ? basePosts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === statusFilter)
+        : basePosts
+
+    return sortPostIndex(statusFilteredPosts, sort)
+  }, [posts, search, isReadLater, statusFilter, selectedCategory, selectedTag, sort])
+
+  const publishedCount = useMemo(() => posts.filter((post) => post.published).length, [posts])
+  const draftCount = useMemo(() => posts.filter((post) => !post.published).length, [posts])
+  const unreadCount = useMemo(
+    () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'unread').length,
+    [posts],
+  )
+  const readingCount = useMemo(
+    () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'reading').length,
+    [posts],
+  )
+  const doneCount = useMemo(
+    () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'done').length,
+    [posts],
+  )
+
+  const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : POST_STATUS_OPTIONS
+  const sortOptions = isReadLater ? READ_LATER_SORT_OPTIONS : POST_SORT_OPTIONS
+  const statCards = isReadLater
+    ? [
+        { value: 'all' as const, label: '全部', count: posts.length },
+        { value: 'unread' as const, label: '未读', count: unreadCount, tone: 'unread' as const },
+        { value: 'reading' as const, label: '在读', count: readingCount, tone: 'reading' as const },
+        { value: 'done' as const, label: '已读', count: doneCount, tone: 'done' as const },
+      ]
+    : [
+        { value: 'all' as const, label: '全部文章', count: posts.length },
+        { value: 'published' as const, label: '已发布', count: publishedCount, tone: 'published' as const },
+        { value: 'draft' as const, label: '草稿', count: draftCount, tone: 'draft' as const },
+      ]
 
   const toggleViewMode = useCallback(() => {
     setViewMode((current) => {
@@ -121,10 +203,8 @@ export default function PostDashboard({
     })
   }, [])
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ignore when typing in inputs
       const target = event.target as HTMLElement
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
         return
@@ -145,7 +225,6 @@ export default function PostDashboard({
       if (event.key === 'g' || event.key === 'G') {
         event.preventDefault()
         toggleViewMode()
-        return
       }
     }
 
@@ -153,49 +232,50 @@ export default function PostDashboard({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onNewPost, onSearchFocus, toggleViewMode])
 
-  const isFiltered = publishState !== 'all' || selectedCategory !== null || selectedTag !== null || search.trim().length > 0
+  const isFiltered =
+    statusFilter !== 'all' ||
+    (!isReadLater && selectedCategory !== null) ||
+    selectedTag !== null ||
+    search.trim().length > 0
+
+  const clearFilters = () => {
+    setStatusFilter('all')
+    setSelectedCategory(null)
+    setSelectedTag(null)
+  }
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>
-      {/* Stats overview */}
       <div className="post-dashboard__stats">
-        <button
-          type="button"
-          className={`post-dashboard__stat-card${publishState === 'all' ? ' post-dashboard__stat-card--active' : ''}`}
-          onClick={() => { setPublishState('all'); setSelectedCategory(null); setSelectedTag(null) }}
-        >
-          <span className="post-dashboard__stat-value">{posts.length}</span>
-          <span className="post-dashboard__stat-label">全部文章</span>
-        </button>
-        <button
-          type="button"
-          className={`post-dashboard__stat-card post-dashboard__stat-card--published${publishState === 'published' ? ' post-dashboard__stat-card--active' : ''}`}
-          onClick={() => setPublishState(publishState === 'published' ? 'all' : 'published')}
-        >
-          <span className="post-dashboard__stat-value">{publishedCount}</span>
-          <span className="post-dashboard__stat-label">已发布</span>
-        </button>
-        <button
-          type="button"
-          className={`post-dashboard__stat-card post-dashboard__stat-card--draft${publishState === 'draft' ? ' post-dashboard__stat-card--active' : ''}`}
-          onClick={() => setPublishState(publishState === 'draft' ? 'all' : 'draft')}
-        >
-          <span className="post-dashboard__stat-value">{draftCount}</span>
-          <span className="post-dashboard__stat-label">草稿</span>
-        </button>
+        {statCards.map((card) => (
+          <button
+            key={card.value}
+            type="button"
+            className={`post-dashboard__stat-card${card.tone ? ` post-dashboard__stat-card--${card.tone}` : ''}${statusFilter === card.value ? ' post-dashboard__stat-card--active' : ''}`}
+            onClick={() => {
+              setStatusFilter(statusFilter === card.value && card.value !== 'all' ? 'all' : card.value)
+              if (card.value === 'all') {
+                setSelectedCategory(null)
+                setSelectedTag(null)
+              }
+            }}
+          >
+            <span className="post-dashboard__stat-value">{card.count}</span>
+            <span className="post-dashboard__stat-label">{card.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Filter toolbar */}
       <div className="post-dashboard__toolbar">
         <div className="post-dashboard__filter-group">
           <span className="post-dashboard__filter-label">状态</span>
           <div className="post-dashboard__toggle-group">
-            {PUBLISH_STATE_OPTIONS.map((option) => (
+            {statusOptions.map((option) => (
               <button
                 key={option.value}
                 type="button"
-                className={`post-dashboard__toggle-btn${publishState === option.value ? ' is-active' : ''}`}
-                onClick={() => setPublishState(option.value)}
+                className={`post-dashboard__toggle-btn${statusFilter === option.value ? ' is-active' : ''}`}
+                onClick={() => setStatusFilter(option.value)}
               >
                 {option.label}
               </button>
@@ -203,21 +283,23 @@ export default function PostDashboard({
           </div>
         </div>
 
-        <div className="post-dashboard__filter-group">
-          <span className="post-dashboard__filter-label">分类</span>
-          <select
-            className="post-dashboard__select"
-            value={selectedCategory ?? ''}
-            onChange={(event) => setSelectedCategory(event.target.value || null)}
-          >
-            <option value="">全部分类</option>
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!isReadLater ? (
+          <div className="post-dashboard__filter-group">
+            <span className="post-dashboard__filter-label">分类</span>
+            <select
+              className="post-dashboard__select"
+              value={selectedCategory ?? ''}
+              onChange={(event) => setSelectedCategory(event.target.value || null)}
+            >
+              <option value="">全部分类</option>
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
 
         <div className="post-dashboard__filter-group">
           <span className="post-dashboard__filter-label">标签</span>
@@ -242,7 +324,7 @@ export default function PostDashboard({
             value={sort}
             onChange={(event) => setSort(event.target.value as PostSort)}
           >
-            {SORT_OPTIONS.map((option) => (
+            {sortOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -255,7 +337,14 @@ export default function PostDashboard({
             <button
               type="button"
               className={`post-dashboard__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
-              onClick={() => { setViewMode('grid'); try { localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid') } catch {} }}
+              onClick={() => {
+                setViewMode('grid')
+                try {
+                  localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid')
+                } catch {
+                  // Ignore storage errors
+                }
+              }}
               aria-label="网格视图"
               title="网格视图 (G)"
             >
@@ -264,32 +353,42 @@ export default function PostDashboard({
             <button
               type="button"
               className={`post-dashboard__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
-              onClick={() => { setViewMode('list'); try { localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list') } catch {} }}
+              onClick={() => {
+                setViewMode('list')
+                try {
+                  localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+                } catch {
+                  // Ignore storage errors
+                }
+              }}
               aria-label="列表视图"
               title="列表视图 (G)"
             >
               <ListIcon />
             </button>
           </div>
-          <button type="button" className="post-dashboard__new-btn" onClick={onNewPost} title="新建文章 (N)">
-            + 新建文章
+          <button
+            type="button"
+            className="post-dashboard__new-btn"
+            onClick={onNewPost}
+            title={isReadLater ? '新建待读 (N)' : '新建文章 (N)'}
+          >
+            {isReadLater ? '+ 新建待读' : '+ 新建文章'}
           </button>
         </div>
       </div>
 
-      {/* Keyboard hints */}
       <div className="post-dashboard__kbd-hints">
         <span><kbd>N</kbd> 新建</span>
         <span><kbd>/</kbd> 搜索</span>
         <span><kbd>G</kbd> 切换视图</span>
       </div>
 
-      {/* Article content */}
       {isIndexing ? (
         <div className="post-dashboard__loading">
           <div className="post-dashboard__skeleton-grid">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="post-dashboard__skeleton-card">
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div key={index} className="post-dashboard__skeleton-card">
                 <div className="post-dashboard__skeleton-line post-dashboard__skeleton-line--short" />
                 <div className="post-dashboard__skeleton-line post-dashboard__skeleton-line--title" />
                 <div className="post-dashboard__skeleton-line" />
@@ -303,132 +402,128 @@ export default function PostDashboard({
           <EmptyIllustration />
           {isFiltered ? (
             <>
-              <p className="post-dashboard__empty-title">没有找到匹配的文章</p>
+              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : '文章'}</p>
               <p className="post-dashboard__empty-desc">试试调整筛选条件，或清除搜索内容。</p>
-              <button
-                type="button"
-                className="post-dashboard__empty-action"
-                onClick={() => { setPublishState('all'); setSelectedCategory(null); setSelectedTag(null) }}
-              >
+              <button type="button" className="post-dashboard__empty-action" onClick={clearFilters}>
                 清除所有筛选
               </button>
             </>
           ) : (
             <>
-              <p className="post-dashboard__empty-title">还没有文章</p>
-              <p className="post-dashboard__empty-desc">点击下方按钮创建你的第一篇草稿。</p>
+              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : '文章'}</p>
+              <p className="post-dashboard__empty-desc">
+                {isReadLater ? '点击下方按钮保存第一条待读。' : '点击下方按钮创建你的第一篇草稿。'}
+              </p>
               <button type="button" className="post-dashboard__empty-action" onClick={onNewPost}>
-                + 新建文章
+                {isReadLater ? '+ 新建待读' : '+ 新建文章'}
               </button>
             </>
           )}
         </div>
       ) : viewMode === 'grid' ? (
-        /* Grid view */
         <div className="post-dashboard__grid">
-          {filteredPosts.map((post) => (
-            <button
-              key={post.path}
-              type="button"
-              className="post-dashboard__card"
-              onClick={() => onOpenPost(post)}
-            >
-              {post.cover ? (
-                <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
-              ) : null}
-              <div className="post-dashboard__card-top">
-                <span
-                  className={`post-status-badge post-status-badge--${post.published ? 'published' : 'draft'}`}
-                >
-                  {post.published ? '已发布' : '草稿'}
-                </span>
-                <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
-              </div>
-              <h3 className="post-dashboard__card-title">{post.title}</h3>
-              <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p>
-              {post.tags.length > 0 ? (
-                <div className="post-dashboard__card-tags">
-                  {post.tags.slice(0, 4).map((tag) => (
-                    <TagBadge key={tag} tag={tag} />
-                  ))}
-                  {post.tags.length > 4 ? (
-                    <span className="post-dashboard__tag-more">+{post.tags.length - 4}</span>
-                  ) : null}
-                </div>
-              ) : null}
-              <div className="post-dashboard__card-footer">
-                <span className="post-dashboard__card-category">
-                  {post.categories[0] || '未分类'}
-                </span>
-                {post.permalink ? (
-                  <span className="post-dashboard__card-link">{post.permalink}</span>
+          {filteredPosts.map((post) => {
+            const statusTone = getStatusTone(post, contentType)
+            const statusLabel = getStatusLabel(post, contentType)
+            const primaryMeta = isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'
+            const secondaryMeta = isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'
+
+            return (
+              <button
+                key={post.path}
+                type="button"
+                className="post-dashboard__card"
+                onClick={() => onOpenPost(post)}
+              >
+                {post.cover ? (
+                  <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
                 ) : null}
-              </div>
-            </button>
-          ))}
+                <div className="post-dashboard__card-top">
+                  <span className={`post-status-badge post-status-badge--${statusTone}`}>
+                    {statusLabel}
+                  </span>
+                  <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
+                </div>
+                <h3 className="post-dashboard__card-title">{post.title}</h3>
+                <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p>
+                {post.tags.length > 0 ? (
+                  <div className="post-dashboard__card-tags">
+                    {post.tags.slice(0, 4).map((tag) => (
+                      <TagBadge key={tag} tag={tag} />
+                    ))}
+                    {post.tags.length > 4 ? <span className="post-dashboard__tag-more">+{post.tags.length - 4}</span> : null}
+                  </div>
+                ) : null}
+                <div className="post-dashboard__card-footer">
+                  <span className="post-dashboard__card-category">{primaryMeta}</span>
+                  <span className="post-dashboard__card-link">{secondaryMeta}</span>
+                </div>
+              </button>
+            )
+          })}
         </div>
       ) : (
-        /* List view */
         <div className="post-dashboard__list">
           <div className="post-dashboard__list-header">
             <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
             <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--category">分类</span>
+            <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : '分类'}</span>
             <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span>
             <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--link">链接</span>
+            <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : '链接'}</span>
           </div>
-          {filteredPosts.map((post) => (
-            <button
-              key={post.path}
-              type="button"
-              className="post-dashboard__list-row"
-              onClick={() => onOpenPost(post)}
-            >
-              <span className="post-dashboard__list-col post-dashboard__list-col--status">
-                <span
-                  className={`post-status-dot post-status-dot--${post.published ? 'published' : 'draft'}`}
-                  title={post.published ? '已发布' : '草稿'}
-                />
-                <span className="post-dashboard__list-status-text">
-                  {post.published ? '已发布' : '草稿'}
+          {filteredPosts.map((post) => {
+            const statusTone = getStatusTone(post, contentType)
+            const statusLabel = getStatusLabel(post, contentType)
+
+            return (
+              <button
+                key={post.path}
+                type="button"
+                className="post-dashboard__list-row"
+                onClick={() => onOpenPost(post)}
+              >
+                <span className="post-dashboard__list-col post-dashboard__list-col--status">
+                  <span className={`post-status-dot post-status-dot--${statusTone}`} title={statusLabel} />
+                  <span className="post-dashboard__list-status-text">{statusLabel}</span>
                 </span>
-              </span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--title">
-                <strong>{post.title}</strong>
-                {post.desc ? <span className="post-dashboard__list-desc">{post.desc}</span> : null}
-              </span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--category">
-                <span className="post-dashboard__card-category">{post.categories[0] || '未分类'}</span>
-              </span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--tags">
-                {post.tags.length > 0 ? (
-                  <span className="post-dashboard__list-tags">
-                    {post.tags.slice(0, 3).map((tag) => (
-                      <TagBadge key={tag} tag={tag} />
-                    ))}
-                    {post.tags.length > 3 ? (
-                      <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span>
-                    ) : null}
+                <span className="post-dashboard__list-col post-dashboard__list-col--title">
+                  <strong>{post.title}</strong>
+                  {post.desc ? <span className="post-dashboard__list-desc">{post.desc}</span> : null}
+                </span>
+                <span className="post-dashboard__list-col post-dashboard__list-col--category">
+                  <span className="post-dashboard__card-category">
+                    {isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'}
                   </span>
-                ) : (
-                  <span className="post-dashboard__list-no-tags">—</span>
-                )}
-              </span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--date">
-                {post.date ? post.date.slice(0, 10) : '—'}
-              </span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--link">
-                {post.permalink || '—'}
-              </span>
-            </button>
-          ))}
+                </span>
+                <span className="post-dashboard__list-col post-dashboard__list-col--tags">
+                  {post.tags.length > 0 ? (
+                    <span className="post-dashboard__list-tags">
+                      {post.tags.slice(0, 3).map((tag) => (
+                        <TagBadge key={tag} tag={tag} />
+                      ))}
+                      {post.tags.length > 3 ? <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span> : null}
+                    </span>
+                  ) : (
+                    <span className="post-dashboard__list-no-tags">—</span>
+                  )}
+                </span>
+                <span className="post-dashboard__list-col post-dashboard__list-col--date">
+                  {post.date ? post.date.slice(0, 10) : '—'}
+                </span>
+                <span className="post-dashboard__list-col post-dashboard__list-col--link">
+                  {isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )}
 
       {!isIndexing && filteredPosts.length > 0 ? (
         <p className="post-dashboard__count-note">
-          共 {filteredPosts.length} 篇{filteredPosts.length !== posts.length ? `（全部 ${posts.length} 篇）` : ''}
+          共 {filteredPosts.length} {isReadLater ? '条待读' : '篇文章'}
+          {filteredPosts.length !== posts.length ? `（全部 ${posts.length} ${isReadLater ? '条' : '篇'}）` : ''}
         </p>
       ) : null}
     </section>

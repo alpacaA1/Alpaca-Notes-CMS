@@ -724,6 +724,7 @@ export default function App() {
           posts={posts}
           search={search}
           isIndexing={isIndexing}
+          contentType={contentType}
           onOpenPost={handleOpenPost}
           onNewPost={handleNewPost}
           onSearchFocus={() => searchInputRef.current?.focus()}
@@ -767,6 +768,12 @@ export default function App() {
                       title={document.frontmatter.title}
                       date={document.frontmatter.date}
                       markdown={document.body}
+                      desc={document.frontmatter.desc}
+                      cover={document.frontmatter.cover}
+                      sourceName={document.frontmatter.source_name}
+                      externalUrl={document.frontmatter.external_url}
+                      readingStatus={document.frontmatter.reading_status}
+                      contentType={document.contentType}
                       previewImageUrls={previewImageUrls}
                     />
                   ) : (

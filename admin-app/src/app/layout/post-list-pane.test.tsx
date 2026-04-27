@@ -37,6 +37,40 @@ const readLaterPosts: PostIndexItem[] = [
     readingStatus: 'reading',
     cover: null,
   },
+  {
+    path: 'source/read-later-items/unread-article.md',
+    sha: 'sha-rl-2',
+    title: '还没开始读的文章',
+    date: '2026-04-03 09:00:00',
+    desc: '稍后处理。',
+    published: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: ['待看'],
+    permalink: 'read-later/unread-article/',
+    contentType: 'read-later',
+    externalUrl: 'https://example.com/unread',
+    sourceName: 'Unread Source',
+    readingStatus: 'unread',
+    cover: null,
+  },
+  {
+    path: 'source/read-later-items/done-article.md',
+    sha: 'sha-rl-3',
+    title: '已经读完的文章',
+    date: '2026-04-04 10:00:00',
+    desc: '已读完。',
+    published: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: ['复盘'],
+    permalink: 'read-later/done-article/',
+    contentType: 'read-later',
+    externalUrl: 'https://example.com/done',
+    sourceName: 'Done Source',
+    readingStatus: 'done',
+    cover: null,
+  },
 ]
 
 describe('management layout components', () => {
@@ -75,8 +109,15 @@ describe('management layout components', () => {
 
     expect(screen.getByText('待读归档')).toBeTruthy()
     expect(screen.getByText('在读')).toBeTruthy()
+    expect(screen.getByText('未读')).toBeTruthy()
+    expect(screen.getByText('已读')).toBeTruthy()
     expect(screen.getByText('Example Design')).toBeTruthy()
     expect(screen.getByText('https://example.com/design')).toBeTruthy()
+
+    const badges = screen.getAllByText(/未读|在读|已读/)
+    expect(badges[0].className).toContain('post-status-badge--reading')
+    expect(badges[1].className).toContain('post-status-badge--unread')
+    expect(badges[2].className).toContain('post-status-badge--done')
 
     fireEvent.click(screen.getByRole('button', { name: /值得回看的设计文章/i }))
     expect(onOpenPost).toHaveBeenCalledWith(readLaterPosts[0])

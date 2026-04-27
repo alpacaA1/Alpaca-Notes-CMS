@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
+import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
 
 const supportedPost = {
@@ -321,6 +322,62 @@ desc: desc
 
 > 第一行
 > 第二行`
+
+const readLaterPost = {
+  path: 'source/read-later-items/preview-read-later.md',
+  sha: 'sha-preview-read-later',
+  title: 'Read-later preview item',
+  date: '2026-04-05 09:30:00',
+  desc: 'desc',
+  published: false,
+  hasExplicitPublished: false,
+  categories: [],
+  tags: ['待读'],
+  permalink: 'read-later/preview-read-later/',
+  contentType: 'read-later' as const,
+  externalUrl: 'https://example.com/original',
+  sourceName: 'Preview Source',
+  readingStatus: 'reading' as const,
+  cover: 'https://example.com/cover.jpg',
+}
+
+const readLaterContent = `---
+title: Read-later preview item
+permalink: read-later/preview-read-later/
+date: 2026-04-05 09:30:00
+desc: 这是一条待读摘要。
+external_url: https://example.com/original
+source_name: Preview Source
+reading_status: reading
+read_later: true
+nav_exclude: true
+layout: read-later-item
+cover: https://example.com/cover.jpg
+---
+
+## 原文摘录
+这里是原文摘录。
+
+## 我的总结
+这里是我的总结。
+
+## 我的评论
+这里是我的评论。`
+
+const readLaterFallbackContent = `---
+title: Read-later preview item
+permalink: read-later/preview-read-later/
+date: 2026-04-05 09:30:00
+desc: 这是一条待读摘要。
+external_url: https://example.com/original
+source_name: Preview Source
+reading_status: reading
+read_later: true
+nav_exclude: true
+layout: read-later-item
+---
+
+没有分段标题，直接保留 markdown fallback。`
 
 describe('App preview mode', () => {
   afterEach(() => {
@@ -814,6 +871,73 @@ describe('App preview mode', () => {
       (_, element) => element?.tagName === 'P' && element.textContent === '第一行第二行',
     )
     expect(paragraph.querySelector('br')).toBeTruthy()
+  })
+
+  it('renders read-later metadata and structured sections in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    render(<App />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: '内容类型' }), {
+      target: { value: 'read-later' },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Read-later preview item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    expect(await screen.findByText('这是一条待读摘要。')).toBeTruthy()
+    expect(screen.getByText('Preview Source')).toBeTruthy()
+    expect(screen.getByText('在读')).toBeTruthy()
+    expect(screen.getByRole('link', { name: /阅读原文/ }).getAttribute('href')).toBe('https://example.com/original')
+    expect(screen.getByRole('img', { name: 'Read-later preview item' }).getAttribute('src')).toBe('https://example.com/cover.jpg')
+    expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '我的总结' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '我的评论' })).toBeTruthy()
+    expect(screen.getByText('这里是原文摘录。')).toBeTruthy()
+    expect(screen.getByText('这里是我的总结。')).toBeTruthy()
+    expect(screen.getByText('这里是我的评论。')).toBeTruthy()
+  })
+
+  it('falls back to normal markdown rendering when read-later sections are missing', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterFallbackContent,
+    })
+
+    render(<App />)
+
+    fireEvent.change(screen.getByRole('combobox', { name: '内容类型' }), {
+      target: { value: 'read-later' },
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Read-later preview item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    expect(await screen.findByText('没有分段标题，直接保留 markdown fallback。')).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: '原文摘录' })).toBeNull()
   })
 
   it('renders markdown blockquote soft line breaks in preview mode', async () => {

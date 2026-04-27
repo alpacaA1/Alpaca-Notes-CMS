@@ -8,22 +8,23 @@ block description
     meta(name="description", content=desc)
 
 block content
-    .autopagerize_page_element: .content: .post-page
-        .post-container.clearfix
-            p.post-title
+    - function readingStatusLabel(status) { return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'; }
+    .autopagerize_page_element: .content: .post-page.read-later-page.read-later-page--detail
+        .post-container.clearfix.read-later-detail
+            p.post-title.read-later-detail__title
                 a= page.title
-            p.post-meta
-                span.date.meta-item!=__('posted_at') + "&nbsp;" + date(page.date, 'YYYY-MM-DD')
+            p.post-meta.read-later-detail__meta
+                span.date.meta-item.read-later-detail__meta-item!=__('posted_at') + "&nbsp;" + date(page.date, 'YYYY-MM-DD')
                 if page.source_name
-                    span.meta-item 来源：#{page.source_name}
+                    span.meta-item.read-later-detail__meta-item 来源：#{page.source_name}
                 if page.reading_status
-                    span.meta-item 状态：#{page.reading_status === 'done' ? '已读' : page.reading_status === 'reading' ? '在读' : '未读'}
+                    span.meta-item.read-later-detail__meta-item.read-later-detail__status(class=`read-later-detail__status--${page.reading_status}`)= readingStatusLabel(page.reading_status)
             if page.external_url
-                p.post-meta
-                    a.a-tag(href=page.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
+                p.post-meta.read-later-detail__actions
+                    a.a-tag.read-later-detail__action(href=page.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
             if page.cover
-                img.post-cover(src=page.cover style="width: 100%; max-height: 50vh; object-fit: cover; border-radius: 12px; margin: 24px 0 16px;")
+                img.post-cover.read-later-detail__cover(src=page.cover style="width: 100%; max-height: 50vh; object-fit: cover; border-radius: 12px; margin: 24px 0 16px;")
             if page.desc
-                p.post-abstract!= page.desc
-            p.post-abstract!= page.content
+                p.post-abstract.read-later-detail__desc!= page.desc
+            .read-later-detail__content!= page.content
         include partial/comments
