@@ -142,9 +142,11 @@ export default function TopBar({
             </button>
           ) : null}
           <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-            <span className="top-bar__button-kicker">{activeContentType.label}</span>
-            <strong>{createLabel}</strong>
-            <small className="top-bar__button-subtitle">{createHint}</small>
+            <span className="top-bar__button-content">
+              <span className="top-bar__button-kicker">{activeContentType.label}</span>
+              <strong>{createLabel}</strong>
+              <small className="top-bar__button-subtitle">{createHint}</small>
+            </span>
           </button>
           {!isDashboard ? (
             <>
