@@ -87,7 +87,7 @@ describe('App indexing flow', () => {
       path: 'source/images/2026/04/example-cover.png',
       sha: 'sha-image',
     })
-    vi.spyOn(githubClientModule, 'fetchPostFile')
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile')
       .mockResolvedValueOnce({
         path: indexedPosts[0].path,
         sha: indexedPosts[0].sha,

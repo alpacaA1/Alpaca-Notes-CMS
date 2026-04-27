@@ -44,7 +44,7 @@ describe('App image upload flow', () => {
   async function openPost() {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
@@ -150,8 +150,8 @@ describe('App image upload flow', () => {
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
 
     let savedContent = existingContent
-    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile')
-    fetchPostFile
+    const fetchMarkdownFile = vi.spyOn(githubClientModule, 'fetchMarkdownFile')
+    fetchMarkdownFile
       .mockResolvedValueOnce({
         path: existingPost.path,
         sha: existingPost.sha,
@@ -167,7 +167,7 @@ describe('App image upload flow', () => {
       path: 'source/images/2026/04/example-cover.png',
       sha: 'sha-image',
     })
-    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockImplementation(async (_session, file) => {
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => {
       savedContent = file.content
       return {
         path: file.path,
@@ -195,12 +195,12 @@ describe('App image upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
     await screen.findByText('已保存。')
 
-    expect(savePostFile).toHaveBeenCalledTimes(1)
-    expect(savePostFile.mock.calls[0]?.[1]?.content).toContain('![cover](/Alpaca-Notes-CMS/images/')
+    expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('![cover](/Alpaca-Notes-CMS/images/')
 
     fireEvent.click(screen.getByRole('button', { name: /image upload post/i }))
     await waitFor(() => {
-      expect(fetchPostFile).toHaveBeenCalledTimes(2)
+      expect(fetchMarkdownFile).toHaveBeenCalledTimes(2)
     })
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 

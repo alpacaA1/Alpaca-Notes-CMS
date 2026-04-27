@@ -1,0 +1,47 @@
+extends partial/layout
+
+block site_title
+    != page.title + " · " + config.title
+
+block description
+    meta(name="description", content=(page.desc || '待读列表'))
+
+block content
+    - var items = [];
+    - if (site.pages) {
+    -   site.pages.each(function(item) {
+    -     if (item.read_later) items.push(item);
+    -   });
+    - }
+    - items.sort(function(left, right) { return String(right.date || '').localeCompare(String(left.date || '')); });
+    .autopagerize_page_element: .content: .post-page
+        .post-container.clearfix
+            p.post-title
+                a= page.title
+            if page.desc
+                p.post-abstract!= page.desc
+        if items.length
+            each item in items
+                .post-container.clearfix
+                    if item.cover
+                        div.post-cover(style=`float: right; margin-left: 20px; margin-bottom: 12px; margin-top: 8px; width: 110px; height: 85px; background-image: url(${item.cover}); background-size: cover; background-position: center; border-radius: 8px;`)
+                    p.post-title
+                        a(href=url_for(item.path))= item.title
+                    p.post-meta
+                        span.date.meta-item!=__('posted_at') + "&nbsp;" + date(item.date, 'YYYY-MM-DD')
+                        if item.source_name
+                            span.meta-item
+                                | 来源：#{item.source_name}
+                        if item.reading_status
+                            span.meta-item
+                                | 状态：#{item.reading_status === 'done' ? '已读' : item.reading_status === 'reading' ? '在读' : '未读'}
+                    if item.desc
+                        p.post-abstract!= item.desc
+                    p.post-meta
+                        if item.external_url
+                            a.a-tag(href=item.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
+                        span &nbsp;
+                        a.a-tag(href=url_for(item.path)) 查看详情
+        else
+            .post-container.clearfix
+                p.post-abstract 暂无待读文章。

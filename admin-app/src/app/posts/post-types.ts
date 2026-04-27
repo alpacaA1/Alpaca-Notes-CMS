@@ -1,4 +1,6 @@
-export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink', string>>
+import type { ReadingStatus } from './parse-post'
+
+export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink' | 'external_url', string>>
 
 export type PostIndexItem = {
   path: string
@@ -12,6 +14,10 @@ export type PostIndexItem = {
   tags: string[]
   permalink: string | null
   cover: string | null
+  contentType?: 'post' | 'read-later'
+  externalUrl?: string | null
+  sourceName?: string | null
+  readingStatus?: ReadingStatus
 }
 
 export type PostPublishState = 'all' | 'draft' | 'published'

@@ -1,4 +1,4 @@
-import { POSTS_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
+import { POSTS_PATH, READ_LATER_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
 import { AuthError, type SessionState } from './session'
 
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -100,11 +100,19 @@ async function requestGitHub<T>(session: SessionState, path: string, init?: Requ
   return readJson<T>(response)
 }
 
-export async function listPostFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
-  const path = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${POSTS_PATH}?ref=${encodeURIComponent(REPO_BRANCH)}`
+async function listMarkdownFiles(session: SessionState, basePath: string): Promise<GitHubDirectoryEntry[]> {
+  const path = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}?ref=${encodeURIComponent(REPO_BRANCH)}`
   const entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
 
   return entries.filter((entry) => entry.type === 'file' && entry.name.endsWith('.md'))
+}
+
+export async function listPostFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  return listMarkdownFiles(session, POSTS_PATH)
+}
+
+export async function listReadLaterFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  return listMarkdownFiles(session, READ_LATER_PATH)
 }
 
 export async function fetchPostFile(
@@ -151,6 +159,27 @@ export async function savePostFile(
     sha: response.content.sha,
     content: file.content,
   }
+}
+
+export async function fetchMarkdownFile(
+  session: SessionState,
+  path: string,
+): Promise<{ path: string; sha: string; content: string }> {
+  return fetchPostFile(session, path)
+}
+
+export async function saveMarkdownFile(
+  session: SessionState,
+  file: { path: string; content: string; sha?: string },
+): Promise<{ path: string; sha: string; content: string }> {
+  return savePostFile(session, file)
+}
+
+export async function deleteMarkdownFile(
+  session: SessionState,
+  file: { path: string; sha: string },
+): Promise<void> {
+  return deletePostFile(session, file)
 }
 
 export async function deletePostFile(

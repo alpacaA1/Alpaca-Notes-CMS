@@ -1,0 +1,29 @@
+extends partial/layout
+
+block site_title
+    != page.title + " · " + config.title
+
+block description
+    - var desc = page.desc || strip_html(page.content).replace(/^\s*/, '').replace(/\s*$/, '').substring(0, 150);
+    meta(name="description", content=desc)
+
+block content
+    .autopagerize_page_element: .content: .post-page
+        .post-container.clearfix
+            p.post-title
+                a= page.title
+            p.post-meta
+                span.date.meta-item!=__('posted_at') + "&nbsp;" + date(page.date, 'YYYY-MM-DD')
+                if page.source_name
+                    span.meta-item 来源：#{page.source_name}
+                if page.reading_status
+                    span.meta-item 状态：#{page.reading_status === 'done' ? '已读' : page.reading_status === 'reading' ? '在读' : '未读'}
+            if page.external_url
+                p.post-meta
+                    a.a-tag(href=page.external_url, target='_blank', rel='noopener noreferrer') 阅读原文
+            if page.cover
+                img.post-cover(src=page.cover style="width: 100%; max-height: 50vh; object-fit: cover; border-radius: 12px; margin: 24px 0 16px;")
+            if page.desc
+                p.post-abstract!= page.desc
+            p.post-abstract!= page.content
+        include partial/comments

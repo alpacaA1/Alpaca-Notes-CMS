@@ -5,6 +5,7 @@ import SettingsPanel from './settings-panel'
 import { createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
 import type { PostValidationErrors } from '../posts/post-types'
+import { createNewReadLaterItem } from '../read-later/new-item'
 
 function createExistingPost(): ParsedPost {
   return {
@@ -30,6 +31,7 @@ type RenderSettingsPanelOptions = {
   publishLocked?: boolean
   availableCategories?: string[]
   availableTags?: string[]
+  contentType?: 'post' | 'read-later'
 }
 
 function renderControlledSettingsPanel({
@@ -38,6 +40,7 @@ function renderControlledSettingsPanel({
   publishLocked = false,
   availableCategories = ['专业', '思考'],
   availableTags = ['产品', '记录'],
+  contentType = 'post',
 }: RenderSettingsPanelOptions = {}) {
   const onFieldChange = vi.fn()
 
@@ -49,6 +52,7 @@ function renderControlledSettingsPanel({
         document={currentDocument}
         validationErrors={validationErrors}
         publishLocked={publishLocked}
+        contentType={contentType}
         availableCategories={availableCategories}
         availableTags={availableTags}
         onFieldChange={(field, value) => {
@@ -122,6 +126,7 @@ describe('settings panel', () => {
           permalink: '首次保存前请填写永久链接。',
         }}
         publishLocked={false}
+        contentType="post"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={vi.fn()}
@@ -141,6 +146,7 @@ describe('settings panel', () => {
           permalink: '永久链接请填写站内相对路径，例如 zhenai/。',
         }}
         publishLocked={false}
+        contentType="post"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={vi.fn()}
@@ -148,6 +154,26 @@ describe('settings panel', () => {
     )
 
     expect(screen.getByText('永久链接请填写站内相对路径，例如 zhenai/。')).toBeTruthy()
+  })
+
+  it('renders read-later settings and updates external metadata fields', () => {
+    const { onFieldChange } = renderControlledSettingsPanel({
+      document: createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+      contentType: 'read-later',
+    })
+
+    expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
+    expect(screen.queryByLabelText('永久链接')).toBeNull()
+    expect(screen.getByLabelText('站内详情链接')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('原文链接'), { target: { value: 'https://example.com/article' } })
+    fireEvent.change(screen.getByLabelText('来源'), { target: { value: 'Example Source' } })
+    fireEvent.change(screen.getByLabelText('阅读状态'), { target: { value: 'reading' } })
+
+    expect(onFieldChange).toHaveBeenCalledWith('external_url', 'https://example.com/article')
+    expect(onFieldChange).toHaveBeenCalledWith('source_name', 'Example Source')
+    expect(onFieldChange).toHaveBeenCalledWith('reading_status', 'reading')
   })
 
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {

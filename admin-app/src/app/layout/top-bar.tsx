@@ -20,6 +20,8 @@ function AlpacaLogo() {
 }
 
 
+type ContentType = 'post' | 'read-later'
+
 type TopBarProps = {
   search: string
   onSearchChange: (value: string) => void
@@ -29,6 +31,8 @@ type TopBarProps = {
   onLogout: () => void
   onToggleColorMode: () => void
   onBackToDashboard?: () => void
+  onContentTypeChange: (value: ContentType) => void
+  contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
   adminView: AdminView
   isPreviewing: boolean
@@ -49,6 +53,8 @@ export default function TopBar({
   onLogout,
   onToggleColorMode,
   onBackToDashboard,
+  onContentTypeChange,
+  contentType,
   searchInputRef,
   adminView,
   isPreviewing,
@@ -60,7 +66,7 @@ export default function TopBar({
   status,
 }: TopBarProps) {
   const isDashboard = adminView === 'dashboard'
-  const titleText = isDashboard ? '文章管理' : '内容编辑台'
+  const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
 
   return (
     <header className="top-bar">
@@ -75,16 +81,30 @@ export default function TopBar({
         </div>
       </div>
 
-      <label className="top-bar__search">
-        <span className="sr-only">搜索</span>
-        <input
-          ref={searchInputRef}
-          aria-label="搜索"
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          placeholder="搜索标题或链接"
-        />
-      </label>
+      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: 0 }}>
+        <label className="top-bar__search" style={{ marginBottom: 0 }}>
+          <span className="sr-only">搜索</span>
+          <input
+            ref={searchInputRef}
+            aria-label="搜索"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder={contentType === 'read-later' ? '搜索标题、来源或原文链接' : '搜索标题或链接'}
+          />
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--admin-text-secondary)' }}>
+          <span>内容类型</span>
+          <select
+            aria-label="内容类型"
+            value={contentType}
+            onChange={(event) => onContentTypeChange(event.target.value as ContentType)}
+            style={{ minHeight: '40px', borderRadius: '12px' }}
+          >
+            <option value="post">文章</option>
+            <option value="read-later">待读</option>
+          </select>
+        </label>
+      </div>
 
       <div className="top-bar__actions">
         {!isDashboard && onBackToDashboard ? (
@@ -98,12 +118,12 @@ export default function TopBar({
         ) : null}
         {isDashboard ? (
           <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-            新建文章
+            {contentType === 'read-later' ? '新建待读' : '新建文章'}
           </button>
         ) : (
           <>
             <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-              新建文章
+              {contentType === 'read-later' ? '新建待读' : '新建文章'}
             </button>
             <button
               className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}

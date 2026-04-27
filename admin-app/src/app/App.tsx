@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { batchUpdatePostContents, deletePostFile, fetchPostFile, GitHubAuthError, GitHubConflictError, savePostFile, uploadImageFile } from './github-client'
+import {
+  batchUpdatePostContents,
+  deleteMarkdownFile,
+  fetchMarkdownFile,
+  GitHubAuthError,
+  GitHubConflictError,
+  saveMarkdownFile,
+  uploadImageFile,
+} from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
@@ -12,6 +20,10 @@ import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import { useColorMode } from './layout/use-color-mode'
 import LoginGate from './login-gate'
+import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
+import { createNewReadLaterItem } from './read-later/new-item'
+import { parseReadLaterItem } from './read-later/parse-item'
+import { serializeReadLaterItem } from './read-later/serialize-item'
 import { createNewPost } from './posts/new-post'
 import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
@@ -21,6 +33,7 @@ import type { PostIndexItem } from './posts/post-types'
 import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent } from './posts/taxonomy-operations'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
+type ContentType = 'post' | 'read-later'
 type TaxonomyType = 'categories' | 'tags'
 type TaxonomyConfirmAction =
   | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
@@ -52,6 +65,7 @@ export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
   const [session, setSession] = useState(() => sessionStore.getSession())
   const { isDark, toggle: toggleColorMode } = useColorMode()
+  const [contentType, setContentType] = useState<ContentType>('post')
   const [posts, setPosts] = useState<PostIndexItem[]>([])
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -137,7 +151,9 @@ export default function App() {
       setIsIndexing(true)
 
       try {
-        const indexedPosts = await buildPostIndex(session)
+        const indexedPosts = contentType === 'read-later'
+          ? await buildReadLaterIndex(session)
+          : await buildPostIndex(session)
         if (!cancelled) {
           setPosts(indexedPosts)
         }
@@ -151,7 +167,7 @@ export default function App() {
           return
         }
 
-        setError(caughtError instanceof Error ? caughtError.message : '加载文章列表失败。')
+        setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '加载待读列表失败。' : '加载文章列表失败。')
       } finally {
         if (!cancelled) {
           setIsIndexing(false)
@@ -164,7 +180,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [session, sessionStore])
+  }, [contentType, session, sessionStore])
 
   const applyDocument = (nextPost: ParsedPost) => {
     resetPreviewImageUrls()
@@ -231,7 +247,7 @@ export default function App() {
       return
     }
 
-    applyDocument(createNewPost())
+    applyDocument(contentType === 'read-later' ? createNewReadLaterItem() : createNewPost())
     setAdminView('editor')
   }
 
@@ -248,15 +264,15 @@ export default function App() {
     setError(null)
 
     try {
-      const file = await fetchPostFile(session, post.path)
-      applyDocument(parsePost(file))
+      const file = await fetchMarkdownFile(session, post.path)
+      applyDocument(contentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file))
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : '打开文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '打开待读失败。' : '打开文章失败。')
     } finally {
       setIsOpeningPost(false)
     }
@@ -303,7 +319,7 @@ export default function App() {
     setSuccessMessage(null)
 
     try {
-      await deletePostFile(session, {
+      await deleteMarkdownFile(session, {
         path: post.path,
         sha: post.sha,
       })
@@ -332,7 +348,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : '删除文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '删除待读失败。' : '删除文章失败。')
     } finally {
       setIsDeletingPost(false)
       setDeletingPostPath(null)
@@ -360,8 +376,8 @@ export default function App() {
     setError(null)
 
     try {
-      const content = serializePost(document)
-      const savedFile = await savePostFile(session, {
+      const content = contentType === 'read-later' ? serializeReadLaterItem(document as ParsedPost & { contentType: 'read-later' }) : serializePost(document)
+      const savedFile = await saveMarkdownFile(session, {
         path: document.path,
         sha: document.sha || undefined,
         content,
@@ -371,11 +387,17 @@ export default function App() {
         path: savedFile.path,
         sha: savedFile.sha,
       }
-      const savedPostIndexItem = parsePostIndexItem({
-        path: savedFile.path,
-        sha: savedFile.sha,
-        content,
-      })
+      const savedPostIndexItem = contentType === 'read-later'
+        ? parseReadLaterIndexItem({
+            path: savedFile.path,
+            sha: savedFile.sha,
+            content,
+          })
+        : parsePostIndexItem({
+            path: savedFile.path,
+            sha: savedFile.sha,
+            content,
+          })
       markSaved(savedDocument)
       setActivePostPath(savedFile.path)
       setPosts((currentPosts) =>
@@ -399,7 +421,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : '保存文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '保存待读失败。' : '保存文章失败。')
     } finally {
       setIsSaving(false)
     }
@@ -592,7 +614,9 @@ export default function App() {
 
       // Refresh post index to reflect the changes
       try {
-        const indexedPosts = await buildPostIndex(session)
+        const indexedPosts = contentType === 'read-later'
+          ? await buildReadLaterIndex(session)
+          : await buildPostIndex(session)
         setPosts(indexedPosts)
       } catch {
         // If re-indexing fails, the UI still reflects the old data but the operation succeeded
@@ -621,10 +645,13 @@ export default function App() {
   const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
+  const indexedLabel = contentType === 'read-later' ? '待读' : '文章'
+  const loadingLabel = contentType === 'read-later' ? '正在加载待读…' : '正在加载文章…'
+
   const status = adminView === 'dashboard'
     ? isIndexing
-      ? '正在加载文章…'
-      : `共 ${posts.length} 篇文章`
+      ? loadingLabel
+      : `共 ${posts.length} 篇${indexedLabel}`
     : isSaving && document
       ? `正在保存 ${document.path}`
       : isOpeningPost && activePostPath
@@ -634,7 +661,7 @@ export default function App() {
             ? `未保存修改 · ${document.path}`
             : `编辑中 · ${document.path}`
           : isIndexing
-            ? '正在加载文章…'
+            ? loadingLabel
             : '已就绪'
 
   if (!session) {
@@ -671,6 +698,25 @@ export default function App() {
         onToggleColorMode={toggleColorMode}
         adminView={adminView}
         onBackToDashboard={handleBackToDashboard}
+        onContentTypeChange={(value) => {
+          if (value === contentType) {
+            return
+          }
+          if (!confirmNavigation()) {
+            return
+          }
+          resetPreviewImageUrls()
+          replaceDocument(null)
+          setActivePostPath(null)
+          setIsOpeningPost(false)
+          setIsImmersive(false)
+          setError(null)
+          setSuccessMessage(null)
+          setSearch('')
+          setContentType(value)
+          setAdminView('dashboard')
+        }}
+        contentType={contentType}
         searchInputRef={searchInputRef}
       />
       {isDashboard ? (
@@ -687,6 +733,7 @@ export default function App() {
           <PostListPane
             posts={filteredPosts}
             hidden={isPostListHidden}
+            contentType={contentType}
             activePostPath={activePostPath}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
@@ -735,7 +782,7 @@ export default function App() {
               ) : isOpeningPost ? (
                 <section className="hero-card">
                   <div className="hero-card__grid" />
-                  <p>正在加载文章…</p>
+                  <p>{contentType === 'read-later' ? '正在加载待读…' : '正在加载文章…'}</p>
                 </section>
               ) : (
                 <EmptyState error={error} />
@@ -746,6 +793,7 @@ export default function App() {
                 document={document}
                 validationErrors={validationErrors}
                 publishLocked={publishLocked}
+                contentType={contentType}
                 availableCategories={availableCategories}
                 availableTags={availableTags}
                 onFieldChange={handleFrontmatterChange}
@@ -781,7 +829,7 @@ export default function App() {
       ) : null}
       {postDeleteConfirm ? (
         <ConfirmDialog
-          title="删除文章"
+          title={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
           message={`确定删除《${postDeleteConfirm.post.title}》吗？该操作会直接删除仓库中的 Markdown 文件，且不可恢复。`}
           confirmLabel="确认删除"
           isDangerous

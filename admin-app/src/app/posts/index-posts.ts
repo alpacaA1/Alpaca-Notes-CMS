@@ -75,7 +75,9 @@ export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): Po
     if (normalizedQuery) {
       const matchesQuery =
         post.title.toLowerCase().includes(normalizedQuery) ||
-        (post.permalink || '').toLowerCase().includes(normalizedQuery)
+        (post.permalink || '').toLowerCase().includes(normalizedQuery) ||
+        (post.sourceName || '').toLowerCase().includes(normalizedQuery) ||
+        (post.externalUrl || '').toLowerCase().includes(normalizedQuery)
 
       if (!matchesQuery) {
         return false

@@ -44,7 +44,7 @@ mixin make_post(item, is_detail)
 mixin make_page_links()
     if site.pages
         - site.pages.each(function (page) {
-        -   if (!page.title) return;
+        -   if (!page.title || page.nav_exclude) return;
             li
                 if is_current(page.path)
                     a.current(href=config.root+page.path)= page.title

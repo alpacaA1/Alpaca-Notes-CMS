@@ -67,6 +67,7 @@ export function createNewPost(date = new Date()): ParsedPost {
 export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: boolean }): PostValidationErrors {
   const errors: PostValidationErrors = {}
   const permalink = post.frontmatter.permalink?.trim() || ''
+  const isReadLater = post.frontmatter.read_later === true || post.contentType === 'read-later'
 
   if (!post.frontmatter.title.trim()) {
     errors.title = '请填写标题。'
@@ -78,6 +79,16 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
 
   if (!post.frontmatter.desc.trim()) {
     errors.desc = '请填写摘要。'
+  }
+
+  if (isReadLater) {
+    const externalUrl = post.frontmatter.external_url?.trim() || ''
+    if (!externalUrl) {
+      errors.external_url = '请填写原文链接。'
+    } else if (!/^https?:\/\//i.test(externalUrl)) {
+      errors.external_url = '原文链接需以 http:// 或 https:// 开头。'
+    }
+    return errors
   }
 
   if (options?.isNewPost && !permalink) {

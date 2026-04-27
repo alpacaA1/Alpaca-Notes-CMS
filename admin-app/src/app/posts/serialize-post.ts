@@ -13,10 +13,19 @@ export function serializePost(post: ParsedPost): string {
     '---',
     `title: ${post.frontmatter.title}`,
     ...(post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
+    ...(post.frontmatter.layout ? [`layout: ${post.frontmatter.layout}`] : []),
     ...(post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
     `date: ${post.frontmatter.date}`,
-    `published: ${post.hasExplicitPublished ? String(post.frontmatter.published) : 'true'}`,
-    renderList('categories', post.frontmatter.categories),
+    ...(post.frontmatter.read_later
+      ? [
+          `read_later: true`,
+          ...(post.frontmatter.nav_exclude ? ['nav_exclude: true'] : []),
+          ...(post.frontmatter.external_url ? [`external_url: ${post.frontmatter.external_url}`] : []),
+          ...(post.frontmatter.source_name ? [`source_name: ${post.frontmatter.source_name}`] : []),
+          ...(post.frontmatter.reading_status ? [`reading_status: ${post.frontmatter.reading_status}`] : []),
+        ]
+      : [`published: ${post.hasExplicitPublished ? String(post.frontmatter.published) : 'true'}`]),
+    ...(post.frontmatter.read_later ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
     `desc: ${post.frontmatter.desc}`,
     '---',

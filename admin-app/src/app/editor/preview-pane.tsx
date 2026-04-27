@@ -326,6 +326,33 @@ function normalizeTableCells(cells: string[], columnCount: number) {
   return Array.from({ length: columnCount }, (_, index) => cells[index] ?? '')
 }
 
+function renderInlineWithLineBreaks(markdown: string, previewImageUrls?: Record<string, string>) {
+  const inlineNodes = renderInline(markdown, previewImageUrls)
+  const nodes: ReactNode[] = []
+  let lineBreakIndex = 0
+
+  for (const node of inlineNodes) {
+    if (typeof node !== 'string') {
+      nodes.push(node)
+      continue
+    }
+
+    const segments = node.split('\n')
+    segments.forEach((segment, index) => {
+      if (index > 0) {
+        nodes.push(<br key={`line-break-${lineBreakIndex}`} />)
+        lineBreakIndex += 1
+      }
+
+      if (segment) {
+        nodes.push(segment)
+      }
+    })
+  }
+
+  return nodes.length > 0 ? nodes : [markdown]
+}
+
 function flushParagraph(
   lines: string[],
   nodes: ReactNode[],
@@ -337,7 +364,7 @@ function flushParagraph(
   }
 
   nodes.push(
-    <p key={`${keyPrefix}-${nodes.length}`}>{renderInline(lines.join(' '), previewImageUrls)}</p>,
+    <p key={`${keyPrefix}-${nodes.length}`}>{renderInlineWithLineBreaks(lines.join('\n'), previewImageUrls)}</p>,
   )
   lines.length = 0
 }
@@ -436,7 +463,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       }
       nodes.push(
         <blockquote key={`quote-${nodes.length}`}>
-          <p>{renderInline(quoteLines.join(' '), previewImageUrls)}</p>
+          <p>{renderInlineWithLineBreaks(quoteLines.join('\n'), previewImageUrls)}</p>
         </blockquote>,
       )
       continue

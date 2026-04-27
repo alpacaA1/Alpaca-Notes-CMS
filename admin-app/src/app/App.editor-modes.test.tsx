@@ -63,7 +63,7 @@ describe('App editor modes', () => {
   it('opens supported documents directly in markdown mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -84,7 +84,7 @@ describe('App editor modes', () => {
   it('returns to markdown mode after leaving preview', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -109,7 +109,7 @@ describe('App editor modes', () => {
   it('opens image documents directly in markdown mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: imagePost.path,
       sha: imagePost.sha,
       content: imageContent,
@@ -129,7 +129,7 @@ describe('App editor modes', () => {
   it('uses immersive mode from the editor toolbar and keeps it beside upload image', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -171,7 +171,7 @@ describe('App editor modes', () => {
   it('renders unsaved title and body edits in preview and returns to markdown mode on exit', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -210,10 +210,45 @@ describe('App editor modes', () => {
     expect(screen.getByText('发布设置')).toBeTruthy()
   })
 
+  it('renders unsaved paragraph line breaks in preview and preserves them after returning to edit mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: supportedContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
+    const markdownEditor = await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.change(markdownEditor, {
+      target: { value: 'First line\nSecond line' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const paragraph = await screen.findByText(
+      (_, element) => element?.tagName === 'P' && element.textContent === 'First lineSecond line',
+    )
+    expect(paragraph.querySelector('br')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
+
+    const restoredMarkdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    expect(restoredMarkdownEditor.value).toBe('First line\nSecond line')
+  })
+
   it('restores markdown mode with unsaved edits after leaving preview', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -248,7 +283,7 @@ describe('App editor modes', () => {
   it('does not expose a separate expand editor action', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,

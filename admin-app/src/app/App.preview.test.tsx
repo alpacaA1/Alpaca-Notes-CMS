@@ -292,6 +292,36 @@ desc: desc
 | A | B |
 | C | D |`
 
+const paragraphLineBreakContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+第一行
+第二行`
+
+const blockquoteLineBreakContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+> 第一行
+> 第二行`
+
 describe('App preview mode', () => {
   afterEach(() => {
     cleanup()
@@ -302,7 +332,7 @@ describe('App preview mode', () => {
   it('renders the current document title, date, and body in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: supportedContent,
@@ -329,7 +359,7 @@ describe('App preview mode', () => {
   it('sanitizes unsafe markdown links before rendering preview anchors', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: unsafeLinkContent,
@@ -374,7 +404,7 @@ describe('App preview mode', () => {
   it('auto-links bare https urls in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlContent,
@@ -401,7 +431,7 @@ describe('App preview mode', () => {
   it('only auto-links safe bare urls in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: unsafeBareUrlContent,
@@ -437,7 +467,7 @@ describe('App preview mode', () => {
   it('auto-links bare urls that contain balanced parentheses in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithParenthesesContent,
@@ -463,7 +493,7 @@ describe('App preview mode', () => {
   it('excludes full-width closing punctuation from bare preview links', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithFullWidthClosingParenContent,
@@ -490,7 +520,7 @@ describe('App preview mode', () => {
   it('excludes full-width closing punctuation from bare links when more text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithFullWidthClosingParenAndFollowingTextContent,
@@ -522,7 +552,7 @@ describe('App preview mode', () => {
   it('excludes ascii closing punctuation from bare links when latin text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithAsciiClosingParenAndFollowingTextContent,
@@ -554,7 +584,7 @@ describe('App preview mode', () => {
   it('excludes ascii commas from bare links when latin text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithCommaAndFollowingTextContent,
@@ -586,7 +616,7 @@ describe('App preview mode', () => {
   it('excludes ascii periods from bare links when chinese text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithPeriodAndFollowingChineseTextContent,
@@ -618,7 +648,7 @@ describe('App preview mode', () => {
   it('keeps modern bare-url tlds intact in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithModernTldContent,
@@ -645,7 +675,7 @@ describe('App preview mode', () => {
   it('keeps dotted path segments intact in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithDottedPathSegmentContent,
@@ -672,7 +702,7 @@ describe('App preview mode', () => {
   it('keeps commas inside bare-url query values intact in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithCommaInQueryValueContent,
@@ -699,7 +729,7 @@ describe('App preview mode', () => {
   it('excludes exclamation marks from bare links when latin text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithExclamationAndFollowingTextContent,
@@ -731,7 +761,7 @@ describe('App preview mode', () => {
   it('excludes colons from bare links when chinese text follows immediately', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: supportedPost.path,
       sha: supportedPost.sha,
       content: bareUrlWithColonAndFollowingChineseTextContent,
@@ -760,10 +790,63 @@ describe('App preview mode', () => {
     expect(screen.queryByRole('link', { name: 'https://example.com:后文' })).toBeNull()
   })
 
+  it('renders markdown paragraph soft line breaks in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: paragraphLineBreakContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const paragraph = await screen.findByText(
+      (_, element) => element?.tagName === 'P' && element.textContent === '第一行第二行',
+    )
+    expect(paragraph.querySelector('br')).toBeTruthy()
+  })
+
+  it('renders markdown blockquote soft line breaks in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: blockquoteLineBreakContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const blockquote = await screen.findByText(
+      (_, element) => element?.tagName === 'P' && element.textContent === '第一行第二行',
+    )
+    expect(blockquote.closest('blockquote')).toBeTruthy()
+    expect(blockquote.querySelector('br')).toBeTruthy()
+  })
+
   it('renders markdown images inline in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: imagePost.path,
       sha: imagePost.sha,
       content: imageContent,
@@ -790,7 +873,7 @@ describe('App preview mode', () => {
   it('rejects unsafe markdown image URLs in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([imagePost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: imagePost.path,
       sha: imagePost.sha,
       content: unsafeImageContent,
@@ -814,7 +897,7 @@ describe('App preview mode', () => {
   it('renders markdown tables in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([tablePost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: tablePost.path,
       sha: tablePost.sha,
       content: tableContent,

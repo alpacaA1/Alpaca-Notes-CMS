@@ -81,13 +81,13 @@ describe('App save flow', () => {
   it('shows 已保存 for a clean opened document, 保存 for dirty state, 保存中… while saving, and returns to 已保存 after success', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
     const deferredSave = createDeferredPromise<{ path: string; sha: string; content: string }>()
-    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockReturnValue(deferredSave.promise)
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockReturnValue(deferredSave.promise)
 
     render(<App />)
 
@@ -110,7 +110,7 @@ describe('App save flow', () => {
     fireEvent.click(dirtySaveButton)
 
     await waitFor(() => {
-      expect(savePostFile).toHaveBeenCalledTimes(1)
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
     })
 
     const savingButton = screen.getByRole('button', { name: '保存中…' }) as HTMLButtonElement
@@ -130,12 +130,12 @@ describe('App save flow', () => {
   it('clears the save success message after the next edit following a successful save', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: 'sha-updated',
       content: 'serialized',
@@ -171,12 +171,12 @@ describe('App save flow', () => {
   it('does not resurface the previous save success message after reverting back to the saved content', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: 'sha-updated',
       content: 'serialized',
@@ -209,15 +209,15 @@ describe('App save flow', () => {
     expect(screen.queryByText('已保存。')).toBeNull()
   })
 
-  it('keeps invalid dirty documents actionable, shows validation errors, and does not call savePostFile', async () => {
+  it('keeps invalid dirty documents actionable, shows validation errors, and does not call saveMarkdownFile', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: 'sha-updated',
       content: 'serialized',
@@ -240,7 +240,7 @@ describe('App save flow', () => {
     fireEvent.click(saveButton)
 
     expect(await screen.findByText('请填写标题。')).toBeTruthy()
-    expect(savePostFile).not.toHaveBeenCalled()
+    expect(saveMarkdownFile).not.toHaveBeenCalled()
 
     const stillActionableSaveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
     expect(stillActionableSaveButton.disabled).toBe(false)
@@ -249,12 +249,12 @@ describe('App save flow', () => {
   it('saves serialized markdown with the current sha and updates list metadata without rebuilding the full index', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     const buildPostIndex = vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const savePostFile = vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: 'sha-updated',
       content: 'serialized',
@@ -274,10 +274,10 @@ describe('App save flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => {
-      expect(savePostFile).toHaveBeenCalledTimes(1)
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
     })
 
-    expect(savePostFile).toHaveBeenCalledWith(
+    expect(saveMarkdownFile).toHaveBeenCalledWith(
       { token: 'persisted-token' },
       expect.objectContaining({
         path: existingPost.path,
@@ -285,7 +285,7 @@ describe('App save flow', () => {
         content: expect.stringContaining('title: Updated title'),
       }),
     )
-    expect(savePostFile.mock.calls[0]?.[1]?.content).toContain('desc: Updated desc')
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('desc: Updated desc')
 
     await waitFor(() => {
       expect(buildPostIndex).toHaveBeenCalledTimes(1)
@@ -298,8 +298,8 @@ describe('App save flow', () => {
   it('keeps saved permalink changes after switching away and reopening the post', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
-    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile')
-    fetchPostFile
+    const fetchMarkdownFile = vi.spyOn(githubClientModule, 'fetchMarkdownFile')
+    fetchMarkdownFile
       .mockResolvedValueOnce({
         path: existingPost.path,
         sha: existingPost.sha,
@@ -327,7 +327,7 @@ desc: desc
 
 Original body.`,
       })
-    vi.spyOn(githubClientModule, 'savePostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: 'sha-updated',
       content: 'serialized',
@@ -358,12 +358,12 @@ Original body.`,
   it('surfaces stale-sha save conflicts and keeps local dirty state', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockRejectedValue(new GitHubConflictError())
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockRejectedValue(new GitHubConflictError())
 
     render(<App />)
 
@@ -385,12 +385,12 @@ Original body.`,
   it('preserves dirty local state when save fails', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockRejectedValue(new Error('save failed'))
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockRejectedValue(new Error('save failed'))
 
     render(<App />)
 
@@ -412,12 +412,12 @@ Original body.`,
   it('clears the session and returns to login when save hits auth expiry', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockRejectedValue(new GitHubAuthError())
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockRejectedValue(new GitHubAuthError())
 
     render(<App />)
 
@@ -451,7 +451,7 @@ Original body.`,
 
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
@@ -460,7 +460,7 @@ Original body.`,
       path: 'source/images/2026/04/example-cover.png',
       sha: 'sha-image',
     })
-    vi.spyOn(githubClientModule, 'savePostFile').mockRejectedValue(new GitHubAuthError())
+    vi.spyOn(githubClientModule, 'saveMarkdownFile').mockRejectedValue(new GitHubAuthError())
 
     render(<App />)
 
@@ -487,12 +487,12 @@ Original body.`,
   it('deletes a post from the editor list and returns to dashboard when deleting the active post', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
 
     render(<App />)
 
@@ -507,7 +507,7 @@ Original body.`,
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
-      expect(deletePostFile).toHaveBeenCalledWith(
+      expect(deleteMarkdownFile).toHaveBeenCalledWith(
         { token: 'persisted-token' },
         { path: existingPost.path, sha: existingPost.sha },
       )
@@ -522,12 +522,12 @@ Original body.`,
   it('asks for extra confirmation before deleting the active post with unsaved changes', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
-    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<App />)
@@ -543,14 +543,14 @@ Original body.`,
     fireEvent.click(screen.getByTitle('删除《Save flow post》'))
 
     expect(confirmSpy).toHaveBeenCalledWith('当前文章有未保存的修改。删除后无法恢复，确认继续吗？')
-    expect(deletePostFile).not.toHaveBeenCalled()
+    expect(deleteMarkdownFile).not.toHaveBeenCalled()
     expect(screen.queryByText('删除文章')).toBeNull()
   })
 
   it('keeps a new unsaved draft untouched when deleting another post from the list', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
-    const deletePostFile = vi.spyOn(githubClientModule, 'deletePostFile').mockResolvedValue()
+    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
 
     render(<App />)
 
@@ -566,7 +566,7 @@ Original body.`,
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
-      expect(deletePostFile).toHaveBeenCalledWith(
+      expect(deleteMarkdownFile).toHaveBeenCalledWith(
         { token: 'persisted-token' },
         { path: otherPost.path, sha: otherPost.sha },
       )

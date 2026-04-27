@@ -1,3 +1,5 @@
+export type ReadingStatus = 'unread' | 'reading' | 'done'
+
 export type PostFrontmatter = {
   title: string
   date: string
@@ -7,6 +9,12 @@ export type PostFrontmatter = {
   tags: string[]
   permalink?: string
   cover?: string
+  external_url?: string
+  source_name?: string
+  reading_status?: ReadingStatus
+  read_later?: boolean
+  nav_exclude?: boolean
+  layout?: string
 }
 
 export type ParsedPost = {
@@ -16,6 +24,7 @@ export type ParsedPost = {
   body: string
   hasExplicitPublished: boolean
   hasExplicitPermalink: boolean
+  contentType?: 'post' | 'read-later'
 }
 
 function trimQuotes(value: string) {
@@ -52,6 +61,12 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const publishedRaw = readScalar(frontmatterBlock, 'published')
   const permalinkRaw = readScalar(frontmatterBlock, 'permalink')
   const coverRaw = readScalar(frontmatterBlock, 'cover')
+  const externalUrlRaw = readScalar(frontmatterBlock, 'external_url')
+  const sourceNameRaw = readScalar(frontmatterBlock, 'source_name')
+  const readingStatusRaw = readScalar(frontmatterBlock, 'reading_status')
+  const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
+  const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
+  const layoutRaw = readScalar(frontmatterBlock, 'layout')
 
   return {
     path: input.path,
@@ -59,6 +74,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
     body,
     hasExplicitPublished: publishedRaw !== null,
     hasExplicitPermalink: permalinkRaw !== null && permalinkRaw !== '',
+    contentType: readLaterRaw === 'true' ? 'read-later' : 'post',
     frontmatter: {
       title: readScalar(frontmatterBlock, 'title') || '',
       date: readScalar(frontmatterBlock, 'date') || '',
@@ -68,6 +84,14 @@ export function parsePost(input: { path: string; sha: string; content: string })
       tags: readList(frontmatterBlock, 'tags'),
       ...(permalinkRaw && permalinkRaw.length > 0 ? { permalink: permalinkRaw } : {}),
       ...(coverRaw && coverRaw.length > 0 ? { cover: coverRaw } : {}),
+      ...(externalUrlRaw && externalUrlRaw.length > 0 ? { external_url: externalUrlRaw } : {}),
+      ...(sourceNameRaw && sourceNameRaw.length > 0 ? { source_name: sourceNameRaw } : {}),
+      ...(readingStatusRaw === 'unread' || readingStatusRaw === 'reading' || readingStatusRaw === 'done'
+        ? { reading_status: readingStatusRaw }
+        : {}),
+      ...(readLaterRaw === 'true' ? { read_later: true } : {}),
+      ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
+      ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),
     },
   }
 }

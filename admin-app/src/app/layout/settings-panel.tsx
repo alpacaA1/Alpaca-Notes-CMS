@@ -9,6 +9,7 @@ type SettingsPanelProps = {
   document: ParsedPost | null
   validationErrors: PostValidationErrors
   publishLocked: boolean
+  contentType?: 'post' | 'read-later'
   availableCategories: string[]
   availableTags: string[]
   onFieldChange: <K extends keyof ParsedPost['frontmatter']>(
@@ -27,6 +28,7 @@ export default function SettingsPanel({
   document,
   validationErrors,
   publishLocked,
+  contentType = 'post',
   availableCategories,
   availableTags,
   onFieldChange,
@@ -65,8 +67,8 @@ export default function SettingsPanel({
     <aside className="settings-panel">
       <div className="settings-panel__header">
         <p className="settings-panel__eyebrow">元信息</p>
-        <h2>发布设置</h2>
-        <p>发布前把标题、链接与分类信息整理清楚。</p>
+        <h2>{contentType === 'read-later' ? '待读设置' : '发布设置'}</h2>
+        <p>{contentType === 'read-later' ? '保存原文链接、来源，以及你自己的摘录、总结和评论。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
       </div>
 
       <label>
@@ -94,30 +96,70 @@ export default function SettingsPanel({
         {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
       </label>
 
-      <label className="settings-panel__toggle">
-        <span>已发布</span>
-        <input
-          aria-label="已发布"
-          type="checkbox"
-          checked={Boolean(frontmatter.published)}
-          disabled={publishLocked}
-          onChange={(event) => onFieldChange('published', event.target.checked)}
-        />
-      </label>
+      {contentType === 'read-later' ? (
+        <>
+          <label>
+            <span>原文链接</span>
+            <input
+              aria-label="原文链接"
+              value={frontmatter.external_url || ''}
+              placeholder="https://example.com/article"
+              onChange={(event) => onFieldChange('external_url', event.target.value)}
+            />
+            {validationErrors.external_url ? <span className="error-message">{validationErrors.external_url}</span> : null}
+          </label>
 
-      <div className="settings-panel__field settings-panel__taxonomy">
-        <span>分类</span>
-        <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
-        <TaxonomyMultiSelect
-          label="分类"
-          value={frontmatter.categories}
-          availableOptions={availableCategories}
-          onChange={(value) => onFieldChange('categories', value)}
-          onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
-          onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
-          onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
-        />
-      </div>
+          <label>
+            <span>来源</span>
+            <input
+              aria-label="来源"
+              value={frontmatter.source_name || ''}
+              placeholder="文章来源 / 网站名"
+              onChange={(event) => onFieldChange('source_name', event.target.value)}
+            />
+          </label>
+
+          <label>
+            <span>阅读状态</span>
+            <select
+              aria-label="阅读状态"
+              value={frontmatter.reading_status || 'unread'}
+              onChange={(event) => onFieldChange('reading_status', event.target.value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
+            >
+              <option value="unread">未读</option>
+              <option value="reading">在读</option>
+              <option value="done">已读</option>
+            </select>
+          </label>
+        </>
+      ) : (
+        <>
+          <label className="settings-panel__toggle">
+            <span>已发布</span>
+            <input
+              aria-label="已发布"
+              type="checkbox"
+              checked={Boolean(frontmatter.published)}
+              disabled={publishLocked}
+              onChange={(event) => onFieldChange('published', event.target.checked)}
+            />
+          </label>
+
+          <div className="settings-panel__field settings-panel__taxonomy">
+            <span>分类</span>
+            <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
+            <TaxonomyMultiSelect
+              label="分类"
+              value={frontmatter.categories}
+              availableOptions={availableCategories}
+              onChange={(value) => onFieldChange('categories', value)}
+              onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
+              onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
+              onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
+            />
+          </div>
+        </>
+      )}
 
       <div className="settings-panel__field settings-panel__taxonomy">
         <span>标签</span>
@@ -164,16 +206,28 @@ export default function SettingsPanel({
         ) : null}
       </label>
 
-      <label>
-        <span>永久链接</span>
-        <input
-          aria-label="永久链接"
-          value={frontmatter.permalink || ''}
-          placeholder="旧文章可留空"
-          onChange={(event) => onFieldChange('permalink', event.target.value)}
-        />
-        {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
-      </label>
+      {contentType === 'read-later' ? (
+        <label>
+          <span>站内详情链接</span>
+          <input
+            aria-label="站内详情链接"
+            value={frontmatter.permalink || ''}
+            readOnly
+            disabled
+          />
+        </label>
+      ) : (
+        <label>
+          <span>永久链接</span>
+          <input
+            aria-label="永久链接"
+            value={frontmatter.permalink || ''}
+            placeholder="旧文章可留空"
+            onChange={(event) => onFieldChange('permalink', event.target.value)}
+          />
+          {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
+        </label>
+      )}
     </aside>
   )
 }

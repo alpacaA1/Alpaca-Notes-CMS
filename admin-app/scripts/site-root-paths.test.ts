@@ -7,6 +7,11 @@ import { workspaceRoot } from '../build-paths'
 const generatedSiteIndexPath = resolve(workspaceRoot, 'public', 'index.html')
 
 function runSiteBuild() {
+  execFileSync('npm', ['run', 'clean'], {
+    cwd: workspaceRoot,
+    stdio: 'pipe',
+  })
+
   execFileSync('npm', ['run', 'build'], {
     cwd: workspaceRoot,
     stdio: 'pipe',
