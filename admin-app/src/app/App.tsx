@@ -22,6 +22,7 @@ import { useColorMode } from './layout/use-color-mode'
 import LoginGate from './login-gate'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
+import { importReadLaterFromUrl } from './read-later/import-client'
 import { parseReadLaterItem } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import { createNewPost } from './posts/new-post'
@@ -75,6 +76,7 @@ export default function App() {
   const [isIndexing, setIsIndexing] = useState(false)
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
@@ -491,6 +493,53 @@ export default function App() {
     }
   }
 
+  const handleImportFromUrl = async () => {
+    if (!session || !document || contentType !== 'read-later' || isImportingFromUrl) {
+      return
+    }
+
+    const externalUrl = document.frontmatter.external_url?.trim() || ''
+    if (!externalUrl) {
+      setError('请先填写原文链接。')
+      return
+    }
+
+    const currentBody = document.body.trim()
+    const defaultBody = createNewReadLaterItem(new Date(document.frontmatter.date || Date.now())).body.trim()
+    const shouldConfirmOverwrite = currentBody.length > 0 && currentBody !== defaultBody
+    if (shouldConfirmOverwrite && !window.confirm('当前正文将被导入内容覆盖，确认继续吗？')) {
+      return
+    }
+
+    clearSuccessMessageOnDirty()
+    setError(null)
+    setIsImportingFromUrl(true)
+
+    try {
+      const imported = await importReadLaterFromUrl(session, externalUrl)
+      updateBody(imported.markdown)
+
+      if (!document.frontmatter.title.trim() && imported.title) {
+        updateFrontmatter('title', imported.title)
+      }
+      if (!document.frontmatter.desc.trim() && imported.desc) {
+        updateFrontmatter('desc', imported.desc)
+      }
+      if (!(document.frontmatter.source_name || '').trim() && imported.sourceName) {
+        updateFrontmatter('source_name', imported.sourceName)
+      }
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '导入正文失败。')
+    } finally {
+      setIsImportingFromUrl(false)
+    }
+  }
+
   // ---- Taxonomy CRUD handlers ----
 
   const handleTaxonomyCreate = (type: TaxonomyType, name: string) => {
@@ -808,6 +857,8 @@ export default function App() {
                 onTaxonomyRename={handleTaxonomyRename}
                 onTaxonomyDelete={handleTaxonomyDelete}
                 onUploadImage={handleUploadImage}
+                onImportFromUrl={() => { void handleImportFromUrl() }}
+                isImportingFromUrl={isImportingFromUrl}
                 previewImageUrls={previewImageUrls}
               />
             ) : null}

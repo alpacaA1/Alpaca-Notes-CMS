@@ -157,15 +157,33 @@ describe('settings panel', () => {
   })
 
   it('renders read-later settings and updates external metadata fields', () => {
+    const onImportFromUrl = vi.fn()
     const { onFieldChange } = renderControlledSettingsPanel({
       document: createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
       contentType: 'read-later',
     })
 
+    cleanup()
+    render(
+      <SettingsPanel
+        document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
+        validationErrors={{}}
+        publishLocked={false}
+        contentType="read-later"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={onFieldChange}
+        onImportFromUrl={onImportFromUrl}
+      />,
+    )
+
     expect(screen.getByText('待读设置')).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.getByLabelText('站内详情链接')).toBeTruthy()
+
+    const importButton = screen.getByRole('button', { name: '从链接导入正文' }) as HTMLButtonElement
+    expect(importButton.disabled).toBe(true)
 
     fireEvent.change(screen.getByLabelText('原文链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.change(screen.getByLabelText('来源'), { target: { value: 'Example Source' } })
@@ -174,6 +192,57 @@ describe('settings panel', () => {
     expect(onFieldChange).toHaveBeenCalledWith('external_url', 'https://example.com/article')
     expect(onFieldChange).toHaveBeenCalledWith('source_name', 'Example Source')
     expect(onFieldChange).toHaveBeenCalledWith('reading_status', 'reading')
+  })
+
+  it('enables and triggers read-later import button', () => {
+    const onImportFromUrl = vi.fn()
+    render(
+      <SettingsPanel
+        document={{
+          ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+          frontmatter: {
+            ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)).frontmatter,
+            external_url: 'https://example.com/article',
+          },
+        }}
+        validationErrors={{}}
+        publishLocked={false}
+        contentType="read-later"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+        onImportFromUrl={onImportFromUrl}
+        isImportingFromUrl
+      />,
+    )
+
+    const importingButton = screen.getByRole('button', { name: '导入中…' }) as HTMLButtonElement
+    expect(importingButton.disabled).toBe(true)
+
+    cleanup()
+    render(
+      <SettingsPanel
+        document={{
+          ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+          frontmatter: {
+            ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)).frontmatter,
+            external_url: 'https://example.com/article',
+          },
+        }}
+        validationErrors={{}}
+        publishLocked={false}
+        contentType="read-later"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+        onImportFromUrl={onImportFromUrl}
+      />,
+    )
+
+    const importButton = screen.getByRole('button', { name: '从链接导入正文' }) as HTMLButtonElement
+    expect(importButton.disabled).toBe(false)
+    fireEvent.click(importButton)
+    expect(onImportFromUrl).toHaveBeenCalledTimes(1)
   })
 
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {

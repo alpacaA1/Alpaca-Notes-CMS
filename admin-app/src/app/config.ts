@@ -8,3 +8,4 @@ export const SITE_ROOT_PATH = `/${REPO_NAME}`
 
 export const AUTH_ORIGIN = new URL(AUTH_BASE_URL).origin
 export const AUTH_START_URL = `${AUTH_BASE_URL}/api/auth`
+export const READ_LATER_IMPORT_URL = `${AUTH_BASE_URL}/api/import-read-later`

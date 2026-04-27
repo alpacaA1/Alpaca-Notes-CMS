@@ -20,6 +20,8 @@ type SettingsPanelProps = {
   onTaxonomyRename?: (type: TaxonomyType, oldName: string, newName: string) => void
   onTaxonomyDelete?: (type: TaxonomyType, name: string) => void
   onUploadImage?: (file: File) => Promise<{ markdown: string; publicUrl: string }>
+  onImportFromUrl?: () => void
+  isImportingFromUrl?: boolean
   previewImageUrls?: Record<string, string>
 }
 
@@ -36,6 +38,8 @@ export default function SettingsPanel({
   onTaxonomyRename,
   onTaxonomyDelete,
   onUploadImage,
+  onImportFromUrl,
+  isImportingFromUrl = false,
   previewImageUrls,
 }: SettingsPanelProps) {
   if (!document) {
@@ -106,6 +110,16 @@ export default function SettingsPanel({
               placeholder="https://example.com/article"
               onChange={(event) => onFieldChange('external_url', event.target.value)}
             />
+            <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-start' }}>
+              <button
+                type="button"
+                className="top-bar__button"
+                disabled={!frontmatter.external_url?.trim() || isImportingFromUrl}
+                onClick={onImportFromUrl}
+              >
+                {isImportingFromUrl ? '导入中…' : '从链接导入正文'}
+              </button>
+            </div>
             {validationErrors.external_url ? <span className="error-message">{validationErrors.external_url}</span> : null}
           </label>
 

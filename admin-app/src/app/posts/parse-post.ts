@@ -32,7 +32,7 @@ function trimQuotes(value: string) {
 }
 
 function readScalar(frontmatter: string, field: string): string | null {
-  const match = frontmatter.match(new RegExp(`^${field}:\\s*(.*)$`, 'm'))
+  const match = frontmatter.match(new RegExp(`^${field}:[ \t]*([^\n\r]*)$`, 'm'))
   if (!match) {
     return null
   }
