@@ -885,9 +885,7 @@ describe('App preview mode', () => {
 
     render(<App />)
 
-    fireEvent.change(screen.getByRole('combobox', { name: '内容类型' }), {
-      target: { value: 'read-later' },
-    })
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
 
     await waitFor(() => {
       expect(screen.getByText('Read-later preview item')).toBeTruthy()
@@ -923,9 +921,7 @@ describe('App preview mode', () => {
 
     render(<App />)
 
-    fireEvent.change(screen.getByRole('combobox', { name: '内容类型' }), {
-      target: { value: 'read-later' },
-    })
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
 
     await waitFor(() => {
       expect(screen.getByText('Read-later preview item')).toBeTruthy()

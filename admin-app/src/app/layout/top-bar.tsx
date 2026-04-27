@@ -44,6 +44,11 @@ type TopBarProps = {
   status: string
 }
 
+const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string; hint: string }> = [
+  { value: 'post', label: '文章', shortLabel: 'Post', hint: '写博客正文' },
+  { value: 'read-later', label: '待读', shortLabel: 'Later', hint: '存文章与笔记' },
+]
+
 export default function TopBar({
   search,
   onSearchChange,
@@ -67,6 +72,9 @@ export default function TopBar({
 }: TopBarProps) {
   const isDashboard = adminView === 'dashboard'
   const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
+  const activeContentType = CONTENT_TYPE_OPTIONS.find((option) => option.value === contentType) ?? CONTENT_TYPE_OPTIONS[0]
+  const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
+  const createHint = contentType === 'read-later' ? '收藏并附注' : '开始写作'
 
   return (
     <header className="top-bar">
@@ -81,7 +89,7 @@ export default function TopBar({
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flex: 1, minWidth: 0 }}>
+      <div className="top-bar__controls">
         <label className="top-bar__search" style={{ marginBottom: 0 }}>
           <span className="sr-only">搜索</span>
           <input
@@ -92,64 +100,82 @@ export default function TopBar({
             placeholder={contentType === 'read-later' ? '搜索标题、来源或原文链接' : '搜索标题或链接'}
           />
         </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--admin-text-secondary)' }}>
-          <span>内容类型</span>
-          <select
-            aria-label="内容类型"
-            value={contentType}
-            onChange={(event) => onContentTypeChange(event.target.value as ContentType)}
-            style={{ minHeight: '40px', borderRadius: '12px' }}
-          >
-            <option value="post">文章</option>
-            <option value="read-later">待读</option>
-          </select>
-        </label>
+        <fieldset className="top-bar__content-switcher">
+          <legend className="top-bar__switcher-label">内容类型</legend>
+          <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
+            {CONTENT_TYPE_OPTIONS.map((option) => {
+              const checked = option.value === contentType
+              return (
+                <label
+                  key={option.value}
+                  className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
+                >
+                  <input
+                    type="radio"
+                    name="content-type"
+                    value={option.value}
+                    aria-label={option.label}
+                    checked={checked}
+                    onChange={() => onContentTypeChange(option.value)}
+                  />
+                  <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
+                  <span className="top-bar__switcher-text">
+                    <strong>{option.label}</strong>
+                    <small aria-hidden="true">{option.hint}</small>
+                  </span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
       </div>
 
       <div className="top-bar__actions">
-        {!isDashboard && onBackToDashboard ? (
-          <button
-            className="top-bar__button top-bar__button--back"
-            type="button"
-            onClick={onBackToDashboard}
-          >
-            ← 返回列表
-          </button>
-        ) : null}
-        {isDashboard ? (
-          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-            {contentType === 'read-later' ? '新建待读' : '新建文章'}
-          </button>
-        ) : (
-          <>
-            <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-              {contentType === 'read-later' ? '新建待读' : '新建文章'}
-            </button>
+        <div className="top-bar__primary-actions">
+          {!isDashboard && onBackToDashboard ? (
             <button
-              className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
+              className="top-bar__button top-bar__button--back"
               type="button"
-              onClick={onSave}
-              disabled={isSaveDisabled}
+              onClick={onBackToDashboard}
             >
-              {saveLabel}
+              ← 返回列表
             </button>
-            <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
-              {isPreviewing ? '继续编辑' : '预览'}
-            </button>
-          </>
-        )}
-        <button
-          className="top-bar__button top-bar__button--theme"
-          type="button"
-          onClick={onToggleColorMode}
-          aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
-          title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
-        <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
-          退出登录
-        </button>
+          ) : null}
+          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
+            <span className="top-bar__button-kicker">{activeContentType.label}</span>
+            <strong>{createLabel}</strong>
+            <small className="top-bar__button-subtitle">{createHint}</small>
+          </button>
+          {!isDashboard ? (
+            <>
+              <button
+                className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
+                type="button"
+                onClick={onSave}
+                disabled={isSaveDisabled}
+              >
+                {saveLabel}
+              </button>
+              <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
+                {isPreviewing ? '继续编辑' : '预览'}
+              </button>
+            </>
+          ) : null}
+        </div>
+        <div className="top-bar__utility-actions">
+          <button
+            className="top-bar__button top-bar__button--theme"
+            type="button"
+            onClick={onToggleColorMode}
+            aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+            title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+          >
+            {isDarkMode ? '☀️' : '🌙'}
+          </button>
+          <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
+            退出登录
+          </button>
+        </div>
       </div>
     </header>
   )

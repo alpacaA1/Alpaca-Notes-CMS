@@ -147,8 +147,10 @@ describe('management layout components', () => {
     )
 
     expect(screen.getByText('内容编辑台')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '新建文章' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: '文章' })).toBeTruthy()
+    expect(screen.getByRole('radio', { name: '待读' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: '筛选' })).toBeNull()
     expect(screen.queryByRole('button', { name: '排序' })).toBeNull()
     const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
@@ -156,5 +158,35 @@ describe('management layout components', () => {
     expect(screen.getByRole('button', { name: '预览' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
     expect(screen.getByText('已就绪')).toBeTruthy()
+  })
+
+  it('switches content type via the redesigned radio cards', () => {
+    const onContentTypeChange = vi.fn()
+    render(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={onContentTypeChange}
+        contentType="post"
+        isPreviewing={false}
+        hasActiveDocument={true}
+        saveLabel="保存"
+        isSaveDisabled={false}
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    expect(onContentTypeChange).toHaveBeenCalledWith('read-later')
+    expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
   })
 })
