@@ -558,7 +558,7 @@ Original body.`,
       expect(screen.getByText('Other post')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '新建文章' }))
+    fireEvent.click(screen.getAllByRole('button', { name: /新建文章/ })[0])
     expect(await screen.findByLabelText('标题')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Temporary draft' } })
 
