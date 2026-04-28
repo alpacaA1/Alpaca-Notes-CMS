@@ -1,8 +1,10 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { createReadLaterBody } from './read-later/new-item'
 import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
+import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
 
 const supportedPost = {
@@ -52,6 +54,45 @@ const imagePost = {
   title: 'Image post',
   permalink: 'image-post/',
 }
+
+const readLaterPost = {
+  path: 'source/read-later-items/editor-mode-item.md',
+  sha: 'sha-read-later-editor-mode',
+  title: 'Read-later mode item',
+  date: '2026-04-05 09:30:00',
+  desc: 'desc',
+  published: false,
+  hasExplicitPublished: false,
+  categories: [],
+  tags: ['待读'],
+  permalink: 'read-later/editor-mode-item/',
+  contentType: 'read-later' as const,
+  externalUrl: 'https://example.com/original',
+  sourceName: 'Mode Source',
+  readingStatus: 'reading' as const,
+}
+
+const readLaterContent = `---
+title: Read-later mode item
+permalink: read-later/editor-mode-item/
+date: 2026-04-05 09:30:00
+desc: desc
+external_url: https://example.com/original
+source_name: Mode Source
+reading_status: reading
+read_later: true
+nav_exclude: true
+layout: read-later-item
+---
+
+## 原文摘录
+这里是原文摘录。
+
+## 我的总结
+这里是我的总结。
+
+## 我的评论
+这里是我的评论。`
 
 describe('App editor modes', () => {
   afterEach(() => {
@@ -105,6 +146,79 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+  })
+
+  it('opens read-later documents directly in reading view and keeps the sidebar visible', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+
+    expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
+    expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(screen.queryByText('当前稿件')).toBeNull()
+  })
+
+  it('switches read-later between reading view and markdown without losing sidebar edits', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    await screen.findByText('这里是原文摘录。')
+
+    fireEvent.click(screen.getByRole('tab', { name: '评论' }))
+    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '新的待读评论' } })
+
+    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('新的待读评论')
+    expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
+
+    const markdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    expect(markdownEditor.value).toBe(
+      createReadLaterBody({
+        articleExcerpt: '这里是原文摘录。',
+        summary: '这里是我的总结。',
+        commentary: '新的待读评论',
+      }),
+    )
+    expect(screen.getByRole('button', { name: '阅读视图' })).toBeTruthy()
+    expect(screen.getByText('当前稿件')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '阅读视图' }))
+
+    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('新的待读评论')
+    expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
+    expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.queryByText('当前稿件')).toBeNull()
   })
 
   it('opens image documents directly in markdown mode', async () => {

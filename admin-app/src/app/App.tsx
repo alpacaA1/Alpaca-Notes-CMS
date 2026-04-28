@@ -190,6 +190,7 @@ export default function App() {
   const applyDocument = (nextPost: ParsedPost) => {
     resetPreviewImageUrls()
     replaceDocument(nextPost)
+    setMode(nextPost.contentType === 'read-later' ? 'preview' : 'markdown')
     setActivePostPath(nextPost.path)
     setIsImmersive(false)
     setSuccessMessage(null)
@@ -815,10 +816,12 @@ export default function App() {
 
   const isDashboard = adminView === 'dashboard'
   const isPreviewing = mode === 'preview'
-  const showImmersiveCanvas = Boolean(document) && (isImmersive || isPreviewing)
+  const isReadLaterDocument = document?.contentType === 'read-later'
+  const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
+  const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
-  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas
+  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
 
   return (
     <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}`}>
@@ -916,7 +919,7 @@ export default function App() {
                       </div>
                       <div className="editor-frame__meta">
                         <span>{document.path}</span>
-                        <span>{mode === 'preview' ? '预览模式' : '编辑模式'}</span>
+                        <span>{mode === 'preview' ? (isReadLaterDocument ? '阅读视图' : '预览模式') : '编辑模式'}</span>
                       </div>
                     </section>
                   ) : null}

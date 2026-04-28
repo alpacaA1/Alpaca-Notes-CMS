@@ -82,7 +82,8 @@ describe('App read-later import flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
-    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
@@ -90,9 +91,7 @@ describe('App read-later import flow', () => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
 
-    await waitFor(() => {
-      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toContain('# 导入正文')
-    })
+    expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('导入后的标题')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('导入来源')
@@ -126,6 +125,9 @@ describe('App read-later import flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
+    await screen.findByRole('button', { name: 'Markdown' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
     fireEvent.change(editor, { target: { value: '手动写过的正文' } })
 
@@ -171,12 +173,17 @@ describe('App read-later import flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
-    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
-    expect(editor.value).toBe('# 导入正文\n\n第二段')
+    expect(await screen.findByText('第二段')).toBeTruthy()
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
 
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
     fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
 
+    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('补一条评论')
+    expect(screen.getAllByText('补一条评论').length).toBeGreaterThan(0)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
+    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
     expect(editor.value).toBe(
       createReadLaterBody({
         articleExcerpt: '# 导入正文\n\n第二段',

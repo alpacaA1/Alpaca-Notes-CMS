@@ -112,7 +112,7 @@ export default function SettingsPanel({
       <div className="settings-panel__header">
         <p className="settings-panel__eyebrow">元信息</p>
         <h2>{isReadLater ? '待读设置' : '发布设置'}</h2>
-        <p>{isReadLater ? '信息和评论分开维护，右侧会自动整理待读正文结构。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
+        <p>{isReadLater ? '正文以阅读视图为主，右侧专门维护信息与评论。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
       </div>
 
       {isReadLater ? (
@@ -340,7 +340,7 @@ export default function SettingsPanel({
         <div className="settings-panel__section-stack">
           <div className="settings-panel__field">
             <span>评论编辑</span>
-            <p className="settings-panel__field-note">无需手动写 Markdown 标题，右侧会自动整理为「原文摘录 / 我的总结 / 我的评论」。</p>
+            <p className="settings-panel__field-note">优先写总结和评论；只有导入内容需要清理时，再修改原文摘录。右侧会自动整理为「原文摘录 / 我的总结 / 我的评论」。</p>
           </div>
 
           <label>

@@ -73,6 +73,9 @@ export default function TopBar({
   const isDashboard = adminView === 'dashboard'
   const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
   const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
+  const previewToggleLabel = contentType === 'read-later'
+    ? (isPreviewing ? 'Markdown' : '阅读视图')
+    : (isPreviewing ? '继续编辑' : '预览')
 
   return (
     <header className="top-bar">
@@ -152,7 +155,7 @@ export default function TopBar({
                 {saveLabel}
               </button>
               <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
-                {isPreviewing ? '继续编辑' : '预览'}
+                {previewToggleLabel}
               </button>
             </>
           ) : null}
