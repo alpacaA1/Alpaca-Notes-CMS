@@ -963,6 +963,7 @@ export default function App() {
                 availableCategories={availableCategories}
                 availableTags={availableTags}
                 onFieldChange={handleFrontmatterChange}
+                onBodyChange={handleEditorChange}
                 onTaxonomyCreate={handleTaxonomyCreate}
                 onTaxonomyRename={handleTaxonomyRename}
                 onTaxonomyDelete={handleTaxonomyDelete}

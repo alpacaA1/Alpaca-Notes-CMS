@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { createReadLaterBody } from './read-later/new-item'
 import * as githubClientModule from './github-client'
 import * as postsIndexModule from './posts/index-posts'
 import * as readLaterIndexModule from './read-later/index-items'
@@ -133,5 +134,54 @@ describe('App read-later import flow', () => {
     expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
     expect(importSpy).not.toHaveBeenCalled()
     expect(editor.value).toBe('手动写过的正文')
+  })
+
+  it('edits read-later commentary from the sidebar and auto-structures plain markdown', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: `---
+ title: Import me later
+ permalink: read-later/import-me/
+ layout: read-later-item
+ date: 2026-04-27 10:00:00
+ read_later: true
+ nav_exclude: true
+ external_url: https://example.com/article
+ source_name: Old source
+ reading_status: unread
+ tags:
+   - 待读
+ desc: old desc
+ ---
+
+ # 导入正文
+
+ 第二段`.replace(/^ /gm, ''),
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Import me later')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
+    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
+    expect(editor.value).toBe('# 导入正文\n\n第二段')
+
+    fireEvent.click(screen.getByRole('tab', { name: '评论' }))
+    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
+
+    expect(editor.value).toBe(
+      createReadLaterBody({
+        articleExcerpt: '# 导入正文\n\n第二段',
+        commentary: '补一条评论',
+      }),
+    )
   })
 })

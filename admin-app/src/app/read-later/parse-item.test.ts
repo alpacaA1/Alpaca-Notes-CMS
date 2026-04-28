@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseReadLaterItem, parseReadLaterSections } from './parse-item'
+import { getEditableReadLaterSections, parseReadLaterItem, parseReadLaterSections } from './parse-item'
 
 const readLaterContent = `---
 title: Read later article
@@ -54,6 +54,14 @@ describe('parse read-later item', () => {
       articleExcerpt: '摘录',
       summary: '总结',
       commentary: '评论',
+    })
+  })
+
+  it('treats plain markdown as the editable excerpt section', () => {
+    expect(getEditableReadLaterSections('# 原始正文\n\n第二段')).toEqual({
+      articleExcerpt: '# 原始正文\n\n第二段',
+      summary: '',
+      commentary: '',
     })
   })
 

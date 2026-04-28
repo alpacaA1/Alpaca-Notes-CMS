@@ -5,7 +5,7 @@ import SettingsPanel from './settings-panel'
 import { createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
 import type { PostValidationErrors } from '../posts/post-types'
-import { createNewReadLaterItem } from '../read-later/new-item'
+import { createNewReadLaterItem, createReadLaterBody } from '../read-later/new-item'
 
 function createExistingPost(): ParsedPost {
   return {
@@ -44,6 +44,7 @@ function renderControlledSettingsPanel({
   contentType = 'post',
 }: RenderSettingsPanelOptions = {}) {
   const onFieldChange = vi.fn()
+  const onBodyChange = vi.fn()
 
   function Harness() {
     const [currentDocument, setCurrentDocument] = useState(document)
@@ -70,13 +71,24 @@ function renderControlledSettingsPanel({
               : current,
           )
         }}
+        onBodyChange={(body) => {
+          onBodyChange(body)
+          setCurrentDocument((current) =>
+            current
+              ? {
+                  ...current,
+                  body,
+                }
+              : current,
+          )
+        }}
       />
     )
   }
 
   render(<Harness />)
 
-  return { onFieldChange }
+  return { onFieldChange, onBodyChange }
 }
 
 describe('settings panel', () => {
@@ -246,6 +258,31 @@ describe('settings panel', () => {
     expect(importButton.disabled).toBe(false)
     fireEvent.click(importButton)
     expect(onImportFromUrl).toHaveBeenCalledTimes(1)
+  })
+
+  it('switches read-later sidebar to commentary mode and rewrites structured body sections', () => {
+    const { onBodyChange } = renderControlledSettingsPanel({
+      document: {
+        ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+        body: '# 原始正文\n\n第二段',
+      },
+      contentType: 'read-later',
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: '评论' }))
+
+    expect(screen.queryByLabelText('标题')).toBeNull()
+    expect((screen.getByLabelText('原文摘录') as HTMLTextAreaElement).value).toBe('# 原始正文\n\n第二段')
+
+    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
+
+    expect(onBodyChange).toHaveBeenCalledWith(
+      createReadLaterBody({
+        articleExcerpt: '# 原始正文\n\n第二段',
+        commentary: '补一条评论',
+      }),
+    )
+    expect((screen.getByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('补一条评论')
   })
 
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {

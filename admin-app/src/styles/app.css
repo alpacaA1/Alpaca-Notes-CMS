@@ -408,13 +408,15 @@ textarea {
 .admin-shell--dark .editor-textarea:focus,
 .admin-shell--dark .settings-panel input:focus,
 .admin-shell--dark .settings-panel textarea:focus,
+.admin-shell--dark .settings-panel select:focus,
 .admin-shell--dark .top-bar__search input:focus {
   border-color: var(--admin-warm);
   box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.1);
 }
 
 .admin-shell--dark .settings-panel input,
-.admin-shell--dark .settings-panel textarea {
+.admin-shell--dark .settings-panel textarea,
+.admin-shell--dark .settings-panel select {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.1);
   box-shadow: none;
@@ -422,6 +424,19 @@ textarea {
 
 .admin-shell--dark .settings-panel__toggle input {
   accent-color: var(--admin-warm);
+}
+
+.admin-shell--dark .settings-panel__read-later-card,
+.admin-shell--dark .settings-panel__read-later-meta span,
+.admin-shell--dark .settings-panel__read-later-meta a,
+.admin-shell--dark .settings-panel__tab {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .settings-panel__tab:hover,
+.admin-shell--dark .settings-panel__tab.is-active {
+  border-color: var(--admin-warm);
 }
 
 .admin-shell--dark .post-status-badge--published {
@@ -673,6 +688,7 @@ textarea {
 .admin-shell--dark .editor-textarea:focus-visible,
 .admin-shell--dark .settings-panel input:focus-visible,
 .admin-shell--dark .settings-panel textarea:focus-visible,
+.admin-shell--dark .settings-panel select:focus-visible,
 .admin-shell--dark .top-bar__search input:focus-visible {
   box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.15);
 }
@@ -1537,6 +1553,7 @@ textarea {
 .editor-textarea:focus,
 .settings-panel input:focus,
 .settings-panel textarea:focus,
+.settings-panel select:focus,
 .top-bar__search input:focus {
   outline: none;
   border-color: var(--admin-warm);
@@ -1555,6 +1572,88 @@ textarea {
   gap: 8px;
 }
 
+.settings-panel__read-later-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.settings-panel__read-later-kicker {
+  margin: 0;
+  color: var(--admin-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.settings-panel__read-later-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.45;
+}
+
+.settings-panel__read-later-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.settings-panel__read-later-meta span,
+.settings-panel__read-later-meta a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-muted);
+  text-decoration: none;
+}
+
+.settings-panel__tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settings-panel__tab {
+  appearance: none;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 14px;
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.64);
+  color: var(--admin-muted);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.settings-panel__tab:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-warm);
+  color: var(--admin-text);
+}
+
+.settings-panel__tab.is-active {
+  border-color: var(--admin-warm);
+  background: var(--admin-warm-soft);
+  color: var(--admin-warm);
+}
+
+.settings-panel__section-stack {
+  display: grid;
+  gap: 16px;
+}
+
 .settings-panel label,
 .settings-panel__field {
   display: grid;
@@ -1571,7 +1670,8 @@ textarea {
 }
 
 .settings-panel input,
-.settings-panel textarea {
+.settings-panel textarea,
+.settings-panel select {
   width: 100%;
   border-radius: 16px;
   border: 1px solid var(--admin-line-strong);
@@ -2165,6 +2265,7 @@ textarea {
 .editor-textarea:focus-visible,
 .settings-panel input:focus-visible,
 .settings-panel textarea:focus-visible,
+.settings-panel select:focus-visible,
 .top-bar__search input:focus-visible {
   outline: none;
   box-shadow: 0 0 0 4px rgba(141, 113, 77, 0.16);

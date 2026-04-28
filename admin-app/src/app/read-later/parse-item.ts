@@ -45,6 +45,20 @@ export function parseReadLaterSections(body: string): ReadLaterSections {
   }
 }
 
+export function getEditableReadLaterSections(body: string): ReadLaterSections {
+  const sections = parseReadLaterSections(body)
+
+  if (Object.values(sections).some((section) => section.trim().length > 0)) {
+    return sections
+  }
+
+  return {
+    articleExcerpt: body.trim(),
+    summary: '',
+    commentary: '',
+  }
+}
+
 export function parseReadLaterItem(input: { path: string; sha: string; content: string }): ParsedReadLaterItem {
   const match = input.content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
   const frontmatterBlock = match?.[1] || ''
