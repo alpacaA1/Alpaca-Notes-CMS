@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { REPO_BRANCH } from './config'
-import { deletePostFile, fetchPostFile, uploadImageFile } from './github-client'
+import { clearMarkdownFileCache, deletePostFile, fetchPostFile, readCachedMarkdownFile, savePostFile, uploadImageFile } from './github-client'
 
 const chineseMarkdown = `---
 title: 中文标题
@@ -16,6 +16,7 @@ desc: 中文摘要
 describe('github client encoding', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    clearMarkdownFileCache()
   })
 
   it('decodes UTF-8 markdown content from GitHub base64 responses', async () => {
@@ -34,6 +35,8 @@ describe('github client encoding', () => {
     const file = await fetchPostFile({ token: 'token' }, 'source/_posts/chinese.md')
 
     expect(file.content).toBe(chineseMarkdown)
+    expect(readCachedMarkdownFile('source/_posts/chinese.md', 'sha-1')).toEqual(file)
+    expect(readCachedMarkdownFile('source/_posts/chinese.md', 'sha-mismatch')).toBeNull()
   })
 
   it('bypasses browser caches when fetching a post file after saves', async () => {
@@ -53,6 +56,37 @@ describe('github client encoding', () => {
 
     const [, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
     expect(requestInit.cache).toBe('no-store')
+  })
+
+  it('updates the cached markdown content after saves and clears it after deletes', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: {
+            path: 'source/_posts/chinese.md',
+            sha: 'sha-saved',
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as Response)
+
+    const savedFile = await savePostFile({ token: 'token' }, {
+      path: 'source/_posts/chinese.md',
+      sha: 'sha-1',
+      content: `${chineseMarkdown}\n\n追加内容。`,
+    })
+
+    expect(readCachedMarkdownFile('source/_posts/chinese.md', 'sha-saved')).toEqual(savedFile)
+
+    await deletePostFile({ token: 'token' }, { path: 'source/_posts/chinese.md', sha: 'sha-saved' })
+
+    expect(readCachedMarkdownFile('source/_posts/chinese.md')).toBeNull()
   })
 
   it('uploads image files with base64 content from binary bytes', async () => {

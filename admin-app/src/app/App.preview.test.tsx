@@ -383,6 +383,7 @@ describe('App preview mode', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
   })
 

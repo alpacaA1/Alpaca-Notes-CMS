@@ -5,6 +5,7 @@ import {
   fetchMarkdownFile,
   GitHubAuthError,
   GitHubConflictError,
+  readCachedMarkdownFile,
   saveMarkdownFile,
   uploadImageFile,
 } from './github-client'
@@ -258,16 +259,27 @@ export default function App() {
       return
     }
 
+    const parseOpenedFile = (file: { path: string; sha: string; content: string }) =>
+      contentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
+
     setAdminView('editor')
-    setIsOpeningPost(true)
-    setActivePostPath(post.path)
-    replaceDocument(null)
     setSuccessMessage(null)
     setError(null)
 
+    const cachedFile = readCachedMarkdownFile(post.path, post.sha)
+    if (cachedFile) {
+      setIsOpeningPost(false)
+      applyDocument(parseOpenedFile(cachedFile))
+      return
+    }
+
+    setIsOpeningPost(true)
+    setActivePostPath(post.path)
+    replaceDocument(null)
+
     try {
       const file = await fetchMarkdownFile(session, post.path)
-      applyDocument(contentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file))
+      applyDocument(parseOpenedFile(file))
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)

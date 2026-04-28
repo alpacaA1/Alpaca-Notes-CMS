@@ -49,6 +49,7 @@ describe('App read-later import flow', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
   })
 

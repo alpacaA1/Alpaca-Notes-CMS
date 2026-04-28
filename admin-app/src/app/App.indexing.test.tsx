@@ -40,6 +40,7 @@ describe('App indexing flow', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
   })
 
@@ -52,6 +53,41 @@ describe('App indexing flow', () => {
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
     })
+  })
+
+  it('opens indexed posts directly from the warmed markdown cache', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: indexedPosts[0].path,
+        sha: indexedPosts[0].sha,
+        encoding: 'base64',
+        content: Buffer.from(openedPostContent, 'utf8').toString('base64'),
+      }),
+    } as Response)
+    await githubClientModule.fetchPostFile({ token: 'persisted-token' }, indexedPosts[0].path)
+
+    const fetchMarkdownFile = vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: indexedPosts[0].path,
+      sha: indexedPosts[0].sha,
+      content: openedPostContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
+
+    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
+    expect(editor.value).toContain('Original body.')
+    expect(fetchMarkdownFile).not.toHaveBeenCalled()
   })
 
   it('clears the session and returns to the login gate on GitHub auth expiry', async () => {

@@ -24,9 +24,17 @@ type GitHubSavedContentFile = {
   sha: string
 }
 
+type MarkdownFile = {
+  path: string
+  sha: string
+  content: string
+}
+
 type GitHubSaveFileResponse = {
   content?: GitHubSavedContentFile
 }
+
+const markdownFileCache = new Map<string, MarkdownFile>()
 
 export class GitHubAuthError extends AuthError {
   constructor(message = 'GitHub 会话已过期，请重新登录。') {
@@ -69,6 +77,34 @@ function decodeBase64(value: string) {
   const binary = atob(value)
   const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0))
   return new TextDecoder().decode(bytes)
+}
+
+function cacheMarkdownFile(file: MarkdownFile): MarkdownFile {
+  const cachedFile = { ...file }
+  markdownFileCache.set(file.path, cachedFile)
+  return cachedFile
+}
+
+export function readCachedMarkdownFile(path: string, sha?: string): MarkdownFile | null {
+  const cachedFile = markdownFileCache.get(path)
+
+  if (!cachedFile) {
+    return null
+  }
+
+  if (sha && cachedFile.sha !== sha) {
+    return null
+  }
+
+  return { ...cachedFile }
+}
+
+export function clearMarkdownFileCache() {
+  markdownFileCache.clear()
+}
+
+function removeCachedMarkdownFile(path: string) {
+  markdownFileCache.delete(path)
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -128,11 +164,11 @@ export async function fetchPostFile(
     throw new Error('GitHub did not return a decodable markdown file.')
   }
 
-  return {
+  return cacheMarkdownFile({
     path: file.path,
     sha: file.sha,
     content: decodeBase64(file.content.replace(/\n/g, '')),
-  }
+  })
 }
 
 export async function savePostFile(
@@ -154,11 +190,11 @@ export async function savePostFile(
     throw new Error('GitHub did not return saved file metadata.')
   }
 
-  return {
+  return cacheMarkdownFile({
     path: response.content.path,
     sha: response.content.sha,
     content: file.content,
-  }
+  })
 }
 
 export async function fetchMarkdownFile(
@@ -195,6 +231,7 @@ export async function deletePostFile(
       branch: REPO_BRANCH,
     }),
   })
+  removeCachedMarkdownFile(file.path)
 }
 
 export async function uploadImageFile(

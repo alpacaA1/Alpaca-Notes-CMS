@@ -75,6 +75,7 @@ describe('App save flow', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
   })
 
