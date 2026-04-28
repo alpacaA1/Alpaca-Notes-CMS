@@ -13,8 +13,14 @@ type PostDashboardProps = {
   search: string
   isIndexing: boolean
   contentType: ContentType
+  isDeleting?: boolean
+  deletingPostPath?: string | null
+  isTogglingPinned?: boolean
+  togglingPinnedPostPath?: string | null
   onOpenPost: (post: PostIndexItem) => void
   onNewPost: () => void
+  onDeletePost: (post: PostIndexItem) => void
+  onTogglePinned: (post: PostIndexItem) => void
   onSearchFocus?: () => void
 }
 
@@ -123,8 +129,14 @@ export default function PostDashboard({
   search,
   isIndexing,
   contentType,
+  isDeleting = false,
+  deletingPostPath = null,
+  isTogglingPinned = false,
+  togglingPinnedPostPath = null,
   onOpenPost,
   onNewPost,
+  onDeletePost,
+  onTogglePinned,
   onSearchFocus,
 }: PostDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>('all')
@@ -134,6 +146,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
+  const showQuickActions = contentType === 'post'
 
   const { categories, tags: availableTags } = useMemo(() => collectPostIndexFacets(posts), [posts])
 
@@ -464,57 +477,91 @@ export default function PostDashboard({
         </div>
       ) : (
         <div className="post-dashboard__list">
-          <div className="post-dashboard__list-header">
-            <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : '分类'}</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
-            <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : '链接'}</span>
+          <div className={`post-dashboard__list-header${showQuickActions ? ' post-dashboard__list-header--with-actions' : ''}`}>
+            <div className="post-dashboard__list-header-main">
+              <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : '分类'}</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : '链接'}</span>
+            </div>
+            {showQuickActions ? <span className="post-dashboard__list-col post-dashboard__list-col--actions">操作</span> : null}
           </div>
           {filteredPosts.map((post) => {
             const statusTone = getStatusTone(post, contentType)
             const statusLabel = getStatusLabel(post, contentType)
+            const isDeletingThisPost = deletingPostPath === post.path
+            const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
+            const isPinnedToggleDisabled = isDeleting || isTogglingPinned
 
             return (
-              <button
+              <div
                 key={post.path}
-                type="button"
-                className="post-dashboard__list-row"
-                onClick={() => onOpenPost(post)}
+                className={`post-dashboard__list-row${showQuickActions ? ' post-dashboard__list-row--with-actions' : ''}`}
               >
-                <span className="post-dashboard__list-col post-dashboard__list-col--status">
-                  <span className={`post-status-dot post-status-dot--${statusTone}`} title={statusLabel} />
-                  <span className="post-dashboard__list-status-text">{statusLabel}</span>
-                </span>
-                <span className="post-dashboard__list-col post-dashboard__list-col--title">
-                  <strong>{post.title}</strong>
-                  {post.desc ? <span className="post-dashboard__list-desc">{post.desc}</span> : null}
-                </span>
-                <span className="post-dashboard__list-col post-dashboard__list-col--category">
-                  <span className="post-dashboard__card-category">
-                    {isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'}
+                <button
+                  type="button"
+                  className="post-dashboard__list-main"
+                  onClick={() => onOpenPost(post)}
+                >
+                  <span className="post-dashboard__list-col post-dashboard__list-col--status">
+                    <span className={`post-status-dot post-status-dot--${statusTone}`} title={statusLabel} />
+                    <span className="post-dashboard__list-status-text">{statusLabel}</span>
                   </span>
-                </span>
-                <span className="post-dashboard__list-col post-dashboard__list-col--tags">
-                  {post.tags.length > 0 ? (
-                    <span className="post-dashboard__list-tags">
-                      {post.tags.slice(0, 3).map((tag) => (
-                        <TagBadge key={tag} tag={tag} />
-                      ))}
-                      {post.tags.length > 3 ? <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span> : null}
+                  <span className="post-dashboard__list-col post-dashboard__list-col--title">
+                    <strong>{post.title}</strong>
+                    {post.desc ? <span className="post-dashboard__list-desc">{post.desc}</span> : null}
+                  </span>
+                  <span className="post-dashboard__list-col post-dashboard__list-col--category">
+                    <span className="post-dashboard__card-category">
+                      {isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'}
                     </span>
-                  ) : (
-                    <span className="post-dashboard__list-no-tags">—</span>
-                  )}
-                </span>
-                <span className="post-dashboard__list-col post-dashboard__list-col--date">
-                  {post.date ? post.date.slice(0, 10) : '—'}
-                </span>
-                <span className="post-dashboard__list-col post-dashboard__list-col--link">
-                  {isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'}
-                </span>
-              </button>
+                  </span>
+                  <span className="post-dashboard__list-col post-dashboard__list-col--tags">
+                    {post.tags.length > 0 ? (
+                      <span className="post-dashboard__list-tags">
+                        {post.tags.slice(0, 3).map((tag) => (
+                          <TagBadge key={tag} tag={tag} />
+                        ))}
+                        {post.tags.length > 3 ? <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span> : null}
+                      </span>
+                    ) : (
+                      <span className="post-dashboard__list-no-tags">—</span>
+                    )}
+                  </span>
+                  <span className="post-dashboard__list-col post-dashboard__list-col--date">
+                    {post.date ? post.date.slice(0, 10) : '—'}
+                  </span>
+                  <span className="post-dashboard__list-col post-dashboard__list-col--link">
+                    {isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'}
+                  </span>
+                </button>
+                {showQuickActions ? (
+                  <div className="post-dashboard__list-actions">
+                    <button
+                      type="button"
+                      className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
+                      onClick={() => onTogglePinned(post)}
+                      disabled={isPinnedToggleDisabled}
+                      aria-label={post.pinned ? '取消置顶文章' : '置顶文章'}
+                      title={post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
+                    >
+                      {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
+                    </button>
+                    <button
+                      type="button"
+                      className="post-list-item__delete-btn"
+                      onClick={() => onDeletePost(post)}
+                      disabled={isDeleting}
+                      aria-label="删除文章"
+                      title={`删除《${post.title}》`}
+                    >
+                      {isDeletingThisPost ? '删除中…' : '删除'}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             )
           })}
         </div>

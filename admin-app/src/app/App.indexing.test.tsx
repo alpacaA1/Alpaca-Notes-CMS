@@ -42,6 +42,7 @@ describe('App indexing flow', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('loads indexed posts after session hydration', async () => {
@@ -88,6 +89,38 @@ describe('App indexing flow', () => {
     const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
     expect(editor.value).toContain('Original body.')
     expect(fetchMarkdownFile).not.toHaveBeenCalled()
+  })
+
+  it('toggles pinned from the dashboard list without opening the editor', async () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: indexedPosts[0].path,
+      sha: indexedPosts[0].sha,
+      content: openedPostContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'sha-2',
+    }))
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '置顶文章' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('pinned: true')
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(await screen.findByText('已置顶《为什么先把博客搭起来》。')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '取消置顶文章' })).toBeTruthy()
   })
 
   it('toggles pinned from the list and syncs the open document when clean', async () => {

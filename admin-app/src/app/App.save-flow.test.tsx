@@ -77,6 +77,7 @@ describe('App save flow', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('shows 已保存 for a clean opened document, 保存 for dirty state, 保存中… while saving, and returns to 已保存 after success', async () => {
@@ -483,6 +484,34 @@ Original body.`,
 
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:save-preview-image')
+  })
+
+  it('deletes a post directly from the dashboard list', async () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
+    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByTitle('删除《Save flow post》'))
+    fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
+
+    await waitFor(() => {
+      expect(deleteMarkdownFile).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        { path: existingPost.path, sha: existingPost.sha },
+      )
+    })
+
+    await waitFor(() => {
+      expect(screen.queryByText('Save flow post')).toBeNull()
+    })
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
   })
 
   it('deletes a post from the editor list and returns to dashboard when deleting the active post', async () => {

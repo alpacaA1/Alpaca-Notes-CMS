@@ -865,15 +865,25 @@ export default function App() {
         searchInputRef={searchInputRef}
       />
       {isDashboard ? (
-        <PostDashboard
-          posts={posts}
-          search={search}
-          isIndexing={isIndexing}
-          contentType={contentType}
-          onOpenPost={handleOpenPost}
-          onNewPost={handleNewPost}
-          onSearchFocus={() => searchInputRef.current?.focus()}
-        />
+        <>
+          {successMessage ? <p className="success-message">{successMessage}</p> : null}
+          {error ? <p className="error-message">{error}</p> : null}
+          <PostDashboard
+            posts={posts}
+            search={search}
+            isIndexing={isIndexing}
+            contentType={contentType}
+            isDeleting={isDeletingPost}
+            deletingPostPath={deletingPostPath}
+            isTogglingPinned={isTogglingPinned}
+            togglingPinnedPostPath={togglingPinnedPostPath}
+            onOpenPost={handleOpenPost}
+            onNewPost={handleNewPost}
+            onDeletePost={handleDeletePost}
+            onTogglePinned={handleTogglePinned}
+            onSearchFocus={() => searchInputRef.current?.focus()}
+          />
+        </>
       ) : (
         <div className="admin-layout">
           <PostListPane
