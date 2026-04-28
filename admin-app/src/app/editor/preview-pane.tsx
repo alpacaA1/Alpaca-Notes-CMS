@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { ReadingStatus } from '../posts/parse-post'
-import { parseReadLaterSections } from '../read-later/parse-item'
+import { extractMarkdownHeadings, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ContentType = 'post' | 'read-later'
 
@@ -379,10 +379,12 @@ function flushParagraph(
   lines.length = 0
 }
 
-function renderBlocks(markdown: string, previewImageUrls?: Record<string, string>) {
+function renderBlocks(markdown: string, previewImageUrls?: Record<string, string>, headingIdPrefix?: string) {
   const lines = markdown.split('\n')
   const nodes: ReactNode[] = []
   const paragraph: string[] = []
+  const headingIds = headingIdPrefix ? extractMarkdownHeadings(markdown, headingIdPrefix) : []
+  let headingIndex = 0
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
@@ -398,7 +400,13 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
       const level = headingMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6
       const HeadingTag = `h${level}` as const
-      nodes.push(<HeadingTag key={`heading-${nodes.length}`}>{renderInline(headingMatch[2], previewImageUrls)}</HeadingTag>)
+      const headingId = headingIds[headingIndex]?.id
+      headingIndex += 1
+      nodes.push(
+        <HeadingTag id={headingId} key={`heading-${nodes.length}`}>
+          {renderInline(headingMatch[2], previewImageUrls)}
+        </HeadingTag>,
+      )
       continue
     }
 
@@ -539,15 +547,20 @@ function getReadingStatusTone(status?: ReadingStatus) {
   return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
 }
 
-function renderReadLaterSection(title: string, content: string, previewImageUrls?: Record<string, string>) {
+function renderReadLaterSection(
+  title: string,
+  content: string,
+  previewImageUrls: Record<string, string> | undefined,
+  anchorId: string,
+) {
   if (!content.trim()) {
     return null
   }
 
   return (
-    <section key={title} className="preview-content__section">
+    <section key={title} id={anchorId} className="preview-content__section">
       <h2>{title}</h2>
-      <div className="preview-content__section-body">{renderBlocks(content, previewImageUrls)}</div>
+      <div className="preview-content__section-body">{renderBlocks(content, previewImageUrls, anchorId)}</div>
     </section>
   )
 }
@@ -574,7 +587,7 @@ export default function PreviewPane({
 
   return (
     <section className="preview-pane preview-pane--reading-canvas">
-      <article className="preview-content">
+      <article className="preview-content" id="read-later-content">
         <header className="preview-content__header">
           <h1>{title.trim() || '未命名草稿'}</h1>
           <p className="preview-content__date">{date}</p>
@@ -605,12 +618,12 @@ export default function PreviewPane({
         </header>
         {isReadLater && hasStructuredReadLaterSections ? (
           <div className="preview-content__sections">
-            {renderReadLaterSection('原文摘录', readLaterSections?.articleExcerpt || '', previewImageUrls)}
-            {renderReadLaterSection('我的总结', readLaterSections?.summary || '', previewImageUrls)}
-            {renderReadLaterSection('我的评论', readLaterSections?.commentary || '', previewImageUrls)}
+            {renderReadLaterSection('原文摘录', readLaterSections?.articleExcerpt || '', previewImageUrls, getReadLaterSectionAnchorId('articleExcerpt'))}
+            {renderReadLaterSection('我的总结', readLaterSections?.summary || '', previewImageUrls, getReadLaterSectionAnchorId('summary'))}
+            {renderReadLaterSection('我的评论', readLaterSections?.commentary || '', previewImageUrls, getReadLaterSectionAnchorId('commentary'))}
           </div>
         ) : (
-          renderBlocks(markdown, previewImageUrls)
+          renderBlocks(markdown, previewImageUrls, isReadLater ? 'read-later-content' : undefined)
         )}
       </article>
     </section>

@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { createReadLaterBody } from './read-later/new-item'
 import * as githubClientModule from './github-client'
 import * as postsIndexModule from './posts/index-posts'
 import * as readLaterIndexModule from './read-later/index-items'
@@ -82,7 +81,7 @@ describe('App read-later import flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
-    expect(await screen.findByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: '原文摘录' })).toBeTruthy()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
@@ -125,17 +124,13 @@ describe('App read-later import flow', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
-    await screen.findByRole('button', { name: 'Markdown' })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
-    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
-    fireEvent.change(editor, { target: { value: '手动写过的正文' } })
+    await screen.findByRole('link', { name: '原文摘录' })
 
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
     expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
     expect(importSpy).not.toHaveBeenCalled()
-    expect(editor.value).toBe('手动写过的正文')
+    expect(screen.getByRole('link', { name: '原文摘录' })).toBeTruthy()
   })
 
   it('edits read-later commentary from the sidebar and auto-structures plain markdown', async () => {
@@ -175,20 +170,15 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
     expect(await screen.findByText('第二段')).toBeTruthy()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(screen.queryByRole('heading', { name: '原文摘录' })).toBeNull()
 
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
     fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
 
     expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('补一条评论')
     expect(screen.getAllByText('补一条评论').length).toBeGreaterThan(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
-    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
-    expect(editor.value).toBe(
-      createReadLaterBody({
-        articleExcerpt: '# 导入正文\n\n第二段',
-        commentary: '补一条评论',
-      }),
-    )
+    expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: '我的评论' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 })

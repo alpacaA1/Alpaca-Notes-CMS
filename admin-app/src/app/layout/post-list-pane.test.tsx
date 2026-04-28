@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PostListPane from './post-list-pane'
 import TopBar from './top-bar'
+import type { ParsedPost } from '../posts/parse-post'
 import type { PostIndexItem } from '../posts/post-types'
 
 const posts: PostIndexItem[] = [
@@ -73,6 +74,29 @@ const readLaterPosts: PostIndexItem[] = [
     cover: null,
   },
 ]
+
+const readLaterDocument: ParsedPost = {
+  path: 'source/read-later-items/saved-article.md',
+  sha: 'sha-rl-1',
+  body: `## 原文摘录\n# 第一部分\n\n正文\n\n## 我的总结\n总结内容\n\n## 我的评论\n评论内容`,
+  hasExplicitPublished: false,
+  hasExplicitPermalink: true,
+  contentType: 'read-later',
+  frontmatter: {
+    title: '值得回看的设计文章',
+    date: '2026-04-02 08:30:00',
+    desc: '一篇关于系统设计取舍的长文。',
+    categories: [],
+    tags: ['设计'],
+    permalink: 'read-later/saved-article/',
+    external_url: 'https://example.com/design',
+    source_name: 'Example Design',
+    reading_status: 'reading',
+    read_later: true,
+    nav_exclude: true,
+    layout: 'read-later-item',
+  },
+}
 
 describe('management layout components', () => {
   afterEach(() => {
@@ -184,6 +208,33 @@ describe('management layout components', () => {
     expect(onOpenPost).toHaveBeenCalledWith(readLaterPosts[0])
   })
 
+  it('replaces the read-later list with a reader outline when a document is open', () => {
+    const onBackToList = vi.fn()
+    render(
+      <PostListPane
+        posts={readLaterPosts}
+        hidden={false}
+        contentType="read-later"
+        document={readLaterDocument}
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onBackToList={onBackToList}
+      />,
+    )
+
+    expect(screen.getByText('阅读面板')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '阅读原文 ↗' }).getAttribute('href')).toBe('https://example.com/design')
+    expect(screen.getByRole('link', { name: '原文摘录' }).getAttribute('href')).toBe('#read-later-article-excerpt')
+    expect(screen.getByRole('link', { name: '第一部分' }).getAttribute('href')).toBe('#read-later-article-excerpt-第一部分')
+    expect(screen.queryByText('待读归档')).toBeNull()
+    expect(screen.queryByRole('button', { name: '删除待读条目' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '← 返回归档' }))
+    expect(onBackToList).toHaveBeenCalled()
+  })
+
   it('shows the top bar controls without unused filter and sort buttons', () => {
     render(
       <TopBar
@@ -219,6 +270,33 @@ describe('management layout components', () => {
     expect(screen.getByRole('button', { name: '预览' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
     expect(screen.getByText('已就绪')).toBeTruthy()
+  })
+
+  it('hides the preview toggle for read-later editor mode', () => {
+    render(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="read-later"
+        isPreviewing={true}
+        hasActiveDocument={true}
+        saveLabel="保存"
+        isSaveDisabled={false}
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="editor"
+        isDarkMode={false}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
   it('switches content type via the redesigned radio cards', () => {

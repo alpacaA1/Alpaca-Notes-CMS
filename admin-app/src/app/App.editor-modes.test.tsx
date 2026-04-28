@@ -1,7 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
-import { createReadLaterBody } from './read-later/new-item'
 import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
 import * as readLaterIndexModule from './read-later/index-items'
@@ -148,7 +147,7 @@ describe('App editor modes', () => {
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
   })
 
-  it('opens read-later documents directly in reading view and keeps the sidebar visible', async () => {
+  it('opens read-later documents directly in reading view with the reader outline visible', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
@@ -169,12 +168,16 @@ describe('App editor modes', () => {
 
     expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
     expect(screen.getByText('待读设置')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(screen.getByText('阅读面板')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '原文摘录' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
     expect(screen.queryByText('当前稿件')).toBeNull()
   })
 
-  it('switches read-later between reading view and markdown without losing sidebar edits', async () => {
+  it('keeps read-later in reading view while sidebar edits update the rendered commentary', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
@@ -199,26 +202,10 @@ describe('App editor modes', () => {
 
     expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('新的待读评论')
     expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
-
-    const markdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    expect(markdownEditor.value).toBe(
-      createReadLaterBody({
-        articleExcerpt: '这里是原文摘录。',
-        summary: '这里是我的总结。',
-        commentary: '新的待读评论',
-      }),
-    )
-    expect(screen.getByRole('button', { name: '阅读视图' })).toBeTruthy()
-    expect(screen.getByText('当前稿件')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: '阅读视图' }))
-
-    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('新的待读评论')
-    expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
-    expect(screen.getByText('待读设置')).toBeTruthy()
-    expect(screen.queryByText('当前稿件')).toBeNull()
+    expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
   })
 
   it('opens image documents directly in markdown mode', async () => {

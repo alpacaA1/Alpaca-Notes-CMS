@@ -1,4 +1,10 @@
-import type { ParsedReadLaterItem, ReadLaterSections } from './item-types'
+import type { ParsedReadLaterItem, ReadLaterOutlineItem, ReadLaterSections } from './item-types'
+
+const READ_LATER_SECTION_OUTLINE = [
+  { key: 'articleExcerpt', title: '原文摘录', id: 'read-later-article-excerpt' },
+  { key: 'summary', title: '我的总结', id: 'read-later-summary' },
+  { key: 'commentary', title: '我的评论', id: 'read-later-commentary' },
+] as const
 
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
@@ -37,6 +43,57 @@ function readSection(body: string, heading: string, nextHeading: string | null) 
   return (match?.[1] || '').trim()
 }
 
+function stripInlineMarkdown(markdown: string) {
+  return markdown
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_~`>#]/g, '')
+    .trim()
+}
+
+function normalizeHeadingSlug(label: string) {
+  const slug = stripInlineMarkdown(label)
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+
+  return slug || 'section'
+}
+
+export function extractMarkdownHeadings(markdown: string, idPrefix: string): ReadLaterOutlineItem[] {
+  const slugCounts = new Map<string, number>()
+
+  return markdown
+    .split('\n')
+    .flatMap((line) => {
+      const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
+      if (!headingMatch) {
+        return []
+      }
+
+      const label = stripInlineMarkdown(headingMatch[2])
+      if (!label) {
+        return []
+      }
+
+      const baseSlug = normalizeHeadingSlug(label)
+      const nextCount = (slugCounts.get(baseSlug) ?? 0) + 1
+      slugCounts.set(baseSlug, nextCount)
+
+      return [{
+        id: `${idPrefix}-${baseSlug}${nextCount > 1 ? `-${nextCount}` : ''}`,
+        label,
+        level: headingMatch[1].length,
+        kind: 'heading' as const,
+      }]
+    })
+}
+
+export function getReadLaterSectionAnchorId(sectionKey: keyof ReadLaterSections) {
+  return READ_LATER_SECTION_OUTLINE.find((section) => section.key === sectionKey)?.id || 'read-later-content'
+}
+
 export function parseReadLaterSections(body: string): ReadLaterSections {
   return {
     articleExcerpt: readSection(body, '原文摘录', '我的总结'),
@@ -57,6 +114,35 @@ export function getEditableReadLaterSections(body: string): ReadLaterSections {
     summary: '',
     commentary: '',
   }
+}
+
+export function getReadLaterOutline(body: string): ReadLaterOutlineItem[] {
+  const sections = parseReadLaterSections(body)
+  const hasStructuredSections = Object.values(sections).some((section) => section.trim().length > 0)
+
+  if (!hasStructuredSections) {
+    const headings = extractMarkdownHeadings(body, 'read-later-content')
+    return headings.length > 0
+      ? headings
+      : [{ id: 'read-later-content', label: '阅读内容', level: 1, kind: 'section' }]
+  }
+
+  return READ_LATER_SECTION_OUTLINE.flatMap((section) => {
+    const sectionContent = sections[section.key]
+    if (!sectionContent.trim()) {
+      return []
+    }
+
+    const nestedHeadings = extractMarkdownHeadings(sectionContent, section.id).map((item) => ({
+      ...item,
+      level: Math.min(item.level + 1, 6),
+    }))
+
+    return [
+      { id: section.id, label: section.title, level: 1, kind: 'section' as const },
+      ...nestedHeadings,
+    ]
+  })
 }
 
 export function parseReadLaterItem(input: { path: string; sha: string; content: string }): ParsedReadLaterItem {

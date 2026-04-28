@@ -40,3 +40,10 @@ export type ReadLaterSections = {
   summary: string
   commentary: string
 }
+
+export type ReadLaterOutlineItem = {
+  id: string
+  label: string
+  level: number
+  kind: 'section' | 'heading'
+}

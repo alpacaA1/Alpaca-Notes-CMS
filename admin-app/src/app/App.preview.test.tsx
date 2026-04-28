@@ -895,11 +895,12 @@ describe('App preview mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
 
     expect((await screen.findByLabelText('摘要') as HTMLTextAreaElement).value).toBe('这是一条待读摘要。')
-    expect(screen.getByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(screen.getByRole('link', { name: '原文摘录' })).toBeTruthy()
     expect(screen.getAllByText('Preview Source').length).toBeGreaterThan(0)
     expect(screen.getAllByText('在读').length).toBeGreaterThan(0)
-    expect(screen.getByRole('link', { name: /阅读原文/ }).getAttribute('href')).toBe('https://example.com/original')
+    expect(screen.getAllByRole('link', { name: /阅读原文/ }).some((link) => link.getAttribute('href') === 'https://example.com/original')).toBe(true)
     expect(screen.getByRole('img', { name: 'Read-later preview item' }).getAttribute('src')).toBe('https://example.com/cover.jpg')
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '我的总结' })).toBeTruthy()
@@ -930,8 +931,9 @@ describe('App preview mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
 
     expect(await screen.findByText('没有分段标题，直接保留 markdown fallback。')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Markdown' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(screen.getByRole('link', { name: '阅读内容' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: '原文摘录' })).toBeNull()
   })
 

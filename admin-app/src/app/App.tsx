@@ -525,7 +525,7 @@ export default function App() {
   }
 
   const handleTogglePreview = () => {
-    if (!document) {
+    if (!document || document.contentType === 'read-later') {
       return
     }
 
@@ -894,6 +894,7 @@ export default function App() {
             hidden={isPostListHidden}
             contentType={contentType}
             activePostPath={activePostPath}
+            document={document}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
@@ -902,6 +903,7 @@ export default function App() {
             onOpenPost={handleOpenPost}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
+            onBackToList={handleBackToDashboard}
           />
           <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
             <div className="editor-stack">
