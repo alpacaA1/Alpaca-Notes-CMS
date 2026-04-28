@@ -90,6 +90,75 @@ describe('App indexing flow', () => {
     expect(fetchMarkdownFile).not.toHaveBeenCalled()
   })
 
+  it('toggles pinned from the list and syncs the open document when clean', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: indexedPosts[0].path,
+      sha: indexedPosts[0].sha,
+      content: openedPostContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'sha-2',
+    }))
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: '置顶文章' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('pinned: true')
+
+    await waitFor(() => {
+      expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(true)
+    })
+
+    expect(screen.getByRole('button', { name: '取消置顶文章' })).toBeTruthy()
+  })
+
+  it('disables quick pinning for the active dirty document', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: indexedPosts[0].path,
+      sha: indexedPosts[0].sha,
+      content: openedPostContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: indexedPosts[0].path,
+      sha: 'sha-2',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
+
+    const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
+    fireEvent.change(editor, { target: { value: 'Changed body.' } })
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: '置顶文章' }) as HTMLButtonElement).disabled).toBe(true)
+    })
+
+    expect(saveMarkdownFile).not.toHaveBeenCalled()
+  })
+
   it('clears the session and returns to the login gate on GitHub auth expiry', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsModule, 'buildPostIndex').mockRejectedValue(new GitHubAuthError())

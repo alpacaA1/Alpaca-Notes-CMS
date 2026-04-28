@@ -15,6 +15,7 @@ function createExistingPost(): ParsedPost {
       date: '2026-04-03 12:00:00',
       desc: 'Existing desc',
       published: true,
+      pinned: false,
       categories: ['专业'],
       tags: ['产品'],
       permalink: 'existing-post/',
@@ -118,6 +119,23 @@ describe('useEditorDocument', () => {
 
     act(() => {
       result.current.updateFrontmatter('categories', ['专业'])
+    })
+
+    expect(result.current.isDirty).toBe(false)
+    expect(result.current.canNavigateAway).toBe(true)
+  })
+
+  it('treats reverting pinned back to its saved value as clean', () => {
+    const { result } = renderHook(() => useEditorDocument(createExistingPost()))
+
+    act(() => {
+      result.current.updateFrontmatter('pinned', true)
+    })
+
+    expect(result.current.isDirty).toBe(true)
+
+    act(() => {
+      result.current.updateFrontmatter('pinned', false)
     })
 
     expect(result.current.isDirty).toBe(false)

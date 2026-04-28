@@ -41,6 +41,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
   const publishedRaw = readScalar(frontmatter, 'published')
+  const pinnedRaw = readScalar(frontmatter, 'pinned')
   const permalink = readScalar(frontmatter, 'permalink')
   const cover = readScalar(frontmatter, 'cover')
 
@@ -51,6 +52,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     date,
     desc,
     published: publishedRaw === null ? true : publishedRaw === 'true',
+    pinned: pinnedRaw === 'true',
     hasExplicitPublished: publishedRaw !== null,
     categories: readList(frontmatter, 'categories'),
     tags: readList(frontmatter, 'tags'),
@@ -112,6 +114,10 @@ export function sortPostIndex(posts: PostIndexItem[], sort: PostIndexView['sort'
 
     if (sort === 'title-desc') {
       return right.title.localeCompare(left.title, 'zh-CN')
+    }
+
+    if (Boolean(left.pinned) !== Boolean(right.pinned)) {
+      return Number(Boolean(right.pinned)) - Number(Boolean(left.pinned))
     }
 
     if (sort === 'date-asc') {

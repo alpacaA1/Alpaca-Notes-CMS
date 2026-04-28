@@ -5,6 +5,7 @@ export type PostFrontmatter = {
   date: string
   desc: string
   published?: boolean
+  pinned?: boolean
   categories: string[]
   tags: string[]
   permalink?: string
@@ -59,6 +60,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const frontmatterBlock = match?.[1] || ''
   const body = (match?.[2] || input.content).replace(/^\n/, '')
   const publishedRaw = readScalar(frontmatterBlock, 'published')
+  const pinnedRaw = readScalar(frontmatterBlock, 'pinned')
   const permalinkRaw = readScalar(frontmatterBlock, 'permalink')
   const coverRaw = readScalar(frontmatterBlock, 'cover')
   const externalUrlRaw = readScalar(frontmatterBlock, 'external_url')
@@ -80,6 +82,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       date: readScalar(frontmatterBlock, 'date') || '',
       desc: readScalar(frontmatterBlock, 'desc') || '',
       published: publishedRaw === null ? true : publishedRaw === 'true',
+      pinned: pinnedRaw === 'true',
       categories: readList(frontmatterBlock, 'categories'),
       tags: readList(frontmatterBlock, 'tags'),
       ...(permalinkRaw && permalinkRaw.length > 0 ? { permalink: permalinkRaw } : {}),

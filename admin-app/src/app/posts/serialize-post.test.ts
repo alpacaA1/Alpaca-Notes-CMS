@@ -14,6 +14,7 @@ describe('serializePost', () => {
         date: '2026-03-01 10:00:00',
         desc: 'Legacy desc',
         published: true,
+        pinned: true,
         categories: ['生活'],
         tags: ['观察'],
       },
@@ -21,6 +22,7 @@ describe('serializePost', () => {
     })
 
     expect(output).toContain('published: true')
+    expect(output).toContain('pinned: true')
     expect(output).not.toContain('permalink:')
   })
 

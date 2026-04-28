@@ -1219,6 +1219,14 @@ textarea {
   align-items: stretch;
 }
 
+.post-list-item__side-actions {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  gap: 8px;
+  padding-right: 16px;
+}
+
 .post-list-item.is-active {
   border-color: var(--admin-warm);
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(247, 241, 233, 0.95));
@@ -1265,17 +1273,13 @@ textarea {
   line-height: 1.7;
 }
 
+.post-list-item__pin-btn,
 .post-list-item__delete-btn {
   appearance: none;
-  align-self: center;
-  margin-right: 16px;
   min-width: 72px;
   min-height: 34px;
   padding: 0 12px;
-  border: 1px solid rgba(193, 108, 95, 0.28);
   border-radius: 10px;
-  background: rgba(193, 108, 95, 0.08);
-  color: #8a4f46;
   font: inherit;
   font-size: 0.84rem;
   font-weight: 600;
@@ -1288,6 +1292,31 @@ textarea {
     opacity 160ms ease;
 }
 
+.post-list-item__pin-btn {
+  border: 1px solid rgba(190, 142, 49, 0.28);
+  background: rgba(190, 142, 49, 0.08);
+  color: #8d6921;
+}
+
+.post-list-item__pin-btn:hover {
+  background: rgba(190, 142, 49, 0.14);
+  border-color: rgba(190, 142, 49, 0.48);
+  color: #6d5118;
+  transform: translateY(-1px);
+}
+
+.post-list-item__pin-btn.is-active {
+  border-color: rgba(190, 142, 49, 0.58);
+  background: rgba(190, 142, 49, 0.18);
+  color: #6d5118;
+}
+
+.post-list-item__delete-btn {
+  border: 1px solid rgba(193, 108, 95, 0.28);
+  background: rgba(193, 108, 95, 0.08);
+  color: #8a4f46;
+}
+
 .post-list-item__delete-btn:hover {
   background: rgba(193, 108, 95, 0.14);
   border-color: rgba(193, 108, 95, 0.48);
@@ -1295,6 +1324,7 @@ textarea {
   transform: translateY(-1px);
 }
 
+.post-list-item__pin-btn:disabled,
 .post-list-item__delete-btn:disabled {
   cursor: wait;
   opacity: 0.72;
@@ -1316,6 +1346,11 @@ textarea {
 .post-status-badge--published {
   background: rgba(90, 150, 112, 0.12);
   color: #58755d;
+}
+
+.post-status-badge--pinned {
+  background: rgba(190, 142, 49, 0.14);
+  color: #8d6921;
 }
 
 .post-status-badge--draft {

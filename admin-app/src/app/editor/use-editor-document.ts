@@ -42,6 +42,7 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.date === right.frontmatter.date &&
     left.frontmatter.desc === right.frontmatter.desc &&
     left.frontmatter.published === right.frontmatter.published &&
+    left.frontmatter.pinned === right.frontmatter.pinned &&
     left.frontmatter.permalink === right.frontmatter.permalink &&
     left.frontmatter.cover === right.frontmatter.cover &&
     left.frontmatter.external_url === right.frontmatter.external_url &&

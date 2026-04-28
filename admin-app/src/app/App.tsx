@@ -88,6 +88,8 @@ export default function App() {
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [deletingPostPath, setDeletingPostPath] = useState<string | null>(null)
+  const [isTogglingPinned, setIsTogglingPinned] = useState(false)
+  const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
   const {
     document,
@@ -307,7 +309,7 @@ export default function App() {
   }
 
   const handleDeletePost = (post: PostIndexItem) => {
-    if (isDeletingPost) {
+    if (isDeletingPost || isTogglingPinned) {
       return
     }
 
@@ -372,6 +374,86 @@ export default function App() {
   const handleDeletePostCancel = () => {
     if (!isDeletingPost) {
       setPostDeleteConfirm(null)
+    }
+  }
+
+  const handleTogglePinned = async (post: PostIndexItem) => {
+    if (!session || contentType !== 'post' || isTogglingPinned) {
+      return
+    }
+
+    if (document?.path === post.path && !canNavigateAway) {
+      setSuccessMessage(null)
+      setError('当前文章有未保存的修改，请先保存后再置顶。')
+      return
+    }
+
+    setIsTogglingPinned(true)
+    setTogglingPinnedPostPath(post.path)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
+      const openedPost = parsePost(file)
+      const savedContent = serializePost({
+        ...openedPost,
+        frontmatter: {
+          ...openedPost.frontmatter,
+          pinned: !openedPost.frontmatter.pinned,
+        },
+      })
+      const savedFile = await saveMarkdownFile(session, {
+        path: openedPost.path,
+        sha: openedPost.sha || undefined,
+        content: savedContent,
+      })
+      const savedDocument: ParsedPost = {
+        ...openedPost,
+        path: savedFile.path,
+        sha: savedFile.sha,
+        frontmatter: {
+          ...openedPost.frontmatter,
+          pinned: !openedPost.frontmatter.pinned,
+        },
+      }
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content: savedContent,
+      })
+
+      setPosts((currentPosts) =>
+        sortPostIndex(
+          [
+            ...currentPosts.filter((currentPost) => currentPost.path !== post.path && currentPost.path !== savedFile.path),
+            savedPostIndexItem,
+          ],
+          'date-desc',
+        ),
+      )
+
+      if (document?.path === post.path && canNavigateAway) {
+        markSaved(savedDocument)
+        setActivePostPath(savedFile.path)
+      }
+
+      setSuccessMessage(savedDocument.frontmatter.pinned ? `已置顶《${post.title}》。` : `已取消《${post.title}》的置顶。`)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '更新文章置顶状态失败。')
+    } finally {
+      setIsTogglingPinned(false)
+      setTogglingPinnedPostPath(null)
     }
   }
 
@@ -703,7 +785,7 @@ export default function App() {
   }
 
   const saveLabel = isSaving ? '保存中…' : document ? (isDirty ? '保存' : '已保存') : '保存'
-  const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating
+  const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating || isTogglingPinned
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
   const indexedLabel = contentType === 'read-later' ? '待读' : '文章'
@@ -715,9 +797,11 @@ export default function App() {
       : `共 ${posts.length} 篇${indexedLabel}`
     : isSaving && document
       ? `正在保存 ${document.path}`
-      : isOpeningPost && activePostPath
-        ? `正在打开 ${activePostPath}`
-        : document
+      : isTogglingPinned && togglingPinnedPostPath
+        ? `正在更新置顶 · ${togglingPinnedPostPath}`
+        : isOpeningPost && activePostPath
+          ? `正在打开 ${activePostPath}`
+          : document
           ? isDirty
             ? `未保存修改 · ${document.path}`
             : `编辑中 · ${document.path}`
@@ -799,8 +883,12 @@ export default function App() {
             activePostPath={activePostPath}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
+            isTogglingPinned={isTogglingPinned}
+            togglingPinnedPostPath={togglingPinnedPostPath}
+            disabledPinnedPostPath={document?.path && !canNavigateAway ? document.path : null}
             onOpenPost={handleOpenPost}
             onDeletePost={handleDeletePost}
+            onTogglePinned={handleTogglePinned}
           />
           <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
             <div className="editor-stack">

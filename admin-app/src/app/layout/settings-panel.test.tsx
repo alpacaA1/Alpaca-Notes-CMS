@@ -18,6 +18,7 @@ function createExistingPost(): ParsedPost {
       date: '2026-04-03 12:00:00',
       desc: 'Existing desc',
       published: true,
+      pinned: false,
       categories: ['专业'],
       tags: ['产品'],
     },
@@ -84,7 +85,7 @@ describe('settings panel', () => {
     vi.restoreAllMocks()
   })
 
-  it('edits title date desc published taxonomy selections and permalink', () => {
+  it('edits title date desc published pinned taxonomy selections and permalink', () => {
     const { onFieldChange } = renderControlledSettingsPanel()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'New title' } })
@@ -92,7 +93,8 @@ describe('settings panel', () => {
       target: { value: '2026-04-03T10:12:13' },
     })
     fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'New desc' } })
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('checkbox', { name: '已发布' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
 
     fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
     fireEvent.change(screen.getByLabelText('搜索分类'), { target: { value: '思' } })
@@ -110,6 +112,7 @@ describe('settings panel', () => {
     expect(onFieldChange).toHaveBeenCalledWith('date', '2026-04-03 10:12:13')
     expect(onFieldChange).toHaveBeenCalledWith('desc', 'New desc')
     expect(onFieldChange).toHaveBeenCalledWith('published', true)
+    expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
     expect(onFieldChange).toHaveBeenCalledWith('categories', ['思考'])
     expect(onFieldChange).toHaveBeenCalledWith('categories', [])
     expect(onFieldChange).toHaveBeenCalledWith('tags', ['记录'])
@@ -257,7 +260,8 @@ describe('settings panel', () => {
     expect(screen.getByPlaceholderText('旧文章可留空')).toBeTruthy()
     expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '移除标签 产品' })).toBeTruthy()
-    expect(screen.getByRole('checkbox').hasAttribute('disabled')).toBe(true)
+    expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
 
     fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
     expect(screen.getByText('暂无已索引的分类。')).toBeTruthy()

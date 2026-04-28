@@ -9,6 +9,7 @@ export type PostIndexItem = {
   date: string
   desc: string
   published: boolean
+  pinned?: boolean
   hasExplicitPublished: boolean
   categories: string[]
   tags: string[]

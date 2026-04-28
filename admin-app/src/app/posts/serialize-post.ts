@@ -25,6 +25,7 @@ export function serializePost(post: ParsedPost): string {
           ...(post.frontmatter.reading_status ? [`reading_status: ${post.frontmatter.reading_status}`] : []),
         ]
       : [`published: ${post.hasExplicitPublished ? String(post.frontmatter.published) : 'true'}`]),
+    ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
     ...(post.frontmatter.read_later ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
     `desc: ${post.frontmatter.desc}`,

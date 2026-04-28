@@ -159,6 +159,16 @@ export default function SettingsPanel({
             />
           </label>
 
+          <label className="settings-panel__toggle">
+            <span>置顶</span>
+            <input
+              aria-label="置顶"
+              type="checkbox"
+              checked={Boolean(frontmatter.pinned)}
+              onChange={(event) => onFieldChange('pinned', event.target.checked)}
+            />
+          </label>
+
           <div className="settings-panel__field settings-panel__taxonomy">
             <span>分类</span>
             <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>

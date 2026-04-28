@@ -26,6 +26,7 @@ title: Draft post
 date: 2026-04-01 09:00:00
 desc: Draft content
 published: false
+pinned: true
 permalink: draft-post/
 categories:
   - 专业
@@ -66,6 +67,7 @@ const defaultView: PostIndexView = {
 describe('post indexing helpers', () => {
   it('treats legacy missing published as published in UI state', () => {
     expect(legacyPost.published).toBe(true)
+    expect(legacyPost.pinned).toBe(false)
     expect(legacyPost.hasExplicitPublished).toBe(false)
   })
 
@@ -84,10 +86,10 @@ describe('post indexing helpers', () => {
     expect(filterPostIndex(posts, { ...defaultView, tag: '产品' })).toEqual([draftPost])
   })
 
-  it('sorts only by date and title', () => {
+  it('sorts pinned posts ahead of non-pinned posts for date ordering', () => {
     expect(sortPostIndex(posts, 'date-desc').map((post) => post.title)).toEqual([
-      'Published post',
       'Draft post',
+      'Published post',
       'Legacy post',
     ])
     expect(sortPostIndex(posts, 'title-asc').map((post) => post.title)).toEqual([

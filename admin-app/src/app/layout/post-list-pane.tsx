@@ -18,8 +18,12 @@ type PostListPaneProps = {
   activePostPath?: string | null
   isDeleting?: boolean
   deletingPostPath?: string | null
+  isTogglingPinned?: boolean
+  togglingPinnedPostPath?: string | null
+  disabledPinnedPostPath?: string | null
   onOpenPost: (post: PostIndexItem) => void
   onDeletePost: (post: PostIndexItem) => void
+  onTogglePinned: (post: PostIndexItem) => void
 }
 
 export default function PostListPane({
@@ -29,8 +33,12 @@ export default function PostListPane({
   activePostPath = null,
   isDeleting = false,
   deletingPostPath = null,
+  isTogglingPinned = false,
+  togglingPinnedPostPath = null,
+  disabledPinnedPostPath = null,
   onOpenPost,
   onDeletePost,
+  onTogglePinned,
 }: PostListPaneProps) {
   if (hidden) {
     return null
@@ -53,6 +61,8 @@ export default function PostListPane({
         {posts.map((post) => {
           const isActive = post.path === activePostPath
           const isDeletingThisPost = deletingPostPath === post.path
+          const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
+          const isPinnedToggleDisabled = isTogglingPinned || isDeleting || disabledPinnedPostPath === post.path
           const statusTone = contentType === 'read-later' ? getReadLaterStatusTone(post.readingStatus) : post.published ? 'published' : 'draft'
           const statusLabel = contentType === 'read-later' ? getReadLaterStatusLabel(post.readingStatus) : post.published ? '已发布' : '草稿'
 
@@ -64,6 +74,7 @@ export default function PostListPane({
                     <span className={`post-status-badge post-status-badge--${statusTone}`}>
                       {statusLabel}
                     </span>
+                    {contentType === 'post' && post.pinned ? <span className="post-status-badge post-status-badge--pinned">置顶</span> : null}
                     <span>{post.date}</span>
                   </div>
                   <strong>{post.title}</strong>
@@ -73,16 +84,30 @@ export default function PostListPane({
                     <span>{contentType === 'read-later' ? (post.externalUrl || '未填写原文链接') : (post.categories[0] || '未分类')}</span>
                   </div>
                 </button>
-                <button
-                  type="button"
-                  className="post-list-item__delete-btn"
-                  onClick={() => onDeletePost(post)}
-                  disabled={isDeleting}
-                  aria-label={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
-                  title={`删除《${post.title}》`}
-                >
-                  {isDeletingThisPost ? '删除中…' : '删除'}
-                </button>
+                <div className="post-list-item__side-actions">
+                  {contentType === 'post' ? (
+                    <button
+                      type="button"
+                      className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
+                      onClick={() => onTogglePinned(post)}
+                      disabled={isPinnedToggleDisabled}
+                      aria-label={post.pinned ? '取消置顶文章' : '置顶文章'}
+                      title={disabledPinnedPostPath === post.path ? '当前文章有未保存修改，请先保存。' : post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
+                    >
+                      {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="post-list-item__delete-btn"
+                    onClick={() => onDeletePost(post)}
+                    disabled={isDeleting}
+                    aria-label={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
+                    title={`删除《${post.title}》`}
+                  >
+                    {isDeletingThisPost ? '删除中…' : '删除'}
+                  </button>
+                </div>
               </div>
             </li>
           )

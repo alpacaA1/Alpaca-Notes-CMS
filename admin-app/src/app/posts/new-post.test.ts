@@ -24,6 +24,7 @@ describe('new post helpers', () => {
       date: formatPostDate(fixedDate),
       desc: '',
       published: false,
+      pinned: false,
       categories: [],
       tags: [],
     })

@@ -10,6 +10,7 @@ describe('parsePost', () => {
 title: Example
 date: 2026-04-01 20:10:00
 published: true
+pinned: true
 categories:
   - 思考
 tags:
@@ -23,6 +24,7 @@ Hello world\n`,
     expect(parsed.frontmatter.title).toBe('Example')
     expect(parsed.frontmatter.date).toBe('2026-04-01 20:10:00')
     expect(parsed.frontmatter.published).toBe(true)
+    expect(parsed.frontmatter.pinned).toBe(true)
     expect(parsed.frontmatter.categories).toEqual(['思考'])
     expect(parsed.frontmatter.tags).toEqual(['记录'])
     expect(parsed.frontmatter.desc).toBe('Example desc')
@@ -47,6 +49,7 @@ Legacy body`,
     })
 
     expect(parsed.frontmatter.published).toBe(true)
+    expect(parsed.frontmatter.pinned).toBe(false)
     expect(parsed.hasExplicitPublished).toBe(false)
     expect(parsed.frontmatter.permalink).toBeUndefined()
     expect(parsed.hasExplicitPermalink).toBe(false)

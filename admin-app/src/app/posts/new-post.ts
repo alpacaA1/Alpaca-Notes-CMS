@@ -58,6 +58,7 @@ export function createNewPost(date = new Date()): ParsedPost {
       date: formatPostDate(date),
       desc: '',
       published: false,
+      pinned: false,
       categories: [],
       tags: [],
     },
