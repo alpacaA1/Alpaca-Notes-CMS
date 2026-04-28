@@ -12,15 +12,6 @@ function getReadLaterStatusLabel(status?: ReadingStatus) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
 
-function getSafeExternalUrl(url?: string) {
-  const trimmedUrl = url?.trim()
-  if (!trimmedUrl || trimmedUrl.startsWith('//')) {
-    return null
-  }
-
-  return /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : null
-}
-
 type PostListPaneProps = {
   posts: PostIndexItem[]
   hidden: boolean
@@ -60,45 +51,23 @@ export default function PostListPane({
 
   if (contentType === 'read-later' && document?.contentType === 'read-later') {
     const outlineItems = getReadLaterOutline(document.body)
-    const safeExternalUrl = getSafeExternalUrl(document.frontmatter.external_url)
-    const readingStatus = document.frontmatter.reading_status
-    const sourceName = document.frontmatter.source_name?.trim()
-    const desc = document.frontmatter.desc?.trim()
 
     return (
       <aside className="post-pane post-pane--reader">
-        <div className="post-pane__header post-pane__header--reader">
-          <p className="post-pane__eyebrow">阅读面板</p>
-          <div className="post-pane__title-row post-pane__title-row--reader">
-            <h2>{document.frontmatter.title?.trim() || '未命名待读'}</h2>
+        <div className="post-pane__header post-pane__header--reader-nav">
+          {onBackToList ? (
+            <button type="button" className="post-pane__back-link" onClick={onBackToList}>
+              ← 返回归档
+            </button>
+          ) : null}
+          <div className="post-pane__reader-heading">
+            <p className="post-pane__eyebrow">内容目录</p>
+            <h2>阅读导航</h2>
+            <p className="post-pane__note">按正文标题层级快速跳转。</p>
           </div>
-          <p className="post-pane__note">左侧改成阅读导航，正文与评论都走阅读视图和右侧栏。</p>
         </div>
 
-        {onBackToList ? (
-          <button type="button" className="post-pane__back-link" onClick={onBackToList}>
-            ← 返回归档
-          </button>
-        ) : null}
-
-        <section className="post-pane__reader-card">
-          <div className="post-pane__reader-meta">
-            <span className={`post-status-badge post-status-badge--${getReadLaterStatusTone(readingStatus)}`}>
-              {getReadLaterStatusLabel(readingStatus)}
-            </span>
-            {sourceName ? <span>{sourceName}</span> : null}
-            <span>{document.frontmatter.date}</span>
-          </div>
-          {desc ? <p className="post-pane__reader-desc">{desc}</p> : null}
-          {safeExternalUrl ? (
-            <a className="post-pane__reader-link" href={safeExternalUrl} rel="noreferrer" target="_blank">
-              阅读原文 ↗
-            </a>
-          ) : null}
-        </section>
-
-        <nav className="post-outline" aria-label="阅读导航">
-          <p className="post-outline__label">阅读导航</p>
+        <nav className="post-outline" aria-label="文章目录">
           <div className="post-outline__list">
             {outlineItems.map((item) => (
               <a

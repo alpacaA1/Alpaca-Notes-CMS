@@ -90,6 +90,19 @@ export function extractMarkdownHeadings(markdown: string, idPrefix: string): Rea
     })
 }
 
+function normalizeOutlineLevels(items: ReadLaterOutlineItem[]) {
+  if (items.length === 0) {
+    return items
+  }
+
+  const minLevel = Math.min(...items.map((item) => item.level))
+
+  return items.map((item) => ({
+    ...item,
+    level: Math.max(1, item.level - minLevel + 1),
+  }))
+}
+
 export function getReadLaterSectionAnchorId(sectionKey: keyof ReadLaterSections) {
   return READ_LATER_SECTION_OUTLINE.find((section) => section.key === sectionKey)?.id || 'read-later-content'
 }
@@ -121,7 +134,7 @@ export function getReadLaterOutline(body: string): ReadLaterOutlineItem[] {
   const hasStructuredSections = Object.values(sections).some((section) => section.trim().length > 0)
 
   if (!hasStructuredSections) {
-    const headings = extractMarkdownHeadings(body, 'read-later-content')
+    const headings = normalizeOutlineLevels(extractMarkdownHeadings(body, 'read-later-content'))
     return headings.length > 0
       ? headings
       : [{ id: 'read-later-content', label: '阅读内容', level: 1, kind: 'section' }]
@@ -133,15 +146,11 @@ export function getReadLaterOutline(body: string): ReadLaterOutlineItem[] {
       return []
     }
 
-    const nestedHeadings = extractMarkdownHeadings(sectionContent, section.id).map((item) => ({
-      ...item,
-      level: Math.min(item.level + 1, 6),
-    }))
+    const nestedHeadings = normalizeOutlineLevels(extractMarkdownHeadings(sectionContent, section.id))
 
-    return [
-      { id: section.id, label: section.title, level: 1, kind: 'section' as const },
-      ...nestedHeadings,
-    ]
+    return nestedHeadings.length > 0
+      ? nestedHeadings
+      : [{ id: section.id, label: section.title, level: 1, kind: 'section' as const }]
   })
 }
 

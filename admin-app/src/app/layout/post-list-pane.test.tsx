@@ -223,11 +223,14 @@ describe('management layout components', () => {
       />,
     )
 
-    expect(screen.getByText('阅读面板')).toBeTruthy()
+    expect(screen.getByText('内容目录')).toBeTruthy()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '阅读原文 ↗' }).getAttribute('href')).toBe('https://example.com/design')
-    expect(screen.getByRole('link', { name: '原文摘录' }).getAttribute('href')).toBe('#read-later-article-excerpt')
+    expect(screen.getByRole('navigation', { name: '文章目录' })).toBeTruthy()
+    expect(screen.queryByText('阅读面板')).toBeNull()
+    expect(screen.queryByRole('link', { name: '阅读原文 ↗' })).toBeNull()
+    expect(screen.queryByRole('link', { name: '原文摘录' })).toBeNull()
     expect(screen.getByRole('link', { name: '第一部分' }).getAttribute('href')).toBe('#read-later-article-excerpt-第一部分')
+    expect(screen.getByRole('link', { name: '我的总结' }).getAttribute('href')).toBe('#read-later-summary')
     expect(screen.queryByText('待读归档')).toBeNull()
     expect(screen.queryByRole('button', { name: '删除待读条目' })).toBeNull()
 

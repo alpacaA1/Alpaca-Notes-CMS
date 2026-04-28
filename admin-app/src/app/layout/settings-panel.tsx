@@ -31,6 +31,10 @@ type SettingsPanelProps = {
   previewImageUrls?: Record<string, string>
 }
 
+function getReadingStatusTone(status?: ParsedPost['frontmatter']['reading_status']) {
+  return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
+}
+
 function getReadingStatusLabel(status?: ParsedPost['frontmatter']['reading_status']) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
@@ -108,54 +112,56 @@ export default function SettingsPanel({
   }
 
   return (
-    <aside className="settings-panel">
-      <div className="settings-panel__header">
+    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}`}>
+      <div className={`settings-panel__header${isReadLater ? ' settings-panel__header--reader' : ''}`}>
         <p className="settings-panel__eyebrow">元信息</p>
         <h2>{isReadLater ? '待读设置' : '发布设置'}</h2>
         <p>{isReadLater ? '正文以阅读视图为主，右侧专门维护信息与评论。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
-      </div>
-
-      {isReadLater ? (
-        <>
-          <section className="settings-panel__read-later-card">
-            <p className="settings-panel__read-later-kicker">当前待读</p>
-            <h3>{frontmatter.title.trim() || '未命名待读'}</h3>
-            <div className="settings-panel__read-later-meta">
-              <span>{getReadingStatusLabel(frontmatter.reading_status)}</span>
-              {(frontmatter.source_name || '').trim() ? <span>{(frontmatter.source_name || '').trim()}</span> : null}
+        {isReadLater ? (
+          <div className="settings-panel__reader-summary">
+            <strong className="settings-panel__reader-title">{frontmatter.title.trim() || '未命名待读'}</strong>
+            <div className="settings-panel__reader-meta">
+              <span className={`post-status-badge post-status-badge--${getReadingStatusTone(frontmatter.reading_status)}`}>
+                {getReadingStatusLabel(frontmatter.reading_status)}
+              </span>
+              {(frontmatter.source_name || '').trim() ? (
+                <span className="settings-panel__reader-meta-pill">{(frontmatter.source_name || '').trim()}</span>
+              ) : null}
               {canOpenExternalUrl ? (
-                <a href={externalUrl} rel="noreferrer" target="_blank">
+                <a className="settings-panel__reader-meta-link" href={externalUrl} rel="noreferrer" target="_blank">
                   打开原文
                 </a>
               ) : null}
             </div>
-          </section>
-
-          <div className="settings-panel__tabs" role="tablist" aria-label="待读侧栏">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={readLaterTab === 'info'}
-              className={`settings-panel__tab${readLaterTab === 'info' ? ' is-active' : ''}`}
-              onClick={() => setReadLaterTab('info')}
-            >
-              信息
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={readLaterTab === 'commentary'}
-              className={`settings-panel__tab${readLaterTab === 'commentary' ? ' is-active' : ''}`}
-              onClick={() => setReadLaterTab('commentary')}
-            >
-              评论
-            </button>
           </div>
-        </>
+        ) : null}
+      </div>
+
+      {isReadLater ? (
+        <div className="settings-panel__tabs" role="tablist" aria-label="待读侧栏">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={readLaterTab === 'info'}
+            className={`settings-panel__tab${readLaterTab === 'info' ? ' is-active' : ''}`}
+            onClick={() => setReadLaterTab('info')}
+          >
+            信息
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={readLaterTab === 'commentary'}
+            className={`settings-panel__tab${readLaterTab === 'commentary' ? ' is-active' : ''}`}
+            onClick={() => setReadLaterTab('commentary')}
+          >
+            评论
+          </button>
+        </div>
       ) : null}
 
       {showInfoFields ? (
-        <>
+        <div className={`settings-panel__section-stack${isReadLater ? ' settings-panel__section-stack--reader' : ''}`}>
           <label>
             <span>标题</span>
             <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
@@ -333,11 +339,11 @@ export default function SettingsPanel({
               {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
             </label>
           )}
-        </>
+        </div>
       ) : null}
 
       {isReadLater && readLaterTab === 'commentary' ? (
-        <div className="settings-panel__section-stack">
+        <div className="settings-panel__section-stack settings-panel__section-stack--reader">
           <div className="settings-panel__field">
             <span>评论编辑</span>
             <p className="settings-panel__field-note">优先写总结和评论；只有导入内容需要清理时，再修改原文摘录。右侧会自动整理为「原文摘录 / 我的总结 / 我的评论」。</p>

@@ -193,6 +193,7 @@ describe('settings panel', () => {
     )
 
     expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.queryByText('当前待读')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.getByLabelText('站内详情链接')).toBeTruthy()

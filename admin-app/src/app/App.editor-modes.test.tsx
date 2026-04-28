@@ -85,6 +85,7 @@ layout: read-later-item
 ---
 
 ## 原文摘录
+# 第一部分
 这里是原文摘录。
 
 ## 我的总结
@@ -168,9 +169,11 @@ describe('App editor modes', () => {
 
     expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
     expect(screen.getByText('待读设置')).toBeTruthy()
-    expect(screen.getByText('阅读面板')).toBeTruthy()
+    expect(screen.getByText('内容目录')).toBeTruthy()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: '原文摘录' })).toBeTruthy()
+    expect(screen.getByRole('navigation', { name: '文章目录' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '第一部分' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '我的总结' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
