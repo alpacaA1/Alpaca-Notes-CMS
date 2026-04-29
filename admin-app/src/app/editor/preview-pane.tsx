@@ -29,6 +29,7 @@ type PreviewPaneProps = {
   previewImageUrls?: Record<string, string>
   annotations?: ReadLaterAnnotation[]
   activeAnnotationId?: string | null
+  annotationScrollRequest?: number
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onSelectAnnotation?: (annotationId: string) => void
 }
@@ -826,6 +827,7 @@ export default function PreviewPane({
   previewImageUrls,
   annotations = [],
   activeAnnotationId = null,
+  annotationScrollRequest = 0,
   onCreateAnnotation,
   onSelectAnnotation,
 }: PreviewPaneProps) {
@@ -865,6 +867,18 @@ export default function PreviewPane({
       )
     })
   }, [activeAnnotationId, annotations, isReadLater, markdown, onSelectAnnotation])
+
+  useEffect(() => {
+    if (!isReadLater || !activeAnnotationId) {
+      return
+    }
+
+    const article = articleRef.current
+    const activeHighlight = article?.querySelector<HTMLElement>(`mark[data-reader-annotation-id="${activeAnnotationId}"]`)
+    if (activeHighlight && typeof activeHighlight.scrollIntoView === 'function') {
+      activeHighlight.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
+    }
+  }, [activeAnnotationId, annotationScrollRequest, annotations.length, isReadLater])
 
   const handleSelectionChange = () => {
     if (!isReadLater || !onCreateAnnotation) {

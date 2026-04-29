@@ -102,6 +102,7 @@ export default function App() {
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
+  const [annotationScrollRequest, setAnnotationScrollRequest] = useState(0)
   const {
     document,
     mode,
@@ -142,6 +143,7 @@ export default function App() {
     setReadLaterTab('info')
     setActiveAnnotationId(null)
     setEditingAnnotationId(null)
+    setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
 
   const revokePreviewObjectUrls = () => {
@@ -581,12 +583,21 @@ export default function App() {
     setReadLaterTab('commentary')
     setActiveAnnotationId(annotationId)
     setEditingAnnotationId(null)
+    setAnnotationScrollRequest((current) => current + 1)
   }
 
   const handleOpenAnnotationNote = (annotationId: string) => {
     setReadLaterTab('commentary')
     setActiveAnnotationId(annotationId)
     setEditingAnnotationId(annotationId)
+    setAnnotationScrollRequest((current) => current + 1)
+  }
+
+  const handleDeleteAnnotation = (annotationId: string) => {
+    clearSuccessMessageOnDirty()
+    updateReadLaterAnnotations(readLaterAnnotations.filter((annotation) => annotation.id !== annotationId))
+    setActiveAnnotationId(null)
+    setEditingAnnotationId(null)
   }
 
   const handleSaveAnnotationNote = (annotationId: string, note: string) => {
@@ -631,6 +642,7 @@ export default function App() {
     setReadLaterTab('commentary')
     setActiveAnnotationId(annotation.id)
     setEditingAnnotationId(action === 'note' ? annotation.id : null)
+    setAnnotationScrollRequest((current) => current + 1)
   }
 
   const handleUploadImage = async (file: File) => {
@@ -981,7 +993,7 @@ export default function App() {
           />
         </>
       ) : (
-        <div className="admin-layout">
+        <div className={`admin-layout${isReadLaterPreview ? ' admin-layout--reader' : ''}`}>
           <PostListPane
             posts={filteredPosts}
             hidden={isPostListHidden}
@@ -998,8 +1010,8 @@ export default function App() {
             onTogglePinned={handleTogglePinned}
             onBackToList={handleBackToDashboard}
           />
-          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}`}>
-            <div className="editor-stack">
+          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReadLaterPreview ? ' editor-layout--reader' : ''}`}>
+            <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
                   {showDocumentFrame ? (
@@ -1034,6 +1046,7 @@ export default function App() {
                       previewImageUrls={previewImageUrls}
                       annotations={readLaterAnnotations}
                       activeAnnotationId={activeAnnotationId}
+                      annotationScrollRequest={annotationScrollRequest}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onSelectAnnotation={handleSelectAnnotation}
                     />
@@ -1080,6 +1093,7 @@ export default function App() {
                 editingAnnotationId={editingAnnotationId}
                 onSelectAnnotation={handleSelectAnnotation}
                 onEditAnnotation={handleOpenAnnotationNote}
+                onDeleteAnnotation={handleDeleteAnnotation}
                 onSaveAnnotationNote={handleSaveAnnotationNote}
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
               />

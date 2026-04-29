@@ -36,6 +36,7 @@ type SettingsPanelProps = {
   editingAnnotationId?: string | null
   onSelectAnnotation?: (annotationId: string) => void
   onEditAnnotation?: (annotationId: string) => void
+  onDeleteAnnotation?: (annotationId: string) => void
   onSaveAnnotationNote?: (annotationId: string, note: string) => void
   onCancelAnnotationEdit?: () => void
 }
@@ -75,6 +76,7 @@ export default function SettingsPanel({
   editingAnnotationId = null,
   onSelectAnnotation,
   onEditAnnotation,
+  onDeleteAnnotation,
   onSaveAnnotationNote,
   onCancelAnnotationEdit,
 }: SettingsPanelProps) {
@@ -490,7 +492,16 @@ export default function SettingsPanel({
 
                       {isActive ? (
                         <div className="settings-panel__annotation-note-block">
-                          <span className="settings-panel__annotation-note-label">Document note</span>
+                          <div className="settings-panel__annotation-note-header">
+                            <span className="settings-panel__annotation-note-label">Document note</span>
+                            <button
+                              type="button"
+                              className="settings-panel__annotation-delete"
+                              onClick={() => onDeleteAnnotation?.(annotation.id)}
+                            >
+                              删除高亮
+                            </button>
+                          </div>
                           {isEditing ? (
                             <div className="settings-panel__document-note-editor settings-panel__document-note-editor--annotation">
                               <textarea

@@ -543,6 +543,18 @@ textarea {
   color: var(--admin-muted);
 }
 
+.admin-shell--dark .settings-panel__annotation-delete {
+  border-color: rgba(193, 108, 95, 0.3);
+  background: rgba(193, 108, 95, 0.12);
+  color: #f0b4ab;
+}
+
+.admin-shell--dark .settings-panel__annotation-delete:hover {
+  border-color: rgba(193, 108, 95, 0.48);
+  background: rgba(193, 108, 95, 0.18);
+  color: #ffd0ca;
+}
+
 .admin-shell--dark .preview-content__selection-toolbar {
   border-color: rgba(228, 163, 88, 0.28);
   background: rgba(22, 19, 16, 0.96);
@@ -869,6 +881,13 @@ textarea {
   grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
   gap: 28px;
   padding: 24px 32px 32px;
+}
+
+.admin-layout--reader {
+  min-height: calc(100vh - 116px);
+  height: calc(100vh - 116px);
+  align-items: stretch;
+  overflow: hidden;
 }
 
 .top-bar {
@@ -1290,6 +1309,13 @@ textarea {
   overscroll-behavior: contain;
 }
 
+.admin-layout--reader .post-pane--reader {
+  position: static;
+  top: auto;
+  height: 100%;
+  max-height: 100%;
+}
+
 /* 隐藏滚动条让视觉更干净 (可选，如果你想隐藏的话：
 .post-pane::-webkit-scrollbar { width: 0; background: transparent; }
 .post-pane { scrollbar-width: none; }
@@ -1630,6 +1656,12 @@ textarea {
   align-items: start;
 }
 
+.editor-layout--reader {
+  min-height: 0;
+  height: 100%;
+  align-items: stretch;
+}
+
 .editor-layout--single {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1638,6 +1670,13 @@ textarea {
   min-width: 0;
   display: grid;
   gap: 24px;
+}
+
+.editor-stack--reader {
+  min-height: 0;
+  height: 100%;
+  align-content: stretch;
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .editor-frame {
@@ -1804,6 +1843,13 @@ textarea {
   gap: 14px;
 }
 
+.editor-layout--reader .settings-panel--reader {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .settings-panel__header {
   display: grid;
   gap: 8px;
@@ -1954,7 +2000,8 @@ textarea {
 }
 
 .settings-panel__document-note-entry:focus-visible,
-.settings-panel__document-note-action:focus-visible {
+.settings-panel__document-note-action:focus-visible,
+.settings-panel__annotation-delete:focus-visible {
   outline: none;
   box-shadow: 0 0 0 4px rgba(141, 113, 77, 0.12);
 }
@@ -2054,11 +2101,37 @@ textarea {
   gap: 8px;
 }
 
+.settings-panel__annotation-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
 .settings-panel__annotation-note-label,
 .settings-panel__annotation-empty {
   color: var(--admin-soft);
   font-size: 0.82rem;
   line-height: 1.6;
+}
+
+.settings-panel__annotation-delete {
+  appearance: none;
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(193, 108, 95, 0.28);
+  background: rgba(193, 108, 95, 0.08);
+  color: #8a4f46;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-panel__annotation-delete:hover {
+  border-color: rgba(193, 108, 95, 0.48);
+  background: rgba(193, 108, 95, 0.14);
+  color: #723f38;
 }
 
 .settings-panel__annotation-note-entry {
@@ -2437,6 +2510,13 @@ textarea {
   box-shadow: none;
 }
 
+.editor-layout--reader .preview-pane--reading-canvas {
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .preview-content {
   display: grid;
   gap: 16px;
@@ -2769,6 +2849,29 @@ textarea {
   .admin-layout,
   .editor-layout {
     grid-template-columns: 1fr;
+  }
+
+  .admin-layout--reader {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .editor-layout--reader,
+  .editor-stack--reader {
+    height: auto;
+  }
+
+  .editor-stack--reader {
+    grid-template-rows: none;
+  }
+
+  .admin-layout--reader .post-pane--reader,
+  .editor-layout--reader .settings-panel--reader,
+  .editor-layout--reader .preview-pane--reading-canvas {
+    height: auto;
+    max-height: none;
+    overflow: visible;
   }
 }
 

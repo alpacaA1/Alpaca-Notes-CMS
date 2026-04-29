@@ -194,7 +194,7 @@ describe('App editor modes', () => {
       content: readLaterContent,
     })
 
-    render(<App />)
+    const { container } = render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
     await waitFor(() => {
@@ -216,6 +216,9 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
     expect(screen.queryByText('当前稿件')).toBeNull()
+    expect(container.querySelector('.admin-layout--reader')).toBeTruthy()
+    expect(container.querySelector('.editor-layout--reader')).toBeTruthy()
+    expect(container.querySelector('.editor-stack--reader')).toBeTruthy()
   })
 
   it('keeps read-later in reading view while sidebar edits update the rendered commentary', async () => {
@@ -287,6 +290,51 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+  })
+
+  it('scrolls to and deletes a read-later highlight from the commentary sidebar', async () => {
+    const scrollIntoView = vi.fn()
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    })
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    await screen.findByText('这里是原文摘录。')
+
+    selectReadLaterText('这里是原文摘录。')
+    fireEvent.click(await screen.findByRole('button', { name: '批注' }))
+    fireEvent.change(await screen.findByLabelText('Highlight document note'), { target: { value: '选区批注' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('选区批注')).toBeTruthy()
+    scrollIntoView.mockClear()
+
+    fireEvent.click(screen.getByRole('button', { name: '这里是原文摘录。' }))
+    expect(scrollIntoView).toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '删除高亮' }))
+
+    expect(screen.queryByRole('button', { name: '这里是原文摘录。' })).toBeNull()
+    expect(screen.queryByText('选区批注')).toBeNull()
+    expect(screen.queryByRole('button', { name: '高亮：这里是原文摘录。' })).toBeNull()
+    expect(screen.getByText('选中文本后可在这里查看高亮和批注。')).toBeTruthy()
   })
 
   it('opens image documents directly in markdown mode', async () => {
