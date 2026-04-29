@@ -1091,18 +1091,18 @@ export default function PreviewPane({
       ) : null}
       <article
         ref={articleRef}
-        className="preview-content"
+        className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
         id="read-later-content"
         onClick={handleArticleClick}
         onMouseUp={handleSelectionChange}
         onKeyUp={handleSelectionChange}
       >
-        <header className="preview-content__header">
+        <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
           <h1>{title.trim() || '未命名草稿'}</h1>
           <p className="preview-content__date">{date}</p>
           {isReadLater ? (
             <div className="preview-content__read-later-meta">
-              {desc?.trim() ? <p className="preview-content__summary">{desc.trim()}</p> : null}
+              {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
               <div className="preview-content__meta-grid">
                 {sourceName?.trim() ? (
                   <span className="preview-content__meta-chip">

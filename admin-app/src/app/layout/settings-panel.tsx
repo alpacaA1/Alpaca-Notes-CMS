@@ -40,14 +40,6 @@ type SettingsPanelProps = {
   onCancelAnnotationEdit?: () => void
 }
 
-function getReadingStatusTone(status?: ParsedPost['frontmatter']['reading_status']) {
-  return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
-}
-
-function getReadingStatusLabel(status?: ParsedPost['frontmatter']['reading_status']) {
-  return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
-}
-
 function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
   return annotation.quote.trim() || '未命名高亮'
 }
@@ -122,8 +114,6 @@ export default function SettingsPanel({
 
   const { frontmatter } = document
   const showInfoFields = !isReadLater || currentReadLaterTab === 'info'
-  const externalUrl = isReadLater ? (frontmatter.external_url || '').trim() : ''
-  const canOpenExternalUrl = /^https?:\/\//i.test(externalUrl)
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -199,32 +189,15 @@ export default function SettingsPanel({
 
   return (
     <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}`}>
-      <div className={`settings-panel__header${isReadLater ? ' settings-panel__header--reader' : ''}`}>
-        {isReadLater ? (
-          <div className="settings-panel__reader-summary">
-            <strong className="settings-panel__reader-title">{frontmatter.title.trim() || '未命名待读'}</strong>
-            <div className="settings-panel__reader-meta">
-              <span className={`post-status-badge post-status-badge--${getReadingStatusTone(frontmatter.reading_status)}`}>
-                {getReadingStatusLabel(frontmatter.reading_status)}
-              </span>
-              {(frontmatter.source_name || '').trim() ? (
-                <span className="settings-panel__reader-meta-pill">{(frontmatter.source_name || '').trim()}</span>
-              ) : null}
-              {canOpenExternalUrl ? (
-                <a className="settings-panel__reader-meta-link" href={externalUrl} rel="noreferrer" target="_blank">
-                  打开原文
-                </a>
-              ) : null}
-            </div>
-          </div>
-        ) : (
+      {!isReadLater ? (
+        <div className="settings-panel__header">
           <>
             <p className="settings-panel__eyebrow">元信息</p>
             <h2>发布设置</h2>
             <p>发布前把标题、链接与分类信息整理清楚。</p>
           </>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {isReadLater ? (
         <div className="settings-panel__tabs" role="tablist" aria-label="待读侧栏">
