@@ -1049,6 +1049,7 @@ export default function App() {
                       annotationScrollRequest={annotationScrollRequest}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onSelectAnnotation={handleSelectAnnotation}
+                      onDeleteAnnotation={handleDeleteAnnotation}
                     />
                   ) : (
                     <MarkdownEditor
@@ -1093,7 +1094,6 @@ export default function App() {
                 editingAnnotationId={editingAnnotationId}
                 onSelectAnnotation={handleSelectAnnotation}
                 onEditAnnotation={handleOpenAnnotationNote}
-                onDeleteAnnotation={handleDeleteAnnotation}
                 onSaveAnnotationNote={handleSaveAnnotationNote}
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
               />

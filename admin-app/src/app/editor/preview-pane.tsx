@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { extractMarkdownHeadings, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
@@ -14,6 +14,12 @@ type SelectionToolbarState = {
   top: number
   left: number
   draft: ReadLaterAnnotationDraft
+}
+
+type AnnotationActionPosition = {
+  top: number
+  left: number
+  annotationId: string
 }
 
 type PreviewPaneProps = {
@@ -32,6 +38,7 @@ type PreviewPaneProps = {
   annotationScrollRequest?: number
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onSelectAnnotation?: (annotationId: string) => void
+  onDeleteAnnotation?: (annotationId: string) => void
 }
 
 const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
@@ -289,6 +296,39 @@ function getSelectionToolbarState(selection: Selection) {
       prefix: fullText.slice(Math.max(0, startOffset - ANNOTATION_CONTEXT_LENGTH), startOffset),
       suffix: fullText.slice(endOffset, Math.min(fullText.length, endOffset + ANNOTATION_CONTEXT_LENGTH)),
     },
+  }
+}
+
+function getActiveAnnotationActionPosition(article: HTMLElement, annotationId: string): AnnotationActionPosition | null {
+  const highlights = Array.from(article.querySelectorAll<HTMLElement>(`mark[data-reader-annotation-id="${annotationId}"]`))
+  if (highlights.length === 0) {
+    return null
+  }
+
+  const rects = highlights
+    .map((highlight) => highlight.getBoundingClientRect())
+    .filter(
+      (rect) =>
+        Number.isFinite(rect.top) &&
+        Number.isFinite(rect.left) &&
+        Number.isFinite(rect.bottom) &&
+        Number.isFinite(rect.right),
+    )
+  if (rects.length === 0) {
+    return null
+  }
+
+  const top = Math.min(...rects.map((rect) => rect.top))
+  const bottom = Math.max(...rects.map((rect) => rect.bottom))
+  const left = Math.min(...rects.map((rect) => rect.left))
+  const right = Math.max(...rects.map((rect) => rect.right))
+  const viewportWidth = window.innerWidth || right || 0
+  const horizontalCenter = left + (right - left) / 2
+
+  return {
+    top: top > 72 ? Math.max(12, top - 44) : bottom + 12,
+    left: viewportWidth ? Math.min(Math.max(24, horizontalCenter), viewportWidth - 24) : horizontalCenter,
+    annotationId,
   }
 }
 
@@ -830,8 +870,11 @@ export default function PreviewPane({
   annotationScrollRequest = 0,
   onCreateAnnotation,
   onSelectAnnotation,
+  onDeleteAnnotation,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
+  const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
+  const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
@@ -880,6 +923,33 @@ export default function PreviewPane({
     }
   }, [activeAnnotationId, annotationScrollRequest, annotations.length, isReadLater])
 
+  useEffect(() => {
+    if (!isReadLater || !activeAnnotationId) {
+      setActiveAnnotationAction(null)
+      return
+    }
+
+    const pane = paneRef.current
+    const article = articleRef.current
+    if (!pane || !article) {
+      setActiveAnnotationAction(null)
+      return
+    }
+
+    const updateActionPosition = () => {
+      setActiveAnnotationAction(getActiveAnnotationActionPosition(article, activeAnnotationId))
+    }
+
+    updateActionPosition()
+    pane.addEventListener('scroll', updateActionPosition, { passive: true })
+    window.addEventListener('resize', updateActionPosition)
+
+    return () => {
+      pane.removeEventListener('scroll', updateActionPosition)
+      window.removeEventListener('resize', updateActionPosition)
+    }
+  }, [activeAnnotationId, annotationScrollRequest, annotations, isReadLater, markdown])
+
   const handleSelectionChange = () => {
     if (!isReadLater || !onCreateAnnotation) {
       if (selectionToolbar) {
@@ -908,8 +978,19 @@ export default function PreviewPane({
     setSelectionToolbar(null)
   }
 
+  const handleDeleteAnnotationClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    if (!activeAnnotationAction || !onDeleteAnnotation) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    clearSelection()
+    onDeleteAnnotation(activeAnnotationAction.annotationId)
+  }
+
   return (
-    <section className="preview-pane preview-pane--reading-canvas">
+    <section ref={paneRef} className="preview-pane preview-pane--reading-canvas">
       {selectionToolbar ? (
         <div
           className="preview-content__selection-toolbar"
@@ -925,6 +1006,17 @@ export default function PreviewPane({
             批注
           </button>
         </div>
+      ) : null}
+      {activeAnnotationAction && onDeleteAnnotation ? (
+        <button
+          type="button"
+          className="preview-content__annotation-delete"
+          style={{ top: `${activeAnnotationAction.top}px`, left: `${activeAnnotationAction.left}px` }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={handleDeleteAnnotationClick}
+        >
+          删除高亮
+        </button>
       ) : null}
       <article
         ref={articleRef}

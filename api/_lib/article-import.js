@@ -9,6 +9,12 @@ const MAX_HTML_LENGTH = 2_000_000;
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:']);
 const HTML_CONTENT_TYPE_PATTERN = /^(text\/html|application\/xhtml\+xml)\b/i;
 const PRIVATE_IPV4_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^169\.254\./, /^0\./];
+const DEFAULT_ARTICLE_REQUEST_HEADERS = {
+  Accept: 'text/html,application/xhtml+xml',
+  'User-Agent': 'alpaca-notes-importer/1.0',
+};
+const WECHAT_BROWSER_USER_AGENT =
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
 class ArticleImportError extends Error {
   constructor(message, statusCode = 400) {
@@ -39,6 +45,23 @@ function isPrivateIPAddress(hostname) {
   }
 
   return false;
+}
+
+function isWeChatArticleUrl(url) {
+  return url.hostname.toLowerCase() === 'mp.weixin.qq.com';
+}
+
+function buildArticleRequestHeaders(url) {
+  if (!isWeChatArticleUrl(url)) {
+    return DEFAULT_ARTICLE_REQUEST_HEADERS;
+  }
+
+  return {
+    Accept: 'text/html,application/xhtml+xml',
+    'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+    Referer: 'https://mp.weixin.qq.com/',
+    'User-Agent': WECHAT_BROWSER_USER_AGENT,
+  };
 }
 
 function validateArticleUrl(input, message = '文章链接格式无效。') {
@@ -101,11 +124,26 @@ function absolutizeAttribute(element, name, baseUrl) {
   element.removeAttribute(name);
 }
 
+function applyLazyImageSources(document) {
+  document.querySelectorAll('img').forEach((element) => {
+    const lazySource =
+      element.getAttribute('data-src') ||
+      element.getAttribute('data-original') ||
+      element.getAttribute('data-actualsrc');
+    const currentSource = element.getAttribute('src');
+
+    if (lazySource && (!currentSource || currentSource.startsWith('data:'))) {
+      element.setAttribute('src', lazySource);
+    }
+  });
+}
+
 function prepareArticleHtml(content, baseUrl) {
   const dom = new JSDOM(`<body>${content}</body>`, { url: baseUrl });
   const { document } = dom.window;
 
   document.querySelectorAll('script, style, iframe, form, noscript').forEach((node) => node.remove());
+  applyLazyImageSources(document);
   document.querySelectorAll('[src]').forEach((element) => absolutizeAttribute(element, 'src', baseUrl));
   document.querySelectorAll('[href]').forEach((element) => absolutizeAttribute(element, 'href', baseUrl));
 
@@ -129,6 +167,74 @@ function normalizeMarkdown(markdown) {
     .trim();
 }
 
+function convertArticleHtmlToMarkdown(content, baseUrl) {
+  const { dom, html } = prepareArticleHtml(content, baseUrl);
+
+  try {
+    return normalizeMarkdown(createTurndownService().turndown(html));
+  } finally {
+    dom.window.close();
+  }
+}
+
+function extractWeChatArticle(document, finalUrl) {
+  const content = document.querySelector('#js_content');
+  const articleHtml = content?.innerHTML?.trim();
+  if (!articleHtml) {
+    return null;
+  }
+
+  const markdown = convertArticleHtmlToMarkdown(articleHtml, finalUrl);
+  if (!markdown) {
+    return null;
+  }
+
+  return {
+    title: normalizeText(
+      document.querySelector('#activity-name')?.textContent ||
+        readMetaContent(document, 'meta[property="og:title"]') ||
+        document.title ||
+        ''
+    ),
+    desc: normalizeText(
+      readMetaContent(document, 'meta[property="og:description"]') ||
+        readMetaContent(document, 'meta[name="description"]')
+    ),
+    sourceName: normalizeText(
+      document.querySelector('#js_name')?.textContent ||
+        readMetaContent(document, 'meta[property="og:site_name"]')
+    ),
+    markdown,
+  };
+}
+
+function extractReadableArticle(document, finalUrl) {
+  const article = new Readability(document).parse();
+
+  if (!article?.content) {
+    throw new ArticleImportError('未能识别文章正文，请尝试手动复制内容。', 422);
+  }
+
+  const markdown = convertArticleHtmlToMarkdown(article.content, finalUrl);
+  if (!markdown) {
+    throw new ArticleImportError('未能提取出可用正文，请尝试手动复制内容。', 422);
+  }
+
+  return {
+    title: normalizeText(article.title || document.title || ''),
+    desc: normalizeText(
+      article.excerpt ||
+        readMetaContent(document, 'meta[name="description"]') ||
+        readMetaContent(document, 'meta[property="og:description"]')
+    ),
+    sourceName: normalizeText(
+      article.siteName ||
+        readMetaContent(document, 'meta[property="og:site_name"]')
+    ),
+    markdown,
+  };
+}
+
 async function importArticle(requestedUrl) {
   const validatedRequestedUrl = validateArticleUrl(requestedUrl, '请填写有效的文章链接。');
   const controller = new AbortController();
@@ -138,17 +244,18 @@ async function importArticle(requestedUrl) {
     const response = await fetch(validatedRequestedUrl.toString(), {
       redirect: 'follow',
       signal: controller.signal,
-      headers: {
-        'Accept': 'text/html,application/xhtml+xml',
-        'User-Agent': 'alpaca-notes-importer/1.0',
-      },
+      headers: buildArticleRequestHeaders(validatedRequestedUrl),
     });
 
     if (!response.ok) {
       throw new ArticleImportError(`抓取文章失败（${response.status}）。`, 502);
     }
 
-    const finalUrl = validateArticleUrl(response.url || validatedRequestedUrl.toString(), '文章跳转后的链接无效。').toString();
+    const finalArticleUrl = validateArticleUrl(
+      response.url || validatedRequestedUrl.toString(),
+      '文章跳转后的链接无效。'
+    );
+    const finalUrl = finalArticleUrl.toString();
     const contentType = response.headers.get('content-type') || '';
     if (!HTML_CONTENT_TYPE_PATTERN.test(contentType)) {
       throw new ArticleImportError('该链接不是可导入的 HTML 文章页面。', 415);
@@ -161,35 +268,24 @@ async function importArticle(requestedUrl) {
 
     const html = await readBodyWithLimit(response);
     const sourceDom = new JSDOM(html, { url: finalUrl });
-    const { document } = sourceDom.window;
-    const article = new Readability(document).parse();
 
-    if (!article?.content) {
-      throw new ArticleImportError('未能识别文章正文，请尝试手动复制内容。', 422);
+    try {
+      const { document } = sourceDom.window;
+      const extractedArticle = isWeChatArticleUrl(finalArticleUrl)
+        ? extractWeChatArticle(document, finalUrl) || extractReadableArticle(document, finalUrl)
+        : extractReadableArticle(document, finalUrl);
+
+      return {
+        title: extractedArticle.title,
+        desc: extractedArticle.desc,
+        sourceName: extractedArticle.sourceName || finalArticleUrl.hostname.replace(/^www\./, ''),
+        markdown: extractedArticle.markdown,
+        requestedUrl: validatedRequestedUrl.toString(),
+        finalUrl,
+      };
+    } finally {
+      sourceDom.window.close();
     }
-
-    const { dom: articleDom, html: articleHtml } = prepareArticleHtml(article.content, finalUrl);
-    const markdown = normalizeMarkdown(createTurndownService().turndown(articleHtml));
-
-    if (!markdown) {
-      throw new ArticleImportError('未能提取出可用正文，请尝试手动复制内容。', 422);
-    }
-
-    const title = normalizeText(article.title || document.title || '');
-    const desc = normalizeText(article.excerpt || readMetaContent(document, 'meta[name="description"]') || readMetaContent(document, 'meta[property="og:description"]'));
-    const sourceName = normalizeText(article.siteName || readMetaContent(document, 'meta[property="og:site_name"]') || validatedRequestedUrl.hostname.replace(/^www\./, ''));
-
-    sourceDom.window.close();
-    articleDom.window.close();
-
-    return {
-      title,
-      desc,
-      sourceName,
-      markdown,
-      requestedUrl: validatedRequestedUrl.toString(),
-      finalUrl,
-    };
   } catch (error) {
     if (error instanceof ArticleImportError) {
       throw error;

@@ -344,9 +344,7 @@ describe('settings panel', () => {
     expect(onSaveAnnotationNote).toHaveBeenCalledWith(annotation.id, '新的高亮批注')
   })
 
-  it('shows delete action for the active highlight card', () => {
-    const onDeleteAnnotation = vi.fn()
-
+  it('does not show delete action in the active highlight card', () => {
     render(
       <SettingsPanel
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
@@ -359,13 +357,10 @@ describe('settings panel', () => {
         readLaterTab="commentary"
         annotations={[annotation]}
         activeAnnotationId={annotation.id}
-        onDeleteAnnotation={onDeleteAnnotation}
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: '删除高亮' }))
-
-    expect(onDeleteAnnotation).toHaveBeenCalledWith(annotation.id)
+    expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
   })
 
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {

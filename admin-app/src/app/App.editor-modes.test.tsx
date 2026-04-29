@@ -292,7 +292,7 @@ describe('App editor modes', () => {
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
   })
 
-  it('scrolls to and deletes a read-later highlight from the commentary sidebar', async () => {
+  it('scrolls to and deletes a read-later highlight from the reading canvas', async () => {
     const scrollIntoView = vi.fn()
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
@@ -328,6 +328,9 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '这里是原文摘录。' }))
     expect(scrollIntoView).toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
+    expect(screen.getByRole('button', { name: '删除高亮' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '删除高亮' }))
 
