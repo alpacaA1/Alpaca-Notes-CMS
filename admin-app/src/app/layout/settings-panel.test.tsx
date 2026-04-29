@@ -192,8 +192,10 @@ describe('settings panel', () => {
       />,
     )
 
-    expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.queryByText('待读设置')).toBeNull()
     expect(screen.queryByText('当前待读')).toBeNull()
+    expect(screen.getByRole('tab', { name: '信息' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: '评论' })).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.getByLabelText('站内详情链接')).toBeTruthy()
@@ -273,7 +275,9 @@ describe('settings panel', () => {
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
 
     expect(screen.queryByLabelText('标题')).toBeNull()
+    expect(screen.queryByText('评论编辑')).toBeNull()
     expect((screen.getByLabelText('原文摘录') as HTMLTextAreaElement).value).toBe('# 原始正文\n\n第二段')
+    expect((screen.getByPlaceholderText('我的总结') as HTMLTextAreaElement).value).toBe('')
 
     fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
 

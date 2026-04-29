@@ -60,15 +60,14 @@ export default function PostListPane({
               ← 返回归档
             </button>
           ) : null}
-          <div className="post-pane__reader-heading">
-            <p className="post-pane__eyebrow">内容目录</p>
-            <h2>阅读导航</h2>
-            <p className="post-pane__note">按正文标题层级快速跳转。</p>
-          </div>
+          <p className="post-pane__eyebrow post-pane__eyebrow--reader-nav">内容目录</p>
         </div>
 
         <nav className="post-outline" aria-label="文章目录">
           <div className="post-outline__list">
+            <a className="post-outline__item post-outline__item--top" href="#read-later-content">
+              回到顶部
+            </a>
             {outlineItems.map((item) => (
               <a
                 key={item.id}

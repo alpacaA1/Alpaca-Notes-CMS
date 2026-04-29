@@ -168,10 +168,12 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
 
     expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
-    expect(screen.getByText('待读设置')).toBeTruthy()
+    expect(screen.queryByText('待读设置')).toBeNull()
+    expect(screen.getByRole('tab', { name: '信息' })).toBeTruthy()
     expect(screen.getByText('内容目录')).toBeTruthy()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
     expect(screen.getByRole('navigation', { name: '文章目录' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '回到顶部' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '第一部分' })).toBeTruthy()
     expect(screen.getByRole('link', { name: '我的总结' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()

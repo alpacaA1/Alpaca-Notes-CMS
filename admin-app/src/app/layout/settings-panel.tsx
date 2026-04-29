@@ -114,9 +114,6 @@ export default function SettingsPanel({
   return (
     <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}`}>
       <div className={`settings-panel__header${isReadLater ? ' settings-panel__header--reader' : ''}`}>
-        <p className="settings-panel__eyebrow">元信息</p>
-        <h2>{isReadLater ? '待读设置' : '发布设置'}</h2>
-        <p>{isReadLater ? '正文以阅读视图为主，右侧专门维护信息与评论。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
         {isReadLater ? (
           <div className="settings-panel__reader-summary">
             <strong className="settings-panel__reader-title">{frontmatter.title.trim() || '未命名待读'}</strong>
@@ -134,7 +131,13 @@ export default function SettingsPanel({
               ) : null}
             </div>
           </div>
-        ) : null}
+        ) : (
+          <>
+            <p className="settings-panel__eyebrow">元信息</p>
+            <h2>发布设置</h2>
+            <p>发布前把标题、链接与分类信息整理清楚。</p>
+          </>
+        )}
       </div>
 
       {isReadLater ? (
@@ -343,34 +346,32 @@ export default function SettingsPanel({
       ) : null}
 
       {isReadLater && readLaterTab === 'commentary' ? (
-        <div className="settings-panel__section-stack settings-panel__section-stack--reader">
-          <div className="settings-panel__field">
-            <span>评论编辑</span>
-            <p className="settings-panel__field-note">优先写总结和评论；只有导入内容需要清理时，再修改原文摘录。右侧会自动整理为「原文摘录 / 我的总结 / 我的评论」。</p>
-          </div>
-
-          <label>
-            <span>原文摘录</span>
+        <div className="settings-panel__section-stack settings-panel__section-stack--reader settings-panel__section-stack--commentary">
+          <label className="settings-panel__editor-field">
+            <span className="sr-only">原文摘录</span>
             <textarea
               aria-label="原文摘录"
+              placeholder="原文摘录（仅在需要清理导入内容时修改）"
               value={readLaterSections?.articleExcerpt || ''}
               onChange={(event) => handleReadLaterSectionChange('articleExcerpt', event.target.value)}
             />
           </label>
 
-          <label>
-            <span>我的总结</span>
+          <label className="settings-panel__editor-field">
+            <span className="sr-only">我的总结</span>
             <textarea
               aria-label="我的总结"
+              placeholder="我的总结"
               value={readLaterSections?.summary || ''}
               onChange={(event) => handleReadLaterSectionChange('summary', event.target.value)}
             />
           </label>
 
-          <label>
-            <span>我的评论</span>
+          <label className="settings-panel__editor-field">
+            <span className="sr-only">我的评论</span>
             <textarea
               aria-label="我的评论"
+              placeholder="我的评论"
               value={readLaterSections?.commentary || ''}
               onChange={(event) => handleReadLaterSectionChange('commentary', event.target.value)}
             />

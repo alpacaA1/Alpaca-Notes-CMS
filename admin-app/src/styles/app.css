@@ -1244,24 +1244,20 @@ textarea {
 .post-pane--reader {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: 20px;
+  gap: 14px;
 }
 
 .post-pane__header--reader-nav {
   display: grid;
-  gap: 14px;
+  gap: 10px;
   margin-bottom: 0;
-  padding-bottom: 18px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--admin-line);
 }
 
-.post-pane__reader-heading {
-  display: grid;
-  gap: 8px;
-}
-
-.post-pane__reader-heading h2 {
-  margin: 0;
+.post-pane__eyebrow--reader-nav {
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
 }
 
 .post-pane__back-link {
@@ -1291,17 +1287,18 @@ textarea {
 
 .post-outline__list {
   display: grid;
-  gap: 4px;
+  gap: 1px;
 }
 
 .post-outline__item {
   display: block;
-  padding: 8px 0 8px 14px;
+  padding: 6px 0 6px 12px;
   border-left: 2px solid transparent;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 10px 10px 0;
   background: transparent;
   color: var(--admin-muted);
-  line-height: 1.6;
+  font-size: 0.94rem;
+  line-height: 1.4;
   text-decoration: none;
   transition:
     border-color 180ms ease,
@@ -1310,23 +1307,29 @@ textarea {
     box-shadow 180ms ease;
 }
 
+.post-outline__item--top {
+  margin-bottom: 8px;
+  color: var(--admin-text);
+  font-weight: 700;
+}
+
 .post-outline__item--section {
   color: var(--admin-text);
   font-weight: 700;
 }
 
 .post-outline__item--level-2 {
-  padding-left: 22px;
+  padding-left: 18px;
 }
 
 .post-outline__item--level-3 {
-  padding-left: 34px;
-  font-size: 0.92rem;
+  padding-left: 28px;
+  font-size: 0.9rem;
 }
 
 .post-outline__item--level-4 {
-  padding-left: 46px;
-  font-size: 0.9rem;
+  padding-left: 38px;
+  font-size: 0.88rem;
 }
 
 .post-pane__back-link:hover,
@@ -1698,11 +1701,11 @@ textarea {
 
 .settings-panel {
   align-content: start;
-  gap: 18px;
+  gap: 14px;
 }
 
 .settings-panel--reader {
-  gap: 18px;
+  gap: 14px;
 }
 
 .settings-panel__header {
@@ -1711,14 +1714,13 @@ textarea {
 }
 
 .settings-panel__header--reader {
-  padding-bottom: 18px;
+  padding-bottom: 14px;
   border-bottom: 1px solid var(--admin-line);
 }
 
 .settings-panel__reader-summary {
   display: grid;
-  gap: 12px;
-  padding-top: 6px;
+  gap: 8px;
 }
 
 .settings-panel__reader-title {
@@ -1805,14 +1807,22 @@ textarea {
 }
 
 .settings-panel__section-stack--reader {
-  padding-top: 18px;
+  padding-top: 14px;
   border-top: 1px solid var(--admin-line);
+}
+
+.settings-panel__section-stack--commentary {
+  gap: 12px;
 }
 
 .settings-panel label,
 .settings-panel__field {
   display: grid;
   gap: 8px;
+}
+
+.settings-panel__editor-field {
+  gap: 0;
 }
 
 .settings-panel label > span:first-child,
