@@ -658,6 +658,11 @@ export default function App() {
     setAnnotationScrollRequest((current) => current + 1)
   }
 
+  const handleClearActiveAnnotation = () => {
+    setActiveAnnotationId(null)
+    setEditingAnnotationId(null)
+  }
+
   const handleNavigateOutline = useCallback((targetId: string) => {
     setReaderNavigationRequest((current) => ({
       targetId,
@@ -1151,6 +1156,7 @@ export default function App() {
                       navigationRequest={readerNavigationRequest}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onSelectAnnotation={handleSelectAnnotation}
+                      onClearActiveAnnotation={handleClearActiveAnnotation}
                       onDeleteAnnotation={handleDeleteAnnotation}
                     />
                   ) : (

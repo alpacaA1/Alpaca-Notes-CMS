@@ -456,9 +456,12 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
     expect(screen.getByRole('button', { name: '删除高亮' })).toBeTruthy()
+    expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
 
     fireEvent.click(screen.getByText('这里是我的总结。'))
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
+    expect(screen.queryByLabelText('Highlight document note')).toBeNull()
+    expect(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }).className).not.toContain('is-active')
 
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
     fireEvent.click(screen.getByRole('button', { name: '删除高亮' }))

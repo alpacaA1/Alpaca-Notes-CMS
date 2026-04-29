@@ -39,6 +39,7 @@ type PreviewPaneProps = {
   navigationRequest?: { targetId: string; requestId: number } | null
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onSelectAnnotation?: (annotationId: string) => void
+  onClearActiveAnnotation?: () => void
   onDeleteAnnotation?: (annotationId: string) => void
 }
 
@@ -875,6 +876,7 @@ export default function PreviewPane({
   navigationRequest = null,
   onCreateAnnotation,
   onSelectAnnotation,
+  onClearActiveAnnotation,
   onDeleteAnnotation,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
@@ -1047,6 +1049,7 @@ export default function PreviewPane({
     }
 
     setAnnotationDeleteTargetId(null)
+    onClearActiveAnnotation?.()
   }
 
   const handleDeleteAnnotationClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
