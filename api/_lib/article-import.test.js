@@ -26,6 +26,24 @@ afterEach(() => {
   global.fetch = originalFetch;
 });
 
+function createWeChatHtml(body = '<p>第一段内容。</p>') {
+  return `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta property="og:description" content="这里是文章摘要" />
+    <title>页面标题</title>
+  </head>
+  <body>
+    <h1 id="activity-name"> 微信文章标题 </h1>
+    <a id="js_name"> 公众号名称 </a>
+    <div id="js_content">
+      ${body}
+    </div>
+  </body>
+</html>`;
+}
+
 test('importArticle extracts WeChat article content and normalizes lazy-loaded images', async () => {
   let receivedRequest = null;
 
@@ -37,22 +55,10 @@ test('importArticle extracts WeChat article content and normalizes lazy-loaded i
       headers: {
         'content-type': 'text/html; charset=utf-8',
       },
-      html: `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta property="og:description" content="这里是文章摘要" />
-    <title>页面标题</title>
-  </head>
-  <body>
-    <h1 id="activity-name"> 微信文章标题 </h1>
-    <a id="js_name"> 公众号名称 </a>
-    <div id="js_content">
-      <p>第一段内容。</p>
-      <p><img data-src="https://mmbiz.qpic.cn/image.png" src="data:image/gif;base64,placeholder" alt="配图" /></p>
-    </div>
-  </body>
-</html>`,
+      html: createWeChatHtml(`
+        <p>第一段内容。</p>
+        <p><img data-src="https://mmbiz.qpic.cn/image.png" src="data:image/gif;base64,placeholder" alt="配图" /></p>
+      `),
     });
   };
 
@@ -70,4 +76,20 @@ test('importArticle extracts WeChat article content and normalizes lazy-loaded i
   assert.equal(article.finalUrl, 'https://mp.weixin.qq.com/s/example');
   assert.match(article.markdown, /第一段内容。/);
   assert.match(article.markdown, /!\[配图\]\(https:\/\/mmbiz\.qpic\.cn\/image\.png\)/);
+});
+
+test('importArticle allows larger WeChat HTML pages', async () => {
+  global.fetch = async () => createMockResponse({
+    url: 'https://mp.weixin.qq.com/s/large-example',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      'content-length': '3000000',
+    },
+    html: createWeChatHtml('<p>大页面正文。</p>'),
+  });
+
+  const article = await importArticle('https://mp.weixin.qq.com/s/large-example');
+
+  assert.equal(article.title, '微信文章标题');
+  assert.match(article.markdown, /大页面正文。/);
 });

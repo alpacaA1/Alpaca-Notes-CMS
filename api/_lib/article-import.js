@@ -6,6 +6,7 @@ const { gfm } = require('turndown-plugin-gfm');
 
 const FETCH_TIMEOUT_MS = 12000;
 const MAX_HTML_LENGTH = 2_000_000;
+const WECHAT_MAX_HTML_LENGTH = 12_000_000;
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:']);
 const HTML_CONTENT_TYPE_PATTERN = /^(text\/html|application\/xhtml\+xml)\b/i;
 const PRIVATE_IPV4_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^169\.254\./, /^0\./];
@@ -85,9 +86,13 @@ function validateArticleUrl(input, message = '文章链接格式无效。') {
   return url;
 }
 
-function readBodyWithLimit(response) {
+function getMaxHtmlLength(url) {
+  return isWeChatArticleUrl(url) ? WECHAT_MAX_HTML_LENGTH : MAX_HTML_LENGTH;
+}
+
+function readBodyWithLimit(response, maxHtmlLength) {
   return response.text().then((html) => {
-    if (html.length > MAX_HTML_LENGTH) {
+    if (html.length > maxHtmlLength) {
       throw new ArticleImportError('文章内容过大，暂不支持导入。', 413);
     }
     return html;
@@ -261,12 +266,13 @@ async function importArticle(requestedUrl) {
       throw new ArticleImportError('该链接不是可导入的 HTML 文章页面。', 415);
     }
 
+    const maxHtmlLength = getMaxHtmlLength(finalArticleUrl);
     const contentLength = Number(response.headers.get('content-length') || 0);
-    if (contentLength > MAX_HTML_LENGTH) {
+    if (contentLength > maxHtmlLength) {
       throw new ArticleImportError('文章内容过大，暂不支持导入。', 413);
     }
 
-    const html = await readBodyWithLimit(response);
+    const html = await readBodyWithLimit(response, maxHtmlLength);
     const sourceDom = new JSDOM(html, { url: finalUrl });
 
     try {

@@ -30,6 +30,7 @@ textarea {
 
 #root {
   min-height: 100vh;
+  height: 100vh;
 }
 
 .app-shell {
@@ -200,6 +201,7 @@ textarea {
   --admin-code-border: #e3edf3;
   position: relative;
   min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
   overflow: hidden;
@@ -878,6 +880,7 @@ textarea {
 .admin-layout {
   position: relative;
   z-index: 1;
+  min-height: 0;
   display: grid;
   grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
   gap: 28px;
@@ -1315,6 +1318,7 @@ textarea {
   top: auto;
   height: 100%;
   max-height: 100%;
+  overflow: hidden;
 }
 
 /* 隐藏滚动条让视觉更干净 (可选，如果你想隐藏的话：
@@ -1366,7 +1370,7 @@ textarea {
 
 .post-pane--reader {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 14px;
 }
 
@@ -1405,7 +1409,10 @@ textarea {
 
 .post-outline {
   display: grid;
+  align-content: start;
   min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .post-outline__list {
@@ -1674,10 +1681,11 @@ textarea {
 }
 
 .editor-stack--reader {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
   height: 100%;
   align-content: stretch;
-  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .editor-frame {
@@ -2517,8 +2525,9 @@ textarea {
 }
 
 .editor-layout--reader .preview-pane--reading-canvas {
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
+  height: auto;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
