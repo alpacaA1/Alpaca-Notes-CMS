@@ -203,9 +203,10 @@ describe('App editor modes', () => {
     await screen.findByText('这里是原文摘录。')
 
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
-    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '新的待读评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '新的待读评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('新的待读评论')
     expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()

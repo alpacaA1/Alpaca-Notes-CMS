@@ -173,9 +173,10 @@ describe('App read-later import flow', () => {
     expect(screen.queryByRole('heading', { name: '原文摘录' })).toBeNull()
 
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
-    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '补一条评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect((await screen.findByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('补一条评论')
     expect(screen.getAllByText('补一条评论').length).toBeGreaterThan(0)
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '我的评论' })).toBeTruthy()

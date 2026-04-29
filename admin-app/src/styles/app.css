@@ -472,6 +472,58 @@ textarea {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.admin-shell--dark .settings-panel__document-note-label {
+  color: rgba(241, 232, 219, 0.58);
+}
+
+.admin-shell--dark .settings-panel__document-note-entry,
+.admin-shell--dark .settings-panel__document-note-editor {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: none;
+}
+
+.admin-shell--dark .settings-panel__document-note-entry {
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .settings-panel__document-note-entry:hover {
+  border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .settings-panel__document-note-editor {
+  border-color: rgba(228, 163, 88, 0.26);
+  box-shadow: 0 0 0 1px rgba(228, 163, 88, 0.16);
+}
+
+.admin-shell--dark .settings-panel__document-note-editor textarea,
+.admin-shell--dark .settings-panel__document-note-editor textarea:focus,
+.admin-shell--dark .settings-panel__document-note-editor textarea:focus-visible {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.admin-shell--dark .settings-panel__document-note-action {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .settings-panel__document-note-action:hover {
+  border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .settings-panel__document-note-action--primary {
+  border-color: rgba(228, 163, 88, 0.3);
+  background: rgba(228, 163, 88, 0.14);
+  color: #f0c37b;
+}
+
 .admin-shell--dark .post-status-badge--published {
   background: rgba(98, 180, 120, 0.1);
   color: #7ec98a;
@@ -722,6 +774,8 @@ textarea {
 .admin-shell--dark .settings-panel input:focus-visible,
 .admin-shell--dark .settings-panel textarea:focus-visible,
 .admin-shell--dark .settings-panel select:focus-visible,
+.admin-shell--dark .settings-panel__document-note-entry:focus-visible,
+.admin-shell--dark .settings-panel__document-note-action:focus-visible,
 .admin-shell--dark .top-bar__search input:focus-visible {
   box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.15);
 }
@@ -1815,14 +1869,103 @@ textarea {
   gap: 12px;
 }
 
+.settings-panel__document-note {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-panel__document-note-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-panel__document-note-label {
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.settings-panel__document-note-entry,
+.settings-panel__document-note-editor {
+  border-radius: 18px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.76);
+}
+
+.settings-panel__document-note-entry {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+  text-align: left;
+  color: var(--admin-muted);
+  cursor: text;
+}
+
+.settings-panel__document-note-entry:hover {
+  border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--admin-text);
+}
+
+.settings-panel__document-note-entry:focus-visible,
+.settings-panel__document-note-action:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(141, 113, 77, 0.12);
+}
+
+.settings-panel__document-note-editor {
+  padding: 10px;
+  border-color: rgba(87, 150, 255, 0.7);
+  box-shadow:
+    0 0 0 1px rgba(87, 150, 255, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.settings-panel__document-note-editor textarea {
+  min-height: 112px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  resize: none;
+}
+
+.settings-panel__document-note-editor textarea:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.settings-panel__document-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.settings-panel__document-note-action {
+  appearance: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--admin-muted);
+  cursor: pointer;
+}
+
+.settings-panel__document-note-action--primary {
+  border-color: rgba(87, 150, 255, 0.45);
+  background: rgba(87, 150, 255, 0.16);
+  color: #2d63b6;
+}
+
 .settings-panel label,
 .settings-panel__field {
   display: grid;
   gap: 8px;
-}
-
-.settings-panel__editor-field {
-  gap: 0;
 }
 
 .settings-panel label > span:first-child,

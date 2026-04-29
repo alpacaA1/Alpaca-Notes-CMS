@@ -57,6 +57,8 @@ export default function SettingsPanel({
   previewImageUrls,
 }: SettingsPanelProps) {
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
+  const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
+  const [documentNoteDraft, setDocumentNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
   const readLaterSections = useMemo(
     () => (isReadLater && document ? getEditableReadLaterSections(document.body) : null),
@@ -65,7 +67,17 @@ export default function SettingsPanel({
 
   useEffect(() => {
     setReadLaterTab('info')
+    setIsDocumentNoteEditing(false)
   }, [contentType, document?.path])
+
+  useEffect(() => {
+    if (!isReadLater) {
+      setDocumentNoteDraft('')
+      return
+    }
+
+    setDocumentNoteDraft(readLaterSections?.commentary || '')
+  }, [isReadLater, readLaterSections?.commentary, document?.path])
 
   if (!document) {
     return null
@@ -109,6 +121,21 @@ export default function SettingsPanel({
         [field]: value,
       }),
     )
+  }
+
+  const handleOpenDocumentNoteEditor = () => {
+    setDocumentNoteDraft(readLaterSections?.commentary || '')
+    setIsDocumentNoteEditing(true)
+  }
+
+  const handleCancelDocumentNote = () => {
+    setDocumentNoteDraft(readLaterSections?.commentary || '')
+    setIsDocumentNoteEditing(false)
+  }
+
+  const handleSaveDocumentNote = () => {
+    handleReadLaterSectionChange('commentary', documentNoteDraft)
+    setIsDocumentNoteEditing(false)
   }
 
   return (
@@ -347,35 +374,34 @@ export default function SettingsPanel({
 
       {isReadLater && readLaterTab === 'commentary' ? (
         <div className="settings-panel__section-stack settings-panel__section-stack--reader settings-panel__section-stack--commentary">
-          <label className="settings-panel__editor-field">
-            <span className="sr-only">原文摘录</span>
-            <textarea
-              aria-label="原文摘录"
-              placeholder="原文摘录（仅在需要清理导入内容时修改）"
-              value={readLaterSections?.articleExcerpt || ''}
-              onChange={(event) => handleReadLaterSectionChange('articleExcerpt', event.target.value)}
-            />
-          </label>
+          <section className="settings-panel__document-note" aria-label="Document note 区域">
+            <div className="settings-panel__document-note-header">
+              <span className="settings-panel__document-note-label">Document note</span>
+            </div>
 
-          <label className="settings-panel__editor-field">
-            <span className="sr-only">我的总结</span>
-            <textarea
-              aria-label="我的总结"
-              placeholder="我的总结"
-              value={readLaterSections?.summary || ''}
-              onChange={(event) => handleReadLaterSectionChange('summary', event.target.value)}
-            />
-          </label>
-
-          <label className="settings-panel__editor-field">
-            <span className="sr-only">我的评论</span>
-            <textarea
-              aria-label="我的评论"
-              placeholder="我的评论"
-              value={readLaterSections?.commentary || ''}
-              onChange={(event) => handleReadLaterSectionChange('commentary', event.target.value)}
-            />
-          </label>
+            {isDocumentNoteEditing ? (
+              <div className="settings-panel__document-note-editor">
+                <textarea
+                  aria-label="Document note"
+                  placeholder="Add a document note..."
+                  value={documentNoteDraft}
+                  onChange={(event) => setDocumentNoteDraft(event.target.value)}
+                />
+                <div className="settings-panel__document-note-actions">
+                  <button type="button" className="settings-panel__document-note-action" onClick={handleCancelDocumentNote}>
+                    Cancel
+                  </button>
+                  <button type="button" className="settings-panel__document-note-action settings-panel__document-note-action--primary" onClick={handleSaveDocumentNote}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button type="button" aria-label="Document note" className="settings-panel__document-note-entry" onClick={handleOpenDocumentNoteEditor}>
+                {readLaterSections?.commentary?.trim() || 'Add a document note...'}
+              </button>
+            )}
+          </section>
         </div>
       ) : null}
     </aside>

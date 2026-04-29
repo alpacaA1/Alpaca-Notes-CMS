@@ -263,11 +263,15 @@ describe('settings panel', () => {
     expect(onImportFromUrl).toHaveBeenCalledTimes(1)
   })
 
-  it('switches read-later sidebar to commentary mode and rewrites structured body sections', () => {
+  it('switches read-later sidebar to a single document note editor and preserves existing sections on save', () => {
     const { onBodyChange } = renderControlledSettingsPanel({
       document: {
         ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
-        body: '# 原始正文\n\n第二段',
+        body: createReadLaterBody({
+          articleExcerpt: '# 原始正文\n\n第二段',
+          summary: '已有总结',
+          commentary: '',
+        }),
       },
       contentType: 'read-later',
     })
@@ -275,19 +279,25 @@ describe('settings panel', () => {
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
 
     expect(screen.queryByLabelText('标题')).toBeNull()
-    expect(screen.queryByText('评论编辑')).toBeNull()
-    expect((screen.getByLabelText('原文摘录') as HTMLTextAreaElement).value).toBe('# 原始正文\n\n第二段')
-    expect((screen.getByPlaceholderText('我的总结') as HTMLTextAreaElement).value).toBe('')
+    expect(screen.queryByLabelText('原文摘录')).toBeNull()
+    expect(screen.queryByLabelText('我的总结')).toBeNull()
+    expect(screen.queryByLabelText('我的评论')).toBeNull()
+    expect(screen.getByText('Document note')).toBeTruthy()
+    expect(screen.getByText('Add a document note...')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('我的评论'), { target: { value: '补一条评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '补一条评论' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onBodyChange).toHaveBeenCalledWith(
       createReadLaterBody({
         articleExcerpt: '# 原始正文\n\n第二段',
+        summary: '已有总结',
         commentary: '补一条评论',
       }),
     )
-    expect((screen.getByLabelText('我的评论') as HTMLTextAreaElement).value).toBe('补一条评论')
+    expect(screen.getByRole('button', { name: 'Document note' })).toBeTruthy()
+    expect(screen.getByText('补一条评论')).toBeTruthy()
   })
 
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {
