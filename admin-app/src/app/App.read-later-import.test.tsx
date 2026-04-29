@@ -45,6 +45,17 @@ desc:
 
 ## 我的评论`
 
+const annotation = {
+  id: 'annotation-1',
+  sectionKey: 'articleExcerpt' as const,
+  quote: '高亮内容',
+  prefix: '这里是',
+  suffix: '和正文。',
+  note: '已有批注',
+  createdAt: '2026-04-29T08:00:00.000Z',
+  updatedAt: '2026-04-29T08:00:00.000Z',
+}
+
 describe('App read-later import flow', () => {
   afterEach(() => {
     cleanup()
@@ -70,7 +81,7 @@ describe('App read-later import flow', () => {
       requestedUrl: 'https://example.com/article',
       finalUrl: 'https://example.com/article',
     })
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<App />)
 
@@ -90,6 +101,7 @@ describe('App read-later import flow', () => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
 
+    expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('导入后的标题')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
@@ -97,14 +109,40 @@ describe('App read-later import flow', () => {
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
 
-  it('asks for confirmation before overwriting an edited body and aborts when declined', async () => {
+  it('confirms before overwriting annotated content and clears highlights after import', async () => {
+    const encodedAnnotation = encodeURIComponent(JSON.stringify(annotation))
+
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
     vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: readLaterPost.path,
       sha: readLaterPost.sha,
-      content: readLaterContent,
+      content: `---
+ title: Import me later
+ permalink: read-later/import-me/
+ layout: read-later-item
+ date: 2026-04-27 10:00:00
+ read_later: true
+ nav_exclude: true
+ external_url: https://example.com/article
+ source_name: Old source
+ reading_status: unread
+ reader_annotations:
+   - ${encodedAnnotation}
+ tags:
+   - 待读
+ desc: old desc
+ ---
+
+ ## 原文摘录
+ 这里是高亮内容和正文。
+
+ ## 我的总结
+ 已有总结
+
+ ## 我的评论
+ 已有评论`.replace(/^ /gm, ''),
     })
     const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
       title: '导入后的标题',
@@ -114,7 +152,7 @@ describe('App read-later import flow', () => {
       requestedUrl: 'https://example.com/article',
       finalUrl: 'https://example.com/article',
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     render(<App />)
 
@@ -126,11 +164,22 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
     await screen.findByRole('link', { name: '原文摘录' })
 
+    fireEvent.click(screen.getByRole('tab', { name: '评论' }))
+    expect(await screen.findByRole('button', { name: '高亮内容' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
-    expect(importSpy).not.toHaveBeenCalled()
-    expect(screen.getByRole('link', { name: '原文摘录' })).toBeTruthy()
+    expect(confirmSpy).toHaveBeenCalledWith('当前正文和高亮批注将被导入内容覆盖，确认继续吗？')
+    await waitFor(() => {
+      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
+    })
+
+    expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: '评论' }))
+    expect(screen.queryByRole('button', { name: '高亮内容' })).toBeNull()
+    expect(screen.getByText('选中文本后可在这里查看高亮和批注。')).toBeTruthy()
   })
 
   it('edits read-later commentary from the sidebar and auto-structures plain markdown', async () => {

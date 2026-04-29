@@ -21,6 +21,7 @@ export function createNewReadLaterItem(date = new Date()): ParsedReadLaterItem {
     path: `${READ_LATER_PATH}/${timestamp}.md`,
     sha: '',
     body: createReadLaterBody(),
+    annotations: [],
     hasExplicitPublished: false,
     hasExplicitPermalink: true,
     contentType: 'read-later',

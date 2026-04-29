@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ParsedPost } from '../posts/parse-post'
 import { fromPostDateTimeInputValue, toPostDateTimeInputValue } from '../posts/new-post'
 import type { PostValidationErrors } from '../posts/post-types'
-import type { ReadLaterSections } from '../read-later/item-types'
+import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-types'
 import { createReadLaterBody } from '../read-later/new-item'
 import { getEditableReadLaterSections } from '../read-later/parse-item'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
@@ -29,6 +29,15 @@ type SettingsPanelProps = {
   onImportFromUrl?: () => void
   isImportingFromUrl?: boolean
   previewImageUrls?: Record<string, string>
+  readLaterTab?: ReadLaterTab
+  onReadLaterTabChange?: (tab: ReadLaterTab) => void
+  annotations?: ReadLaterAnnotation[]
+  activeAnnotationId?: string | null
+  editingAnnotationId?: string | null
+  onSelectAnnotation?: (annotationId: string) => void
+  onEditAnnotation?: (annotationId: string) => void
+  onSaveAnnotationNote?: (annotationId: string, note: string) => void
+  onCancelAnnotationEdit?: () => void
 }
 
 function getReadingStatusTone(status?: ParsedPost['frontmatter']['reading_status']) {
@@ -37,6 +46,10 @@ function getReadingStatusTone(status?: ParsedPost['frontmatter']['reading_status
 
 function getReadingStatusLabel(status?: ParsedPost['frontmatter']['reading_status']) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
+}
+
+function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
+  return annotation.quote.trim() || '未命名高亮'
 }
 
 export default function SettingsPanel({
@@ -55,18 +68,33 @@ export default function SettingsPanel({
   onImportFromUrl,
   isImportingFromUrl = false,
   previewImageUrls,
+  readLaterTab: controlledReadLaterTab,
+  onReadLaterTabChange,
+  annotations = [],
+  activeAnnotationId = null,
+  editingAnnotationId = null,
+  onSelectAnnotation,
+  onEditAnnotation,
+  onSaveAnnotationNote,
+  onCancelAnnotationEdit,
 }: SettingsPanelProps) {
-  const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
+  const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('info')
   const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
   const [documentNoteDraft, setDocumentNoteDraft] = useState('')
+  const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
+  const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
+  const activeAnnotation = useMemo(
+    () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
+    [activeAnnotationId, annotations],
+  )
   const readLaterSections = useMemo(
     () => (isReadLater && document ? getEditableReadLaterSections(document.body) : null),
     [document?.body, isReadLater],
   )
 
   useEffect(() => {
-    setReadLaterTab('info')
+    setInternalReadLaterTab('info')
     setIsDocumentNoteEditing(false)
   }, [contentType, document?.path])
 
@@ -79,12 +107,21 @@ export default function SettingsPanel({
     setDocumentNoteDraft(readLaterSections?.commentary || '')
   }, [isReadLater, readLaterSections?.commentary, document?.path])
 
+  useEffect(() => {
+    if (!editingAnnotationId) {
+      setAnnotationNoteDraft('')
+      return
+    }
+
+    setAnnotationNoteDraft(annotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '')
+  }, [annotations, editingAnnotationId])
+
   if (!document) {
     return null
   }
 
   const { frontmatter } = document
-  const showInfoFields = !isReadLater || readLaterTab === 'info'
+  const showInfoFields = !isReadLater || currentReadLaterTab === 'info'
   const externalUrl = isReadLater ? (frontmatter.external_url || '').trim() : ''
   const canOpenExternalUrl = /^https?:\/\//i.test(externalUrl)
 
@@ -138,6 +175,28 @@ export default function SettingsPanel({
     setIsDocumentNoteEditing(false)
   }
 
+  const handleReadLaterTabClick = (tab: ReadLaterTab) => {
+    if (onReadLaterTabChange) {
+      onReadLaterTabChange(tab)
+      return
+    }
+
+    setInternalReadLaterTab(tab)
+  }
+
+  const handleSaveAnnotation = () => {
+    if (!editingAnnotationId || !onSaveAnnotationNote) {
+      return
+    }
+
+    onSaveAnnotationNote(editingAnnotationId, annotationNoteDraft)
+  }
+
+  const handleCancelAnnotation = () => {
+    setAnnotationNoteDraft(activeAnnotation?.note || '')
+    onCancelAnnotationEdit?.()
+  }
+
   return (
     <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}`}>
       <div className={`settings-panel__header${isReadLater ? ' settings-panel__header--reader' : ''}`}>
@@ -172,18 +231,18 @@ export default function SettingsPanel({
           <button
             type="button"
             role="tab"
-            aria-selected={readLaterTab === 'info'}
-            className={`settings-panel__tab${readLaterTab === 'info' ? ' is-active' : ''}`}
-            onClick={() => setReadLaterTab('info')}
+            aria-selected={currentReadLaterTab === 'info'}
+            className={`settings-panel__tab${currentReadLaterTab === 'info' ? ' is-active' : ''}`}
+            onClick={() => handleReadLaterTabClick('info')}
           >
             信息
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={readLaterTab === 'commentary'}
-            className={`settings-panel__tab${readLaterTab === 'commentary' ? ' is-active' : ''}`}
-            onClick={() => setReadLaterTab('commentary')}
+            aria-selected={currentReadLaterTab === 'commentary'}
+            className={`settings-panel__tab${currentReadLaterTab === 'commentary' ? ' is-active' : ''}`}
+            onClick={() => handleReadLaterTabClick('commentary')}
           >
             评论
           </button>
@@ -372,7 +431,7 @@ export default function SettingsPanel({
         </div>
       ) : null}
 
-      {isReadLater && readLaterTab === 'commentary' ? (
+      {isReadLater && currentReadLaterTab === 'commentary' ? (
         <div className="settings-panel__section-stack settings-panel__section-stack--reader settings-panel__section-stack--commentary">
           <section className="settings-panel__document-note" aria-label="Document note 区域">
             <div className="settings-panel__document-note-header">
@@ -400,6 +459,77 @@ export default function SettingsPanel({
               <button type="button" aria-label="Document note" className="settings-panel__document-note-entry" onClick={handleOpenDocumentNoteEditor}>
                 {readLaterSections?.commentary?.trim() || 'Add a document note...'}
               </button>
+            )}
+          </section>
+
+          <section className="settings-panel__annotation-group" aria-label="Highlights">
+            <div className="settings-panel__document-note-header">
+              <span className="settings-panel__document-note-label">Highlights</span>
+            </div>
+
+            {annotations.length > 0 ? (
+              <div className="settings-panel__annotation-list">
+                {annotations.map((annotation) => {
+                  const isActive = annotation.id === activeAnnotationId
+                  const isEditing = annotation.id === editingAnnotationId
+
+                  return (
+                    <article
+                      key={annotation.id}
+                      className={`settings-panel__annotation-card${isActive ? ' is-active' : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className="settings-panel__annotation-card-trigger"
+                        onClick={() => onSelectAnnotation?.(annotation.id)}
+                      >
+                        <span className="settings-panel__annotation-quote">
+                          {getAnnotationPreviewText(annotation)}
+                        </span>
+                      </button>
+
+                      {isActive ? (
+                        <div className="settings-panel__annotation-note-block">
+                          <span className="settings-panel__annotation-note-label">Document note</span>
+                          {isEditing ? (
+                            <div className="settings-panel__document-note-editor settings-panel__document-note-editor--annotation">
+                              <textarea
+                                aria-label="Highlight document note"
+                                placeholder="Add a document note..."
+                                value={annotationNoteDraft}
+                                onChange={(event) => setAnnotationNoteDraft(event.target.value)}
+                              />
+                              <div className="settings-panel__document-note-actions">
+                                <button type="button" className="settings-panel__document-note-action" onClick={handleCancelAnnotation}>
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  className="settings-panel__document-note-action settings-panel__document-note-action--primary"
+                                  onClick={handleSaveAnnotation}
+                                >
+                                  Save
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              aria-label="Highlight document note"
+                              className="settings-panel__document-note-entry settings-panel__annotation-note-entry"
+                              onClick={() => onEditAnnotation?.(annotation.id)}
+                            >
+                              {annotation.note.trim() || 'Add a document note...'}
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="settings-panel__annotation-empty">选中文本后可在这里查看高亮和批注。</p>
             )}
           </section>
         </div>

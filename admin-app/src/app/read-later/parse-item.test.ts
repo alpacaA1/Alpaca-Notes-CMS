@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { getEditableReadLaterSections, parseReadLaterItem, parseReadLaterSections } from './parse-item'
 
+const annotation = {
+  id: 'annotation-1',
+  sectionKey: 'articleExcerpt',
+  quote: '摘录第一段',
+  prefix: '',
+  suffix: '总结第二段',
+  note: '一条批注',
+  createdAt: '2026-04-29T08:00:00.000Z',
+  updatedAt: '2026-04-29T08:00:00.000Z',
+}
+
 const readLaterContent = `---
 title: Read later article
 permalink: read-later/read-later-article/
@@ -73,5 +84,20 @@ describe('parse read-later item', () => {
     })
 
     expect(item.frontmatter.reading_status).toBe('unread')
+  })
+
+  it('decodes reader annotations from frontmatter', () => {
+    const encodedAnnotation = encodeURIComponent(JSON.stringify(annotation))
+    const item = parseReadLaterItem({
+      path: 'source/read-later-items/annotated.md',
+      sha: 'sha-annotated',
+      content: readLaterContent.replace(
+        'tags:\n  - 设计\n  - 系统',
+        `reader_annotations:\n  - ${encodedAnnotation}\ntags:\n  - 设计\n  - 系统`,
+      ),
+    })
+
+    expect(item.annotations).toEqual([annotation])
+    expect(item.frontmatter.reader_annotations).toEqual([encodedAnnotation])
   })
 })

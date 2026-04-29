@@ -26,6 +26,7 @@ import { createNewReadLaterItem } from './read-later/new-item'
 import { importReadLaterFromUrl } from './read-later/import-client'
 import { parseReadLaterItem } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
+import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
 import { createNewPost } from './posts/new-post'
 import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
@@ -36,6 +37,9 @@ import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromConte
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
 type ContentType = 'post' | 'read-later'
+type ReadLaterTab = 'info' | 'commentary'
+type ReadLaterAnnotationAction = 'highlight' | 'note'
+type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote' | 'prefix' | 'suffix'>
 type TaxonomyType = 'categories' | 'tags'
 type TaxonomyConfirmAction =
   | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
@@ -48,6 +52,10 @@ type PostDeleteConfirmAction = {
 
 const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
+
+function createReadLaterAnnotationId() {
+  return `annotation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+}
 
 function EmptyState({ error }: { error: string | null }) {
   return (
@@ -91,6 +99,9 @@ export default function App() {
   const [isTogglingPinned, setIsTogglingPinned] = useState(false)
   const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
+  const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
+  const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
   const {
     document,
     mode,
@@ -102,6 +113,7 @@ export default function App() {
     replaceDocument,
     updateFrontmatter,
     updateBody,
+    updateReadLaterAnnotations,
     validate,
     markSaved,
   } = useEditorDocument()
@@ -121,6 +133,16 @@ export default function App() {
     () => collectPostIndexFacets(posts),
     [posts],
   )
+  const readLaterAnnotations = useMemo(
+    () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
+    [document],
+  )
+
+  useEffect(() => {
+    setReadLaterTab('info')
+    setActiveAnnotationId(null)
+    setEditingAnnotationId(null)
+  }, [document?.path, document?.contentType])
 
   const revokePreviewObjectUrls = () => {
     if (typeof URL.revokeObjectURL === 'function') {
@@ -473,7 +495,7 @@ export default function App() {
     setError(null)
 
     try {
-      const content = contentType === 'read-later' ? serializeReadLaterItem(document as ParsedPost & { contentType: 'read-later' }) : serializePost(document)
+      const content = contentType === 'read-later' ? serializeReadLaterItem(document as ParsedReadLaterItem) : serializePost(document)
       const savedFile = await saveMarkdownFile(session, {
         path: document.path,
         sha: document.sha || undefined,
@@ -548,6 +570,69 @@ export default function App() {
     updateBody(value)
   }
 
+  const handleReadLaterTabChange = (value: ReadLaterTab) => {
+    setReadLaterTab(value)
+    if (value !== 'commentary') {
+      setEditingAnnotationId(null)
+    }
+  }
+
+  const handleSelectAnnotation = (annotationId: string) => {
+    setReadLaterTab('commentary')
+    setActiveAnnotationId(annotationId)
+    setEditingAnnotationId(null)
+  }
+
+  const handleOpenAnnotationNote = (annotationId: string) => {
+    setReadLaterTab('commentary')
+    setActiveAnnotationId(annotationId)
+    setEditingAnnotationId(annotationId)
+  }
+
+  const handleSaveAnnotationNote = (annotationId: string, note: string) => {
+    const nextAnnotations = readLaterAnnotations.map((annotation) =>
+      annotation.id === annotationId
+        ? {
+            ...annotation,
+            note,
+            updatedAt: new Date().toISOString(),
+          }
+        : annotation,
+    )
+
+    clearSuccessMessageOnDirty()
+    updateReadLaterAnnotations(nextAnnotations)
+    setActiveAnnotationId(annotationId)
+    setEditingAnnotationId(null)
+  }
+
+  const handleCreateReadLaterAnnotation = (
+    draft: ReadLaterAnnotationDraft,
+    action: ReadLaterAnnotationAction,
+  ) => {
+    if (!document || document.contentType !== 'read-later') {
+      return
+    }
+
+    const timestamp = new Date().toISOString()
+    const annotation: ReadLaterAnnotation = {
+      id: createReadLaterAnnotationId(),
+      quote: draft.quote,
+      prefix: draft.prefix,
+      suffix: draft.suffix,
+      sectionKey: draft.sectionKey,
+      note: '',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    }
+
+    clearSuccessMessageOnDirty()
+    updateReadLaterAnnotations([...readLaterAnnotations, annotation])
+    setReadLaterTab('commentary')
+    setActiveAnnotationId(annotation.id)
+    setEditingAnnotationId(action === 'note' ? annotation.id : null)
+  }
+
   const handleUploadImage = async (file: File) => {
     if (!session) {
       throw new Error('GitHub 会话已过期，请重新登录。')
@@ -601,8 +686,12 @@ export default function App() {
 
     const currentBody = document.body.trim()
     const defaultBody = createNewReadLaterItem(new Date(document.frontmatter.date || Date.now())).body.trim()
+    const hasAnnotations = (document.annotations || []).length > 0
     const shouldConfirmOverwrite = currentBody.length > 0 && currentBody !== defaultBody
-    if (shouldConfirmOverwrite && !window.confirm('当前正文将被导入内容覆盖，确认继续吗？')) {
+    if (
+      shouldConfirmOverwrite &&
+      !window.confirm(hasAnnotations ? '当前正文和高亮批注将被导入内容覆盖，确认继续吗？' : '当前正文将被导入内容覆盖，确认继续吗？')
+    ) {
       return
     }
 
@@ -613,6 +702,10 @@ export default function App() {
     try {
       const imported = await importReadLaterFromUrl(session, externalUrl)
       updateBody(imported.markdown)
+      updateReadLaterAnnotations([])
+      setReadLaterTab('info')
+      setActiveAnnotationId(null)
+      setEditingAnnotationId(null)
 
       if (!document.frontmatter.title.trim() && imported.title) {
         updateFrontmatter('title', imported.title)
@@ -939,6 +1032,10 @@ export default function App() {
                       readingStatus={document.frontmatter.reading_status}
                       contentType={document.contentType}
                       previewImageUrls={previewImageUrls}
+                      annotations={readLaterAnnotations}
+                      activeAnnotationId={activeAnnotationId}
+                      onCreateAnnotation={handleCreateReadLaterAnnotation}
+                      onSelectAnnotation={handleSelectAnnotation}
                     />
                   ) : (
                     <MarkdownEditor
@@ -976,6 +1073,15 @@ export default function App() {
                 onImportFromUrl={() => { void handleImportFromUrl() }}
                 isImportingFromUrl={isImportingFromUrl}
                 previewImageUrls={previewImageUrls}
+                readLaterTab={readLaterTab}
+                onReadLaterTabChange={handleReadLaterTabChange}
+                annotations={readLaterAnnotations}
+                activeAnnotationId={activeAnnotationId}
+                editingAnnotationId={editingAnnotationId}
+                onSelectAnnotation={handleSelectAnnotation}
+                onEditAnnotation={handleOpenAnnotationNote}
+                onSaveAnnotationNote={handleSaveAnnotationNote}
+                onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
               />
             ) : null}
           </section>

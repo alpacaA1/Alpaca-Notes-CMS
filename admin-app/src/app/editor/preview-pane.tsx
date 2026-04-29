@@ -1,8 +1,20 @@
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import type { ReadingStatus } from '../posts/parse-post'
+import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
+import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { extractMarkdownHeadings, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ContentType = 'post' | 'read-later'
+
+type ReadLaterAnnotationAction = 'highlight' | 'note'
+
+type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote' | 'prefix' | 'suffix'>
+
+type SelectionToolbarState = {
+  top: number
+  left: number
+  draft: ReadLaterAnnotationDraft
+}
 
 type PreviewPaneProps = {
   title: string
@@ -15,6 +27,10 @@ type PreviewPaneProps = {
   readingStatus?: ReadingStatus
   contentType?: ContentType
   previewImageUrls?: Record<string, string>
+  annotations?: ReadLaterAnnotation[]
+  activeAnnotationId?: string | null
+  onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
+  onSelectAnnotation?: (annotationId: string) => void
 }
 
 const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
@@ -51,6 +67,229 @@ const BALANCED_BARE_URL_PAIRS = [
   ['{', '}'],
   ['｛', '｝'],
 ] as const
+const ANNOTATION_CONTEXT_LENGTH = 48
+
+function isReadLaterSectionKey(value: string | undefined): value is ReadLaterSectionKey {
+  return value === 'articleExcerpt' || value === 'summary' || value === 'commentary'
+}
+
+function clearSelection() {
+  window.getSelection()?.removeAllRanges()
+}
+
+function unwrapHighlight(mark: HTMLElement) {
+  const parent = mark.parentNode
+  if (!parent) {
+    return
+  }
+
+  parent.replaceChild(mark.ownerDocument.createTextNode(mark.textContent || ''), mark)
+  parent.normalize()
+}
+
+function collectTextNodes(root: Node) {
+  const nodes: Text[] = []
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let currentNode = walker.nextNode()
+
+  while (currentNode) {
+    if (currentNode.textContent) {
+      nodes.push(currentNode as Text)
+    }
+    currentNode = walker.nextNode()
+  }
+
+  return nodes
+}
+
+function getBoundaryTextOffset(root: HTMLElement, container: Node, offset: number) {
+  const textNodes = collectTextNodes(root)
+  let currentOffset = 0
+
+  for (const textNode of textNodes) {
+    if (textNode === container) {
+      return currentOffset + offset
+    }
+
+    currentOffset += textNode.textContent?.length || 0
+  }
+
+  const range = root.ownerDocument.createRange()
+  range.setStart(root, 0)
+
+  try {
+    range.setEnd(container, offset)
+  } catch {
+    return null
+  }
+
+  return range.toString().length
+}
+
+function findAnnotationTextRange(fullText: string, annotation: ReadLaterAnnotation) {
+  let searchFrom = 0
+
+  while (searchFrom <= fullText.length) {
+    const start = fullText.indexOf(annotation.quote, searchFrom)
+    if (start === -1) {
+      return null
+    }
+
+    const end = start + annotation.quote.length
+    const prefixMatches = !annotation.prefix || fullText.slice(Math.max(0, start - annotation.prefix.length), start) === annotation.prefix
+    const suffixMatches = !annotation.suffix || fullText.slice(end, end + annotation.suffix.length) === annotation.suffix
+
+    if (prefixMatches && suffixMatches) {
+      return { start, end }
+    }
+
+    searchFrom = start + 1
+  }
+
+  return null
+}
+
+function highlightAnnotationInSection(
+  sectionRoot: HTMLElement,
+  annotation: ReadLaterAnnotation,
+  isActive: boolean,
+  onSelectAnnotation?: (annotationId: string) => void,
+) {
+  const fullText = sectionRoot.textContent || ''
+  if (!fullText) {
+    return
+  }
+
+  const range = findAnnotationTextRange(fullText, annotation)
+  if (!range || range.end <= range.start) {
+    return
+  }
+
+  const textNodes = collectTextNodes(sectionRoot)
+  let cursor = 0
+  const segments: Array<{ node: Text; start: number; end: number }> = []
+
+  for (const textNode of textNodes) {
+    const nodeLength = textNode.textContent?.length || 0
+    const nodeStart = cursor
+    const nodeEnd = cursor + nodeLength
+    const overlapStart = Math.max(range.start, nodeStart)
+    const overlapEnd = Math.min(range.end, nodeEnd)
+
+    if (overlapEnd > overlapStart) {
+      segments.push({
+        node: textNode,
+        start: overlapStart - nodeStart,
+        end: overlapEnd - nodeStart,
+      })
+    }
+
+    cursor = nodeEnd
+  }
+
+  segments.reverse().forEach((segment) => {
+    const sourceText = segment.node.textContent || ''
+    const before = sourceText.slice(0, segment.start)
+    const middle = sourceText.slice(segment.start, segment.end)
+    const after = sourceText.slice(segment.end)
+    if (!middle) {
+      return
+    }
+
+    const fragment = sectionRoot.ownerDocument.createDocumentFragment()
+    if (before) {
+      fragment.append(sectionRoot.ownerDocument.createTextNode(before))
+    }
+
+    const mark = sectionRoot.ownerDocument.createElement('mark')
+    mark.className = `preview-content__highlight${isActive ? ' is-active' : ''}`
+    mark.dataset.readerAnnotationId = annotation.id
+    mark.setAttribute('role', 'button')
+    mark.setAttribute('tabindex', '0')
+    mark.setAttribute('aria-label', `高亮：${annotation.quote.trim() || '未命名高亮'}`)
+    mark.textContent = middle
+    mark.onclick = () => {
+      clearSelection()
+      onSelectAnnotation?.(annotation.id)
+    }
+    mark.onkeydown = (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault()
+        clearSelection()
+        onSelectAnnotation?.(annotation.id)
+      }
+    }
+    fragment.append(mark)
+
+    if (after) {
+      fragment.append(sectionRoot.ownerDocument.createTextNode(after))
+    }
+
+    segment.node.parentNode?.replaceChild(fragment, segment.node)
+  })
+}
+
+function getClosestSectionElement(node: Node | null) {
+  if (!node) {
+    return null
+  }
+
+  if (node instanceof HTMLElement) {
+    return node.closest<HTMLElement>('[data-read-later-section-key]')
+  }
+
+  return node.parentElement?.closest<HTMLElement>('[data-read-later-section-key]') || null
+}
+
+function getSelectionToolbarState(selection: Selection) {
+  if (selection.rangeCount === 0 || selection.isCollapsed) {
+    return null
+  }
+
+  const range = selection.getRangeAt(0)
+  if (range.collapsed) {
+    return null
+  }
+
+  const startSection = getClosestSectionElement(range.startContainer)
+  const endSection = getClosestSectionElement(range.endContainer)
+  if (!startSection || startSection !== endSection) {
+    return null
+  }
+
+  const sectionKey = startSection.dataset.readLaterSectionKey
+  if (!isReadLaterSectionKey(sectionKey)) {
+    return null
+  }
+
+  const startOffset = getBoundaryTextOffset(startSection, range.startContainer, range.startOffset)
+  const endOffset = getBoundaryTextOffset(startSection, range.endContainer, range.endOffset)
+  if (startOffset === null || endOffset === null || endOffset <= startOffset) {
+    return null
+  }
+
+  const fullText = startSection.textContent || ''
+  const quote = fullText.slice(startOffset, endOffset)
+  if (!quote.trim()) {
+    return null
+  }
+
+  const rect = range.getBoundingClientRect()
+  if (!rect.width && !rect.height) {
+    return null
+  }
+
+  return {
+    top: Math.max(12, rect.top - 52),
+    left: rect.left + rect.width / 2,
+    draft: {
+      sectionKey,
+      quote,
+      prefix: fullText.slice(Math.max(0, startOffset - ANNOTATION_CONTEXT_LENGTH), startOffset),
+      suffix: fullText.slice(endOffset, Math.min(fullText.length, endOffset + ANNOTATION_CONTEXT_LENGTH)),
+    },
+  }
+}
 
 function sanitizeLinkHref(linkHref: string) {
   const trimmedHref = linkHref.trim()
@@ -552,15 +791,24 @@ function renderReadLaterSection(
   content: string,
   previewImageUrls: Record<string, string> | undefined,
   anchorId: string,
+  sectionKey: ReadLaterSectionKey,
 ) {
   if (!content.trim()) {
     return null
   }
 
   return (
-    <section key={title} id={anchorId} className="preview-content__section">
+    <section key={title} id={anchorId} className="preview-content__section" data-read-later-section-key={sectionKey}>
       <h2>{title}</h2>
       <div className="preview-content__section-body">{renderBlocks(content, previewImageUrls, anchorId)}</div>
+    </section>
+  )
+}
+
+function renderPlainReadLaterContent(markdown: string, previewImageUrls: Record<string, string> | undefined) {
+  return (
+    <section className="preview-content__section preview-content__section--plain" data-read-later-section-key="articleExcerpt">
+      <div className="preview-content__section-body">{renderBlocks(markdown, previewImageUrls, 'read-later-content')}</div>
     </section>
   )
 }
@@ -576,7 +824,13 @@ export default function PreviewPane({
   readingStatus,
   contentType = 'post',
   previewImageUrls,
+  annotations = [],
+  activeAnnotationId = null,
+  onCreateAnnotation,
+  onSelectAnnotation,
 }: PreviewPaneProps) {
+  const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
+  const articleRef = useRef<HTMLElement | null>(null)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const hasStructuredReadLaterSections = isReadLater
@@ -585,9 +839,86 @@ export default function PreviewPane({
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
 
+  useEffect(() => {
+    setSelectionToolbar(null)
+  }, [markdown, annotations, activeAnnotationId])
+
+  useEffect(() => {
+    const article = articleRef.current
+    if (!isReadLater || !article) {
+      return
+    }
+
+    article.querySelectorAll<HTMLElement>('mark[data-reader-annotation-id]').forEach(unwrapHighlight)
+
+    annotations.forEach((annotation) => {
+      const sectionRoot = article.querySelector<HTMLElement>(`[data-read-later-section-key="${annotation.sectionKey}"]`)
+      if (!sectionRoot) {
+        return
+      }
+
+      highlightAnnotationInSection(
+        sectionRoot,
+        annotation,
+        annotation.id === activeAnnotationId,
+        onSelectAnnotation,
+      )
+    })
+  }, [activeAnnotationId, annotations, isReadLater, markdown, onSelectAnnotation])
+
+  const handleSelectionChange = () => {
+    if (!isReadLater || !onCreateAnnotation) {
+      if (selectionToolbar) {
+        setSelectionToolbar(null)
+      }
+      return
+    }
+
+    const selection = window.getSelection()
+    if (!selection) {
+      setSelectionToolbar(null)
+      return
+    }
+
+    const nextToolbar = getSelectionToolbarState(selection)
+    setSelectionToolbar(nextToolbar)
+  }
+
+  const handleCreateAnnotationClick = (action: ReadLaterAnnotationAction) => {
+    if (!selectionToolbar || !onCreateAnnotation) {
+      return
+    }
+
+    onCreateAnnotation(selectionToolbar.draft, action)
+    clearSelection()
+    setSelectionToolbar(null)
+  }
+
   return (
     <section className="preview-pane preview-pane--reading-canvas">
-      <article className="preview-content" id="read-later-content">
+      {selectionToolbar ? (
+        <div
+          className="preview-content__selection-toolbar"
+          role="toolbar"
+          aria-label="文本批注工具栏"
+          style={{ top: `${selectionToolbar.top}px`, left: `${selectionToolbar.left}px` }}
+          onMouseDown={(event) => event.preventDefault()}
+        >
+          <button type="button" onClick={() => handleCreateAnnotationClick('highlight')}>
+            高亮
+          </button>
+          <button type="button" onClick={() => handleCreateAnnotationClick('note')}>
+            批注
+          </button>
+        </div>
+      ) : null}
+      <article
+        ref={articleRef}
+        className="preview-content"
+        id="read-later-content"
+        onMouseUp={handleSelectionChange}
+        onKeyUp={handleSelectionChange}
+      >
         <header className="preview-content__header">
           <h1>{title.trim() || '未命名草稿'}</h1>
           <p className="preview-content__date">{date}</p>
@@ -618,12 +949,32 @@ export default function PreviewPane({
         </header>
         {isReadLater && hasStructuredReadLaterSections ? (
           <div className="preview-content__sections">
-            {renderReadLaterSection('原文摘录', readLaterSections?.articleExcerpt || '', previewImageUrls, getReadLaterSectionAnchorId('articleExcerpt'))}
-            {renderReadLaterSection('我的总结', readLaterSections?.summary || '', previewImageUrls, getReadLaterSectionAnchorId('summary'))}
-            {renderReadLaterSection('我的评论', readLaterSections?.commentary || '', previewImageUrls, getReadLaterSectionAnchorId('commentary'))}
+            {renderReadLaterSection(
+              '原文摘录',
+              readLaterSections?.articleExcerpt || '',
+              previewImageUrls,
+              getReadLaterSectionAnchorId('articleExcerpt'),
+              'articleExcerpt',
+            )}
+            {renderReadLaterSection(
+              '我的总结',
+              readLaterSections?.summary || '',
+              previewImageUrls,
+              getReadLaterSectionAnchorId('summary'),
+              'summary',
+            )}
+            {renderReadLaterSection(
+              '我的评论',
+              readLaterSections?.commentary || '',
+              previewImageUrls,
+              getReadLaterSectionAnchorId('commentary'),
+              'commentary',
+            )}
           </div>
+        ) : isReadLater ? (
+          renderPlainReadLaterContent(markdown, previewImageUrls)
         ) : (
-          renderBlocks(markdown, previewImageUrls, isReadLater ? 'read-later-content' : undefined)
+          renderBlocks(markdown, previewImageUrls)
         )}
       </article>
     </section>

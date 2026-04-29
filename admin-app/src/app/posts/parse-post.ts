@@ -1,5 +1,18 @@
 export type ReadingStatus = 'unread' | 'reading' | 'done'
 
+export type ReadLaterSectionKey = 'articleExcerpt' | 'summary' | 'commentary'
+
+export type ReaderAnnotation = {
+  id: string
+  sectionKey: ReadLaterSectionKey
+  quote: string
+  prefix: string
+  suffix: string
+  note: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type PostFrontmatter = {
   title: string
   date: string
@@ -13,6 +26,7 @@ export type PostFrontmatter = {
   external_url?: string
   source_name?: string
   reading_status?: ReadingStatus
+  reader_annotations?: string[]
   read_later?: boolean
   nav_exclude?: boolean
   layout?: string
@@ -26,6 +40,7 @@ export type ParsedPost = {
   hasExplicitPublished: boolean
   hasExplicitPermalink: boolean
   contentType?: 'post' | 'read-later'
+  annotations?: ReaderAnnotation[]
 }
 
 function trimQuotes(value: string) {
@@ -66,6 +81,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const externalUrlRaw = readScalar(frontmatterBlock, 'external_url')
   const sourceNameRaw = readScalar(frontmatterBlock, 'source_name')
   const readingStatusRaw = readScalar(frontmatterBlock, 'reading_status')
+  const readerAnnotationsRaw = readList(frontmatterBlock, 'reader_annotations')
   const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
   const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
   const layoutRaw = readScalar(frontmatterBlock, 'layout')
@@ -92,6 +108,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(readingStatusRaw === 'unread' || readingStatusRaw === 'reading' || readingStatusRaw === 'done'
         ? { reading_status: readingStatusRaw }
         : {}),
+      ...(readerAnnotationsRaw.length > 0 ? { reader_annotations: readerAnnotationsRaw } : {}),
       ...(readLaterRaw === 'true' ? { read_later: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),

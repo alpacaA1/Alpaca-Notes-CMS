@@ -1,3 +1,4 @@
+import { decodeReadLaterAnnotations } from './item-types'
 import type { ParsedReadLaterItem, ReadLaterOutlineItem, ReadLaterSections } from './item-types'
 
 const READ_LATER_SECTION_OUTLINE = [
@@ -163,11 +164,14 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
   const sourceName = readScalar(frontmatterBlock, 'source_name') || ''
   const readingStatus = readScalar(frontmatterBlock, 'reading_status')
   const cover = readScalar(frontmatterBlock, 'cover')
+  const encodedAnnotations = readList(frontmatterBlock, 'reader_annotations')
+  const annotations = decodeReadLaterAnnotations(encodedAnnotations)
 
   return {
     path: input.path,
     sha: input.sha,
     body,
+    annotations,
     hasExplicitPublished: false,
     hasExplicitPermalink: true,
     contentType: 'read-later',
@@ -182,6 +186,7 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
       source_name: sourceName,
       reading_status:
         readingStatus === 'reading' || readingStatus === 'done' ? readingStatus : 'unread',
+      ...(encodedAnnotations.length > 0 ? { reader_annotations: encodedAnnotations } : {}),
       read_later: true,
       nav_exclude: true,
       layout: 'read-later-item',

@@ -94,6 +94,42 @@ layout: read-later-item
 ## 我的评论
 这里是我的评论。`
 
+function selectReadLaterText(text: string) {
+  const paragraph = screen.getByText(text)
+  const textNode = paragraph.firstChild
+
+  if (!textNode) {
+    throw new Error('Missing text node for read-later selection test.')
+  }
+
+  const range = document.createRange()
+  range.setStart(textNode, 0)
+  range.setEnd(textNode, text.length)
+  Object.defineProperty(range, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => ({
+      width: 80,
+      height: 24,
+      top: 120,
+      left: 160,
+      right: 240,
+      bottom: 144,
+      x: 160,
+      y: 120,
+      toJSON: () => ({}),
+    }),
+  })
+
+  const selection = window.getSelection()
+  if (!selection) {
+    throw new Error('Missing window selection for read-later selection test.')
+  }
+
+  selection.removeAllRanges()
+  selection.addRange(range)
+  fireEvent.mouseUp(paragraph)
+}
+
 describe('App editor modes', () => {
   afterEach(() => {
     cleanup()
@@ -208,6 +244,45 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
+    expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+  })
+
+  it('creates a read-later highlight note from text selection and opens the sidebar editor', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    await screen.findByText('这里是原文摘录。')
+
+    selectReadLaterText('这里是原文摘录。')
+    expect(await screen.findByRole('toolbar', { name: '文本批注工具栏' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '批注' }))
+
+    expect(await screen.findByRole('button', { name: '这里是原文摘录。' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '高亮：这里是原文摘录。' })).toBeTruthy()
+    expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Highlight document note'), { target: { value: '选区批注' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('选区批注')).toBeTruthy()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()

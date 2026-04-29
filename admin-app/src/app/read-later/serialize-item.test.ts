@@ -2,6 +2,17 @@ import { describe, expect, it } from 'vitest'
 import { createNewReadLaterItem } from './new-item'
 import { serializeReadLaterItem } from './serialize-item'
 
+const annotation = {
+  id: 'annotation-1',
+  sectionKey: 'articleExcerpt' as const,
+  quote: '高亮内容',
+  prefix: '前文',
+  suffix: '后文',
+  note: '一条批注',
+  createdAt: '2026-04-29T08:00:00.000Z',
+  updatedAt: '2026-04-29T08:00:00.000Z',
+}
+
 describe('serialize read-later item', () => {
   it('serializes required frontmatter fields and body', () => {
     const item = createNewReadLaterItem(new Date(2026, 3, 3, 6, 7, 8))
@@ -39,5 +50,12 @@ desc: 值得回看的文章
 
 ## 我的评论
 评论`)
+  })
+
+  it('serializes reader annotations into frontmatter', () => {
+    const item = createNewReadLaterItem(new Date(2026, 3, 3, 6, 7, 8))
+    item.annotations = [annotation]
+
+    expect(serializeReadLaterItem(item)).toContain(`reader_annotations:\n  - ${encodeURIComponent(JSON.stringify(annotation))}`)
   })
 })

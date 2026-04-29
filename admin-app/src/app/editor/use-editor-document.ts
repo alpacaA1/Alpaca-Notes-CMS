@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ParsedPost } from '../posts/parse-post'
 import { validatePostForSave } from '../posts/new-post'
 import type { PostValidationErrors } from '../posts/post-types'
+import { encodeReadLaterAnnotations } from '../read-later/item-types'
+import type { ReadLaterAnnotation } from '../read-later/item-types'
 
 type EditableDocument = ParsedPost
 
@@ -10,16 +12,42 @@ export type EditorMode = 'markdown' | 'preview'
 function clonePost(post: EditableDocument): EditableDocument {
   return {
     ...post,
+    ...(post.annotations ? { annotations: post.annotations.map((annotation) => ({ ...annotation })) } : {}),
     frontmatter: {
       ...post.frontmatter,
       categories: [...post.frontmatter.categories],
       tags: [...post.frontmatter.tags],
+      ...(post.frontmatter.reader_annotations ? { reader_annotations: [...post.frontmatter.reader_annotations] } : {}),
     },
   }
 }
 
 function sameStringArray(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index])
+}
+
+function sameAnnotations(left: ReadLaterAnnotation[] | undefined, right: ReadLaterAnnotation[] | undefined) {
+  if (!left && !right) {
+    return true
+  }
+
+  if (!left || !right || left.length !== right.length) {
+    return false
+  }
+
+  return left.every((annotation, index) => {
+    const other = right[index]
+    return (
+      annotation.id === other.id &&
+      annotation.sectionKey === other.sectionKey &&
+      annotation.quote === other.quote &&
+      annotation.prefix === other.prefix &&
+      annotation.suffix === other.suffix &&
+      annotation.note === other.note &&
+      annotation.createdAt === other.createdAt &&
+      annotation.updatedAt === other.updatedAt
+    )
+  })
 }
 
 function samePost(left: EditableDocument | null, right: EditableDocument | null) {
@@ -52,7 +80,9 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.nav_exclude === right.frontmatter.nav_exclude &&
     left.frontmatter.layout === right.frontmatter.layout &&
     sameStringArray(left.frontmatter.categories, right.frontmatter.categories) &&
-    sameStringArray(left.frontmatter.tags, right.frontmatter.tags)
+    sameStringArray(left.frontmatter.tags, right.frontmatter.tags) &&
+    sameStringArray(left.frontmatter.reader_annotations || [], right.frontmatter.reader_annotations || []) &&
+    sameAnnotations(left.annotations, right.annotations)
   )
 }
 
@@ -128,6 +158,25 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
     })
   }
 
+  const updateReadLaterAnnotations = (annotations: ReadLaterAnnotation[]) => {
+    setDraftPost((currentPost) => {
+      if (!currentPost || currentPost.contentType !== 'read-later') {
+        return currentPost
+      }
+
+      return {
+        ...currentPost,
+        annotations: annotations.map((annotation) => ({ ...annotation })),
+        frontmatter: {
+          ...currentPost.frontmatter,
+          ...(annotations.length > 0
+            ? { reader_annotations: encodeReadLaterAnnotations(annotations) }
+            : { reader_annotations: undefined }),
+        },
+      }
+    })
+  }
+
   const validate = (options?: { isNewPost?: boolean }) => {
     if (!draftPost) {
       return {}
@@ -159,6 +208,7 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
     replaceDocument,
     updateFrontmatter,
     updateBody,
+    updateReadLaterAnnotations,
     validate,
     markSaved,
   }
