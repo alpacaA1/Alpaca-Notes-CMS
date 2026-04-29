@@ -20,6 +20,7 @@ cover: https://example.com/cover.png
 date: 2026-04-03 06:07:08
 read_later: true
 nav_exclude: true
+pinned: true
 external_url: https://example.com/article
 source_name: Example Source
 reading_status: done
@@ -52,6 +53,7 @@ describe('parse read-later item', () => {
     expect(item.frontmatter.external_url).toBe('https://example.com/article')
     expect(item.frontmatter.source_name).toBe('Example Source')
     expect(item.frontmatter.reading_status).toBe('done')
+    expect(item.frontmatter.pinned).toBe(true)
     expect(item.frontmatter.tags).toEqual(['设计', '系统'])
     expect(item.frontmatter.categories).toEqual([])
     expect(item.frontmatter.cover).toBe('https://example.com/cover.png')

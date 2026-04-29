@@ -221,6 +221,40 @@ describe('App editor modes', () => {
     expect(container.querySelector('.editor-stack--reader')).toBeTruthy()
   })
 
+  it('pins the opened read-later item from the top bar', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'sha-read-later-editor-mode-pinned',
+    }))
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '置顶待读' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('pinned: true')
+    expect(await screen.findByRole('button', { name: '取消置顶待读' })).toBeTruthy()
+  })
+
   it('lets read-later reader hide and show the top bar', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])

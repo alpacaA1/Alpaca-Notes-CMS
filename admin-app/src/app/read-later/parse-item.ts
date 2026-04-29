@@ -160,6 +160,7 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
   const frontmatterBlock = match?.[1] || ''
   const body = (match?.[2] || input.content).replace(/^\n/, '')
   const permalink = readScalar(frontmatterBlock, 'permalink') || ''
+  const pinnedRaw = readScalar(frontmatterBlock, 'pinned')
   const externalUrl = readScalar(frontmatterBlock, 'external_url') || ''
   const sourceName = readScalar(frontmatterBlock, 'source_name') || ''
   const readingStatus = readScalar(frontmatterBlock, 'reading_status')
@@ -181,6 +182,7 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
       desc: readScalar(frontmatterBlock, 'desc') || '',
       categories: [],
       tags: readList(frontmatterBlock, 'tags'),
+      pinned: pinnedRaw === 'true',
       permalink,
       external_url: externalUrl,
       source_name: sourceName,

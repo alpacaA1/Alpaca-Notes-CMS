@@ -22,6 +22,7 @@ describe('serialize read-later item', () => {
     item.frontmatter.external_url = 'https://example.com/article'
     item.frontmatter.source_name = 'Example Source'
     item.frontmatter.reading_status = 'reading'
+    item.frontmatter.pinned = true
     item.frontmatter.cover = 'https://example.com/cover.png'
     item.body = '## 原文摘录\n摘录\n\n## 我的总结\n总结\n\n## 我的评论\n评论'
 
@@ -33,6 +34,7 @@ cover: https://example.com/cover.png
 date: 2026-04-03 06:07:08
 read_later: true
 nav_exclude: true
+pinned: true
 external_url: https://example.com/article
 source_name: Example Source
 reading_status: reading

@@ -20,6 +20,7 @@ export type ReadLaterFrontmatter = PostFrontmatter & {
   categories: string[]
   permalink: string
   cover?: string
+  pinned?: boolean
   external_url: string
   source_name: string
   reading_status: ReadingStatus

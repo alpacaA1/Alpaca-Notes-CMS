@@ -63,6 +63,37 @@ function createReadLaterAnnotationId() {
   return `annotation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | Pick<ParsedPost, 'contentType'>): ContentType {
+  return post.contentType === 'read-later' ? 'read-later' : 'post'
+}
+
+function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
+  const resolvedContentType = getContentTypeFromPostLike(document)
+
+  return {
+    path: document.path,
+    sha: document.sha,
+    title: document.frontmatter.title.trim() || '未命名草稿',
+    date: document.frontmatter.date,
+    desc: document.frontmatter.desc,
+    published: resolvedContentType === 'read-later' ? false : Boolean(document.frontmatter.published),
+    pinned: Boolean(document.frontmatter.pinned),
+    hasExplicitPublished: document.hasExplicitPublished,
+    categories: document.frontmatter.categories,
+    tags: document.frontmatter.tags,
+    permalink: document.frontmatter.permalink || null,
+    cover: document.frontmatter.cover || null,
+    contentType: resolvedContentType,
+    ...(resolvedContentType === 'read-later'
+      ? {
+          externalUrl: document.frontmatter.external_url || null,
+          sourceName: document.frontmatter.source_name || null,
+          readingStatus: document.frontmatter.reading_status || 'unread',
+        }
+      : {}),
+  }
+}
+
 function EmptyState({ error }: { error: string | null }) {
   return (
     <section className="hero-card">
@@ -147,6 +178,14 @@ export default function App() {
     () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
     [document],
   )
+  const activeDocumentPost = useMemo(() => {
+    if (!document) {
+      return null
+    }
+
+    const resolvedContentType = getContentTypeFromPostLike(document)
+    return postsByType[resolvedContentType].find((post) => post.path === document.path) || buildPostIndexItemFromDocument(document)
+  }, [document, postsByType])
 
   const updatePostsForType = useCallback((type: ContentType, updater: (currentPosts: PostIndexItem[]) => PostIndexItem[]) => {
     setPostsByType((currentPostsByType) => ({
@@ -429,13 +468,15 @@ export default function App() {
   }
 
   const handleTogglePinned = async (post: PostIndexItem) => {
-    if (!session || contentType !== 'post' || isTogglingPinned) {
+    const targetContentType = getContentTypeFromPostLike(post)
+
+    if (!session || isTogglingPinned) {
       return
     }
 
     if (document?.path === post.path && !canNavigateAway) {
       setSuccessMessage(null)
-      setError('当前文章有未保存的修改，请先保存后再置顶。')
+      setError(targetContentType === 'read-later' ? '当前待读有未保存的修改，请先保存后再置顶。' : '当前文章有未保存的修改，请先保存后再置顶。')
       return
     }
 
@@ -446,35 +487,40 @@ export default function App() {
 
     try {
       const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
-      const openedPost = parsePost(file)
-      const savedContent = serializePost({
+      const openedPost = targetContentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
+      const updatedDocument = {
         ...openedPost,
-        frontmatter: {
-          ...openedPost.frontmatter,
-          pinned: !openedPost.frontmatter.pinned,
-        },
-      })
-      const savedFile = await saveMarkdownFile(session, {
-        path: openedPost.path,
-        sha: openedPost.sha || undefined,
-        content: savedContent,
-      })
-      const savedDocument: ParsedPost = {
-        ...openedPost,
-        path: savedFile.path,
-        sha: savedFile.sha,
         frontmatter: {
           ...openedPost.frontmatter,
           pinned: !openedPost.frontmatter.pinned,
         },
       }
-      const savedPostIndexItem = parsePostIndexItem({
-        path: savedFile.path,
-        sha: savedFile.sha,
+      const savedContent = targetContentType === 'read-later'
+        ? serializeReadLaterItem(updatedDocument as ParsedReadLaterItem)
+        : serializePost(updatedDocument)
+      const savedFile = await saveMarkdownFile(session, {
+        path: updatedDocument.path,
+        sha: updatedDocument.sha || undefined,
         content: savedContent,
       })
+      const savedDocument: ParsedPost = {
+        ...updatedDocument,
+        path: savedFile.path,
+        sha: savedFile.sha,
+      }
+      const savedPostIndexItem = targetContentType === 'read-later'
+        ? parseReadLaterIndexItem({
+            path: savedFile.path,
+            sha: savedFile.sha,
+            content: savedContent,
+          })
+        : parsePostIndexItem({
+            path: savedFile.path,
+            sha: savedFile.sha,
+            content: savedContent,
+          })
 
-      updatePostsForType('post', (currentPosts) =>
+      updatePostsForType(targetContentType, (currentPosts) =>
         sortPostIndex(
           [
             ...currentPosts.filter((currentPost) => currentPost.path !== post.path && currentPost.path !== savedFile.path),
@@ -501,7 +547,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : '更新文章置顶状态失败。')
+      setError(caughtError instanceof Error ? caughtError.message : targetContentType === 'read-later' ? '更新待读置顶状态失败。' : '更新文章置顶状态失败。')
     } finally {
       setIsTogglingPinned(false)
       setTogglingPinnedPostPath(null)
@@ -1009,6 +1055,19 @@ export default function App() {
           }}
           contentType={contentType}
           searchInputRef={searchInputRef}
+          currentActionContentType={activeDocumentPost ? getContentTypeFromPostLike(activeDocumentPost) : null}
+          isCurrentPinned={Boolean(activeDocumentPost?.pinned)}
+          isPinningCurrent={Boolean(activeDocumentPost && isTogglingPinned && togglingPinnedPostPath === activeDocumentPost.path)}
+          isPinActionDisabled={
+            !activeDocumentPost?.sha ||
+            isDeletingPost ||
+            isTogglingPinned ||
+            (Boolean(activeDocumentPost) && activeDocumentPost.path === document?.path && !canNavigateAway)
+          }
+          onTogglePinnedCurrent={activeDocumentPost ? () => { void handleTogglePinned(activeDocumentPost) } : undefined}
+          isDeletingCurrent={Boolean(activeDocumentPost && isDeletingPost && deletingPostPath === activeDocumentPost.path)}
+          isDeleteActionDisabled={!activeDocumentPost?.sha || isDeletingPost || isTogglingPinned}
+          onDeleteCurrent={activeDocumentPost ? () => handleDeletePost(activeDocumentPost) : undefined}
         />
       ) : null}
       {isDashboard ? (

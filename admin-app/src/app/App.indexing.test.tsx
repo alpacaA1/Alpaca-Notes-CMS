@@ -79,7 +79,7 @@ describe('App indexing flow', () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
@@ -102,7 +102,7 @@ describe('App indexing flow', () => {
       .mockReturnValueOnce(revalidation.promise)
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue(readLaterIndexedPosts)
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
@@ -148,7 +148,7 @@ describe('App indexing flow', () => {
       content: openedPostContent,
     })
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
@@ -175,13 +175,13 @@ describe('App indexing flow', () => {
       sha: 'sha-2',
     }))
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '置顶文章' }))
+    fireEvent.click((container.querySelector('.post-list-item__pin-btn') as HTMLButtonElement))
 
     await waitFor(() => {
       expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
@@ -206,7 +206,7 @@ describe('App indexing flow', () => {
       sha: 'sha-2',
     }))
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
@@ -216,7 +216,7 @@ describe('App indexing flow', () => {
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
     expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
 
-    fireEvent.click(screen.getByRole('button', { name: '置顶文章' }))
+    fireEvent.click((container.querySelector('.post-list-item__pin-btn') as HTMLButtonElement))
 
     await waitFor(() => {
       expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
@@ -228,7 +228,7 @@ describe('App indexing flow', () => {
       expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(true)
     })
 
-    expect(screen.getByRole('button', { name: '取消置顶文章' })).toBeTruthy()
+    expect(screen.getAllByRole('button', { name: '取消置顶文章' }).length).toBeGreaterThan(0)
   })
 
   it('disables quick pinning for the active dirty document', async () => {
@@ -256,7 +256,7 @@ describe('App indexing flow', () => {
     fireEvent.change(editor, { target: { value: 'Changed body.' } })
 
     await waitFor(() => {
-      expect((screen.getByRole('button', { name: '置顶文章' }) as HTMLButtonElement).disabled).toBe(true)
+      expect(screen.getAllByRole('button', { name: '置顶文章' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
     })
 
     expect(saveMarkdownFile).not.toHaveBeenCalled()

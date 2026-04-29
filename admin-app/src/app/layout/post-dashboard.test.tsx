@@ -74,8 +74,10 @@ describe('post dashboard', () => {
     expect(onOpenPost).not.toHaveBeenCalled()
   })
 
-  it('does not render pin actions for read-later items', () => {
+  it('renders pin and delete actions for read-later items', () => {
     window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    const onDeletePost = vi.fn()
+    const onTogglePinned = vi.fn()
 
     render(
       <PostDashboard
@@ -85,12 +87,15 @@ describe('post dashboard', () => {
         contentType="read-later"
         onOpenPost={vi.fn()}
         onNewPost={vi.fn()}
-        onDeletePost={vi.fn()}
-        onTogglePinned={vi.fn()}
+        onDeletePost={onDeletePost}
+        onTogglePinned={onTogglePinned}
       />,
     )
 
-    expect(screen.queryByRole('button', { name: '置顶文章' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '删除文章' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '置顶待读' }))
+    expect(onTogglePinned).toHaveBeenCalledWith(readLaterPosts[0])
+
+    fireEvent.click(screen.getByRole('button', { name: '删除待读条目' }))
+    expect(onDeletePost).toHaveBeenCalledWith(readLaterPosts[0])
   })
 })

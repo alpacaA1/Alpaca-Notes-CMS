@@ -23,6 +23,7 @@ export function serializeReadLaterItem(item: ParsedReadLaterItem): string {
     `date: ${item.frontmatter.date}`,
     `read_later: true`,
     `nav_exclude: true`,
+    ...(item.frontmatter.pinned ? ['pinned: true'] : []),
     `external_url: ${item.frontmatter.external_url}`,
     `source_name: ${item.frontmatter.source_name}`,
     `reading_status: ${item.frontmatter.reading_status}`,

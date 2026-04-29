@@ -13,6 +13,14 @@ function getReadLaterStatusLabel(status?: ReadingStatus) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
 
+function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
+  if (contentType === 'read-later') {
+    return pinned ? '取消置顶待读' : '置顶待读'
+  }
+
+  return pinned ? '取消置顶文章' : '置顶文章'
+}
+
 type PostListPaneProps = {
   posts: PostIndexItem[]
   hidden: boolean
@@ -141,7 +149,7 @@ export default function PostListPane({
                     <span className={`post-status-badge post-status-badge--${statusTone}`}>
                       {statusLabel}
                     </span>
-                    {contentType === 'post' && post.pinned ? <span className="post-status-badge post-status-badge--pinned">置顶</span> : null}
+                    {post.pinned ? <span className="post-status-badge post-status-badge--pinned">置顶</span> : null}
                     <span>{post.date}</span>
                   </div>
                   <strong>{post.title}</strong>
@@ -152,18 +160,16 @@ export default function PostListPane({
                   </div>
                 </button>
                 <div className="post-list-item__side-actions">
-                  {contentType === 'post' ? (
-                    <button
-                      type="button"
-                      className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
-                      onClick={() => onTogglePinned(post)}
-                      disabled={isPinnedToggleDisabled}
-                      aria-label={post.pinned ? '取消置顶文章' : '置顶文章'}
-                      title={disabledPinnedPostPath === post.path ? '当前文章有未保存修改，请先保存。' : post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
-                    >
-                      {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
+                    onClick={() => onTogglePinned(post)}
+                    disabled={isPinnedToggleDisabled}
+                    aria-label={getPinActionLabel(contentType, post.pinned)}
+                    title={disabledPinnedPostPath === post.path ? '当前内容有未保存修改，请先保存。' : post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
+                  >
+                    {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
+                  </button>
                   <button
                     type="button"
                     className="post-list-item__delete-btn"

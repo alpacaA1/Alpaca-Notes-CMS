@@ -334,6 +334,10 @@ describe('markdown editor', () => {
     expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*padding:\s*18px 24px;/s)
   })
 
+  it('keeps the editor workspace scrollable inside the fixed admin shell', () => {
+    expect(appStyles).toMatch(/\.admin-layout\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;/s)
+  })
+
   it('wraps selected text in bold markers with mod+b', () => {
     const editor = renderControlledEditor('hello')
 

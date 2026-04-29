@@ -1,4 +1,5 @@
 import { fetchMarkdownFile, listReadLaterFiles, readCachedMarkdownFile } from '../github-client'
+import { sortPostIndex } from '../posts/index-posts'
 import type { SessionState } from '../session'
 import type { ReadLaterIndexItem } from './item-types'
 
@@ -35,6 +36,7 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
   const title = readScalar(frontmatter, 'title') || input.path.split('/').pop() || input.path
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
+  const pinnedRaw = readScalar(frontmatter, 'pinned')
   const permalink = readScalar(frontmatter, 'permalink')
   const cover = readScalar(frontmatter, 'cover')
   const externalUrl = readScalar(frontmatter, 'external_url')
@@ -48,6 +50,7 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
     date,
     desc,
     published: false,
+    pinned: pinnedRaw === 'true',
     hasExplicitPublished: false,
     categories: [],
     tags: readList(frontmatter, 'tags'),
@@ -67,5 +70,5 @@ export async function buildReadLaterIndex(session: SessionState): Promise<ReadLa
     files.map(async (file) => parseReadLaterIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchMarkdownFile(session, file.path))),
   )
 
-  return [...items].sort((left, right) => right.date.localeCompare(left.date))
+  return sortPostIndex(items, 'date-desc') as ReadLaterIndexItem[]
 }

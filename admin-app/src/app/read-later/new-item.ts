@@ -31,6 +31,7 @@ export function createNewReadLaterItem(date = new Date()): ParsedReadLaterItem {
       desc: '',
       categories: [],
       tags: [],
+      pinned: false,
       permalink: `read-later/${timestamp}/`,
       external_url: '',
       source_name: '',

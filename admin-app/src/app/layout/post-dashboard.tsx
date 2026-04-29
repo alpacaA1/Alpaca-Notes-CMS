@@ -86,6 +86,14 @@ function getStatusLabel(post: PostIndexItem, contentType: ContentType) {
   return post.published ? '已发布' : '草稿'
 }
 
+function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
+  if (contentType === 'read-later') {
+    return pinned ? '取消置顶待读' : '置顶待读'
+  }
+
+  return pinned ? '取消置顶文章' : '置顶文章'
+}
+
 function GridIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -146,7 +154,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
-  const showQuickActions = contentType === 'post'
+  const showQuickActions = true
 
   const { categories, tags: availableTags } = useMemo(() => collectPostIndexFacets(posts), [posts])
 
@@ -544,7 +552,7 @@ export default function PostDashboard({
                       className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
                       onClick={() => onTogglePinned(post)}
                       disabled={isPinnedToggleDisabled}
-                      aria-label={post.pinned ? '取消置顶文章' : '置顶文章'}
+                      aria-label={getPinActionLabel(contentType, post.pinned)}
                       title={post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
                     >
                       {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
@@ -554,7 +562,7 @@ export default function PostDashboard({
                       className="post-list-item__delete-btn"
                       onClick={() => onDeletePost(post)}
                       disabled={isDeleting}
-                      aria-label="删除文章"
+                      aria-label={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
                       title={`删除《${post.title}》`}
                     >
                       {isDeletingThisPost ? '删除中…' : '删除'}

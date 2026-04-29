@@ -24,6 +24,7 @@ permalink: read-later/second/
 date: 2026-04-04 12:00:00
 read_later: true
 nav_exclude: true
+pinned: true
 external_url: https://example.com/second
 source_name: Source B
 reading_status: done
@@ -54,6 +55,7 @@ describe('read-later index helpers', () => {
       date: '2026-04-03 12:00:00',
       desc: 'First desc',
       published: false,
+      pinned: false,
       hasExplicitPublished: false,
       categories: [],
       tags: ['设计'],
@@ -66,7 +68,7 @@ describe('read-later index helpers', () => {
     })
   })
 
-  it('builds a date-desc sorted read-later index', async () => {
+  it('sorts pinned read-later items ahead of newer unpinned items', async () => {
     vi.spyOn(githubClientModule, 'listReadLaterFiles').mockResolvedValue([
       { path: 'source/read-later-items/first.md', sha: 'sha-first', name: 'first.md', type: 'file' },
       { path: 'source/read-later-items/second.md', sha: 'sha-second', name: 'second.md', type: 'file' },
@@ -78,6 +80,7 @@ describe('read-later index helpers', () => {
     const items = await buildReadLaterIndex({ token: 'token' })
 
     expect(items.map((item) => item.title)).toEqual(['Second article', 'First article'])
+    expect(items[0]?.pinned).toBe(true)
   })
 
   it('builds the read-later index from sha-matched cached markdown without refetching files', async () => {

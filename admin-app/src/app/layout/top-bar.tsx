@@ -42,6 +42,14 @@ type TopBarProps = {
   isSaveDisabled: boolean
   isSaveQuiet: boolean
   status: string
+  currentActionContentType?: ContentType | null
+  isCurrentPinned?: boolean
+  isPinningCurrent?: boolean
+  isPinActionDisabled?: boolean
+  onTogglePinnedCurrent?: () => void
+  isDeletingCurrent?: boolean
+  isDeleteActionDisabled?: boolean
+  onDeleteCurrent?: () => void
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
@@ -69,12 +77,25 @@ export default function TopBar({
   isSaveDisabled,
   isSaveQuiet,
   status,
+  currentActionContentType = null,
+  isCurrentPinned = false,
+  isPinningCurrent = false,
+  isPinActionDisabled = false,
+  onTogglePinnedCurrent,
+  isDeletingCurrent = false,
+  isDeleteActionDisabled = false,
+  onDeleteCurrent,
 }: TopBarProps) {
   const isDashboard = adminView === 'dashboard'
   const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
   const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
+  const showCurrentDocumentActions = !isDashboard && currentActionContentType && onTogglePinnedCurrent && onDeleteCurrent
+  const pinActionLabel = currentActionContentType === 'read-later'
+    ? (isCurrentPinned ? '取消置顶待读' : '置顶待读')
+    : (isCurrentPinned ? '取消置顶文章' : '置顶文章')
+  const deleteActionLabel = currentActionContentType === 'read-later' ? '删除待读条目' : '删除文章'
 
   return (
     <header className="top-bar">
@@ -145,6 +166,28 @@ export default function TopBar({
           </button>
           {!isDashboard ? (
             <>
+              {showCurrentDocumentActions ? (
+                <button
+                  className={`top-bar__button${isCurrentPinned ? ' top-bar__button--active' : ''}`}
+                  type="button"
+                  onClick={onTogglePinnedCurrent}
+                  disabled={isPinActionDisabled}
+                  aria-label={pinActionLabel}
+                >
+                  {isPinningCurrent ? '处理中…' : isCurrentPinned ? '已置顶' : '置顶'}
+                </button>
+              ) : null}
+              {showCurrentDocumentActions ? (
+                <button
+                  className="top-bar__button top-bar__button--danger"
+                  type="button"
+                  onClick={onDeleteCurrent}
+                  disabled={isDeleteActionDisabled}
+                  aria-label={deleteActionLabel}
+                >
+                  {isDeletingCurrent ? '删除中…' : '删除'}
+                </button>
+              ) : null}
               <button
                 className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
                 type="button"

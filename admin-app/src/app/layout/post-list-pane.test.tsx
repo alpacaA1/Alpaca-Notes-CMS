@@ -197,7 +197,7 @@ describe('management layout components', () => {
     expect(screen.getByText('已读')).toBeTruthy()
     expect(screen.getByText('Example Design')).toBeTruthy()
     expect(screen.getByText('https://example.com/design')).toBeTruthy()
-    expect(screen.queryByRole('button', { name: '置顶文章' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: '置顶待读' })).toHaveLength(3)
 
     const badges = screen.getAllByText(/未读|在读|已读/)
     expect(badges[0].className).toContain('post-status-badge--reading')
@@ -308,6 +308,36 @@ describe('management layout components', () => {
 
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
+  })
+
+  it('shows current read-later actions in the top bar when an item is open', () => {
+    render(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="read-later"
+        isPreviewing={true}
+        hasActiveDocument={true}
+        saveLabel="保存"
+        isSaveDisabled={false}
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="editor"
+        isDarkMode={false}
+        currentActionContentType="read-later"
+        onTogglePinnedCurrent={vi.fn()}
+        onDeleteCurrent={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '置顶待读' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '删除待读条目' })).toBeTruthy()
   })
 
   it('switches content type via the redesigned radio cards', () => {

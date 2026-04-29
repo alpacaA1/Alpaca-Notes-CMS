@@ -21,6 +21,7 @@ describe('read-later new item helpers', () => {
       desc: '',
       categories: [],
       tags: [],
+      pinned: false,
       permalink: 'read-later/20260403060708/',
       external_url: '',
       source_name: '',

@@ -360,6 +360,30 @@ textarea {
   color: #efc28f;
 }
 
+.admin-shell--dark .top-bar__button--active {
+  background: rgba(228, 163, 88, 0.14);
+  border-color: rgba(228, 163, 88, 0.32);
+  color: #efc28f;
+}
+
+.admin-shell--dark .top-bar__button--active:hover {
+  background: rgba(228, 163, 88, 0.2);
+  border-color: rgba(228, 163, 88, 0.42);
+  color: #f3cf9f;
+}
+
+.admin-shell--dark .top-bar__button--danger {
+  background: rgba(193, 108, 95, 0.12);
+  border-color: rgba(193, 108, 95, 0.28);
+  color: #f0b4ab;
+}
+
+.admin-shell--dark .top-bar__button--danger:hover {
+  background: rgba(193, 108, 95, 0.18);
+  border-color: rgba(193, 108, 95, 0.4);
+  color: #ffd0ca;
+}
+
 .admin-shell--dark .top-bar__button--save {
   background: linear-gradient(180deg, #e4a358, #d89040);
   border-color: #d89040;
@@ -881,10 +905,14 @@ textarea {
   position: relative;
   z-index: 1;
   min-height: 0;
+  height: 100%;
   display: grid;
   grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
   gap: 28px;
   padding: 24px 32px 32px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .admin-layout--reader {
@@ -1171,6 +1199,30 @@ textarea {
   box-shadow: 0 12px 24px rgba(54, 42, 28, 0.08);
 }
 
+.top-bar__button--active {
+  border-color: rgba(190, 142, 49, 0.4);
+  background: rgba(190, 142, 49, 0.12);
+  color: #8d6921;
+}
+
+.top-bar__button--active:hover {
+  border-color: rgba(190, 142, 49, 0.56);
+  background: rgba(190, 142, 49, 0.18);
+  color: #6d5118;
+}
+
+.top-bar__button--danger {
+  border-color: rgba(193, 108, 95, 0.28);
+  background: rgba(193, 108, 95, 0.08);
+  color: #8a4f46;
+}
+
+.top-bar__button--danger:hover {
+  border-color: rgba(193, 108, 95, 0.5);
+  background: rgba(193, 108, 95, 0.14);
+  color: #723f38;
+}
+
 .top-bar__button--new-post {
   flex-shrink: 0;
   min-width: 126px;
@@ -1238,7 +1290,9 @@ textarea {
 }
 
 .top-bar__button--theme,
+.top-bar__button--active,
 .top-bar__button--quiet,
+.top-bar__button--danger,
 .top-bar__button--save,
 .top-bar__button--back,
 .top-bar__button--new-post {
@@ -1255,6 +1309,8 @@ textarea {
 }
 
 .top-bar__button--back,
+.top-bar__button--active,
+.top-bar__button--danger,
 .top-bar__button--save {
   min-width: 96px;
   padding-left: 18px;
