@@ -221,6 +221,42 @@ describe('App editor modes', () => {
     expect(container.querySelector('.editor-stack--reader')).toBeTruthy()
   })
 
+  it('lets read-later reader hide and show the top bar', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    const { container } = render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    await screen.findByText('这里是原文摘录。')
+
+    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '隐藏顶部栏' }))
+
+    expect(screen.queryByRole('textbox', { name: '搜索' })).toBeNull()
+    expect(screen.getByRole('button', { name: '显示顶部栏' })).toBeTruthy()
+    expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '显示顶部栏' }))
+
+    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
+    expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeNull()
+  })
+
   it('scrolls the center reader when clicking outline links', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])

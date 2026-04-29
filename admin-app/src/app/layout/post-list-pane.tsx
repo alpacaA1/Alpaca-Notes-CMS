@@ -29,6 +29,8 @@ type PostListPaneProps = {
   onTogglePinned: (post: PostIndexItem) => void
   onBackToList?: () => void
   onNavigateOutline?: (targetId: string) => void
+  isTopBarHidden?: boolean
+  onToggleTopBar?: () => void
 }
 
 export default function PostListPane({
@@ -47,6 +49,8 @@ export default function PostListPane({
   onTogglePinned,
   onBackToList,
   onNavigateOutline,
+  isTopBarHidden = false,
+  onToggleTopBar,
 }: PostListPaneProps) {
   if (hidden) {
     return null
@@ -66,11 +70,23 @@ export default function PostListPane({
     return (
       <aside className="post-pane post-pane--reader">
         <div className="post-pane__header post-pane__header--reader-nav">
-          {onBackToList ? (
-            <button type="button" className="post-pane__back-link" onClick={onBackToList}>
-              ← 返回归档
-            </button>
-          ) : null}
+          <div className="post-pane__reader-actions">
+            {onBackToList ? (
+              <button type="button" className="post-pane__back-link" onClick={onBackToList}>
+                ← 返回归档
+              </button>
+            ) : null}
+            {onToggleTopBar ? (
+              <button
+                type="button"
+                className="post-pane__back-link"
+                onClick={onToggleTopBar}
+                aria-pressed={isTopBarHidden}
+              >
+                {isTopBarHidden ? '显示顶部栏' : '隐藏顶部栏'}
+              </button>
+            ) : null}
+          </div>
           <p className="post-pane__eyebrow post-pane__eyebrow--reader-nav">内容目录</p>
         </div>
 

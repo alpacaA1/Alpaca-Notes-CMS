@@ -210,6 +210,7 @@ describe('management layout components', () => {
 
   it('replaces the read-later list with a reader outline when a document is open', () => {
     const onBackToList = vi.fn()
+    const onToggleTopBar = vi.fn()
     render(
       <PostListPane
         posts={readLaterPosts}
@@ -220,12 +221,14 @@ describe('management layout components', () => {
         onDeletePost={vi.fn()}
         onTogglePinned={vi.fn()}
         onBackToList={onBackToList}
+        onToggleTopBar={onToggleTopBar}
       />,
     )
 
     expect(screen.getByText('内容目录')).toBeTruthy()
     expect(screen.queryByText('阅读导航')).toBeNull()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
     expect(screen.getByRole('navigation', { name: '文章目录' })).toBeTruthy()
     expect(screen.queryByText('阅读面板')).toBeNull()
     expect(screen.queryByRole('link', { name: '阅读原文 ↗' })).toBeNull()
@@ -235,6 +238,9 @@ describe('management layout components', () => {
     expect(screen.getByRole('link', { name: '我的总结' }).getAttribute('href')).toBe('#read-later-summary')
     expect(screen.queryByText('待读归档')).toBeNull()
     expect(screen.queryByRole('button', { name: '删除待读条目' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '隐藏顶部栏' }))
+    expect(onToggleTopBar).toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: '← 返回归档' }))
     expect(onBackToList).toHaveBeenCalled()

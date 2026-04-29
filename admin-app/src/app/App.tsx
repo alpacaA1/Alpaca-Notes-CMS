@@ -107,6 +107,7 @@ export default function App() {
   const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
+  const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
   const [annotationScrollRequest, setAnnotationScrollRequest] = useState(0)
@@ -160,6 +161,12 @@ export default function App() {
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
+
+  useEffect(() => {
+    if (!document || document.contentType !== 'read-later' || mode !== 'preview') {
+      setIsReadLaterTopBarHidden(false)
+    }
+  }, [document, mode])
 
   const revokePreviewObjectUrls = () => {
     if (typeof URL.revokeObjectURL === 'function') {
@@ -952,55 +959,58 @@ export default function App() {
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
+  const hideTopBar = isReadLaterPreview && isReadLaterTopBarHidden
   const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
 
   return (
-    <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}`}>
+    <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}${hideTopBar ? ' admin-shell--reader-top-bar-hidden' : ''}`}>
       <div className="admin-shell__glow admin-shell__glow--left" />
       <div className="admin-shell__glow admin-shell__glow--right" />
-      <TopBar
-        search={search}
-        onSearchChange={setSearch}
-        onNewPost={handleNewPost}
-        onSave={() => {
-          void handleSave()
-        }}
-        onTogglePreview={handleTogglePreview}
-        hasActiveDocument={Boolean(document)}
-        isPreviewing={isPreviewing}
-        isDarkMode={isDark}
-        saveLabel={saveLabel}
-        isSaveDisabled={isSaveDisabled}
-        isSaveQuiet={isSaveQuiet}
-        status={status}
-        onLogout={handleLogout}
-        onToggleColorMode={toggleColorMode}
-        adminView={adminView}
-        onBackToDashboard={handleBackToDashboard}
-        onContentTypeChange={(value) => {
-          if (value === contentType) {
-            return
-          }
-          if (!confirmNavigation()) {
-            return
-          }
-          resetPreviewImageUrls()
-          replaceDocument(null)
-          setActivePostPath(null)
-          setIsOpeningPost(false)
-          setIsImmersive(false)
-          setError(null)
-          setSuccessMessage(null)
-          setSearch('')
-          setContentType(value)
-          setAdminView('dashboard')
-        }}
-        contentType={contentType}
-        searchInputRef={searchInputRef}
-      />
+      {!hideTopBar ? (
+        <TopBar
+          search={search}
+          onSearchChange={setSearch}
+          onNewPost={handleNewPost}
+          onSave={() => {
+            void handleSave()
+          }}
+          onTogglePreview={handleTogglePreview}
+          hasActiveDocument={Boolean(document)}
+          isPreviewing={isPreviewing}
+          isDarkMode={isDark}
+          saveLabel={saveLabel}
+          isSaveDisabled={isSaveDisabled}
+          isSaveQuiet={isSaveQuiet}
+          status={status}
+          onLogout={handleLogout}
+          onToggleColorMode={toggleColorMode}
+          adminView={adminView}
+          onBackToDashboard={handleBackToDashboard}
+          onContentTypeChange={(value) => {
+            if (value === contentType) {
+              return
+            }
+            if (!confirmNavigation()) {
+              return
+            }
+            resetPreviewImageUrls()
+            replaceDocument(null)
+            setActivePostPath(null)
+            setIsOpeningPost(false)
+            setIsImmersive(false)
+            setError(null)
+            setSuccessMessage(null)
+            setSearch('')
+            setContentType(value)
+            setAdminView('dashboard')
+          }}
+          contentType={contentType}
+          searchInputRef={searchInputRef}
+        />
+      ) : null}
       {isDashboard ? (
         <>
           {successMessage ? <p className="success-message">{successMessage}</p> : null}
@@ -1039,6 +1049,8 @@ export default function App() {
             onTogglePinned={handleTogglePinned}
             onBackToList={handleBackToDashboard}
             onNavigateOutline={handleNavigateOutline}
+            isTopBarHidden={hideTopBar}
+            onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
           />
           <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReadLaterPreview ? ' editor-layout--reader' : ''}`}>
             <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
