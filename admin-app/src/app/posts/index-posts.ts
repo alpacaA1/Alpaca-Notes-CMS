@@ -1,4 +1,4 @@
-import { fetchPostFile, listPostFiles } from '../github-client'
+import { fetchPostFile, listPostFiles, readCachedMarkdownFile } from '../github-client'
 import type { SessionState } from '../session'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
@@ -64,7 +64,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
 export async function buildPostIndex(session: SessionState): Promise<PostIndexItem[]> {
   const files = await listPostFiles(session)
   const posts = await Promise.all(
-    files.map(async (file) => parsePostIndexItem(await fetchPostFile(session, file.path))),
+    files.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
   )
 
   return sortPostIndex(posts, 'date-desc')

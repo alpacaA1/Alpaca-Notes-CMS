@@ -1,4 +1,4 @@
-import { fetchMarkdownFile, listReadLaterFiles } from '../github-client'
+import { fetchMarkdownFile, listReadLaterFiles, readCachedMarkdownFile } from '../github-client'
 import type { SessionState } from '../session'
 import type { ReadLaterIndexItem } from './item-types'
 
@@ -64,7 +64,7 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
 export async function buildReadLaterIndex(session: SessionState): Promise<ReadLaterIndexItem[]> {
   const files = await listReadLaterFiles(session)
   const items = await Promise.all(
-    files.map(async (file) => parseReadLaterIndexItem(await fetchMarkdownFile(session, file.path))),
+    files.map(async (file) => parseReadLaterIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchMarkdownFile(session, file.path))),
   )
 
   return [...items].sort((left, right) => right.date.localeCompare(left.date))

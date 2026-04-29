@@ -885,8 +885,8 @@ textarea {
 }
 
 .admin-layout--reader {
-  min-height: calc(100vh - 116px);
-  height: calc(100vh - 116px);
+  min-height: 0;
+  height: 100%;
   align-items: stretch;
   overflow: hidden;
 }
@@ -2510,7 +2510,7 @@ textarea {
 .preview-pane--reading-canvas {
   width: 100%;
   margin: 0;
-  padding: 0;
+  padding: 16px clamp(12px, 2vw, 24px) 28px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -2929,7 +2929,7 @@ textarea {
   }
 
   .preview-pane--reading-canvas {
-    padding: 0;
+    padding: 10px 0 18px;
   }
 
   .editor-frame h1 {

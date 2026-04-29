@@ -162,6 +162,7 @@ function highlightAnnotationInSection(
   annotation: ReadLaterAnnotation,
   isActive: boolean,
   onSelectAnnotation?: (annotationId: string) => void,
+  onActivateAnnotationDelete?: (annotationId: string) => void,
 ) {
   const fullText = sectionRoot.textContent || ''
   if (!fullText) {
@@ -219,12 +220,14 @@ function highlightAnnotationInSection(
     mark.onclick = () => {
       clearSelection()
       onSelectAnnotation?.(annotation.id)
+      onActivateAnnotationDelete?.(annotation.id)
     }
     mark.onkeydown = (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         clearSelection()
         onSelectAnnotation?.(annotation.id)
+        onActivateAnnotationDelete?.(annotation.id)
       }
     }
     fragment.append(mark)
@@ -873,6 +876,7 @@ export default function PreviewPane({
   onDeleteAnnotation,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
+  const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
@@ -887,6 +891,24 @@ export default function PreviewPane({
   useEffect(() => {
     setSelectionToolbar(null)
   }, [markdown, annotations, activeAnnotationId])
+
+  useEffect(() => {
+    if (!annotationDeleteTargetId || annotations.some((annotation) => annotation.id === annotationDeleteTargetId)) {
+      return
+    }
+
+    setAnnotationDeleteTargetId(null)
+  }, [annotationDeleteTargetId, annotations])
+
+  useEffect(() => {
+    if (annotationDeleteTargetId && activeAnnotationId && activeAnnotationId !== annotationDeleteTargetId) {
+      setAnnotationDeleteTargetId(null)
+    }
+  }, [activeAnnotationId, annotationDeleteTargetId])
+
+  useEffect(() => {
+    setAnnotationDeleteTargetId(null)
+  }, [markdown])
 
   useEffect(() => {
     const article = articleRef.current
@@ -907,6 +929,7 @@ export default function PreviewPane({
         annotation,
         annotation.id === activeAnnotationId,
         onSelectAnnotation,
+        setAnnotationDeleteTargetId,
       )
     })
   }, [activeAnnotationId, annotations, isReadLater, markdown, onSelectAnnotation])
@@ -924,7 +947,7 @@ export default function PreviewPane({
   }, [activeAnnotationId, annotationScrollRequest, annotations.length, isReadLater])
 
   useEffect(() => {
-    if (!isReadLater || !activeAnnotationId) {
+    if (!isReadLater || !annotationDeleteTargetId) {
       setActiveAnnotationAction(null)
       return
     }
@@ -937,7 +960,7 @@ export default function PreviewPane({
     }
 
     const updateActionPosition = () => {
-      setActiveAnnotationAction(getActiveAnnotationActionPosition(article, activeAnnotationId))
+      setActiveAnnotationAction(getActiveAnnotationActionPosition(article, annotationDeleteTargetId))
     }
 
     updateActionPosition()
@@ -948,7 +971,7 @@ export default function PreviewPane({
       pane.removeEventListener('scroll', updateActionPosition)
       window.removeEventListener('resize', updateActionPosition)
     }
-  }, [activeAnnotationId, annotationScrollRequest, annotations, isReadLater, markdown])
+  }, [annotationDeleteTargetId, annotations, isReadLater, markdown])
 
   const handleSelectionChange = () => {
     if (!isReadLater || !onCreateAnnotation) {
@@ -976,6 +999,14 @@ export default function PreviewPane({
     onCreateAnnotation(selectionToolbar.draft, action)
     clearSelection()
     setSelectionToolbar(null)
+  }
+
+  const handleArticleClick = (event: ReactMouseEvent<HTMLElement>) => {
+    if ((event.target as HTMLElement).closest('mark[data-reader-annotation-id]')) {
+      return
+    }
+
+    setAnnotationDeleteTargetId(null)
   }
 
   const handleDeleteAnnotationClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -1022,6 +1053,7 @@ export default function PreviewPane({
         ref={articleRef}
         className="preview-content"
         id="read-later-content"
+        onClick={handleArticleClick}
         onMouseUp={handleSelectionChange}
         onKeyUp={handleSelectionChange}
       >

@@ -37,6 +37,7 @@ import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromConte
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
 type ContentType = 'post' | 'read-later'
+type IndexedPostsByType = Record<ContentType, PostIndexItem[]>
 type ReadLaterTab = 'info' | 'commentary'
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote' | 'prefix' | 'suffix'>
@@ -52,6 +53,10 @@ type PostDeleteConfirmAction = {
 
 const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
+
+function createEmptyIndexedPostsByType(): IndexedPostsByType {
+  return { post: [], 'read-later': [] }
+}
 
 function createReadLaterAnnotationId() {
   return `annotation-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -76,7 +81,8 @@ export default function App() {
   const [session, setSession] = useState(() => sessionStore.getSession())
   const { isDark, toggle: toggleColorMode } = useColorMode()
   const [contentType, setContentType] = useState<ContentType>('post')
-  const [posts, setPosts] = useState<PostIndexItem[]>([])
+  const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
+  const posts = postsByType[contentType]
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
@@ -139,6 +145,13 @@ export default function App() {
     [document],
   )
 
+  const updatePostsForType = useCallback((type: ContentType, updater: (currentPosts: PostIndexItem[]) => PostIndexItem[]) => {
+    setPostsByType((currentPostsByType) => ({
+      ...currentPostsByType,
+      [type]: updater(currentPostsByType[type]),
+    }))
+  }, [])
+
   useEffect(() => {
     setReadLaterTab('info')
     setActiveAnnotationId(null)
@@ -168,23 +181,24 @@ export default function App() {
 
   useEffect(() => {
     if (!session) {
-      setPosts([])
+      setPostsByType(createEmptyIndexedPostsByType())
       setIsIndexing(false)
       setIsOpeningPost(false)
       return
     }
 
     let cancelled = false
+    const indexedContentType = contentType
 
     const loadPosts = async () => {
       setIsIndexing(true)
 
       try {
-        const indexedPosts = contentType === 'read-later'
+        const indexedPosts = indexedContentType === 'read-later'
           ? await buildReadLaterIndex(session)
           : await buildPostIndex(session)
         if (!cancelled) {
-          setPosts(indexedPosts)
+          updatePostsForType(indexedContentType, () => indexedPosts)
         }
       } catch (caughtError) {
         if (cancelled) {
@@ -209,7 +223,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [contentType, session, sessionStore])
+  }, [contentType, session, sessionStore, updatePostsForType])
 
   const applyDocument = (nextPost: ParsedPost) => {
     resetPreviewImageUrls()
@@ -249,7 +263,7 @@ export default function App() {
 
   const resetWorkspace = () => {
     resetPreviewImageUrls()
-    setPosts([])
+    setPostsByType(createEmptyIndexedPostsByType())
     setActivePostPath(null)
     setIsOpeningPost(false)
     setSuccessMessage(null)
@@ -365,7 +379,10 @@ export default function App() {
         sha: post.sha,
       })
 
-      setPosts((currentPosts) => currentPosts.filter((currentPost) => currentPost.path !== post.path))
+      const deletedContentType: ContentType = post.contentType === 'read-later' ? 'read-later' : 'post'
+      updatePostsForType(deletedContentType, (currentPosts) =>
+        currentPosts.filter((currentPost) => currentPost.path !== post.path),
+      )
 
       if (activePostPath === post.path) {
         resetPreviewImageUrls()
@@ -448,7 +465,7 @@ export default function App() {
         content: savedContent,
       })
 
-      setPosts((currentPosts) =>
+      updatePostsForType('post', (currentPosts) =>
         sortPostIndex(
           [
             ...currentPosts.filter((currentPost) => currentPost.path !== post.path && currentPost.path !== savedFile.path),
@@ -521,7 +538,7 @@ export default function App() {
           })
       markSaved(savedDocument)
       setActivePostPath(savedFile.path)
-      setPosts((currentPosts) =>
+      updatePostsForType(document.contentType, (currentPosts) =>
         sortPostIndex(
           [
             ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedFile.path),
@@ -866,7 +883,7 @@ export default function App() {
         const indexedPosts = contentType === 'read-later'
           ? await buildReadLaterIndex(session)
           : await buildPostIndex(session)
-        setPosts(indexedPosts)
+        updatePostsForType(contentType, () => indexedPosts)
       } catch {
         // If re-indexing fails, the UI still reflects the old data but the operation succeeded
       }
@@ -896,10 +913,13 @@ export default function App() {
 
   const indexedLabel = contentType === 'read-later' ? '待读' : '文章'
   const loadingLabel = contentType === 'read-later' ? '正在加载待读…' : '正在加载文章…'
+  const showIndexLoading = isIndexing && posts.length === 0
 
   const status = adminView === 'dashboard'
     ? isIndexing
-      ? loadingLabel
+      ? posts.length > 0
+        ? `正在刷新${indexedLabel}… · 共 ${posts.length} 篇${indexedLabel}`
+        : loadingLabel
       : `共 ${posts.length} 篇${indexedLabel}`
     : isSaving && document
       ? `正在保存 ${document.path}`
@@ -979,7 +999,7 @@ export default function App() {
           <PostDashboard
             posts={posts}
             search={search}
-            isIndexing={isIndexing}
+            isIndexing={showIndexLoading}
             contentType={contentType}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}

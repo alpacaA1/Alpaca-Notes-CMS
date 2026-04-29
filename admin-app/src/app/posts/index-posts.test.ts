@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import * as githubClientModule from '../github-client'
+import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
 const legacyPost = parsePostIndexItem({
@@ -65,6 +66,11 @@ const defaultView: PostIndexView = {
 }
 
 describe('post indexing helpers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
+  })
+
   it('treats legacy missing published as published in UI state', () => {
     expect(legacyPost.published).toBe(true)
     expect(legacyPost.pinned).toBe(false)
@@ -129,5 +135,87 @@ Body`,
 
     expect(parsed.categories).toEqual(['专业'])
     expect(parsed.tags).toEqual(['产品'])
+  })
+
+  it('builds the index from sha-matched cached markdown without refetching files', async () => {
+    const cachedContent = `---
+title: Cached post
+date: 2026-04-05 09:00:00
+desc: Cached content
+published: true
+---
+
+Body`
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/_posts/cached.md',
+        sha: 'cached-sha',
+        encoding: 'base64',
+        content: Buffer.from(cachedContent, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    await githubClientModule.fetchPostFile({ token: 'token' }, 'source/_posts/cached.md')
+    fetch.mockClear()
+
+    vi.spyOn(githubClientModule, 'listPostFiles').mockResolvedValue([
+      { path: 'source/_posts/cached.md', sha: 'cached-sha', name: 'cached.md', type: 'file' },
+    ])
+    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile')
+
+    const indexed = await buildPostIndex({ token: 'token' })
+
+    expect(indexed.map((post) => post.title)).toEqual(['Cached post'])
+    expect(fetchPostFile).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('refetches an indexed post when the cached sha is stale', async () => {
+    const staleContent = `---
+title: Stale post
+date: 2026-04-05 09:00:00
+desc: Stale content
+published: true
+---
+
+Body`
+    const freshContent = `---
+title: Fresh post
+date: 2026-04-06 09:00:00
+desc: Fresh content
+published: true
+---
+
+Body`
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/_posts/stale.md',
+        sha: 'old-sha',
+        encoding: 'base64',
+        content: Buffer.from(staleContent, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    await githubClientModule.fetchPostFile({ token: 'token' }, 'source/_posts/stale.md')
+
+    vi.spyOn(githubClientModule, 'listPostFiles').mockResolvedValue([
+      { path: 'source/_posts/stale.md', sha: 'new-sha', name: 'stale.md', type: 'file' },
+    ])
+    const fetchPostFile = vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: 'source/_posts/stale.md',
+      sha: 'new-sha',
+      content: freshContent,
+    })
+
+    const indexed = await buildPostIndex({ token: 'token' })
+
+    expect(fetchPostFile).toHaveBeenCalledWith({ token: 'token' }, 'source/_posts/stale.md')
+    expect(indexed.map((post) => post.title)).toEqual(['Fresh post'])
   })
 })

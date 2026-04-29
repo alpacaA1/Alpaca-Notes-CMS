@@ -324,14 +324,20 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(await screen.findByText('选区批注')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
     scrollIntoView.mockClear()
 
     fireEvent.click(screen.getByRole('button', { name: '这里是原文摘录。' }))
     expect(scrollIntoView).toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
     expect(screen.getByRole('button', { name: '删除高亮' })).toBeTruthy()
 
+    fireEvent.click(screen.getByText('这里是我的总结。'))
+    expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
     fireEvent.click(screen.getByRole('button', { name: '删除高亮' }))
 
     expect(screen.queryByRole('button', { name: '这里是原文摘录。' })).toBeNull()

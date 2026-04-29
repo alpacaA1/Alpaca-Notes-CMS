@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as githubClientModule from '../github-client'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './index-items'
 
@@ -35,6 +35,11 @@ desc: Second desc
 Body`
 
 describe('read-later index helpers', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+    githubClientModule.clearMarkdownFileCache()
+  })
+
   it('parses index metadata from frontmatter', () => {
     expect(
       parseReadLaterIndexItem({
@@ -73,5 +78,63 @@ describe('read-later index helpers', () => {
     const items = await buildReadLaterIndex({ token: 'token' })
 
     expect(items.map((item) => item.title)).toEqual(['Second article', 'First article'])
+  })
+
+  it('builds the read-later index from sha-matched cached markdown without refetching files', async () => {
+    const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/read-later-items/first.md',
+        sha: 'sha-first',
+        encoding: 'base64',
+        content: Buffer.from(firstContent, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    await githubClientModule.fetchMarkdownFile({ token: 'token' }, 'source/read-later-items/first.md')
+    fetch.mockClear()
+
+    vi.spyOn(githubClientModule, 'listReadLaterFiles').mockResolvedValue([
+      { path: 'source/read-later-items/first.md', sha: 'sha-first', name: 'first.md', type: 'file' },
+    ])
+    const fetchMarkdownFile = vi.spyOn(githubClientModule, 'fetchMarkdownFile')
+
+    const items = await buildReadLaterIndex({ token: 'token' })
+
+    expect(items.map((item) => item.title)).toEqual(['First article'])
+    expect(fetchMarkdownFile).not.toHaveBeenCalled()
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('refetches a read-later item when the cached sha is stale', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/read-later-items/first.md',
+        sha: 'old-sha',
+        encoding: 'base64',
+        content: Buffer.from(firstContent, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    await githubClientModule.fetchMarkdownFile({ token: 'token' }, 'source/read-later-items/first.md')
+
+    vi.spyOn(githubClientModule, 'listReadLaterFiles').mockResolvedValue([
+      { path: 'source/read-later-items/first.md', sha: 'sha-second', name: 'first.md', type: 'file' },
+    ])
+    const fetchMarkdownFile = vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: 'source/read-later-items/first.md',
+      sha: 'sha-second',
+      content: secondContent,
+    })
+
+    const items = await buildReadLaterIndex({ token: 'token' })
+
+    expect(fetchMarkdownFile).toHaveBeenCalledWith({ token: 'token' }, 'source/read-later-items/first.md')
+    expect(items.map((item) => item.title)).toEqual(['Second article'])
   })
 })

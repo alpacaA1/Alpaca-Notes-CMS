@@ -5,6 +5,7 @@ import type { PostIndexItem } from './posts/post-types'
 import * as githubClientModule from './github-client'
 import { GitHubAuthError } from './github-client'
 import * as postsModule from './posts/index-posts'
+import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
 
 const indexedPosts: PostIndexItem[] = [
@@ -36,6 +37,35 @@ desc: desc
 
 Original body.`
 
+const readLaterIndexedPosts: PostIndexItem[] = [
+  {
+    path: 'source/read-later-items/saved-article.md',
+    sha: 'sha-read-later-1',
+    title: '待读里的文章',
+    date: '2026-04-02 09:00:00',
+    desc: 'read later desc',
+    published: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: ['阅读'],
+    permalink: 'read-later/saved-article/',
+    cover: null,
+    contentType: 'read-later',
+    externalUrl: 'https://example.com/article',
+    sourceName: 'Example',
+    readingStatus: 'unread',
+  },
+]
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+
+  return { promise, resolve }
+}
+
 describe('App indexing flow', () => {
   afterEach(() => {
     cleanup()
@@ -53,6 +83,46 @@ describe('App indexing flow', () => {
 
     await waitFor(() => {
       expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+  })
+
+  it('keeps cached list visible while switching back and revalidating in the background', async () => {
+    const refreshedPosts: PostIndexItem[] = [
+      {
+        ...indexedPosts[0],
+        sha: 'sha-refreshed',
+        title: '刷新后的文章列表',
+      },
+    ]
+    const revalidation = createDeferred<PostIndexItem[]>()
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    const buildPostIndex = vi.spyOn(postsModule, 'buildPostIndex')
+      .mockResolvedValueOnce(indexedPosts)
+      .mockReturnValueOnce(revalidation.promise)
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue(readLaterIndexedPosts)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('待读里的文章')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '文章' }))
+
+    expect(buildPostIndex).toHaveBeenCalledTimes(2)
+    expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    expect(screen.queryByText('正在加载文章…')).toBeNull()
+
+    revalidation.resolve(refreshedPosts)
+
+    await waitFor(() => {
+      expect(screen.getByText('刷新后的文章列表')).toBeTruthy()
     })
   })
 
