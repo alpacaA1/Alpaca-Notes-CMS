@@ -888,10 +888,13 @@ textarea {
 }
 
 .admin-layout--reader {
+  grid-template-columns: clamp(200px, 14vw, 250px) minmax(0, 1fr);
+  gap: 18px;
   min-height: 0;
   height: 100%;
   align-items: stretch;
   overflow: hidden;
+  padding: 18px 22px 24px;
 }
 
 .top-bar {
@@ -1665,6 +1668,8 @@ textarea {
 }
 
 .editor-layout--reader {
+  grid-template-columns: minmax(0, 1fr) clamp(280px, 20vw, 320px);
+  gap: 18px;
   min-height: 0;
   height: 100%;
   align-items: stretch;
@@ -2518,7 +2523,7 @@ textarea {
 .preview-pane--reading-canvas {
   width: 100%;
   margin: 0;
-  padding: 16px clamp(12px, 2vw, 24px) 28px;
+  padding: 12px clamp(4px, 1vw, 12px) 20px;
   border: 0;
   background: transparent;
   box-shadow: none;
@@ -2535,10 +2540,10 @@ textarea {
 .preview-content {
   display: grid;
   gap: 16px;
-  width: min(100%, 860px);
+  width: min(100%, 1120px);
   max-width: none;
   margin: 0 auto;
-  padding: 56px clamp(28px, 5vw, 72px);
+  padding: 64px clamp(36px, 4vw, 84px);
   border-radius: 28px;
   border: 1px solid rgba(214, 200, 184, 0.72);
   background:
@@ -2643,7 +2648,7 @@ textarea {
 .preview-content__section {
   display: grid;
   gap: 12px;
-  padding: 22px 24px;
+  padding: 24px 28px;
   border-radius: 20px;
   border: 1px solid rgba(214, 200, 184, 0.72);
   background: rgba(255, 255, 255, 0.56);

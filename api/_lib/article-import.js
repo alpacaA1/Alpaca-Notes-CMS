@@ -129,15 +129,27 @@ function absolutizeAttribute(element, name, baseUrl) {
   element.removeAttribute(name);
 }
 
+function readBackgroundImageUrl(styleValue) {
+  const match = String(styleValue || '').match(/background(?:-image)?\s*:\s*url\((['"]?)(.*?)\1\)/i);
+  return match?.[2]?.trim() || '';
+}
+
+function readLazyImageSource(element) {
+  return [
+    element.getAttribute('data-src'),
+    element.getAttribute('data-original'),
+    element.getAttribute('data-actualsrc'),
+    element.getAttribute('data-backsrc'),
+    element.getAttribute('data-croporisrc'),
+    readBackgroundImageUrl(element.getAttribute('style')),
+  ].find((value) => typeof value === 'string' && value.trim()) || '';
+}
+
 function applyLazyImageSources(document) {
   document.querySelectorAll('img').forEach((element) => {
-    const lazySource =
-      element.getAttribute('data-src') ||
-      element.getAttribute('data-original') ||
-      element.getAttribute('data-actualsrc');
-    const currentSource = element.getAttribute('src');
+    const lazySource = readLazyImageSource(element);
 
-    if (lazySource && (!currentSource || currentSource.startsWith('data:'))) {
+    if (lazySource) {
       element.setAttribute('src', lazySource);
     }
   });

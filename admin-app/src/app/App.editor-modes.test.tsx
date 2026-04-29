@@ -221,6 +221,59 @@ describe('App editor modes', () => {
     expect(container.querySelector('.editor-stack--reader')).toBeTruthy()
   })
 
+  it('scrolls the center reader when clicking outline links', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    const { container } = render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
+
+    const previewPane = container.querySelector('.preview-pane--reading-canvas') as HTMLElement | null
+    const sectionHeading = screen.getByRole('heading', { name: '第一部分' })
+    if (!previewPane) {
+      throw new Error('Missing preview pane in read-later outline test.')
+    }
+
+    const scrollTo = vi.fn()
+    Object.defineProperty(previewPane, 'scrollTo', {
+      configurable: true,
+      value: scrollTo,
+    })
+    Object.defineProperty(previewPane, 'scrollTop', {
+      configurable: true,
+      value: 48,
+      writable: true,
+    })
+    Object.defineProperty(previewPane, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 100, left: 0, right: 800, bottom: 700, width: 800, height: 600, x: 0, y: 100, toJSON: () => ({}) }),
+    })
+    Object.defineProperty(sectionHeading, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 320, left: 0, right: 640, bottom: 360, width: 640, height: 40, x: 0, y: 320, toJSON: () => ({}) }),
+    })
+
+    fireEvent.click(screen.getByRole('link', { name: '第一部分' }))
+    expect(scrollTo).toHaveBeenCalledWith({ top: 244, behavior: 'smooth' })
+
+    scrollTo.mockClear()
+    fireEvent.click(screen.getByRole('link', { name: '回到顶部' }))
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+  })
+
   it('keeps read-later in reading view while sidebar edits update the rendered commentary', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])

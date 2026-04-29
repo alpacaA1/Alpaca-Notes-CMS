@@ -41,6 +41,7 @@ type IndexedPostsByType = Record<ContentType, PostIndexItem[]>
 type ReadLaterTab = 'info' | 'commentary'
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote' | 'prefix' | 'suffix'>
+type ReaderNavigationRequest = { targetId: string; requestId: number }
 type TaxonomyType = 'categories' | 'tags'
 type TaxonomyConfirmAction =
   | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
@@ -109,6 +110,7 @@ export default function App() {
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
   const [annotationScrollRequest, setAnnotationScrollRequest] = useState(0)
+  const [readerNavigationRequest, setReaderNavigationRequest] = useState<ReaderNavigationRequest | null>(null)
   const {
     document,
     mode,
@@ -603,6 +605,13 @@ export default function App() {
     setAnnotationScrollRequest((current) => current + 1)
   }
 
+  const handleNavigateOutline = useCallback((targetId: string) => {
+    setReaderNavigationRequest((current) => ({
+      targetId,
+      requestId: (current?.requestId ?? 0) + 1,
+    }))
+  }, [])
+
   const handleOpenAnnotationNote = (annotationId: string) => {
     setReadLaterTab('commentary')
     setActiveAnnotationId(annotationId)
@@ -1029,6 +1038,7 @@ export default function App() {
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onBackToList={handleBackToDashboard}
+            onNavigateOutline={handleNavigateOutline}
           />
           <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReadLaterPreview ? ' editor-layout--reader' : ''}`}>
             <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
@@ -1067,6 +1077,7 @@ export default function App() {
                       annotations={readLaterAnnotations}
                       activeAnnotationId={activeAnnotationId}
                       annotationScrollRequest={annotationScrollRequest}
+                      navigationRequest={readerNavigationRequest}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onSelectAnnotation={handleSelectAnnotation}
                       onDeleteAnnotation={handleDeleteAnnotation}

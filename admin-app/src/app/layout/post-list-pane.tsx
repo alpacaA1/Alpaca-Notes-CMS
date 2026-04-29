@@ -1,3 +1,4 @@
+import type { MouseEvent as ReactMouseEvent } from 'react'
 import type { ParsedPost, ReadingStatus } from '../posts/parse-post'
 import type { PostIndexItem } from '../posts/post-types'
 import { getReadLaterOutline } from '../read-later/parse-item'
@@ -27,6 +28,7 @@ type PostListPaneProps = {
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onBackToList?: () => void
+  onNavigateOutline?: (targetId: string) => void
 }
 
 export default function PostListPane({
@@ -44,6 +46,7 @@ export default function PostListPane({
   onDeletePost,
   onTogglePinned,
   onBackToList,
+  onNavigateOutline,
 }: PostListPaneProps) {
   if (hidden) {
     return null
@@ -51,6 +54,14 @@ export default function PostListPane({
 
   if (contentType === 'read-later' && document?.contentType === 'read-later') {
     const outlineItems = getReadLaterOutline(document.body)
+    const handleOutlineNavigation = (targetId: string) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
+      if (!onNavigateOutline) {
+        return
+      }
+
+      event.preventDefault()
+      onNavigateOutline(targetId)
+    }
 
     return (
       <aside className="post-pane post-pane--reader">
@@ -65,7 +76,7 @@ export default function PostListPane({
 
         <nav className="post-outline" aria-label="文章目录">
           <div className="post-outline__list">
-            <a className="post-outline__item post-outline__item--top" href="#read-later-content">
+            <a className="post-outline__item post-outline__item--top" href="#read-later-content" onClick={handleOutlineNavigation('read-later-content')}>
               回到顶部
             </a>
             {outlineItems.map((item) => (
@@ -73,6 +84,7 @@ export default function PostListPane({
                 key={item.id}
                 className={`post-outline__item post-outline__item--level-${Math.min(item.level, 4)}${item.kind === 'section' ? ' post-outline__item--section' : ''}`}
                 href={`#${item.id}`}
+                onClick={handleOutlineNavigation(item.id)}
               >
                 {item.label}
               </a>

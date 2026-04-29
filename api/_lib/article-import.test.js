@@ -78,6 +78,27 @@ test('importArticle extracts WeChat article content and normalizes lazy-loaded i
   assert.match(article.markdown, /!\[配图\]\(https:\/\/mmbiz\.qpic\.cn\/image\.png\)/);
 });
 
+test('importArticle normalizes more WeChat image source variants', async () => {
+  global.fetch = async () => createMockResponse({
+    url: 'https://mp.weixin.qq.com/s/more-image-attrs',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+    },
+    html: createWeChatHtml(`
+      <p><img data-src="https://mmbiz.qpic.cn/original.png?wx_fmt=png" src="https://mmbiz.qpic.cn/placeholder.gif" alt="主图" /></p>
+      <p><img data-backsrc="//mmbiz.qpic.cn/backup.jpg" alt="备图" /></p>
+      <p><img data-croporisrc="https://mmbiz.qpic.cn/crop.webp" alt="裁剪图" /></p>
+    `),
+  });
+
+  const article = await importArticle('https://mp.weixin.qq.com/s/more-image-attrs');
+
+  assert.match(article.markdown, /!\[主图\]\(https:\/\/mmbiz\.qpic\.cn\/original\.png\?wx_fmt=png\)/);
+  assert.match(article.markdown, /!\[备图\]\(https:\/\/mmbiz\.qpic\.cn\/backup\.jpg\)/);
+  assert.match(article.markdown, /!\[裁剪图\]\(https:\/\/mmbiz\.qpic\.cn\/crop\.webp\)/);
+  assert.doesNotMatch(article.markdown, /placeholder\.gif/);
+});
+
 test('importArticle allows larger WeChat HTML pages', async () => {
   global.fetch = async () => createMockResponse({
     url: 'https://mp.weixin.qq.com/s/large-example',

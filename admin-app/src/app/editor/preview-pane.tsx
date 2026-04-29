@@ -36,6 +36,7 @@ type PreviewPaneProps = {
   annotations?: ReadLaterAnnotation[]
   activeAnnotationId?: string | null
   annotationScrollRequest?: number
+  navigationRequest?: { targetId: string; requestId: number } | null
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onSelectAnnotation?: (annotationId: string) => void
   onDeleteAnnotation?: (annotationId: string) => void
@@ -589,7 +590,7 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
 
     const safeSrc = previewImageUrls?.[imageUrl] ?? sanitizeImageSrc(imageUrl)
     if (safeSrc) {
-      nodes.push(<img key={`image-${matchIndex}`} src={safeSrc} alt={altText} />)
+      nodes.push(<img key={`image-${matchIndex}`} src={safeSrc} alt={altText} referrerPolicy="no-referrer" />)
     }
 
     lastIndex = start + fullMatch.length
@@ -871,6 +872,7 @@ export default function PreviewPane({
   annotations = [],
   activeAnnotationId = null,
   annotationScrollRequest = 0,
+  navigationRequest = null,
   onCreateAnnotation,
   onSelectAnnotation,
   onDeleteAnnotation,
@@ -972,6 +974,44 @@ export default function PreviewPane({
       window.removeEventListener('resize', updateActionPosition)
     }
   }, [annotationDeleteTargetId, annotations, isReadLater, markdown])
+
+  useEffect(() => {
+    if (!isReadLater || !navigationRequest) {
+      return
+    }
+
+    const pane = paneRef.current
+    const article = articleRef.current
+    if (!pane || !article) {
+      return
+    }
+
+    const scrollPaneTo = (top: number) => {
+      if (typeof pane.scrollTo === 'function') {
+        pane.scrollTo({ top, behavior: 'smooth' })
+        return
+      }
+
+      pane.scrollTop = top
+    }
+
+    if (navigationRequest.targetId === 'read-later-content') {
+      scrollPaneTo(0)
+      return
+    }
+
+    const target = Array.from(article.querySelectorAll<HTMLElement>('[id]')).find(
+      (element) => element.id === navigationRequest.targetId,
+    )
+    if (!target) {
+      return
+    }
+
+    const paneRect = pane.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const nextTop = pane.scrollTop + targetRect.top - paneRect.top - 24
+    scrollPaneTo(Math.max(0, nextTop))
+  }, [isReadLater, markdown, navigationRequest])
 
   const handleSelectionChange = () => {
     if (!isReadLater || !onCreateAnnotation) {
@@ -1081,7 +1121,7 @@ export default function PreviewPane({
                   </a>
                 ) : null}
               </div>
-              {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} /> : null}
+              {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
             </div>
           ) : null}
         </header>
