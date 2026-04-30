@@ -4315,7 +4315,8 @@ textarea {
 .annotation-dashboard {
   position: relative;
   z-index: 1;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
   padding: 18px 20px 28px;
   overflow-x: hidden;
@@ -4347,14 +4348,14 @@ textarea {
 .annotation-dashboard__toolbar {
   display: grid;
   grid-template-columns: minmax(280px, 1.3fr) minmax(220px, 1fr) auto;
-  gap: 14px 16px;
+  gap: 10px 14px;
   align-items: end;
-  padding: 18px;
+  padding: 14px 16px;
 }
 
 .annotation-dashboard__filter {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -4367,9 +4368,9 @@ textarea {
 
 .annotation-dashboard__filter select {
   width: 100%;
-  min-height: 46px;
+  min-height: 42px;
   border: 1px solid var(--admin-line-strong);
-  border-radius: 18px;
+  border-radius: 16px;
   padding: 0 42px 0 16px;
   background:
     url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23918577' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
@@ -4392,7 +4393,7 @@ textarea {
 .annotation-dashboard__toolbar-meta span {
   display: inline-flex;
   align-items: center;
-  min-height: 36px;
+  min-height: 34px;
   padding: 0 12px;
   border: 1px solid var(--admin-line);
   border-radius: 999px;
@@ -4409,7 +4410,7 @@ textarea {
   border-radius: 999px;
   border: 1px solid var(--admin-line-strong);
   background: rgba(255, 255, 255, 0.72);
-  padding: 0 14px;
+  padding: 0 13px;
   color: var(--admin-text);
   font-weight: 600;
   cursor: pointer;
@@ -4582,7 +4583,7 @@ textarea {
 
   .annotation-dashboard__toolbar {
     grid-template-columns: 1fr;
-    padding: 16px;
+    padding: 14px;
   }
 
   .annotation-dashboard__toolbar-meta {
