@@ -558,21 +558,23 @@ textarea {
 }
 
 .admin-shell--dark .settings-panel__annotation-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.03);
+  background: transparent;
+  border-color: transparent;
 }
 
 .admin-shell--dark .settings-panel__annotation-card.is-active {
-  border-color: rgba(228, 163, 88, 0.26);
-  background: rgba(228, 163, 88, 0.08);
+  background: transparent;
+  border-color: transparent;
 }
 
-.admin-shell--dark .settings-panel__annotation-card-trigger:hover {
-  color: var(--admin-text);
+.admin-shell--dark .settings-panel__annotation-card-trigger:hover .settings-panel__annotation-quote {
+  background: rgba(225, 184, 74, 0.62);
+  box-shadow: inset 0 -1px 0 rgba(245, 206, 92, 0.54);
 }
 
 .admin-shell--dark .settings-panel__annotation-note-label,
-.admin-shell--dark .settings-panel__annotation-empty {
+.admin-shell--dark .settings-panel__annotation-empty,
+.admin-shell--dark .settings-panel__annotation-note-preview {
   color: var(--admin-muted);
 }
 
@@ -603,13 +605,15 @@ textarea {
   background: rgba(255, 255, 255, 0.08);
 }
 
-.admin-shell--dark .preview-content__highlight {
-  background: rgba(228, 163, 88, 0.24);
-  box-shadow: inset 0 -1px 0 rgba(228, 163, 88, 0.35);
+.admin-shell--dark .preview-content__highlight,
+.admin-shell--dark .settings-panel__annotation-quote {
+  background: rgba(225, 184, 74, 0.56);
+  box-shadow: inset 0 -1px 0 rgba(245, 206, 92, 0.48);
 }
 
-.admin-shell--dark .preview-content__highlight.is-active {
-  background: rgba(228, 163, 88, 0.36);
+.admin-shell--dark .preview-content__highlight.is-active,
+.admin-shell--dark .settings-panel__annotation-card.is-active .settings-panel__annotation-quote {
+  background: rgba(241, 196, 76, 0.74);
 }
 
 .admin-shell--dark .post-status-badge--published {
@@ -2216,26 +2220,26 @@ textarea {
 
 .settings-panel__annotation-list {
   display: grid;
-  gap: 12px;
+  gap: 18px;
 }
 
 .settings-panel__annotation-card {
   display: grid;
-  gap: 12px;
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid var(--admin-line);
-  background: rgba(255, 255, 255, 0.42);
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .settings-panel__annotation-card.is-active {
-  border-color: rgba(87, 150, 255, 0.32);
-  background: rgba(87, 150, 255, 0.06);
+  background: transparent;
 }
 
 .settings-panel__annotation-card-trigger {
   appearance: none;
-  display: block;
+  display: grid;
+  gap: 10px;
   width: 100%;
   padding: 0;
   border: 0;
@@ -2246,12 +2250,21 @@ textarea {
 }
 
 .settings-panel__annotation-quote {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-height: 1.7;
+  display: inline;
+  justify-self: start;
+  line-height: 1.9;
   word-break: break-word;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.settings-panel__annotation-note-preview {
+  overflow: hidden;
+  color: var(--admin-soft);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .settings-panel__annotation-note-block {
@@ -2336,15 +2349,20 @@ textarea {
   background: rgba(141, 113, 77, 0.08);
 }
 
-.preview-content__highlight {
-  padding: 0.02em 0.04em;
-  border-radius: 0.28em;
+.preview-content__highlight,
+.settings-panel__annotation-quote {
+  padding: 0.04em 0.16em;
+  border-radius: 0.2em;
   background: rgba(255, 225, 128, 0.6);
   box-shadow: inset 0 -1px 0 rgba(214, 173, 60, 0.45);
+}
+
+.preview-content__highlight {
   cursor: pointer;
 }
 
-.preview-content__highlight.is-active {
+.preview-content__highlight.is-active,
+.settings-panel__annotation-card.is-active .settings-panel__annotation-quote {
   background: rgba(255, 209, 92, 0.76);
 }
 

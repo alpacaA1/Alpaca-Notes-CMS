@@ -18,6 +18,13 @@ const annotation = {
   updatedAt: '2026-04-29T08:00:00.000Z',
 }
 
+const annotationWithoutNote = {
+  ...annotation,
+  id: 'annotation-2',
+  quote: '另一段高亮内容',
+  note: '',
+}
+
 function createExistingPost(): ParsedPost {
   return {
     path: 'source/_posts/existing.md',
@@ -345,6 +352,26 @@ describe('settings panel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     expect(onSaveAnnotationNote).toHaveBeenCalledWith(annotation.id, '新的高亮批注')
+  })
+
+  it('keeps one-line note preview visible for inactive highlights with notes', () => {
+    render(
+      <SettingsPanel
+        document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
+        validationErrors={{}}
+        publishLocked={false}
+        contentType="read-later"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+        readLaterTab="commentary"
+        annotations={[annotation, annotationWithoutNote]}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: /这是一段很长很长的高亮内容/ })).toBeTruthy()
+    expect(screen.getByText('已有批注').className).toContain('settings-panel__annotation-note-preview')
+    expect(screen.queryByLabelText('Highlight document note')).toBeNull()
   })
 
   it('does not show delete action in the active highlight card', () => {

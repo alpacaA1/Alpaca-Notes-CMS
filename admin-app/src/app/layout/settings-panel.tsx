@@ -44,6 +44,10 @@ function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
   return annotation.quote.trim() || '未命名高亮'
 }
 
+function getAnnotationNotePreview(annotation: ReadLaterAnnotation) {
+  return annotation.note.trim()
+}
+
 export default function SettingsPanel({
   document,
   validationErrors,
@@ -455,6 +459,7 @@ export default function SettingsPanel({
                 {annotations.map((annotation) => {
                   const isActive = annotation.id === activeAnnotationId
                   const isEditing = annotation.id === editingAnnotationId
+                  const notePreview = getAnnotationNotePreview(annotation)
 
                   return (
                     <article
@@ -464,11 +469,17 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         className="settings-panel__annotation-card-trigger"
+                        aria-label={getAnnotationPreviewText(annotation)}
                         onClick={() => onSelectAnnotation?.(annotation.id)}
                       >
                         <span className="settings-panel__annotation-quote">
                           {getAnnotationPreviewText(annotation)}
                         </span>
+                        {!isActive && notePreview ? (
+                          <span className="settings-panel__annotation-note-preview">
+                            {notePreview}
+                          </span>
+                        ) : null}
                       </button>
 
                       {isActive ? (
