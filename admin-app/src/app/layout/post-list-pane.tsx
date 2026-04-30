@@ -1,4 +1,5 @@
 import type { MouseEvent as ReactMouseEvent } from 'react'
+import type { ResolvedContentFormat } from '../content-format'
 import type { ParsedPost, ReadingStatus } from '../posts/parse-post'
 import type { PostIndexItem } from '../posts/post-types'
 import { getReadLaterOutline } from '../read-later/parse-item'
@@ -27,6 +28,7 @@ type PostListPaneProps = {
   contentType: ContentType
   activePostPath?: string | null
   document?: ParsedPost | null
+  documentContentFormat?: ResolvedContentFormat
   activeOutlineTargetId?: string | null
   isDeleting?: boolean
   deletingPostPath?: string | null
@@ -48,6 +50,7 @@ export default function PostListPane({
   contentType,
   activePostPath = null,
   document = null,
+  documentContentFormat = 'markdown',
   activeOutlineTargetId = null,
   isDeleting = false,
   deletingPostPath = null,
@@ -67,7 +70,7 @@ export default function PostListPane({
   }
 
   if (contentType === 'read-later' && document?.contentType === 'read-later') {
-    const outlineItems = getReadLaterOutline(document.body)
+    const outlineItems = getReadLaterOutline(document.body, documentContentFormat)
     const handleOutlineNavigation = (targetId: string) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
       if (!onNavigateOutline) {
         return

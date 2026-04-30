@@ -1,4 +1,5 @@
 import { POSTS_PATH, READ_LATER_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
+import { isSupportedContentFileName } from './content-format'
 import { AuthError, type SessionState } from './session'
 
 const GITHUB_API_BASE = 'https://api.github.com'
@@ -140,7 +141,7 @@ async function listMarkdownFiles(session: SessionState, basePath: string): Promi
   const path = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}?ref=${encodeURIComponent(REPO_BRANCH)}`
   const entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
 
-  return entries.filter((entry) => entry.type === 'file' && entry.name.endsWith('.md'))
+  return entries.filter((entry) => entry.type === 'file' && isSupportedContentFileName(entry.name))
 }
 
 export async function listPostFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
@@ -161,7 +162,7 @@ export async function fetchPostFile(
   })
 
   if (file.type !== 'file' || file.encoding !== 'base64' || typeof file.content !== 'string') {
-    throw new Error('GitHub did not return a decodable markdown file.')
+    throw new Error('GitHub did not return a decodable content file.')
   }
 
   return cacheMarkdownFile({

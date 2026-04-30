@@ -308,6 +308,23 @@ desc: desc
 第一行
 第二行`
 
+const plainTextContent = `---
+title: Preview supported post
+format: plaintxt
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+## 这不是标题
+1. 这不是列表
+See https://example.com/plain`
+
 const blockquoteLineBreakContent = `---
 title: Preview supported post
 permalink: preview-supported-post/
@@ -378,6 +395,24 @@ layout: read-later-item
 ---
 
 没有分段标题，直接保留 markdown fallback。`
+
+const readLaterPlainTextContent = `---
+title: Read-later preview item
+format: plaintxt
+permalink: read-later/preview-read-later/
+date: 2026-04-05 09:30:00
+desc: 这是一条待读摘要。
+external_url: https://example.com/original
+source_name: Preview Source
+reading_status: reading
+read_later: true
+nav_exclude: true
+layout: read-later-item
+---
+
+## 这不是分段标题
+1. 这不是列表
+See https://example.com/plain-reader`
 
 describe('App preview mode', () => {
   afterEach(() => {
@@ -874,6 +909,32 @@ describe('App preview mode', () => {
     expect(paragraph.querySelector('br')).toBeTruthy()
   })
 
+  it('renders plain text posts without interpreting markdown syntax', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: plainTextContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    expect(await screen.findByText((_, element) => element?.tagName === 'P' && element.textContent?.includes('## 这不是标题') === true)).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: '这不是标题' })).toBeNull()
+    expect(screen.queryByText((_, element) => element?.tagName === 'LI' && element.textContent === '这不是列表')).toBeNull()
+    expect(screen.getByRole('link', { name: 'https://example.com/plain' }).getAttribute('href')).toBe('https://example.com/plain')
+  })
+
   it('renders read-later metadata and structured sections in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
@@ -935,6 +996,34 @@ describe('App preview mode', () => {
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
     expect(screen.getByRole('link', { name: '阅读内容' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: '原文摘录' })).toBeNull()
+  })
+
+  it('renders plain text read-later items without promoting markdown headings into the outline', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterPlainTextContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Read-later preview item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
+
+    expect(await screen.findByText((_, element) => element?.tagName === 'P' && element.textContent?.includes('## 这不是分段标题') === true)).toBeTruthy()
+    expect(screen.getByRole('link', { name: '阅读内容' })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: '这不是分段标题' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: '这不是分段标题' })).toBeNull()
+    expect(screen.queryByText((_, element) => element?.tagName === 'LI' && element.textContent === '这不是列表')).toBeNull()
+    expect(screen.getByRole('link', { name: 'https://example.com/plain-reader' }).getAttribute('href')).toBe('https://example.com/plain-reader')
   })
 
   it('renders markdown blockquote soft line breaks in preview mode', async () => {

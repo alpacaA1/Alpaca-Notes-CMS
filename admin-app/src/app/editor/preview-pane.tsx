@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type { ResolvedContentFormat } from '../content-format'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
@@ -26,6 +27,7 @@ type PreviewPaneProps = {
   title: string
   date: string
   markdown: string
+  contentFormat?: ResolvedContentFormat
   desc?: string
   cover?: string
   sourceName?: string
@@ -93,8 +95,8 @@ function findElementById(root: ParentNode, targetId: string) {
   return Array.from(root.querySelectorAll<HTMLElement>('[id]')).find((element) => element.id === targetId) || null
 }
 
-function getReadLaterOutlineTargetIds(markdown: string) {
-  return ['read-later-content', ...getReadLaterOutline(markdown).map((item) => item.id)].filter(
+function getReadLaterOutlineTargetIds(markdown: string, contentFormat: ResolvedContentFormat) {
+  return ['read-later-content', ...getReadLaterOutline(markdown, contentFormat).map((item) => item.id)].filter(
     (targetId, index, ids) => ids.indexOf(targetId) === index,
   )
 }
@@ -613,6 +615,11 @@ function renderTextInline(markdown: string): ReactNode[] {
   return nodes.length > 0 ? nodes : [markdown]
 }
 
+function renderPlainTextInline(text: string): ReactNode[] {
+  const renderedText = renderBareUrls(text, 0)
+  return renderedText.nodes.length > 0 ? renderedText.nodes : [text]
+}
+
 function renderInline(markdown: string, previewImageUrls?: Record<string, string>): ReactNode[] {
   const nodes: ReactNode[] = []
   let lastIndex = 0
@@ -685,6 +692,33 @@ function renderInlineWithLineBreaks(markdown: string, previewImageUrls?: Record<
   return nodes.length > 0 ? nodes : [markdown]
 }
 
+function renderPlainTextWithLineBreaks(text: string) {
+  const inlineNodes = renderPlainTextInline(text)
+  const nodes: ReactNode[] = []
+  let lineBreakIndex = 0
+
+  for (const node of inlineNodes) {
+    if (typeof node !== 'string') {
+      nodes.push(node)
+      continue
+    }
+
+    const segments = node.split('\n')
+    segments.forEach((segment, index) => {
+      if (index > 0) {
+        nodes.push(<br key={`plain-line-break-${lineBreakIndex}`} />)
+        lineBreakIndex += 1
+      }
+
+      if (segment) {
+        nodes.push(segment)
+      }
+    })
+  }
+
+  return nodes.length > 0 ? nodes : [text]
+}
+
 function flushParagraph(
   lines: string[],
   nodes: ReactNode[],
@@ -697,6 +731,17 @@ function flushParagraph(
 
   nodes.push(
     <p key={`${keyPrefix}-${nodes.length}`}>{renderInlineWithLineBreaks(lines.join('\n'), previewImageUrls)}</p>,
+  )
+  lines.length = 0
+}
+
+function flushPlainTextParagraph(lines: string[], nodes: ReactNode[], keyPrefix: string) {
+  if (lines.length === 0) {
+    return
+  }
+
+  nodes.push(
+    <p key={`${keyPrefix}-${nodes.length}`}>{renderPlainTextWithLineBreaks(lines.join('\n'))}</p>,
   )
   lines.length = 0
 }
@@ -861,6 +906,36 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
   return nodes
 }
 
+function renderPlainTextBlocks(text: string) {
+  const lines = text.split('\n')
+  const nodes: ReactNode[] = []
+  const paragraph: string[] = []
+
+  for (const line of lines) {
+    if (!line.trim()) {
+      flushPlainTextParagraph(paragraph, nodes, 'plain-paragraph')
+      continue
+    }
+
+    paragraph.push(line)
+  }
+
+  flushPlainTextParagraph(paragraph, nodes, 'plain-paragraph')
+
+  return nodes
+}
+
+function renderContentBlocks(
+  text: string,
+  contentFormat: ResolvedContentFormat,
+  previewImageUrls?: Record<string, string>,
+  headingIdPrefix?: string,
+) {
+  return contentFormat === 'plaintext'
+    ? renderPlainTextBlocks(text)
+    : renderBlocks(text, previewImageUrls, headingIdPrefix)
+}
+
 function getReadingStatusLabel(status?: ReadingStatus) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
@@ -872,6 +947,7 @@ function getReadingStatusTone(status?: ReadingStatus) {
 function renderReadLaterSection(
   title: string,
   content: string,
+  contentFormat: ResolvedContentFormat,
   previewImageUrls: Record<string, string> | undefined,
   anchorId: string,
   sectionKey: ReadLaterSectionKey,
@@ -883,15 +959,19 @@ function renderReadLaterSection(
   return (
     <section key={title} id={anchorId} className="preview-content__section" data-read-later-section-key={sectionKey}>
       <h2>{title}</h2>
-      <div className="preview-content__section-body">{renderBlocks(content, previewImageUrls, anchorId)}</div>
+      <div className="preview-content__section-body">{renderContentBlocks(content, contentFormat, previewImageUrls, anchorId)}</div>
     </section>
   )
 }
 
-function renderPlainReadLaterContent(markdown: string, previewImageUrls: Record<string, string> | undefined) {
+function renderPlainReadLaterContent(
+  markdown: string,
+  contentFormat: ResolvedContentFormat,
+  previewImageUrls: Record<string, string> | undefined,
+) {
   return (
     <section className="preview-content__section preview-content__section--plain" data-read-later-section-key="articleExcerpt">
-      <div className="preview-content__section-body">{renderBlocks(markdown, previewImageUrls, 'read-later-content')}</div>
+      <div className="preview-content__section-body">{renderContentBlocks(markdown, contentFormat, previewImageUrls, 'read-later-content')}</div>
     </section>
   )
 }
@@ -900,6 +980,7 @@ export default function PreviewPane({
   title,
   date,
   markdown,
+  contentFormat = 'markdown',
   desc,
   cover,
   sourceName,
@@ -927,7 +1008,7 @@ export default function PreviewPane({
   const activeOutlineTargetRef = useRef<string | null>(null)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
-  const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown) : []
+  const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
   const hasStructuredReadLaterSections = isReadLater
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
     : false
@@ -1228,6 +1309,7 @@ export default function PreviewPane({
             {renderReadLaterSection(
               '原文摘录',
               readLaterSections?.articleExcerpt || '',
+              contentFormat,
               previewImageUrls,
               getReadLaterSectionAnchorId('articleExcerpt'),
               'articleExcerpt',
@@ -1235,6 +1317,7 @@ export default function PreviewPane({
             {renderReadLaterSection(
               '我的总结',
               readLaterSections?.summary || '',
+              contentFormat,
               previewImageUrls,
               getReadLaterSectionAnchorId('summary'),
               'summary',
@@ -1242,15 +1325,16 @@ export default function PreviewPane({
             {renderReadLaterSection(
               '我的评论',
               readLaterSections?.commentary || '',
+              contentFormat,
               previewImageUrls,
               getReadLaterSectionAnchorId('commentary'),
               'commentary',
             )}
           </div>
         ) : isReadLater ? (
-          renderPlainReadLaterContent(markdown, previewImageUrls)
+          renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls)
         ) : (
-          renderBlocks(markdown, previewImageUrls)
+          renderContentBlocks(markdown, contentFormat, previewImageUrls)
         )}
       </article>
     </section>

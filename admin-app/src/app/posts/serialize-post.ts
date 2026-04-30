@@ -12,6 +12,7 @@ export function serializePost(post: ParsedPost): string {
   const lines = [
     '---',
     `title: ${post.frontmatter.title}`,
+    ...(post.frontmatter.format ? [`format: ${post.frontmatter.format}`] : []),
     ...(post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
     ...(post.frontmatter.layout ? [`layout: ${post.frontmatter.layout}`] : []),
     ...(post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),

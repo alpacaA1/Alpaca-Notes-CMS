@@ -48,4 +48,25 @@ describe('serializePost', () => {
     expect(output).toContain('date: 2026-04-01 20:10:00')
     expect(output.endsWith('\n\nLine 1\n\n- item\n')).toBe(true)
   })
+
+  it('serializes an explicit content format when present', () => {
+    const post: ParsedPost = {
+      path: 'source/_posts/plaintext.md',
+      sha: 'sha-plain',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      frontmatter: {
+        title: 'Plain text',
+        format: 'plaintxt',
+        date: '2026-04-01 20:10:00',
+        desc: 'desc',
+        published: true,
+        categories: [],
+        tags: [],
+      },
+      body: 'Body',
+    }
+
+    expect(serializePost(post)).toContain('format: plaintxt')
+  })
 })

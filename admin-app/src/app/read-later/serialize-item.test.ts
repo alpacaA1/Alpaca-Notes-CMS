@@ -60,4 +60,11 @@ desc: 值得回看的文章
 
     expect(serializeReadLaterItem(item)).toContain(`reader_annotations:\n  - ${encodeURIComponent(JSON.stringify(annotation))}`)
   })
+
+  it('serializes read-later content format when present', () => {
+    const item = createNewReadLaterItem(new Date(2026, 3, 3, 6, 7, 8))
+    item.frontmatter.format = 'plaintxt'
+
+    expect(serializeReadLaterItem(item)).toContain('format: plaintxt')
+  })
 })

@@ -102,4 +102,14 @@ describe('parse read-later item', () => {
     expect(item.annotations).toEqual([annotation])
     expect(item.frontmatter.reader_annotations).toEqual([encodedAnnotation])
   })
+
+  it('preserves a read-later content format from frontmatter', () => {
+    const item = parseReadLaterItem({
+      path: 'source/read-later-items/plaintext.md',
+      sha: 'sha-plain',
+      content: readLaterContent.replace('permalink: read-later/read-later-article/', 'format: plaintxt\npermalink: read-later/read-later-article/'),
+    })
+
+    expect(item.frontmatter.format).toBe('plaintxt')
+  })
 })

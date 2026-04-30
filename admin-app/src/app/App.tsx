@@ -13,6 +13,7 @@ import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-u
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
+import { resolveContentFormat } from './content-format'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
@@ -177,6 +178,10 @@ export default function App() {
   )
   const readLaterAnnotations = useMemo(
     () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
+    [document],
+  )
+  const documentContentFormat = useMemo(
+    () => (document ? resolveContentFormat(document.path, document.frontmatter.format) : 'markdown'),
     [document],
   )
   const activeDocumentPost = useMemo(() => {
@@ -1112,6 +1117,7 @@ export default function App() {
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
+            documentContentFormat={documentContentFormat}
             activeOutlineTargetId={activeOutlineTargetId}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
@@ -1153,6 +1159,7 @@ export default function App() {
                       title={document.frontmatter.title}
                       date={document.frontmatter.date}
                       markdown={document.body}
+                      contentFormat={documentContentFormat}
                       desc={document.frontmatter.desc}
                       cover={document.frontmatter.cover}
                       sourceName={document.frontmatter.source_name}

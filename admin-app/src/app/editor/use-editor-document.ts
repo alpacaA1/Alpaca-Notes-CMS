@@ -69,6 +69,7 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.title === right.frontmatter.title &&
     left.frontmatter.date === right.frontmatter.date &&
     left.frontmatter.desc === right.frontmatter.desc &&
+    left.frontmatter.format === right.frontmatter.format &&
     left.frontmatter.published === right.frontmatter.published &&
     left.frontmatter.pinned === right.frontmatter.pinned &&
     left.frontmatter.permalink === right.frontmatter.permalink &&

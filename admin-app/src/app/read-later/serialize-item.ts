@@ -17,6 +17,7 @@ export function serializeReadLaterItem(item: ParsedReadLaterItem): string {
   const lines = [
     '---',
     `title: ${item.frontmatter.title}`,
+    ...(item.frontmatter.format ? [`format: ${item.frontmatter.format}`] : []),
     `permalink: ${item.frontmatter.permalink}`,
     `layout: ${item.frontmatter.layout}`,
     ...(item.frontmatter.cover ? [`cover: ${item.frontmatter.cover}`] : []),

@@ -130,11 +130,18 @@ export function getEditableReadLaterSections(body: string): ReadLaterSections {
   }
 }
 
-export function getReadLaterOutline(body: string): ReadLaterOutlineItem[] {
+export function getReadLaterOutline(
+  body: string,
+  contentFormat: 'markdown' | 'plaintext' = 'markdown',
+): ReadLaterOutlineItem[] {
   const sections = parseReadLaterSections(body)
   const hasStructuredSections = Object.values(sections).some((section) => section.trim().length > 0)
 
   if (!hasStructuredSections) {
+    if (contentFormat === 'plaintext') {
+      return [{ id: 'read-later-content', label: '阅读内容', level: 1, kind: 'section' }]
+    }
+
     const headings = normalizeOutlineLevels(extractMarkdownHeadings(body, 'read-later-content'))
     return headings.length > 0
       ? headings
@@ -145,6 +152,10 @@ export function getReadLaterOutline(body: string): ReadLaterOutlineItem[] {
     const sectionContent = sections[section.key]
     if (!sectionContent.trim()) {
       return []
+    }
+
+    if (contentFormat === 'plaintext') {
+      return [{ id: section.id, label: section.title, level: 1, kind: 'section' as const }]
     }
 
     const nestedHeadings = normalizeOutlineLevels(extractMarkdownHeadings(sectionContent, section.id))
@@ -161,6 +172,7 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
   const body = (match?.[2] || input.content).replace(/^\n/, '')
   const permalink = readScalar(frontmatterBlock, 'permalink') || ''
   const pinnedRaw = readScalar(frontmatterBlock, 'pinned')
+  const format = readScalar(frontmatterBlock, 'format')
   const externalUrl = readScalar(frontmatterBlock, 'external_url') || ''
   const sourceName = readScalar(frontmatterBlock, 'source_name') || ''
   const readingStatus = readScalar(frontmatterBlock, 'reading_status')
@@ -180,6 +192,7 @@ export function parseReadLaterItem(input: { path: string; sha: string; content: 
       title: readScalar(frontmatterBlock, 'title') || '',
       date: readScalar(frontmatterBlock, 'date') || '',
       desc: readScalar(frontmatterBlock, 'desc') || '',
+      ...(format ? { format } : {}),
       categories: [],
       tags: readList(frontmatterBlock, 'tags'),
       pinned: pinnedRaw === 'true',

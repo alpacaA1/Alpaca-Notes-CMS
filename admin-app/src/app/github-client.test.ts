@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { REPO_BRANCH } from './config'
-import { clearMarkdownFileCache, deletePostFile, fetchPostFile, readCachedMarkdownFile, savePostFile, uploadImageFile } from './github-client'
+import { clearMarkdownFileCache, deletePostFile, fetchPostFile, listPostFiles, readCachedMarkdownFile, savePostFile, uploadImageFile } from './github-client'
 
 const chineseMarkdown = `---
 title: 中文标题
@@ -162,5 +162,22 @@ describe('github client encoding', () => {
       sha: 'delete-sha',
       branch: REPO_BRANCH,
     })
+  })
+
+  it('lists markdown and plain text content files for the editor', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ([
+        { type: 'file', path: 'source/_posts/first.md', sha: 'sha-1', name: 'first.md' },
+        { type: 'file', path: 'source/_posts/second.txt', sha: 'sha-2', name: 'second.txt' },
+        { type: 'file', path: 'source/_posts/third.plaintxt', sha: 'sha-3', name: 'third.plaintxt' },
+        { type: 'file', path: 'source/_posts/ignored.html', sha: 'sha-4', name: 'ignored.html' },
+      ]),
+    } as Response)
+
+    const files = await listPostFiles({ token: 'token' })
+
+    expect(files.map((file) => file.name)).toEqual(['first.md', 'second.txt', 'third.plaintxt'])
   })
 })

@@ -79,4 +79,23 @@ Body`,
     expect(parsed.frontmatter.categories).toEqual(['专业'])
     expect(parsed.frontmatter.tags).toEqual(['产品'])
   })
+
+  it('preserves an explicit content format from frontmatter', () => {
+    const parsed = parsePost({
+      path: 'source/_posts/plaintext.md',
+      sha: 'sha-plaintext',
+      content: `---
+title: Plain text post
+format: plaintxt
+date: 2026-04-04 09:00:00
+desc: Plain text body
+categories:
+tags:
+---
+
+Body`,
+    })
+
+    expect(parsed.frontmatter.format).toBe('plaintxt')
+  })
 })
