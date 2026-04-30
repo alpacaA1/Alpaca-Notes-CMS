@@ -1,6 +1,15 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { REPO_BRANCH } from './config'
-import { clearMarkdownFileCache, deletePostFile, fetchPostFile, listPostFiles, readCachedMarkdownFile, savePostFile, uploadImageFile } from './github-client'
+import {
+  clearMarkdownFileCache,
+  deletePostFile,
+  fetchPostFile,
+  GitHubAuthError,
+  listPostFiles,
+  readCachedMarkdownFile,
+  savePostFile,
+  uploadImageFile,
+} from './github-client'
 
 const chineseMarkdown = `---
 title: 中文标题
@@ -12,6 +21,19 @@ desc: 中文摘要
 ---
 
 正文中文内容。`
+
+function createErrorResponse(status: number, message: string, headers: Record<string, string> = {}) {
+  return {
+    ok: false,
+    status,
+    headers: {
+      get(name: string) {
+        return headers[name.toLowerCase()] ?? headers[name] ?? null
+      },
+    },
+    json: async () => ({ message }),
+  } as Response
+}
 
 describe('github client encoding', () => {
   afterEach(() => {
@@ -179,5 +201,38 @@ describe('github client encoding', () => {
     const files = await listPostFiles({ token: 'token' })
 
     expect(files.map((file) => file.name)).toEqual(['first.md', 'second.txt', 'third.plaintxt'])
+  })
+
+  it('treats 401 responses as expired GitHub auth', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createErrorResponse(401, 'Bad credentials'),
+    )
+
+    await expect(listPostFiles({ token: 'token' })).rejects.toBeInstanceOf(GitHubAuthError)
+  })
+
+  it('surfaces GitHub rate limits without logging the user out', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createErrorResponse(403, 'API rate limit exceeded', {
+        'x-ratelimit-remaining': '0',
+      }),
+    )
+
+    await expect(listPostFiles({ token: 'token' })).rejects.toThrow('GitHub API 请求已触发频率限制，请稍后重试。')
+  })
+
+  it('keeps non-auth 403 errors as regular request failures', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createErrorResponse(403, 'Resource not accessible by personal access token'),
+    )
+
+    try {
+      await listPostFiles({ token: 'token' })
+      throw new Error('expected listPostFiles to throw')
+    } catch (error) {
+      expect(error).not.toBeInstanceOf(GitHubAuthError)
+      expect(error).toBeInstanceOf(Error)
+      expect((error as Error).message).toBe('Resource not accessible by personal access token')
+    }
   })
 })

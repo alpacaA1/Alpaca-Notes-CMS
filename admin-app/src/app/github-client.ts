@@ -112,6 +112,17 @@ async function readJson<T>(response: Response): Promise<T> {
   return (await response.json()) as T
 }
 
+function resolveGitHubForbiddenMessage(response: Response, message?: string) {
+  const normalizedMessage = String(message || '').trim()
+  const remaining = response.headers.get('x-ratelimit-remaining')
+
+  if (remaining === '0' || /rate limit/i.test(normalizedMessage)) {
+    return 'GitHub API 请求已触发频率限制，请稍后重试。'
+  }
+
+  return normalizedMessage || 'GitHub 请求被拒绝。'
+}
+
 async function requestGitHub<T>(session: SessionState, path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${GITHUB_API_BASE}${path}`, {
     ...init,
@@ -121,7 +132,7 @@ async function requestGitHub<T>(session: SessionState, path: string, init?: Requ
     },
   })
 
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     throw new GitHubAuthError()
   }
 
@@ -131,6 +142,10 @@ async function requestGitHub<T>(session: SessionState, path: string, init?: Requ
 
   if (!response.ok) {
     const data = await readJson<{ message?: string }>(response)
+    if (response.status === 403) {
+      throw new Error(resolveGitHubForbiddenMessage(response, data.message))
+    }
+
     throw new Error(data.message || 'GitHub request failed.')
   }
 
