@@ -884,6 +884,7 @@ export default function PreviewPane({
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
+  const handledAnnotationScrollRequestRef = useRef(0)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const hasStructuredReadLaterSections = isReadLater
@@ -943,9 +944,19 @@ export default function PreviewPane({
       return
     }
 
+    if (annotationScrollRequest === 0) {
+      handledAnnotationScrollRequestRef.current = 0
+      return
+    }
+
+    if (handledAnnotationScrollRequestRef.current === annotationScrollRequest) {
+      return
+    }
+
     const article = articleRef.current
     const activeHighlight = article?.querySelector<HTMLElement>(`mark[data-reader-annotation-id="${activeAnnotationId}"]`)
     if (activeHighlight && typeof activeHighlight.scrollIntoView === 'function') {
+      handledAnnotationScrollRequestRef.current = annotationScrollRequest
       activeHighlight.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' })
     }
   }, [activeAnnotationId, annotationScrollRequest, annotations.length, isReadLater])

@@ -726,7 +726,6 @@ export default function App() {
     setReadLaterTab('commentary')
     setActiveAnnotationId(annotation.id)
     setEditingAnnotationId(action === 'note' ? annotation.id : null)
-    setAnnotationScrollRequest((current) => current + 1)
   }
 
   const handleUploadImage = async (file: File) => {

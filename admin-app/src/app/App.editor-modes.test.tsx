@@ -449,6 +449,7 @@ describe('App editor modes', () => {
 
     expect(await screen.findByText('选区批注')).toBeTruthy()
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
+    expect(scrollIntoView).not.toHaveBeenCalled()
     scrollIntoView.mockClear()
 
     fireEvent.click(screen.getByRole('button', { name: '这里是原文摘录。' }))
