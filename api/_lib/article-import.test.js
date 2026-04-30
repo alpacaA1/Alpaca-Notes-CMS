@@ -135,6 +135,44 @@ test('importArticle allows larger WeChat HTML pages', async () => {
   assert.match(article.markdown, /大页面正文。/);
 });
 
+test('importArticle adds outline-friendly markdown headings when a readable article only has strong paragraphs', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.13', family: 4 }]);
+  global.fetch = async () => createMockResponse({
+    url: 'https://example.com/outline-friendly',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+    },
+    html: `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="description" content="这里是摘要" />
+    <title>导入后的文章标题</title>
+  </head>
+  <body>
+    <main>
+      <article>
+        <p><strong>导入后的文章标题</strong></p>
+        <p>开头段落。</p>
+        <p><strong>具体步骤如下</strong></p>
+        <p>正文内容。</p>
+      </article>
+    </main>
+  </body>
+</html>`,
+  });
+
+  const article = await importArticle('https://example.com/outline-friendly');
+
+  assert.equal(article.title, '导入后的文章标题');
+  assert.equal(article.desc, '这里是摘要');
+  assert.match(article.markdown, /^# 导入后的文章标题$/m);
+  assert.match(article.markdown, /^## 具体步骤如下$/m);
+  assert.match(article.markdown, /开头段落。/);
+  assert.match(article.markdown, /正文内容。/);
+  assert.doesNotMatch(article.markdown, /^\*\*导入后的文章标题\*\*$/m);
+});
+
 test('importArticle imports note.mowen.cn detail pages via the note api and preserves code blocks', async () => {
   const fetchCalls = [];
   setDnsLookupForTesting(async () => [{ address: '203.0.113.30', family: 4 }]);
@@ -189,6 +227,7 @@ test('importArticle imports note.mowen.cn detail pages via the note api and pres
   assert.equal(article.sourceName, '池建强 · 墨问');
   assert.equal(article.requestedUrl, 'https://note.mowen.cn/detail/mowen-article?code=peek-123');
   assert.equal(article.finalUrl, 'https://note.mowen.cn/detail/mowen-article?code=peek-123');
+  assert.match(article.markdown, /^# 墨问标题$/m);
   assert.match(article.markdown, /开头段落/);
   assert.match(article.markdown, /```shellscript\necho hello\n```/);
   assert.match(article.markdown, /结尾段落/);

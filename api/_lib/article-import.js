@@ -297,6 +297,107 @@ function normalizeMarkdown(markdown) {
     .trim();
 }
 
+function normalizeHeadingComparisonText(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '');
+}
+
+function getMarkdownHeadingTexts(markdown) {
+  const headingTexts = [];
+  let openFence = null;
+
+  for (const line of String(markdown || '').split('\n')) {
+    const trimmedLine = line.trimStart();
+    const fenceMatch = trimmedLine.match(/^(`{3,}|~{3,})/);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (!openFence) {
+        openFence = { character: marker[0], length: marker.length };
+      } else if (marker[0] === openFence.character && marker.length >= openFence.length) {
+        openFence = null;
+      }
+      continue;
+    }
+
+    if (openFence) {
+      continue;
+    }
+
+    const headingMatch = line.match(/^\s{0,3}#{1,6}\s+(.*)$/);
+    if (!headingMatch) {
+      continue;
+    }
+
+    const label = normalizeText(headingMatch[1].replace(/\s+#+\s*$/, ''));
+    if (label) {
+      headingTexts.push(label);
+    }
+  }
+
+  return headingTexts;
+}
+
+function hasMarkdownHeadings(markdown) {
+  return getMarkdownHeadingTexts(markdown).length > 0;
+}
+
+function readStrongOnlyParagraphText(block) {
+  const trimmedBlock = String(block || '').trim();
+  if (!trimmedBlock || trimmedBlock.includes('\n')) {
+    return '';
+  }
+
+  const match = trimmedBlock.match(/^\*\*([^*\n]+?)\*\*(?:\s*[：:])?$/);
+  return match ? normalizeText(match[1]) : '';
+}
+
+function enhanceImportedMarkdown(markdown, title) {
+  const normalizedTitle = normalizeText(title);
+  const normalizedTitleForComparison = normalizeHeadingComparisonText(normalizedTitle);
+  let enhancedMarkdown = normalizeMarkdown(markdown);
+
+  if (!enhancedMarkdown || hasMarkdownHeadings(enhancedMarkdown)) {
+    return enhancedMarkdown;
+  }
+
+  const blocks = enhancedMarkdown.split(/\n{2,}/);
+  enhancedMarkdown = normalizeMarkdown(
+    blocks
+      .map((block) => {
+        const strongOnlyText = readStrongOnlyParagraphText(block);
+        if (!strongOnlyText) {
+          return block.trim();
+        }
+
+        if (
+          normalizedTitleForComparison &&
+          normalizeHeadingComparisonText(strongOnlyText) === normalizedTitleForComparison
+        ) {
+          return `# ${normalizedTitle}`;
+        }
+
+        return `## ${strongOnlyText}`;
+      })
+      .join('\n\n')
+  );
+
+  if (!normalizedTitle) {
+    return enhancedMarkdown;
+  }
+
+  const hasTitleHeading = getMarkdownHeadingTexts(enhancedMarkdown).some(
+    (headingText) => normalizeHeadingComparisonText(headingText) === normalizedTitleForComparison
+  );
+
+  if (hasTitleHeading) {
+    return enhancedMarkdown;
+  }
+
+  return normalizeMarkdown(`# ${normalizedTitle}\n\n${enhancedMarkdown}`);
+}
+
 function convertArticleHtmlToMarkdown(content, baseUrl) {
   const { dom, html } = prepareArticleHtml(content, baseUrl);
 
@@ -319,13 +420,15 @@ function extractWeChatArticle(document, finalUrl) {
     return null;
   }
 
+  const title = normalizeText(
+    document.querySelector('#activity-name')?.textContent ||
+      readMetaContent(document, 'meta[property="og:title"]') ||
+      document.title ||
+      ''
+  );
+
   return {
-    title: normalizeText(
-      document.querySelector('#activity-name')?.textContent ||
-        readMetaContent(document, 'meta[property="og:title"]') ||
-        document.title ||
-        ''
-    ),
+    title,
     desc: normalizeText(
       readMetaContent(document, 'meta[property="og:description"]') ||
         readMetaContent(document, 'meta[name="description"]')
@@ -334,7 +437,7 @@ function extractWeChatArticle(document, finalUrl) {
       document.querySelector('#js_name')?.textContent ||
         readMetaContent(document, 'meta[property="og:site_name"]')
     ),
-    markdown,
+    markdown: enhanceImportedMarkdown(markdown, title),
   };
 }
 
@@ -350,8 +453,10 @@ function extractReadableArticle(document, finalUrl) {
     throw new ArticleImportError('未能提取出可用正文，请尝试手动复制内容。', 422);
   }
 
+  const title = normalizeText(article.title || document.title || '');
+
   return {
-    title: normalizeText(article.title || document.title || ''),
+    title,
     desc: normalizeText(
       article.excerpt ||
         readMetaContent(document, 'meta[name="description"]') ||
@@ -361,7 +466,7 @@ function extractReadableArticle(document, finalUrl) {
       article.siteName ||
         readMetaContent(document, 'meta[property="og:site_name"]')
     ),
-    markdown,
+    markdown: enhanceImportedMarkdown(markdown, title),
   };
 }
 
@@ -420,12 +525,14 @@ async function importMowenArticle(finalArticleUrl, signal) {
     throw new ArticleImportError('未能提取出可用正文，请尝试手动复制内容。', 422);
   }
 
+  const title = normalizeText(payload?.detail?.noteBase?.title);
+
   return {
-    title: normalizeText(payload?.detail?.noteBase?.title),
+    title,
     desc: normalizeText(payload?.detail?.noteBase?.digest),
     sourceName:
       normalizeText([payload?.user?.base?.name, '墨问'].filter(Boolean).join(' · ')) || '墨问',
-    markdown,
+    markdown: enhanceImportedMarkdown(markdown, title),
   };
 }
 
