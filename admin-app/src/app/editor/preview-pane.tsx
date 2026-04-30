@@ -165,6 +165,7 @@ function highlightAnnotationInSection(
   isActive: boolean,
   onSelectAnnotation?: (annotationId: string) => void,
   onActivateAnnotationDelete?: (annotationId: string) => void,
+  onSuppressAnnotationScroll?: () => void,
 ) {
   const fullText = sectionRoot.textContent || ''
   if (!fullText) {
@@ -221,6 +222,7 @@ function highlightAnnotationInSection(
     mark.textContent = middle
     mark.onclick = () => {
       clearSelection()
+      onSuppressAnnotationScroll?.()
       onSelectAnnotation?.(annotation.id)
       onActivateAnnotationDelete?.(annotation.id)
     }
@@ -228,6 +230,7 @@ function highlightAnnotationInSection(
       if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault()
         clearSelection()
+        onSuppressAnnotationScroll?.()
         onSelectAnnotation?.(annotation.id)
         onActivateAnnotationDelete?.(annotation.id)
       }
@@ -885,6 +888,7 @@ export default function PreviewPane({
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const handledAnnotationScrollRequestRef = useRef(0)
+  const suppressNextAnnotationScrollRef = useRef(false)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const hasStructuredReadLaterSections = isReadLater
@@ -935,6 +939,9 @@ export default function PreviewPane({
         annotation.id === activeAnnotationId,
         onSelectAnnotation,
         setAnnotationDeleteTargetId,
+        () => {
+          suppressNextAnnotationScrollRef.current = true
+        },
       )
     })
   }, [activeAnnotationId, annotations, isReadLater, markdown, onSelectAnnotation])
@@ -950,6 +957,12 @@ export default function PreviewPane({
     }
 
     if (handledAnnotationScrollRequestRef.current === annotationScrollRequest) {
+      return
+    }
+
+    if (suppressNextAnnotationScrollRef.current) {
+      suppressNextAnnotationScrollRef.current = false
+      handledAnnotationScrollRequestRef.current = annotationScrollRequest
       return
     }
 

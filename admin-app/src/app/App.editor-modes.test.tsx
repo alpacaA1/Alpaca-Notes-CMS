@@ -456,7 +456,9 @@ describe('App editor modes', () => {
     expect(scrollIntoView).toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
 
+    scrollIntoView.mockClear()
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
+    expect(scrollIntoView).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: '删除高亮' })).toBeTruthy()
     expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
 
