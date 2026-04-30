@@ -106,21 +106,18 @@ export default function ReadLaterAnnotationsView({
         <div className="annotation-dashboard__hero-copy">
           <p className="annotation-dashboard__eyebrow">批注视图</p>
           <h1>先整理素材，再决定写什么。</h1>
-          <p>
-            这里把所有待读条目的高亮与批注拉平展示。先筛来源文章和标签，再跳回原文继续补充。
-          </p>
         </div>
         <div className="annotation-dashboard__stats" aria-label="批注统计">
           <article className="annotation-dashboard__stat-card">
-            <span>批注总数</span>
+            <span>批注</span>
             <strong>{annotations.length}</strong>
           </article>
           <article className="annotation-dashboard__stat-card">
-            <span>已写评论</span>
+            <span>评论</span>
             <strong>{notedCount}</strong>
           </article>
           <article className="annotation-dashboard__stat-card">
-            <span>来源文章</span>
+            <span>来源</span>
             <strong>{annotatedSourceCount}</strong>
           </article>
         </div>
