@@ -1,6 +1,6 @@
 import type { Ref } from 'react'
 
-type AdminView = 'dashboard' | 'editor'
+type AdminView = 'dashboard' | 'editor' | 'annotations'
 
 function AlpacaLogo() {
   return (
@@ -31,6 +31,7 @@ type TopBarProps = {
   onLogout: () => void
   onToggleColorMode: () => void
   onBackToDashboard?: () => void
+  onOpenAnnotations?: () => void
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -66,6 +67,7 @@ export default function TopBar({
   onLogout,
   onToggleColorMode,
   onBackToDashboard,
+  onOpenAnnotations,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -78,19 +80,31 @@ export default function TopBar({
   isSaveQuiet,
   status,
 }: TopBarProps) {
-  const isDashboard = adminView === 'dashboard'
-  const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
+  const isEditor = adminView === 'editor'
+  const isAnnotationsView = adminView === 'annotations'
+  const isDashboardLike = !isEditor
+  const titleText = isAnnotationsView
+    ? '批注管理'
+    : isDashboardLike
+      ? (contentType === 'read-later' ? '待读管理' : '文章管理')
+      : '内容编辑台'
   const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
-  const showContentTypeSwitcher = isDashboard
+  const showContentTypeSwitcher = isDashboardLike
+  const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
+  const searchPlaceholder = isAnnotationsView
+    ? '搜索摘录、批注、来源文章、来源或标签'
+    : contentType === 'read-later'
+      ? '搜索标题、摘要、正文、来源或原文链接'
+      : '搜索标题、摘要、正文、标签或链接'
 
   return (
-    <header className={`top-bar${isDashboard ? '' : ' top-bar--editor'}`}>
+    <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>
       <div className="top-bar__identity">
         <AlpacaLogo />
         <div className="top-bar__identity-text">
-          {isDashboard ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
+          {isDashboardLike ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
           <div className="top-bar__title-row">
             <strong>{titleText}</strong>
             <span className="top-bar__status">{status}</span>
@@ -106,7 +120,7 @@ export default function TopBar({
             aria-label="搜索"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={contentType === 'read-later' ? '搜索标题、摘要、正文、来源或原文链接' : '搜索标题、摘要、正文、标签或链接'}
+            placeholder={searchPlaceholder}
           />
         </label>
         {showContentTypeSwitcher ? (
@@ -142,7 +156,16 @@ export default function TopBar({
 
       <div className="top-bar__actions">
         <div className="top-bar__primary-actions">
-          {!isDashboard && onBackToDashboard ? (
+          {showAnnotationToggle ? (
+            <button
+              className={`top-bar__button${isAnnotationsView ? ' top-bar__button--active' : ''}`}
+              type="button"
+              onClick={isAnnotationsView ? onBackToDashboard : onOpenAnnotations}
+            >
+              {isAnnotationsView ? '返回待读' : '批注'}
+            </button>
+          ) : null}
+          {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
               type="button"
@@ -154,7 +177,7 @@ export default function TopBar({
           <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
             {createLabel}
           </button>
-          {!isDashboard ? (
+          {isEditor ? (
             <>
               <button
                 className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}

@@ -18,11 +18,14 @@ import { resolveContentFormat } from './content-format'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
+import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import { useColorMode } from './layout/use-color-mode'
 import LoginGate from './login-gate'
+import { buildReadLaterAnnotationIndex } from './read-later/annotation-index'
+import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
 import { importReadLaterFromUrl } from './read-later/import-client'
@@ -141,7 +144,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor'
+type AdminView = 'dashboard' | 'editor' | 'annotations'
 
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
@@ -150,12 +153,14 @@ export default function App() {
   const [contentType, setContentType] = useState<ContentType>('post')
   const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
   const posts = postsByType[contentType]
+  const readLaterPosts = postsByType['read-later']
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
   const [adminView, setAdminView] = useState<AdminView>('dashboard')
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
+  const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
@@ -164,6 +169,7 @@ export default function App() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
+  const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
   const previewObjectUrlsRef = useRef<string[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
@@ -248,6 +254,46 @@ export default function App() {
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
+
+  useEffect(() => {
+    if (!session || contentType !== 'read-later' || adminView !== 'annotations') {
+      return
+    }
+
+    let cancelled = false
+
+    const loadAnnotations = async () => {
+      setIsAnnotationIndexing(true)
+
+      try {
+        const annotations = await buildReadLaterAnnotationIndex(session, readLaterPosts)
+        if (!cancelled) {
+          setReadLaterAnnotationIndex(annotations)
+        }
+      } catch (caughtError) {
+        if (cancelled) {
+          return
+        }
+
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+          return
+        }
+
+        setError(caughtError instanceof Error ? caughtError.message : '加载批注列表失败。')
+      } finally {
+        if (!cancelled) {
+          setIsAnnotationIndexing(false)
+        }
+      }
+    }
+
+    void loadAnnotations()
+
+    return () => {
+      cancelled = true
+    }
+  }, [adminView, contentType, readLaterPosts, session])
 
   useEffect(() => {
     if (!document || document.contentType !== 'read-later' || mode !== 'preview') {
@@ -378,6 +424,7 @@ export default function App() {
   const resetWorkspace = () => {
     resetPreviewImageUrls()
     setPostsByType(createEmptyIndexedPostsByType())
+    setReadLaterAnnotationIndex([])
     setActivePostPath(null)
     setIsOpeningPost(false)
     setIsQuickCollectingReadLater(false)
@@ -493,6 +540,12 @@ export default function App() {
     setSuccessMessage(null)
     setError(null)
     setAdminView('dashboard')
+  }
+
+  const handleOpenAnnotations = () => {
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('annotations')
   }
 
   const handleDeletePost = (post: PostIndexItem) => {
@@ -758,6 +811,55 @@ export default function App() {
     setActiveAnnotationId(annotationId)
     setEditingAnnotationId(null)
     setAnnotationScrollRequest((current) => current + 1)
+  }
+
+  const handleOpenReadLaterAnnotation = async (annotation: ReadLaterAnnotationIndexItem) => {
+    if (!session || !confirmNavigation()) {
+      return
+    }
+
+    const openAnnotationDocument = (file: { path: string; sha: string; content: string }) => {
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseReadLaterItem(file))
+      openDocument(resolvedDocument.savedPost, {
+        draftPost: resolvedDocument.draftPost,
+        successMessage: resolvedDocument.successMessage,
+      })
+      setReadLaterTab('commentary')
+      setActiveAnnotationId(annotation.annotationId)
+      setEditingAnnotationId(null)
+      setAnnotationScrollRequest((current) => current + 1)
+    }
+
+    setContentType('read-later')
+    setAdminView('editor')
+    setSuccessMessage(null)
+    setError(null)
+
+    const sourcePost = readLaterPosts.find((post) => post.path === annotation.postPath)
+    const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
+    if (cachedFile) {
+      setIsOpeningPost(false)
+      openAnnotationDocument(cachedFile)
+      return
+    }
+
+    setIsOpeningPost(true)
+    setActivePostPath(annotation.postPath)
+    replaceDocument(null)
+
+    try {
+      const file = await fetchMarkdownFile(session, annotation.postPath)
+      openAnnotationDocument(file)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '打开批注原文失败。')
+    } finally {
+      setIsOpeningPost(false)
+    }
   }
 
   const handleClearActiveAnnotation = () => {
@@ -1199,25 +1301,30 @@ export default function App() {
         ? `正在刷新${indexedLabel}… · 共 ${posts.length} 篇${indexedLabel}`
         : loadingLabel
       : `共 ${posts.length} 篇${indexedLabel}`
-    : isSaving && document
-      ? `正在保存 ${document.path}`
-      : isTogglingPinned && togglingPinnedPostPath
-        ? `正在更新置顶 · ${togglingPinnedPostPath}`
-        : isOpeningPost && activePostPath
-          ? `正在打开 ${activePostPath}`
-          : document
-          ? isDirty
-            ? `未保存修改 · ${document.path}`
-            : `编辑中 · ${document.path}`
-          : isIndexing
-            ? loadingLabel
-            : '已就绪'
+    : adminView === 'annotations'
+      ? isAnnotationIndexing
+        ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
+        : `共 ${readLaterAnnotationIndex.length} 条批注`
+      : isSaving && document
+        ? `正在保存 ${document.path}`
+        : isTogglingPinned && togglingPinnedPostPath
+          ? `正在更新置顶 · ${togglingPinnedPostPath}`
+          : isOpeningPost && activePostPath
+            ? `正在打开 ${activePostPath}`
+            : document
+            ? isDirty
+              ? `未保存修改 · ${document.path}`
+              : `编辑中 · ${document.path}`
+            : isIndexing
+              ? loadingLabel
+              : '已就绪'
 
   if (!session) {
     return <LoginGate isLoading={isLoading} error={error} onLogin={handleLogin} />
   }
 
   const isDashboard = adminView === 'dashboard'
+  const isAnnotationsView = adminView === 'annotations'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
@@ -1251,6 +1358,7 @@ export default function App() {
           onToggleColorMode={toggleColorMode}
           adminView={adminView}
           onBackToDashboard={handleBackToDashboard}
+          onOpenAnnotations={handleOpenAnnotations}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -1311,6 +1419,17 @@ export default function App() {
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onSearchFocus={() => searchInputRef.current?.focus()}
+          />
+        </>
+      ) : isAnnotationsView ? (
+        <>
+          {successMessage ? <p className="success-message">{successMessage}</p> : null}
+          {error ? <p className="error-message">{error}</p> : null}
+          <ReadLaterAnnotationsView
+            annotations={readLaterAnnotationIndex}
+            isLoading={isAnnotationIndexing}
+            search={search}
+            onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
           />
         </>
       ) : (

@@ -58,7 +58,7 @@ desc: 值得回看的文章
     const item = createNewReadLaterItem(new Date(2026, 3, 3, 6, 7, 8))
     item.annotations = [annotation]
 
-    expect(serializeReadLaterItem(item)).toContain(`reader_annotations:\n  - ${encodeURIComponent(JSON.stringify(annotation))}`)
+    expect(serializeReadLaterItem(item)).toContain(`reader_annotations:\n  - "${encodeURIComponent(JSON.stringify(annotation))}"`)
   })
 
   it('serializes read-later content format when present', () => {
