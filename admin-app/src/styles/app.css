@@ -4516,18 +4516,15 @@ textarea {
 }
 
 .annotation-dashboard__list-shell {
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   padding: 18px;
-  scrollbar-gutter: stable both-edges;
 }
 
 .annotation-dashboard__list {
   display: grid;
-  grid-template-columns: repeat(2, var(--annotation-card-width));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--annotation-grid-gap);
-  width: max-content;
-  min-width: calc(var(--annotation-card-width) * 2 + var(--annotation-grid-gap));
+  width: min(100%, calc(var(--annotation-card-width) * 2 + var(--annotation-grid-gap)));
   margin: 0 auto;
 }
 
@@ -4535,6 +4532,7 @@ textarea {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 14px;
+  min-width: 0;
   min-height: var(--annotation-card-height);
   padding: 16px;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -4747,7 +4745,7 @@ textarea {
 
 @media (max-width: 720px) {
   .annotation-dashboard {
-    --annotation-card-width: 248px;
+    --annotation-card-width: 268px;
     --annotation-card-height: 358px;
     --annotation-grid-gap: 14px;
     padding: 14px;
@@ -4773,11 +4771,21 @@ textarea {
   .annotation-dashboard__list-shell {
     padding: 14px;
   }
+
+  .annotation-dashboard__card-head-row--actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .annotation-dashboard__chips {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 640px) {
   .annotation-dashboard {
-    --annotation-card-width: 216px;
+    --annotation-card-width: 240px;
     --annotation-card-height: 344px;
   }
 
@@ -4791,10 +4799,6 @@ textarea {
 
   .annotation-dashboard__card {
     padding: 16px;
-  }
-
-  .annotation-dashboard__card-head-row--actions {
-    align-items: flex-start;
   }
 
   .annotation-dashboard__quote-block {
