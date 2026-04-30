@@ -27,6 +27,7 @@ type PostListPaneProps = {
   contentType: ContentType
   activePostPath?: string | null
   document?: ParsedPost | null
+  activeOutlineTargetId?: string | null
   isDeleting?: boolean
   deletingPostPath?: string | null
   isTogglingPinned?: boolean
@@ -47,6 +48,7 @@ export default function PostListPane({
   contentType,
   activePostPath = null,
   document = null,
+  activeOutlineTargetId = null,
   isDeleting = false,
   deletingPostPath = null,
   isTogglingPinned = false,
@@ -100,19 +102,29 @@ export default function PostListPane({
 
         <nav className="post-outline" aria-label="文章目录">
           <div className="post-outline__list">
-            <a className="post-outline__item post-outline__item--top" href="#read-later-content" onClick={handleOutlineNavigation('read-later-content')}>
+            <a
+              className={`post-outline__item post-outline__item--top${activeOutlineTargetId === 'read-later-content' ? ' is-active' : ''}`}
+              href="#read-later-content"
+              onClick={handleOutlineNavigation('read-later-content')}
+              aria-current={activeOutlineTargetId === 'read-later-content' ? 'location' : undefined}
+            >
               回到顶部
             </a>
-            {outlineItems.map((item) => (
-              <a
-                key={item.id}
-                className={`post-outline__item post-outline__item--level-${Math.min(item.level, 4)}${item.kind === 'section' ? ' post-outline__item--section' : ''}`}
-                href={`#${item.id}`}
-                onClick={handleOutlineNavigation(item.id)}
-              >
-                {item.label}
-              </a>
-            ))}
+            {outlineItems.map((item) => {
+              const isActive = activeOutlineTargetId === item.id
+
+              return (
+                <a
+                  key={item.id}
+                  className={`post-outline__item post-outline__item--level-${Math.min(item.level, 4)}${item.kind === 'section' ? ' post-outline__item--section' : ''}${isActive ? ' is-active' : ''}`}
+                  href={`#${item.id}`}
+                  onClick={handleOutlineNavigation(item.id)}
+                  aria-current={isActive ? 'location' : undefined}
+                >
+                  {item.label}
+                </a>
+              )
+            })}
           </div>
         </nav>
       </aside>

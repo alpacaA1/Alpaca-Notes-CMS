@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
-import { extractMarkdownHeadings, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
+import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ContentType = 'post' | 'read-later'
 
@@ -37,6 +37,7 @@ type PreviewPaneProps = {
   activeAnnotationId?: string | null
   annotationScrollRequest?: number
   navigationRequest?: { targetId: string; requestId: number } | null
+  onActiveOutlineTargetChange?: (targetId: string) => void
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
@@ -78,6 +79,7 @@ const BALANCED_BARE_URL_PAIRS = [
   ['｛', '｝'],
 ] as const
 const ANNOTATION_CONTEXT_LENGTH = 48
+const ACTIVE_OUTLINE_OFFSET = 120
 
 function isReadLaterSectionKey(value: string | undefined): value is ReadLaterSectionKey {
   return value === 'articleExcerpt' || value === 'summary' || value === 'commentary'
@@ -85,6 +87,38 @@ function isReadLaterSectionKey(value: string | undefined): value is ReadLaterSec
 
 function clearSelection() {
   window.getSelection()?.removeAllRanges()
+}
+
+function findElementById(root: ParentNode, targetId: string) {
+  return Array.from(root.querySelectorAll<HTMLElement>('[id]')).find((element) => element.id === targetId) || null
+}
+
+function getReadLaterOutlineTargetIds(markdown: string) {
+  return ['read-later-content', ...getReadLaterOutline(markdown).map((item) => item.id)].filter(
+    (targetId, index, ids) => ids.indexOf(targetId) === index,
+  )
+}
+
+function getActiveOutlineTargetId(pane: HTMLElement, article: HTMLElement, targetIds: string[]) {
+  const paneTop = Math.max(pane.getBoundingClientRect().top, 0)
+  const anchorLine = paneTop + ACTIVE_OUTLINE_OFFSET
+  let activeTargetId = 'read-later-content'
+
+  for (const targetId of targetIds) {
+    const target = targetId === 'read-later-content' ? article : findElementById(article, targetId)
+    if (!target) {
+      continue
+    }
+
+    if (target.getBoundingClientRect().top <= anchorLine) {
+      activeTargetId = targetId
+      continue
+    }
+
+    break
+  }
+
+  return activeTargetId
 }
 
 function unwrapHighlight(mark: HTMLElement) {
@@ -877,6 +911,7 @@ export default function PreviewPane({
   activeAnnotationId = null,
   annotationScrollRequest = 0,
   navigationRequest = null,
+  onActiveOutlineTargetChange,
   onCreateAnnotation,
   onSelectAnnotation,
   onClearActiveAnnotation,
@@ -889,8 +924,10 @@ export default function PreviewPane({
   const articleRef = useRef<HTMLElement | null>(null)
   const handledAnnotationScrollRequestRef = useRef(0)
   const suppressNextAnnotationScrollRef = useRef(false)
+  const activeOutlineTargetRef = useRef<string | null>(null)
   const isReadLater = contentType === 'read-later'
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
+  const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown) : []
   const hasStructuredReadLaterSections = isReadLater
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
     : false
@@ -918,6 +955,40 @@ export default function PreviewPane({
   useEffect(() => {
     setAnnotationDeleteTargetId(null)
   }, [markdown])
+
+  useEffect(() => {
+    if (!isReadLater || !onActiveOutlineTargetChange) {
+      activeOutlineTargetRef.current = null
+      return
+    }
+
+    const pane = paneRef.current
+    const article = articleRef.current
+    if (!pane || !article) {
+      return
+    }
+
+    const updateActiveOutlineTarget = () => {
+      const nextTargetId = getActiveOutlineTargetId(pane, article, readLaterOutlineTargetIds)
+      if (activeOutlineTargetRef.current === nextTargetId) {
+        return
+      }
+
+      activeOutlineTargetRef.current = nextTargetId
+      onActiveOutlineTargetChange(nextTargetId)
+    }
+
+    updateActiveOutlineTarget()
+    pane.addEventListener('scroll', updateActiveOutlineTarget, { passive: true })
+    window.addEventListener('scroll', updateActiveOutlineTarget, { passive: true })
+    window.addEventListener('resize', updateActiveOutlineTarget)
+
+    return () => {
+      pane.removeEventListener('scroll', updateActiveOutlineTarget)
+      window.removeEventListener('scroll', updateActiveOutlineTarget)
+      window.removeEventListener('resize', updateActiveOutlineTarget)
+    }
+  }, [isReadLater, onActiveOutlineTargetChange, readLaterOutlineTargetIds])
 
   useEffect(() => {
     const article = articleRef.current

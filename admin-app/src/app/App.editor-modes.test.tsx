@@ -345,6 +345,82 @@ describe('App editor modes', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
   })
 
+  it('updates the left outline highlight while the reader scrolls', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+
+    const { container } = render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
+
+    const previewPane = container.querySelector('.preview-pane--reading-canvas') as HTMLElement | null
+    const article = container.querySelector('#read-later-content') as HTMLElement | null
+    const firstHeading = screen.getByRole('heading', { name: '第一部分' })
+    const summarySection = container.querySelector('#read-later-summary') as HTMLElement | null
+    const commentarySection = container.querySelector('#read-later-commentary') as HTMLElement | null
+    if (!previewPane || !article || !summarySection || !commentarySection) {
+      throw new Error('Missing reader elements for outline sync test.')
+    }
+
+    Object.defineProperty(previewPane, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 100, left: 0, right: 800, bottom: 700, width: 800, height: 600, x: 0, y: 100, toJSON: () => ({}) }),
+    })
+
+    Object.defineProperty(article, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 112, left: 0, right: 760, bottom: 1200, width: 760, height: 1088, x: 0, y: 112, toJSON: () => ({}) }),
+    })
+
+    let firstHeadingTop = 180
+    let summarySectionTop = 560
+    let commentarySectionTop = 920
+
+    Object.defineProperty(firstHeading, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: firstHeadingTop, left: 0, right: 640, bottom: firstHeadingTop + 40, width: 640, height: 40, x: 0, y: firstHeadingTop, toJSON: () => ({}) }),
+    })
+
+    Object.defineProperty(summarySection, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: summarySectionTop, left: 0, right: 640, bottom: summarySectionTop + 120, width: 640, height: 120, x: 0, y: summarySectionTop, toJSON: () => ({}) }),
+    })
+
+    Object.defineProperty(commentarySection, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: commentarySectionTop, left: 0, right: 640, bottom: commentarySectionTop + 120, width: 640, height: 120, x: 0, y: commentarySectionTop, toJSON: () => ({}) }),
+    })
+
+    fireEvent.scroll(previewPane)
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: '第一部分' }).className).toContain('is-active')
+    })
+
+    firstHeadingTop = -120
+    summarySectionTop = 180
+    commentarySectionTop = 520
+    fireEvent.scroll(previewPane)
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: '我的总结' }).className).toContain('is-active')
+    })
+
+    expect(screen.getByRole('link', { name: '第一部分' }).className).not.toContain('is-active')
+  })
+
   it('keeps read-later in reading view while sidebar edits update the rendered commentary', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])

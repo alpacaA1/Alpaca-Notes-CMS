@@ -143,6 +143,7 @@ export default function App() {
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
   const [annotationScrollRequest, setAnnotationScrollRequest] = useState(0)
   const [readerNavigationRequest, setReaderNavigationRequest] = useState<ReaderNavigationRequest | null>(null)
+  const [activeOutlineTargetId, setActiveOutlineTargetId] = useState<string | null>(null)
   const {
     document,
     mode,
@@ -664,11 +665,20 @@ export default function App() {
   }
 
   const handleNavigateOutline = useCallback((targetId: string) => {
+    setActiveOutlineTargetId(targetId)
     setReaderNavigationRequest((current) => ({
       targetId,
       requestId: (current?.requestId ?? 0) + 1,
     }))
   }, [])
+
+  useEffect(() => {
+    if (document?.contentType === 'read-later' && mode === 'preview') {
+      return
+    }
+
+    setActiveOutlineTargetId(null)
+  }, [document?.contentType, document?.path, mode])
 
   const handleOpenAnnotationNote = (annotationId: string) => {
     setReadLaterTab('commentary')
@@ -1102,6 +1112,7 @@ export default function App() {
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
+            activeOutlineTargetId={activeOutlineTargetId}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
@@ -1153,6 +1164,7 @@ export default function App() {
                       activeAnnotationId={activeAnnotationId}
                       annotationScrollRequest={annotationScrollRequest}
                       navigationRequest={readerNavigationRequest}
+                      onActiveOutlineTargetChange={setActiveOutlineTargetId}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}

@@ -246,6 +246,25 @@ describe('management layout components', () => {
     expect(onBackToList).toHaveBeenCalled()
   })
 
+  it('highlights the active reader outline item', () => {
+    render(
+      <PostListPane
+        posts={readLaterPosts}
+        hidden={false}
+        contentType="read-later"
+        document={readLaterDocument}
+        activeOutlineTargetId="read-later-summary"
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: '我的总结' }).className).toContain('is-active')
+    expect(screen.getByRole('link', { name: '第一部分' }).className).not.toContain('is-active')
+    expect(screen.getByRole('link', { name: '回到顶部' }).className).not.toContain('is-active')
+  })
+
   it('shows the top bar controls without unused filter and sort buttons', () => {
     render(
       <TopBar
