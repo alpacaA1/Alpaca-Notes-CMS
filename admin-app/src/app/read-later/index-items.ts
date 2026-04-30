@@ -30,6 +30,17 @@ function readList(frontmatter: string, field: string): string[] {
     .filter((value) => value.length > 0)
 }
 
+function stripFrontmatter(content: string) {
+  return content.replace(/^---\n[\s\S]*?\n---\n?/, '')
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
 export function parseReadLaterIndexItem(input: { path: string; sha: string; content: string }): ReadLaterIndexItem {
   const frontmatterMatch = input.content.match(/^---\n([\s\S]*?)\n---/)
   const frontmatter = frontmatterMatch?.[1] || ''
@@ -42,6 +53,18 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
   const externalUrl = readScalar(frontmatter, 'external_url')
   const sourceName = readScalar(frontmatter, 'source_name')
   const readingStatus = readScalar(frontmatter, 'reading_status')
+  const tags = readList(frontmatter, 'tags')
+  const body = stripFrontmatter(input.content)
+  const searchText = normalizeSearchText([
+    title,
+    date,
+    desc,
+    permalink || '',
+    externalUrl || '',
+    sourceName || '',
+    ...tags,
+    body,
+  ].join('\n'))
 
   return {
     path: input.path,
@@ -53,9 +76,10 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
     pinned: pinnedRaw === 'true',
     hasExplicitPublished: false,
     categories: [],
-    tags: readList(frontmatter, 'tags'),
+    tags,
     permalink: permalink ? permalink : null,
     cover: cover ? cover : null,
+    searchText,
     contentType: 'read-later',
     externalUrl: externalUrl ? externalUrl : null,
     sourceName: sourceName ? sourceName : null,

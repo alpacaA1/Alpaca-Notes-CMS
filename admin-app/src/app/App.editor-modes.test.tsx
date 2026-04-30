@@ -136,6 +136,7 @@ describe('App editor modes', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('opens supported documents directly in markdown mode', async () => {

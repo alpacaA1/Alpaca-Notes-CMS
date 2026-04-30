@@ -9,6 +9,7 @@ describe('App auth flow', () => {
     cleanup()
     vi.restoreAllMocks()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('renders the login gate when unauthenticated', () => {

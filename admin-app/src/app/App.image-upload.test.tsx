@@ -40,6 +40,7 @@ describe('App image upload flow', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   async function openPost() {

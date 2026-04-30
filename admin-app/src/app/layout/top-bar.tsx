@@ -106,7 +106,7 @@ export default function TopBar({
             aria-label="搜索"
             value={search}
             onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={contentType === 'read-later' ? '搜索标题、来源或原文链接' : '搜索标题或链接'}
+            placeholder={contentType === 'read-later' ? '搜索标题、摘要、正文、来源或原文链接' : '搜索标题、摘要、正文、标签或链接'}
           />
         </label>
         {showContentTypeSwitcher ? (

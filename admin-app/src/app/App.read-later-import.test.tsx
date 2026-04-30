@@ -62,6 +62,7 @@ describe('App read-later import flow', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('imports article content into a read-later draft and backfills empty metadata', async () => {
@@ -230,5 +231,42 @@ describe('App read-later import flow', () => {
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '我的评论' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
+  })
+
+  it('quickly captures a new read-later draft from the dashboard and warns on duplicate url', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '快速收录标题',
+      desc: '快速收录摘要',
+      sourceName: '快速来源',
+      markdown: '# 快速导入正文\n\n第二段',
+      requestedUrl: 'https://example.com/article',
+      finalUrl: 'https://example.com/article',
+    })
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Import me later')).toBeTruthy()
+    })
+
+    fireEvent.change(screen.getByLabelText('快速收录链接'), { target: { value: 'https://example.com/article' } })
+    fireEvent.click(screen.getByRole('button', { name: '快速收录' }))
+
+    expect(confirmSpy).toHaveBeenCalledWith('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')
+    await waitFor(() => {
+      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
+    })
+
+    expect(await screen.findByRole('heading', { name: '快速导入正文' })).toBeTruthy()
+    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('快速收录标题')
+    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('快速收录摘要')
+    expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('快速来源')
+    expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
 })

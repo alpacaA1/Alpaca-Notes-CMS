@@ -115,10 +115,12 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
     }
   }, [isDirty])
 
-  const replaceDocument = (post: EditableDocument | null) => {
-    const nextPost = post ? clonePost(post) : null
-    setSavedPost(nextPost)
-    setDraftPost(nextPost ? clonePost(nextPost) : null)
+  const replaceDocument = (post: EditableDocument | null, draftPostOverride?: EditableDocument | null) => {
+    const nextSavedPost = post ? clonePost(post) : null
+    const nextDraftSource = draftPostOverride === undefined ? post : draftPostOverride
+
+    setSavedPost(nextSavedPost)
+    setDraftPost(nextDraftSource ? clonePost(nextDraftSource) : null)
     setMode('markdown')
     setValidationErrors({})
   }

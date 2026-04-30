@@ -15,6 +15,7 @@ export type PostIndexItem = {
   tags: string[]
   permalink: string | null
   cover: string | null
+  searchText?: string
   contentType?: 'post' | 'read-later'
   externalUrl?: string | null
   sourceName?: string | null

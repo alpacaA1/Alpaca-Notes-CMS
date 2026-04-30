@@ -420,6 +420,7 @@ describe('App preview mode', () => {
     vi.restoreAllMocks()
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('renders the current document title, date, and body in preview mode', async () => {

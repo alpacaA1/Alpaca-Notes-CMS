@@ -34,6 +34,17 @@ function readList(frontmatter: string, field: string): string[] {
     .filter((value) => value.length > 0)
 }
 
+function stripFrontmatter(content: string) {
+  return content.replace(/^---\n[\s\S]*?\n---\n?/, '')
+}
+
+function normalizeSearchText(value: string) {
+  return value
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
 export function parsePostIndexItem(input: { path: string; sha: string; content: string }): PostIndexItem {
   const frontmatterMatch = input.content.match(/^---\n([\s\S]*?)\n---/)
   const frontmatter = frontmatterMatch?.[1] || ''
@@ -44,6 +55,18 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const pinnedRaw = readScalar(frontmatter, 'pinned')
   const permalink = readScalar(frontmatter, 'permalink')
   const cover = readScalar(frontmatter, 'cover')
+  const categories = readList(frontmatter, 'categories')
+  const tags = readList(frontmatter, 'tags')
+  const body = stripFrontmatter(input.content)
+  const searchText = normalizeSearchText([
+    title,
+    date,
+    desc,
+    permalink || '',
+    ...categories,
+    ...tags,
+    body,
+  ].join('\n'))
 
   return {
     path: input.path,
@@ -54,10 +77,11 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     published: publishedRaw === null ? true : publishedRaw === 'true',
     pinned: pinnedRaw === 'true',
     hasExplicitPublished: publishedRaw !== null,
-    categories: readList(frontmatter, 'categories'),
-    tags: readList(frontmatter, 'tags'),
+    categories,
+    tags,
     permalink: permalink ? permalink : null,
     cover: cover ? cover : null,
+    searchText,
   }
 }
 
@@ -77,7 +101,9 @@ export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): Po
     if (normalizedQuery) {
       const matchesQuery =
         post.title.toLowerCase().includes(normalizedQuery) ||
+        (post.desc || '').toLowerCase().includes(normalizedQuery) ||
         (post.permalink || '').toLowerCase().includes(normalizedQuery) ||
+        (post.searchText || '').includes(normalizedQuery) ||
         (post.sourceName || '').toLowerCase().includes(normalizedQuery) ||
         (post.externalUrl || '').toLowerCase().includes(normalizedQuery)
 

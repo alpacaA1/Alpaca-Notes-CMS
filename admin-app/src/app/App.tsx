@@ -10,6 +10,7 @@ import {
   uploadImageFile,
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
+import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
@@ -53,6 +54,11 @@ type PostDeleteConfirmAction = {
   post: PostIndexItem
 }
 
+type OpenDocumentOptions = {
+  draftPost?: ParsedPost | null
+  successMessage?: string | null
+}
+
 const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
@@ -66,6 +72,34 @@ function createReadLaterAnnotationId() {
 
 function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | Pick<ParsedPost, 'contentType'>): ContentType {
   return post.contentType === 'read-later' ? 'read-later' : 'post'
+}
+
+function normalizeUrlForComparison(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  try {
+    const url = new URL(trimmed)
+    url.hash = ''
+    const normalizedPath = url.pathname.replace(/\/+$/, '') || '/'
+    return `${url.protocol}//${url.host}${normalizedPath}${url.search}`.toLowerCase()
+  } catch {
+    return trimmed.toLowerCase()
+  }
+}
+
+function hasRecoverableChanges(draft: ParsedPost | null, saved: ParsedPost | null) {
+  if (!draft) {
+    return false
+  }
+
+  if (!saved) {
+    return true
+  }
+
+  return JSON.stringify(draft) !== JSON.stringify(saved)
 }
 
 function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
@@ -125,8 +159,10 @@ export default function App() {
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
+  const [isQuickCollectingReadLater, setIsQuickCollectingReadLater] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const previewObjectUrlsRef = useRef<string[]>([])
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -147,6 +183,7 @@ export default function App() {
   const [activeOutlineTargetId, setActiveOutlineTargetId] = useState<string | null>(null)
   const {
     document,
+    savedDocument,
     mode,
     isDirty,
     publishLocked,
@@ -192,6 +229,11 @@ export default function App() {
     const resolvedContentType = getContentTypeFromPostLike(document)
     return postsByType[resolvedContentType].find((post) => post.path === document.path) || buildPostIndexItemFromDocument(document)
   }, [document, postsByType])
+  const recoverableDrafts = useMemo(() => {
+    const knownPaths = new Set(postsByType[contentType].map((post) => post.path))
+
+    return listLocalDraftSummaries().filter((draft) => draft.contentType === contentType && !knownPaths.has(draft.path))
+  }, [contentType, postsByType, adminView, document?.path, isDirty, isSaving, session])
 
   const updatePostsForType = useCallback((type: ContentType, updater: (currentPosts: PostIndexItem[]) => PostIndexItem[]) => {
     setPostsByType((currentPostsByType) => ({
@@ -232,6 +274,19 @@ export default function App() {
       revokePreviewObjectUrls()
     }
   }, [])
+
+  useEffect(() => {
+    if (!document) {
+      return
+    }
+
+    if (!isDirty) {
+      removeLocalDraft(document.path)
+      return
+    }
+
+    saveLocalDraft(savedDocument, document)
+  }, [document, isDirty, savedDocument])
 
   useEffect(() => {
     if (!session) {
@@ -279,13 +334,13 @@ export default function App() {
     }
   }, [contentType, session, sessionStore, updatePostsForType])
 
-  const applyDocument = (nextPost: ParsedPost) => {
+  const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
     resetPreviewImageUrls()
-    replaceDocument(nextPost)
+    replaceDocument(nextPost, options?.draftPost ?? undefined)
     setMode(nextPost.contentType === 'read-later' ? 'preview' : 'markdown')
     setActivePostPath(nextPost.path)
     setIsImmersive(false)
-    setSuccessMessage(null)
+    setSuccessMessage(options?.successMessage || null)
     setError(null)
   }
 
@@ -294,7 +349,12 @@ export default function App() {
       return true
     }
 
-    return window.confirm('当前有未保存的修改。确认丢弃并继续吗？')
+    const shouldDiscard = window.confirm('当前有未保存的修改。确认丢弃并继续吗？')
+    if (shouldDiscard && document) {
+      removeLocalDraft(document.path)
+    }
+
+    return shouldDiscard
   }
 
   const handleLogin = async () => {
@@ -320,6 +380,8 @@ export default function App() {
     setPostsByType(createEmptyIndexedPostsByType())
     setActivePostPath(null)
     setIsOpeningPost(false)
+    setIsQuickCollectingReadLater(false)
+    setQuickReadLaterUrl('')
     setSuccessMessage(null)
     replaceDocument(null)
     setIsImmersive(false)
@@ -340,12 +402,36 @@ export default function App() {
     setError(null)
   }
 
+  const resolveDocumentWithLocalDraft = (savedPost: ParsedPost) => {
+    const storedDraft = readLocalDraft(savedPost.path)
+    if (!storedDraft || !hasRecoverableChanges(storedDraft.draftDocument, storedDraft.savedDocument)) {
+      return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
+    }
+
+    const hasMatchingBaseline =
+      storedDraft.savedDocument?.path === savedPost.path &&
+      storedDraft.savedDocument?.sha === savedPost.sha
+
+    if (!hasMatchingBaseline) {
+      const shouldRestore = window.confirm('检测到本地未保存草稿，但远端内容可能已更新。是否恢复本地草稿继续编辑？')
+      if (!shouldRestore) {
+        return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
+      }
+    }
+
+    return {
+      savedPost,
+      draftPost: storedDraft.draftDocument,
+      successMessage: '已恢复本地草稿。',
+    }
+  }
+
   const handleNewPost = () => {
     if (!confirmNavigation()) {
       return
     }
 
-    applyDocument(contentType === 'read-later' ? createNewReadLaterItem() : createNewPost())
+    openDocument(contentType === 'read-later' ? createNewReadLaterItem() : createNewPost())
     setAdminView('editor')
   }
 
@@ -364,7 +450,11 @@ export default function App() {
     const cachedFile = readCachedMarkdownFile(post.path, post.sha)
     if (cachedFile) {
       setIsOpeningPost(false)
-      applyDocument(parseOpenedFile(cachedFile))
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(cachedFile))
+      openDocument(resolvedDocument.savedPost, {
+        draftPost: resolvedDocument.draftPost,
+        successMessage: resolvedDocument.successMessage,
+      })
       return
     }
 
@@ -374,7 +464,11 @@ export default function App() {
 
     try {
       const file = await fetchMarkdownFile(session, post.path)
-      applyDocument(parseOpenedFile(file))
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(file))
+      openDocument(resolvedDocument.savedPost, {
+        draftPost: resolvedDocument.draftPost,
+        successMessage: resolvedDocument.successMessage,
+      })
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -432,6 +526,7 @@ export default function App() {
         path: post.path,
         sha: post.sha,
       })
+      removeLocalDraft(post.path)
 
       const deletedContentType: ContentType = post.contentType === 'read-later' ? 'read-later' : 'post'
       updatePostsForType(deletedContentType, (currentPosts) =>
@@ -598,6 +693,7 @@ export default function App() {
             content,
           })
       markSaved(savedDocument)
+      removeLocalDraft(savedFile.path)
       setActivePostPath(savedFile.path)
       updatePostsForType(document.contentType, (currentPosts) =>
         sortPostIndex(
@@ -838,6 +934,107 @@ export default function App() {
     }
   }
 
+  const findDuplicateReadLaterByUrl = (url: string, excludePath?: string | null) => {
+    const normalizedTargetUrl = normalizeUrlForComparison(url)
+    if (!normalizedTargetUrl) {
+      return null
+    }
+
+    return postsByType['read-later'].find((post) => {
+      if (excludePath && post.path === excludePath) {
+        return false
+      }
+
+      return normalizeUrlForComparison(post.externalUrl || '') === normalizedTargetUrl
+    }) || null
+  }
+
+  const handleQuickCollectReadLater = async () => {
+    if (!session || isQuickCollectingReadLater) {
+      return
+    }
+
+    const externalUrl = quickReadLaterUrl.trim()
+    if (!externalUrl) {
+      setError('请先粘贴原文链接。')
+      return
+    }
+
+    if (!/^https?:\/\//i.test(externalUrl)) {
+      setError('原文链接需以 http:// 或 https:// 开头。')
+      return
+    }
+
+    const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
+    if (
+      duplicatedPost &&
+      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
+    ) {
+      return
+    }
+
+    setIsQuickCollectingReadLater(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const imported = await importReadLaterFromUrl(session, externalUrl)
+      const savedBaseDocument = createNewReadLaterItem()
+      const draftDocument: ParsedReadLaterItem = {
+        ...savedBaseDocument,
+        body: imported.markdown,
+        frontmatter: {
+          ...savedBaseDocument.frontmatter,
+          title: imported.title || savedBaseDocument.frontmatter.title,
+          desc: imported.desc || savedBaseDocument.frontmatter.desc,
+          source_name: imported.sourceName || savedBaseDocument.frontmatter.source_name,
+          external_url: imported.finalUrl || imported.requestedUrl || externalUrl,
+        },
+      }
+
+      const redirectedDuplicate = findDuplicateReadLaterByUrl(draftDocument.frontmatter.external_url, draftDocument.path)
+
+      openDocument(savedBaseDocument, {
+        draftPost: draftDocument,
+        successMessage: redirectedDuplicate
+          ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。`
+          : null,
+      })
+      setQuickReadLaterUrl('')
+      setAdminView('editor')
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '快速收录失败。')
+    } finally {
+      setIsQuickCollectingReadLater(false)
+    }
+  }
+
+  const handleOpenRecoveredDraft = async (path: string) => {
+    if (!confirmNavigation()) {
+      return
+    }
+
+    const storedDraft = readLocalDraft(path)
+    if (!storedDraft || !hasRecoverableChanges(storedDraft.draftDocument, storedDraft.savedDocument)) {
+      removeLocalDraft(path)
+      setError('本地草稿不存在或已失效。')
+      return
+    }
+
+    const nextContentType = storedDraft.draftDocument.contentType === 'read-later' ? 'read-later' : 'post'
+    setContentType(nextContentType)
+    openDocument(storedDraft.savedDocument || storedDraft.draftDocument, {
+      draftPost: storedDraft.draftDocument,
+      successMessage: '已恢复本地草稿。',
+    })
+    setAdminView('editor')
+  }
+
   // ---- Taxonomy CRUD handlers ----
 
   const handleTaxonomyCreate = (type: TaxonomyType, name: string) => {
@@ -1069,6 +1266,7 @@ export default function App() {
             setError(null)
             setSuccessMessage(null)
             setSearch('')
+            setQuickReadLaterUrl('')
             setContentType(value)
             setAdminView('dashboard')
           }}
@@ -1098,12 +1296,18 @@ export default function App() {
             search={search}
             isIndexing={showIndexLoading}
             contentType={contentType}
+            recoverableDrafts={recoverableDrafts}
+            quickCaptureUrl={quickReadLaterUrl}
+            isQuickCapturing={isQuickCollectingReadLater}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
             togglingPinnedPostPath={togglingPinnedPostPath}
             onOpenPost={handleOpenPost}
+            onOpenRecoveredDraft={handleOpenRecoveredDraft}
             onNewPost={handleNewPost}
+            onQuickCaptureUrlChange={setQuickReadLaterUrl}
+            onQuickCapture={handleQuickCollectReadLater}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onSearchFocus={() => searchInputRef.current?.focus()}

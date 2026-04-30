@@ -108,6 +108,27 @@ describe('useEditorDocument', () => {
     expect(result.current.isDirty).toBe(false)
   })
 
+  it('can hydrate a saved baseline and a separate dirty draft', () => {
+    const { result } = renderHook(() => useEditorDocument(createExistingPost()))
+    const savedPost = createExistingPost()
+    const dirtyDraft = {
+      ...createExistingPost(),
+      frontmatter: {
+        ...createExistingPost().frontmatter,
+        title: 'Recovered local title',
+      },
+    }
+
+    act(() => {
+      result.current.replaceDocument(savedPost, dirtyDraft)
+    })
+
+    expect(result.current.document?.frontmatter.title).toBe('Recovered local title')
+    expect(result.current.savedDocument?.frontmatter.title).toBe('Existing post')
+    expect(result.current.isDirty).toBe(true)
+    expect(result.current.canNavigateAway).toBe(false)
+  })
+
   it('treats reverting frontmatter arrays back to their saved values as clean', () => {
     const { result } = renderHook(() => useEditorDocument(createExistingPost()))
 

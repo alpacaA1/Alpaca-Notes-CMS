@@ -8,17 +8,30 @@ type ContentType = 'post' | 'read-later'
 type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
 type StatusTone = Exclude<DashboardStatusFilter, 'all'>
 
+type RecoverableDraft = {
+  path: string
+  title: string
+  updatedAt: string
+  hasSavedBaseline: boolean
+}
+
 type PostDashboardProps = {
   posts: PostIndexItem[]
   search: string
   isIndexing: boolean
   contentType: ContentType
+  recoverableDrafts?: RecoverableDraft[]
+  quickCaptureUrl?: string
+  isQuickCapturing?: boolean
   isDeleting?: boolean
   deletingPostPath?: string | null
   isTogglingPinned?: boolean
   togglingPinnedPostPath?: string | null
   onOpenPost: (post: PostIndexItem) => void
+  onOpenRecoveredDraft?: (path: string) => void
   onNewPost: () => void
+  onQuickCaptureUrlChange?: (value: string) => void
+  onQuickCapture?: () => void
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onSearchFocus?: () => void
@@ -132,17 +145,32 @@ function TagBadge({ tag }: { tag: string }) {
   return <span className="post-dashboard__tag-badge">{tag}</span>
 }
 
+function formatRecoveredDraftTime(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return '刚刚保存'
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
 export default function PostDashboard({
   posts,
   search,
   isIndexing,
   contentType,
+  recoverableDrafts = [],
+  quickCaptureUrl = '',
+  isQuickCapturing = false,
   isDeleting = false,
   deletingPostPath = null,
   isTogglingPinned = false,
   togglingPinnedPostPath = null,
   onOpenPost,
+  onOpenRecoveredDraft,
   onNewPost,
+  onQuickCaptureUrlChange,
+  onQuickCapture,
   onDeletePost,
   onTogglePinned,
   onSearchFocus,
@@ -267,6 +295,64 @@ export default function PostDashboard({
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>
+      {recoverableDrafts.length > 0 ? (
+        <section className="post-dashboard__recovery" aria-label="本地草稿恢复">
+          <div className="post-dashboard__recovery-header">
+            <div>
+              <p className="post-dashboard__filter-label">本地草稿</p>
+              <strong>检测到 {recoverableDrafts.length} 条未恢复的本地草稿</strong>
+            </div>
+            <span className="post-dashboard__recovery-note">浏览器异常关闭或登录失效后可从这里继续。</span>
+          </div>
+          <div className="post-dashboard__recovery-list">
+            {recoverableDrafts.slice(0, 4).map((draft) => (
+              <button
+                key={draft.path}
+                type="button"
+                className="post-dashboard__recovery-item"
+                onClick={() => onOpenRecoveredDraft?.(draft.path)}
+              >
+                <strong>{draft.title}</strong>
+                <span>{draft.hasSavedBaseline ? '继续未保存修改' : '恢复未发布新稿'}</span>
+                <span>{formatRecoveredDraftTime(draft.updatedAt)}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {isReadLater ? (
+        <section className="post-dashboard__quick-capture" aria-label="快速收录">
+          <div className="post-dashboard__quick-capture-copy">
+            <p className="post-dashboard__filter-label">快速收录</p>
+            <strong>粘贴链接后直接导入为新的待读草稿</strong>
+          </div>
+          <div className="post-dashboard__quick-capture-controls">
+            <input
+              aria-label="快速收录链接"
+              className="post-dashboard__quick-capture-input"
+              placeholder="https://example.com/article"
+              value={quickCaptureUrl}
+              onChange={(event) => onQuickCaptureUrlChange?.(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  onQuickCapture?.()
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="post-dashboard__quick-capture-btn"
+              onClick={onQuickCapture}
+              disabled={isQuickCapturing}
+            >
+              {isQuickCapturing ? '导入中…' : '快速收录'}
+            </button>
+          </div>
+        </section>
+      ) : null}
+
       <div className="post-dashboard__stats">
         {statCards.map((card) => (
           <button

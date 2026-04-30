@@ -16,7 +16,7 @@ tags:
   - 观察
 ---
 
-Body`,
+Body with deeper architecture notes.`,
 })
 
 const draftPost = parsePostIndexItem({
@@ -35,7 +35,7 @@ tags:
   - 产品
 ---
 
-Body`,
+This draft body mentions a recovery checklist.`,
 })
 
 const publishedPost = parsePostIndexItem({
@@ -53,7 +53,7 @@ tags:
   - 信息架构
 ---
 
-Body`,
+Published body covers information architecture search behavior.`,
 })
 
 const posts: PostIndexItem[] = [legacyPost, draftPost, publishedPost]
@@ -77,9 +77,12 @@ describe('post indexing helpers', () => {
     expect(legacyPost.hasExplicitPublished).toBe(false)
   })
 
-  it('searches by title and permalink', () => {
+  it('searches by title, permalink, summary, taxonomy, and body', () => {
     expect(filterPostIndex(posts, { ...defaultView, query: 'draft' })).toEqual([draftPost])
     expect(filterPostIndex(posts, { ...defaultView, query: 'published-post/' })).toEqual([publishedPost])
+    expect(filterPostIndex(posts, { ...defaultView, query: 'legacy content' })).toEqual([legacyPost])
+    expect(filterPostIndex(posts, { ...defaultView, query: '观察' })).toEqual([legacyPost])
+    expect(filterPostIndex(posts, { ...defaultView, query: 'recovery checklist' })).toEqual([draftPost])
   })
 
   it('filters by publish state, category, and tag', () => {
