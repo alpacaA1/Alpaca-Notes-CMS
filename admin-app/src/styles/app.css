@@ -568,14 +568,18 @@ textarea {
 }
 
 .admin-shell--dark .settings-panel__annotation-card-trigger:hover .settings-panel__annotation-quote {
-  background: rgba(225, 184, 74, 0.62);
-  box-shadow: inset 0 -1px 0 rgba(245, 206, 92, 0.54);
+  background: rgba(218, 180, 72, 0.34);
+  box-shadow: inset 0 -1px 0 rgba(247, 220, 130, 0.24);
 }
 
 .admin-shell--dark .settings-panel__annotation-note-label,
 .admin-shell--dark .settings-panel__annotation-empty,
 .admin-shell--dark .settings-panel__annotation-note-preview {
   color: var(--admin-muted);
+}
+
+.admin-shell--dark .settings-panel__annotation-separator {
+  color: rgba(255, 255, 255, 0.38);
 }
 
 .admin-shell--dark .preview-content__annotation-delete {
@@ -607,13 +611,17 @@ textarea {
 
 .admin-shell--dark .preview-content__highlight,
 .admin-shell--dark .settings-panel__annotation-quote {
-  background: rgba(225, 184, 74, 0.56);
-  box-shadow: inset 0 -1px 0 rgba(245, 206, 92, 0.48);
+  color: rgba(255, 255, 255, 0.96);
+  font-weight: 500;
+  background: rgba(218, 180, 72, 0.28);
+  box-shadow: inset 0 -1px 0 rgba(247, 220, 130, 0.22);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.22);
 }
 
 .admin-shell--dark .preview-content__highlight.is-active,
 .admin-shell--dark .settings-panel__annotation-card.is-active .settings-panel__annotation-quote {
-  background: rgba(241, 196, 76, 0.74);
+  background: rgba(232, 192, 82, 0.4);
+  box-shadow: inset 0 -1px 0 rgba(250, 226, 148, 0.28);
 }
 
 .admin-shell--dark .post-status-badge--published {
@@ -2220,7 +2228,7 @@ textarea {
 
 .settings-panel__annotation-list {
   display: grid;
-  gap: 18px;
+  gap: 12px;
 }
 
 .settings-panel__annotation-card {
@@ -2265,6 +2273,13 @@ textarea {
   line-height: 1.6;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.settings-panel__annotation-separator {
+  color: var(--admin-soft);
+  font-size: 0.86rem;
+  letter-spacing: 0.14em;
+  line-height: 1;
 }
 
 .settings-panel__annotation-note-block {
@@ -2355,6 +2370,7 @@ textarea {
   border-radius: 0.2em;
   background: rgba(255, 225, 128, 0.6);
   box-shadow: inset 0 -1px 0 rgba(214, 173, 60, 0.45);
+  font-weight: 500;
 }
 
 .preview-content__highlight {

@@ -370,6 +370,7 @@ describe('settings panel', () => {
     )
 
     expect(screen.getByRole('button', { name: /这是一段很长很长的高亮内容/ })).toBeTruthy()
+    expect(screen.getByText('——')).toBeTruthy()
     expect(screen.getByText('已有批注').className).toContain('settings-panel__annotation-note-preview')
     expect(screen.queryByLabelText('Highlight document note')).toBeNull()
   })

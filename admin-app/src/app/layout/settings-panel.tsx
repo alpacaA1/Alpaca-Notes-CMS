@@ -456,7 +456,7 @@ export default function SettingsPanel({
 
             {annotations.length > 0 ? (
               <div className="settings-panel__annotation-list">
-                {annotations.map((annotation) => {
+                {annotations.map((annotation, index) => {
                   const isActive = annotation.id === activeAnnotationId
                   const isEditing = annotation.id === editingAnnotationId
                   const notePreview = getAnnotationNotePreview(annotation)
@@ -466,6 +466,11 @@ export default function SettingsPanel({
                       key={annotation.id}
                       className={`settings-panel__annotation-card${isActive ? ' is-active' : ''}`}
                     >
+                      {index > 0 ? (
+                        <span className="settings-panel__annotation-separator" aria-hidden="true">
+                          ——
+                        </span>
+                      ) : null}
                       <button
                         type="button"
                         className="settings-panel__annotation-card-trigger"
