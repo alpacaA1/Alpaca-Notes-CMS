@@ -1,4 +1,5 @@
 import { fetchMarkdownFile, readCachedMarkdownFile } from '../github-client'
+import type { ReadingStatus } from '../posts/parse-post'
 import type { SessionState } from '../session'
 import type { ReadLaterAnnotation } from './item-types'
 import { parseReadLaterItem } from './parse-item'
@@ -17,6 +18,7 @@ export type ReadLaterAnnotationIndexItem = {
   sourceName: string | null
   externalUrl: string | null
   tags: string[]
+  readingStatus: ReadingStatus
   sectionKey: ReadLaterAnnotation['sectionKey']
   sectionLabel: string
   quote: string
@@ -41,6 +43,10 @@ function normalizeSearchText(value: string) {
 
 function resolveSectionLabel(sectionKey: ReadLaterAnnotation['sectionKey']) {
   return SECTION_LABELS[sectionKey]
+}
+
+function resolveReadingStatusLabel(status: ReadingStatus) {
+  return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
 
 function resolveSortTimestamp(annotation: Pick<ReadLaterAnnotationIndexItem, 'updatedAt' | 'createdAt' | 'postDate'>) {
@@ -74,6 +80,7 @@ export async function buildReadLaterAnnotationIndex(
         sourceName: item.frontmatter.source_name?.trim() || null,
         externalUrl: item.frontmatter.external_url?.trim() || null,
         tags: item.frontmatter.tags,
+        readingStatus: item.frontmatter.reading_status,
         sectionKey: annotation.sectionKey,
         sectionLabel: resolveSectionLabel(annotation.sectionKey),
         quote: annotation.quote,
@@ -85,6 +92,7 @@ export async function buildReadLaterAnnotationIndex(
           item.frontmatter.source_name || '',
           item.frontmatter.external_url || '',
           ...item.frontmatter.tags,
+          resolveReadingStatusLabel(item.frontmatter.reading_status),
           resolveSectionLabel(annotation.sectionKey),
           annotation.quote,
           annotation.note,

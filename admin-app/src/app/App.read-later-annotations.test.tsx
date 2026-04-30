@@ -71,6 +71,7 @@ function createReadLaterContent(options: {
   date: string
   sourceName: string
   externalUrl: string
+  readingStatus?: 'unread' | 'reading' | 'done'
   tags: string[]
   annotations: ReadLaterAnnotation[]
 }) {
@@ -85,7 +86,7 @@ read_later: true
 nav_exclude: true
 external_url: ${options.externalUrl}
 source_name: ${options.sourceName}
-reading_status: unread
+reading_status: ${options.readingStatus || 'unread'}
 reader_annotations:
 ${encodedAnnotations.map((annotation) => `  - ${annotation}`).join('\n')}
 tags:
@@ -129,6 +130,7 @@ describe('App read-later annotations view', () => {
             date: readLaterPosts[0].date,
             sourceName: readLaterPosts[0].sourceName || '',
             externalUrl: readLaterPosts[0].externalUrl || '',
+            readingStatus: readLaterPosts[0].readingStatus,
             tags: readLaterPosts[0].tags,
             annotations: [productAnnotation],
           }),
@@ -143,6 +145,7 @@ describe('App read-later annotations view', () => {
           date: readLaterPosts[1].date,
           sourceName: readLaterPosts[1].sourceName || '',
           externalUrl: readLaterPosts[1].externalUrl || '',
+          readingStatus: readLaterPosts[1].readingStatus,
           tags: readLaterPosts[1].tags,
           annotations: [designAnnotation],
         }),
@@ -160,13 +163,14 @@ describe('App read-later annotations view', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '批注' }))
 
+    expect(await screen.findByRole('heading', { name: '批注管理' })).toBeTruthy()
     expect(await screen.findByText('当前结果 2 条')).toBeTruthy()
-    expect(screen.getByText('评论 2 条')).toBeTruthy()
-    expect(screen.getByText('来源 2 篇')).toBeTruthy()
     expect(screen.getByText('要回看的句子')).toBeTruthy()
     expect(screen.getByText('交互上的提醒')).toBeTruthy()
     expect(screen.getByText('写作切入点')).toBeTruthy()
     expect(screen.getByText('交互观察')).toBeTruthy()
+    expect(screen.getByText('在读')).toBeTruthy()
+    expect(screen.getByText('已读')).toBeTruthy()
 
     fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
       target: { value: readLaterPosts[0].path },
@@ -192,9 +196,12 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('要回看的句子')).toBeTruthy()
     expect(screen.queryByText('交互上的提醒')).toBeNull()
 
-    fireEvent.change(screen.getByRole('textbox', { name: '搜索' }), {
-      target: { value: '' },
+    fireEvent.click(screen.getByRole('button', { name: '清空筛选' }))
+    await waitFor(() => {
+      expect((screen.getByRole('textbox', { name: '搜索' }) as HTMLInputElement).value).toBe('')
+      expect(screen.getByText('交互上的提醒')).toBeTruthy()
     })
+
     fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
       target: { value: readLaterPosts[0].path },
     })

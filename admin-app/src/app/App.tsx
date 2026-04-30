@@ -1429,6 +1429,7 @@ export default function App() {
             annotations={readLaterAnnotationIndex}
             isLoading={isAnnotationIndexing}
             search={search}
+            onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
           />
         </>

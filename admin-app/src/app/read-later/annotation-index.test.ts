@@ -30,6 +30,7 @@ function createReadLaterContent(options: {
   date: string
   sourceName: string
   externalUrl: string
+  readingStatus?: 'unread' | 'reading' | 'done'
   tags: string[]
   annotations: ReadLaterAnnotation[]
 }) {
@@ -44,7 +45,7 @@ read_later: true
 nav_exclude: true
 external_url: ${options.externalUrl}
 source_name: ${options.sourceName}
-reading_status: unread
+reading_status: ${options.readingStatus || 'unread'}
 reader_annotations:
 ${encodedAnnotations.map((annotation) => `  - ${annotation}`).join('\n')}
 tags:
@@ -82,6 +83,7 @@ describe('read-later annotation index', () => {
             date: '2026-04-28 10:00:00',
             sourceName: '站点 A',
             externalUrl: 'https://example.com/a',
+            readingStatus: 'reading',
             tags: ['写作'],
             annotations: [annotationA],
           }),
@@ -96,6 +98,7 @@ describe('read-later annotation index', () => {
           date: '2026-04-29 10:00:00',
           sourceName: '站点 B',
           externalUrl: 'https://example.com/b',
+          readingStatus: 'done',
           tags: ['设计'],
           annotations: [annotationB],
         }),
@@ -116,10 +119,12 @@ describe('read-later annotation index', () => {
       postTitle: '第二篇待读',
       sectionLabel: '我的总结',
       sourceName: '站点 B',
+      readingStatus: 'done',
       tags: ['设计'],
       note: '第二条评论',
     })
     expect(result[1].searchText).toContain('第一条摘录')
     expect(result[1].searchText).toContain('站点 a')
+    expect(result[1].searchText).toContain('在读')
   })
 })
