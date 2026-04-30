@@ -102,27 +102,6 @@ export default function ReadLaterAnnotationsView({
 
   return (
     <section className="annotation-dashboard">
-      <header className="annotation-dashboard__hero">
-        <div className="annotation-dashboard__hero-copy">
-          <p className="annotation-dashboard__eyebrow">批注视图</p>
-          <h1>先整理素材，再决定写什么。</h1>
-        </div>
-        <div className="annotation-dashboard__stats" aria-label="批注统计">
-          <article className="annotation-dashboard__stat-card">
-            <span>批注</span>
-            <strong>{annotations.length}</strong>
-          </article>
-          <article className="annotation-dashboard__stat-card">
-            <span>评论</span>
-            <strong>{notedCount}</strong>
-          </article>
-          <article className="annotation-dashboard__stat-card">
-            <span>来源</span>
-            <strong>{annotatedSourceCount}</strong>
-          </article>
-        </div>
-      </header>
-
       <section className="annotation-dashboard__toolbar" aria-label="批注筛选工具栏">
         <label className="annotation-dashboard__filter">
           <span>来源文章</span>
@@ -150,6 +129,8 @@ export default function ReadLaterAnnotationsView({
 
         <div className="annotation-dashboard__toolbar-meta">
           <span>当前结果 {filteredAnnotations.length} 条</span>
+          <span>评论 {notedCount} 条</span>
+          <span>来源 {annotatedSourceCount} 篇</span>
           {hasActiveFilters ? (
             <button
               type="button"
@@ -190,7 +171,7 @@ export default function ReadLaterAnnotationsView({
         <div className="annotation-dashboard__list" aria-label="批注列表">
           {filteredAnnotations.map((annotation) => (
             <article key={annotation.id} className="annotation-dashboard__card">
-              <div className="annotation-dashboard__card-top">
+              <header className="annotation-dashboard__card-top">
                 <div className="annotation-dashboard__meta-row">
                   <span className="annotation-dashboard__section-pill">{annotation.sectionLabel}</span>
                   <span className="annotation-dashboard__time">
@@ -204,7 +185,17 @@ export default function ReadLaterAnnotationsView({
                 >
                   跳回原文
                 </button>
-              </div>
+              </header>
+
+              {annotation.tags.length > 0 ? (
+                <div className="annotation-dashboard__tags" aria-label="标签">
+                  {annotation.tags.map((tag) => (
+                    <span key={`${annotation.id}-${tag}`} className="annotation-dashboard__tag">
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
               <blockquote className="annotation-dashboard__quote">
                 {annotation.quote.trim() || '未命名高亮'}
@@ -212,28 +203,20 @@ export default function ReadLaterAnnotationsView({
 
               <section className="annotation-dashboard__note-block" aria-label="我的评论">
                 <span className="annotation-dashboard__label">我的评论</span>
-                <p>{annotation.note.trim() || '暂未写评论'}</p>
+                <p className={!annotation.note.trim() ? 'annotation-dashboard__note-text annotation-dashboard__note-text--empty' : 'annotation-dashboard__note-text'}>
+                  {annotation.note.trim() || '暂未写评论'}
+                </p>
               </section>
 
-              <section className="annotation-dashboard__source-block">
-                <div>
-                  <span className="annotation-dashboard__label">来源文章</span>
+              <footer className="annotation-dashboard__source-block">
+                <span className="annotation-dashboard__label">来源文章</span>
+                <p className="annotation-dashboard__source-line">
                   <strong>{annotation.postTitle}</strong>
-                </div>
-                {annotation.sourceName ? (
-                  <span className="annotation-dashboard__source-name">{annotation.sourceName}</span>
-                ) : null}
-              </section>
-
-              {annotation.tags.length > 0 ? (
-                <div className="annotation-dashboard__tags" aria-label="标签">
-                  {annotation.tags.map((tag) => (
-                    <span key={`${annotation.id}-${tag}`} className="annotation-dashboard__tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+                  {annotation.sourceName ? (
+                    <span className="annotation-dashboard__source-name"> · {annotation.sourceName}</span>
+                  ) : null}
+                </p>
+              </footer>
             </article>
           ))}
         </div>

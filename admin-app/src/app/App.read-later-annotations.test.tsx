@@ -160,7 +160,9 @@ describe('App read-later annotations view', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '批注' }))
 
-    expect(await screen.findByText('先整理素材，再决定写什么。')).toBeTruthy()
+    expect(await screen.findByText('当前结果 2 条')).toBeTruthy()
+    expect(screen.getByText('评论 2 条')).toBeTruthy()
+    expect(screen.getByText('来源 2 篇')).toBeTruthy()
     expect(screen.getByText('要回看的句子')).toBeTruthy()
     expect(screen.getByText('交互上的提醒')).toBeTruthy()
     expect(screen.getByText('写作切入点')).toBeTruthy()
