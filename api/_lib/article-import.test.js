@@ -1,6 +1,10 @@
 const assert = require('node:assert/strict');
 const { afterEach, test } = require('node:test');
-const { importArticle } = require('./article-import');
+const {
+  importArticle,
+  resetDnsLookupForTesting,
+  setDnsLookupForTesting,
+} = require('./article-import');
 
 const originalFetch = global.fetch;
 
@@ -22,8 +26,21 @@ function createMockResponse({ html, url, headers = {}, status = 200 }) {
   };
 }
 
+function createMockJsonResponse({ json, url, headers = {}, status = 200 }) {
+  return createMockResponse({
+    url,
+    status,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      ...headers,
+    },
+    html: JSON.stringify(json),
+  });
+}
+
 afterEach(() => {
   global.fetch = originalFetch;
+  resetDnsLookupForTesting();
 });
 
 function createWeChatHtml(body = '<p>第一段内容。</p>') {
@@ -46,6 +63,7 @@ function createWeChatHtml(body = '<p>第一段内容。</p>') {
 
 test('importArticle extracts WeChat article content and normalizes lazy-loaded images', async () => {
   let receivedRequest = null;
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.10', family: 4 }]);
 
   global.fetch = async (url, options) => {
     receivedRequest = { url, options };
@@ -79,6 +97,7 @@ test('importArticle extracts WeChat article content and normalizes lazy-loaded i
 });
 
 test('importArticle normalizes more WeChat image source variants', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.11', family: 4 }]);
   global.fetch = async () => createMockResponse({
     url: 'https://mp.weixin.qq.com/s/more-image-attrs',
     headers: {
@@ -100,6 +119,7 @@ test('importArticle normalizes more WeChat image source variants', async () => {
 });
 
 test('importArticle allows larger WeChat HTML pages', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.12', family: 4 }]);
   global.fetch = async () => createMockResponse({
     url: 'https://mp.weixin.qq.com/s/large-example',
     headers: {
@@ -113,4 +133,115 @@ test('importArticle allows larger WeChat HTML pages', async () => {
 
   assert.equal(article.title, '微信文章标题');
   assert.match(article.markdown, /大页面正文。/);
+});
+
+test('importArticle imports note.mowen.cn detail pages via the note api and preserves code blocks', async () => {
+  const fetchCalls = [];
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.30', family: 4 }]);
+  global.fetch = async (url, options = {}) => {
+    fetchCalls.push({ url, options });
+
+    if (url === 'https://note.mowen.cn/detail/mowen-article?code=peek-123') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        html: '<!doctype html><html><head><title>墨问文章</title></head><body><div id="app"></div></body></html>',
+      });
+    }
+
+    if (url === 'https://note.mowen.cn/api/note/wxa/v1/note/show') {
+      return createMockJsonResponse({
+        url,
+        json: {
+          detail: {
+            noteBase: {
+              uuid: 'mowen-article',
+              title: '墨问标题',
+              digest: '第一行\n第二行',
+              content: '<p>开头段落</p><codeblock language="shellscript">echo hello</codeblock><p>结尾段落</p>',
+            },
+          },
+          user: {
+            base: {
+              name: '池建强',
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`unexpected fetch url: ${url}`);
+  };
+
+  const article = await importArticle('https://note.mowen.cn/detail/mowen-article?code=peek-123');
+
+  assert.equal(fetchCalls.length, 2);
+  assert.equal(fetchCalls[0].url, 'https://note.mowen.cn/detail/mowen-article?code=peek-123');
+  assert.equal(fetchCalls[1].url, 'https://note.mowen.cn/api/note/wxa/v1/note/show');
+  assert.equal(fetchCalls[1].options.method, 'POST');
+  assert.match(fetchCalls[1].options.body, /"uuid":"mowen-article"/);
+  assert.match(fetchCalls[1].options.body, /"peekKey":"peek-123"/);
+
+  assert.equal(article.title, '墨问标题');
+  assert.equal(article.desc, '第一行 第二行');
+  assert.equal(article.sourceName, '池建强 · 墨问');
+  assert.equal(article.requestedUrl, 'https://note.mowen.cn/detail/mowen-article?code=peek-123');
+  assert.equal(article.finalUrl, 'https://note.mowen.cn/detail/mowen-article?code=peek-123');
+  assert.match(article.markdown, /开头段落/);
+  assert.match(article.markdown, /```shellscript\necho hello\n```/);
+  assert.match(article.markdown, /结尾段落/);
+});
+
+test('importArticle blocks hostnames that resolve to private addresses before fetching', async () => {
+  let fetchCalls = 0;
+  setDnsLookupForTesting(async () => [{ address: '127.0.0.1', family: 4 }]);
+  global.fetch = async () => {
+    fetchCalls += 1;
+    return createMockResponse({
+      url: 'https://blocked.example/article',
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+      },
+      html: '<p>should not fetch</p>',
+    });
+  };
+
+  await assert.rejects(
+    () => importArticle('https://blocked.example/article'),
+    /暂不支持导入该地址。/,
+  );
+  assert.equal(fetchCalls, 0);
+});
+
+test('importArticle blocks redirects that point to private addresses', async () => {
+  const fetchCalls = [];
+  setDnsLookupForTesting(async (hostname) => {
+    if (hostname === 'redirect.example') {
+      return [{ address: '203.0.113.20', family: 4 }];
+    }
+    if (hostname === '127.0.0.1') {
+      return [{ address: '127.0.0.1', family: 4 }];
+    }
+    throw new Error(`unexpected hostname: ${hostname}`);
+  });
+
+  global.fetch = async (url) => {
+    fetchCalls.push(url);
+    return createMockResponse({
+      status: 302,
+      url: 'https://redirect.example/start',
+      headers: {
+        location: 'http://127.0.0.1/internal',
+      },
+      html: '',
+    });
+  };
+
+  await assert.rejects(
+    () => importArticle('https://redirect.example/start'),
+    /暂不支持导入该地址。/,
+  );
+  assert.deepEqual(fetchCalls, ['https://redirect.example/start']);
 });

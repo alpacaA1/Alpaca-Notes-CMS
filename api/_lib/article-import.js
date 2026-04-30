@@ -1,4 +1,5 @@
 const net = require('node:net');
+const dns = require('node:dns').promises;
 const { JSDOM } = require('jsdom');
 const { Readability } = require('@mozilla/readability');
 const TurndownService = require('turndown');
@@ -7,15 +8,27 @@ const { gfm } = require('turndown-plugin-gfm');
 const FETCH_TIMEOUT_MS = 12000;
 const MAX_HTML_LENGTH = 2_000_000;
 const WECHAT_MAX_HTML_LENGTH = 12_000_000;
+const MAX_JSON_LENGTH = 2_000_000;
+const MAX_REDIRECTS = 5;
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:']);
+const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const HTML_CONTENT_TYPE_PATTERN = /^(text\/html|application\/xhtml\+xml)\b/i;
 const PRIVATE_IPV4_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^169\.254\./, /^0\./];
+const MOWEN_NOTE_HOSTNAME_PATTERN = /^(?:dev-|d-)?note\.mowen\.cn$/i;
+const MOWEN_DETAIL_PATH_PATTERN = /^\/detail\/([^/?#]+)/i;
+const MOWEN_NOTE_SHOW_API_PATH = '/api/note/wxa/v1/note/show';
 const DEFAULT_ARTICLE_REQUEST_HEADERS = {
   Accept: 'text/html,application/xhtml+xml',
   'User-Agent': 'alpaca-notes-importer/1.0',
 };
+const JSON_REQUEST_HEADERS = {
+  Accept: 'application/json, text/plain, */*',
+  'Content-Type': 'application/json',
+  'User-Agent': 'alpaca-notes-importer/1.0',
+};
 const WECHAT_BROWSER_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+let dnsLookup = dns.lookup.bind(dns);
 
 class ArticleImportError extends Error {
   constructor(message, statusCode = 400) {
@@ -48,8 +61,20 @@ function isPrivateIPAddress(hostname) {
   return false;
 }
 
+function normalizeHostname(hostname) {
+  return String(hostname || '').trim().toLowerCase().replace(/^\[|\]$/g, '');
+}
+
 function isWeChatArticleUrl(url) {
   return url.hostname.toLowerCase() === 'mp.weixin.qq.com';
+}
+
+function isMowenArticleUrl(url) {
+  return MOWEN_NOTE_HOSTNAME_PATTERN.test(url.hostname) && MOWEN_DETAIL_PATH_PATTERN.test(url.pathname);
+}
+
+function readMowenArticleId(url) {
+  return url.pathname.match(MOWEN_DETAIL_PATH_PATTERN)?.[1]?.trim() || '';
 }
 
 function buildArticleRequestHeaders(url) {
@@ -78,12 +103,70 @@ function validateArticleUrl(input, message = '文章链接格式无效。') {
     throw new ArticleImportError('文章链接需以 http:// 或 https:// 开头。', 400);
   }
 
-  const hostname = url.hostname.toLowerCase();
+  const hostname = normalizeHostname(url.hostname);
   if (!hostname || hostname === 'localhost' || hostname.endsWith('.local') || isPrivateIPAddress(hostname)) {
     throw new ArticleImportError('暂不支持导入该地址。', 400);
   }
 
   return url;
+}
+
+async function assertPublicResolvedAddress(url) {
+  const hostname = normalizeHostname(url.hostname);
+
+  if (net.isIP(hostname)) {
+    return;
+  }
+
+  let addresses;
+  try {
+    addresses = await dnsLookup(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new ArticleImportError('暂时无法解析该地址，请稍后重试。', 502);
+  }
+
+  if (!Array.isArray(addresses) || addresses.length === 0) {
+    throw new ArticleImportError('暂时无法解析该地址，请稍后重试。', 502);
+  }
+
+  if (addresses.some((entry) => isPrivateIPAddress(normalizeHostname(entry?.address)))) {
+    throw new ArticleImportError('暂不支持导入该地址。', 400);
+  }
+}
+
+function isRedirectResponse(response) {
+  return REDIRECT_STATUS_CODES.has(response.status);
+}
+
+async function fetchArticleResponse(initialUrl, signal) {
+  let currentUrl = initialUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    await assertPublicResolvedAddress(currentUrl);
+
+    const response = await fetch(currentUrl.toString(), {
+      redirect: 'manual',
+      signal,
+      headers: buildArticleRequestHeaders(currentUrl),
+    });
+
+    if (!isRedirectResponse(response)) {
+      return { response, finalUrl: currentUrl };
+    }
+
+    if (redirectCount === MAX_REDIRECTS) {
+      throw new ArticleImportError('文章跳转次数过多，暂不支持导入。', 508);
+    }
+
+    const location = response.headers.get('location');
+    if (!location) {
+      throw new ArticleImportError('文章跳转后的链接无效。', 502);
+    }
+
+    currentUrl = validateArticleUrl(new URL(location, currentUrl).toString(), '文章跳转后的链接无效。');
+  }
+
+  throw new ArticleImportError('导入正文失败。', 500);
 }
 
 function getMaxHtmlLength(url) {
@@ -107,6 +190,21 @@ function readMetaContent(document, selector) {
 
 function normalizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function sanitizeCodeFenceLanguage(value) {
+  const language = String(value || '').trim();
+  if (!language || language.toLowerCase() === 'text') {
+    return '';
+  }
+
+  return /^[a-z0-9_+#.-]+$/i.test(language) ? language : '';
+}
+
+function buildCodeFence(code) {
+  const matches = String(code || '').match(/`{3,}/g) || [];
+  const fenceLength = matches.reduce((maxLength, fence) => Math.max(maxLength, fence.length + 1), 3);
+  return '`'.repeat(fenceLength);
 }
 
 function absolutizeAttribute(element, name, baseUrl) {
@@ -174,6 +272,21 @@ function createTurndownService() {
     bulletListMarker: '-',
   });
   service.use(gfm);
+  service.addRule('mowenCodeblock', {
+    filter(node) {
+      return node.nodeName === 'CODEBLOCK';
+    },
+    replacement(_content, node) {
+      const code = String(node.textContent || '').replace(/\r\n/g, '\n').trim();
+      if (!code) {
+        return '\n\n';
+      }
+
+      const language = sanitizeCodeFenceLanguage(node.getAttribute('language'));
+      const fence = buildCodeFence(code);
+      return `\n\n${fence}${language ? language : ''}\n${code}\n${fence}\n\n`;
+    },
+  });
   return service;
 }
 
@@ -252,27 +365,95 @@ function extractReadableArticle(document, finalUrl) {
   };
 }
 
+function parseJsonPayload(text, invalidMessage) {
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new ArticleImportError(invalidMessage, 502);
+  }
+}
+
+function readTextWithLimit(response, maxLength, overflowMessage) {
+  return response.text().then((text) => {
+    if (text.length > maxLength) {
+      throw new ArticleImportError(overflowMessage, 413);
+    }
+    return text;
+  });
+}
+
+async function importMowenArticle(finalArticleUrl, signal) {
+  const articleId = readMowenArticleId(finalArticleUrl);
+  if (!articleId) {
+    throw new ArticleImportError('墨问文章链接格式无效。', 400);
+  }
+
+  const requestBody = { uuid: articleId };
+  const peekKey = finalArticleUrl.searchParams.get('code')?.trim();
+  if (peekKey) {
+    requestBody.peekKey = peekKey;
+  }
+
+  const apiUrl = new URL(MOWEN_NOTE_SHOW_API_PATH, finalArticleUrl.origin);
+  const response = await fetch(apiUrl.toString(), {
+    method: 'POST',
+    signal,
+    headers: JSON_REQUEST_HEADERS,
+    body: JSON.stringify(requestBody),
+  });
+
+  const payload = parseJsonPayload(
+    await readTextWithLimit(response, MAX_JSON_LENGTH, '墨问正文返回内容过大，暂不支持导入。'),
+    '墨问正文返回格式无效。'
+  );
+
+  if (!response.ok) {
+    throw new ArticleImportError(
+      normalizeText(payload?.message) || `抓取文章失败（${response.status}）。`,
+      response.status >= 400 ? response.status : 502
+    );
+  }
+
+  const content = String(payload?.detail?.noteBase?.content || '').replace(/&nbsp;/g, ' ');
+  const markdown = convertArticleHtmlToMarkdown(content, finalArticleUrl.toString());
+  if (!markdown) {
+    throw new ArticleImportError('未能提取出可用正文，请尝试手动复制内容。', 422);
+  }
+
+  return {
+    title: normalizeText(payload?.detail?.noteBase?.title),
+    desc: normalizeText(payload?.detail?.noteBase?.digest),
+    sourceName:
+      normalizeText([payload?.user?.base?.name, '墨问'].filter(Boolean).join(' · ')) || '墨问',
+    markdown,
+  };
+}
+
 async function importArticle(requestedUrl) {
   const validatedRequestedUrl = validateArticleUrl(requestedUrl, '请填写有效的文章链接。');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    const response = await fetch(validatedRequestedUrl.toString(), {
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: buildArticleRequestHeaders(validatedRequestedUrl),
-    });
+    const { response, finalUrl: finalArticleUrl } = await fetchArticleResponse(validatedRequestedUrl, controller.signal);
 
     if (!response.ok) {
       throw new ArticleImportError(`抓取文章失败（${response.status}）。`, 502);
     }
 
-    const finalArticleUrl = validateArticleUrl(
-      response.url || validatedRequestedUrl.toString(),
-      '文章跳转后的链接无效。'
-    );
     const finalUrl = finalArticleUrl.toString();
+    if (isMowenArticleUrl(finalArticleUrl)) {
+      const extractedArticle = await importMowenArticle(finalArticleUrl, controller.signal);
+      return {
+        title: extractedArticle.title,
+        desc: extractedArticle.desc,
+        sourceName: extractedArticle.sourceName,
+        markdown: extractedArticle.markdown,
+        requestedUrl: validatedRequestedUrl.toString(),
+        finalUrl,
+      };
+    }
+
     const contentType = response.headers.get('content-type') || '';
     if (!HTML_CONTENT_TYPE_PATTERN.test(contentType)) {
       throw new ArticleImportError('该链接不是可导入的 HTML 文章页面。', 415);
@@ -324,4 +505,10 @@ module.exports = {
   importArticle,
   validateArticleUrl,
   normalizeMarkdown,
+  setDnsLookupForTesting(lookup) {
+    dnsLookup = lookup;
+  },
+  resetDnsLookupForTesting() {
+    dnsLookup = dns.lookup.bind(dns);
+  },
 };
