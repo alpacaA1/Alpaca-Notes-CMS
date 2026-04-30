@@ -77,40 +77,28 @@ export default function TopBar({
   isSaveDisabled,
   isSaveQuiet,
   status,
-  currentActionContentType = null,
-  isCurrentPinned = false,
-  isPinningCurrent = false,
-  isPinActionDisabled = false,
-  onTogglePinnedCurrent,
-  isDeletingCurrent = false,
-  isDeleteActionDisabled = false,
-  onDeleteCurrent,
 }: TopBarProps) {
   const isDashboard = adminView === 'dashboard'
   const titleText = isDashboard ? (contentType === 'read-later' ? '待读管理' : '文章管理') : '内容编辑台'
   const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
-  const showCurrentDocumentActions = !isDashboard && currentActionContentType && onTogglePinnedCurrent && onDeleteCurrent
-  const pinActionLabel = currentActionContentType === 'read-later'
-    ? (isCurrentPinned ? '取消置顶待读' : '置顶待读')
-    : (isCurrentPinned ? '取消置顶文章' : '置顶文章')
-  const deleteActionLabel = currentActionContentType === 'read-later' ? '删除待读条目' : '删除文章'
+  const showContentTypeSwitcher = isDashboard
 
   return (
-    <header className="top-bar">
+    <header className={`top-bar${isDashboard ? '' : ' top-bar--editor'}`}>
       <div className="top-bar__identity">
         <AlpacaLogo />
         <div className="top-bar__identity-text">
-          <p className="top-bar__eyebrow">Alpaca Notes</p>
-          <div>
+          {isDashboard ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
+          <div className="top-bar__title-row">
             <strong>{titleText}</strong>
             <span className="top-bar__status">{status}</span>
           </div>
         </div>
       </div>
 
-      <div className="top-bar__controls">
+      <div className={`top-bar__controls${showContentTypeSwitcher ? '' : ' top-bar__controls--editor'}`}>
         <label className="top-bar__search" style={{ marginBottom: 0 }}>
           <span className="sr-only">搜索</span>
           <input
@@ -121,33 +109,35 @@ export default function TopBar({
             placeholder={contentType === 'read-later' ? '搜索标题、来源或原文链接' : '搜索标题或链接'}
           />
         </label>
-        <div className="top-bar__content-switcher">
-          <span className="top-bar__switcher-label">内容类型</span>
-          <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
-            {CONTENT_TYPE_OPTIONS.map((option) => {
-              const checked = option.value === contentType
-              return (
-                <label
-                  key={option.value}
-                  className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
-                >
-                  <input
-                    type="radio"
-                    name="content-type"
-                    value={option.value}
-                    aria-label={option.label}
-                    checked={checked}
-                    onChange={() => onContentTypeChange(option.value)}
-                  />
-                  <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
-                  <span className="top-bar__switcher-text">
-                    <strong>{option.label}</strong>
-                  </span>
-                </label>
-              )
-            })}
+        {showContentTypeSwitcher ? (
+          <div className="top-bar__content-switcher">
+            <span className="top-bar__switcher-label">内容类型</span>
+            <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
+              {CONTENT_TYPE_OPTIONS.map((option) => {
+                const checked = option.value === contentType
+                return (
+                  <label
+                    key={option.value}
+                    className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      name="content-type"
+                      value={option.value}
+                      aria-label={option.label}
+                      checked={checked}
+                      onChange={() => onContentTypeChange(option.value)}
+                    />
+                    <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
+                    <span className="top-bar__switcher-text">
+                      <strong>{option.label}</strong>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       <div className="top-bar__actions">
@@ -166,28 +156,6 @@ export default function TopBar({
           </button>
           {!isDashboard ? (
             <>
-              {showCurrentDocumentActions ? (
-                <button
-                  className={`top-bar__button${isCurrentPinned ? ' top-bar__button--active' : ''}`}
-                  type="button"
-                  onClick={onTogglePinnedCurrent}
-                  disabled={isPinActionDisabled}
-                  aria-label={pinActionLabel}
-                >
-                  {isPinningCurrent ? '处理中…' : isCurrentPinned ? '已置顶' : '置顶'}
-                </button>
-              ) : null}
-              {showCurrentDocumentActions ? (
-                <button
-                  className="top-bar__button top-bar__button--danger"
-                  type="button"
-                  onClick={onDeleteCurrent}
-                  disabled={isDeleteActionDisabled}
-                  aria-label={deleteActionLabel}
-                >
-                  {isDeletingCurrent ? '删除中…' : '删除'}
-                </button>
-              ) : null}
               <button
                 className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
                 type="button"

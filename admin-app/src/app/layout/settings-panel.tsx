@@ -294,6 +294,16 @@ export default function SettingsPanel({
                   <option value="done">已读</option>
                 </select>
               </label>
+
+              <label className="settings-panel__toggle">
+                <span>置顶</span>
+                <input
+                  aria-label="置顶"
+                  type="checkbox"
+                  checked={Boolean(frontmatter.pinned)}
+                  onChange={(event) => onFieldChange('pinned', event.target.checked)}
+                />
+              </label>
             </>
           ) : (
             <>

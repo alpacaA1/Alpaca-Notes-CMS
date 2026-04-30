@@ -208,6 +208,7 @@ describe('settings panel', () => {
     expect(screen.getByRole('tab', { name: '信息' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: '评论' })).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.getByLabelText('站内详情链接')).toBeTruthy()
 
@@ -217,10 +218,12 @@ describe('settings panel', () => {
     fireEvent.change(screen.getByLabelText('原文链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.change(screen.getByLabelText('来源'), { target: { value: 'Example Source' } })
     fireEvent.change(screen.getByLabelText('阅读状态'), { target: { value: 'reading' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
 
     expect(onFieldChange).toHaveBeenCalledWith('external_url', 'https://example.com/article')
     expect(onFieldChange).toHaveBeenCalledWith('source_name', 'Example Source')
     expect(onFieldChange).toHaveBeenCalledWith('reading_status', 'reading')
+    expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
   })
 
   it('enables and triggers read-later import button', () => {

@@ -221,7 +221,7 @@ describe('App editor modes', () => {
     expect(container.querySelector('.editor-stack--reader')).toBeTruthy()
   })
 
-  it('pins the opened read-later item from the top bar', async () => {
+  it('pins the opened read-later item from the info panel', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
@@ -245,14 +245,15 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
     expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '置顶待读' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => {
       expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
     })
 
     expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('pinned: true')
-    expect(await screen.findByRole('button', { name: '取消置顶待读' })).toBeTruthy()
+    expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(true)
   })
 
   it('lets read-later reader hide and show the top bar', async () => {

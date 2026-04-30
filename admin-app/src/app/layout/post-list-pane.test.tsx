@@ -272,8 +272,8 @@ describe('management layout components', () => {
     expect(screen.getByText('内容编辑台')).toBeTruthy()
     expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: '文章' })).toBeTruthy()
-    expect(screen.getByRole('radio', { name: '待读' })).toBeTruthy()
+    expect(screen.queryByRole('radio', { name: '文章' })).toBeNull()
+    expect(screen.queryByRole('radio', { name: '待读' })).toBeNull()
     expect(screen.queryByRole('button', { name: '筛选' })).toBeNull()
     expect(screen.queryByRole('button', { name: '排序' })).toBeNull()
     const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
@@ -310,7 +310,7 @@ describe('management layout components', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
-  it('shows current read-later actions in the top bar when an item is open', () => {
+  it('hides current document quick actions from the editor top bar', () => {
     render(
       <TopBar
         search=""
@@ -336,8 +336,8 @@ describe('management layout components', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: '置顶待读' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '删除待读条目' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '置顶待读' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '删除待读条目' })).toBeNull()
   })
 
   it('switches content type via the redesigned radio cards', () => {
