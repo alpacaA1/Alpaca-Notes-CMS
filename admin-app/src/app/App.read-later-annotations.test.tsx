@@ -192,6 +192,7 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('交互上的提醒')).toBeTruthy()
     expect(screen.getByText('写作切入点')).toBeTruthy()
     expect(screen.getByText('交互观察')).toBeTruthy()
+    expect(screen.queryByText('我的评论')).toBeNull()
     expect(screen.getByText('在读')).toBeTruthy()
     expect(screen.getByText('已读')).toBeTruthy()
     expect(screen.getByRole('combobox', { name: '排序规则' })).toBeTruthy()

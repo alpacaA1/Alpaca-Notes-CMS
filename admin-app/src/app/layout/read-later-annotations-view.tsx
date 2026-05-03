@@ -426,8 +426,7 @@ export default function ReadLaterAnnotationsView({
                         </blockquote>
                       </section>
 
-                      <section className="annotation-dashboard__note-block" aria-label="我的评论">
-                        <span className="annotation-dashboard__label">我的评论</span>
+                      <section className="annotation-dashboard__note-block" aria-label="评论内容">
                         <p className={!annotation.note.trim() ? 'annotation-dashboard__note-text annotation-dashboard__note-text--empty' : 'annotation-dashboard__note-text'}>
                           {annotation.note.trim() || '暂未写评论'}
                         </p>

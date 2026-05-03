@@ -4608,11 +4608,13 @@ textarea {
 .annotation-dashboard__source-item {
   appearance: none;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 6px;
   width: 100%;
-  min-height: 46px;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
   padding: 7px 9px;
   border: 1px solid transparent;
   border-radius: 12px;
@@ -4816,10 +4818,7 @@ textarea {
 }
 
 .annotation-dashboard__note-block {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  align-content: start;
-  gap: 5px;
+  display: block;
   min-height: 0;
   overflow: hidden;
 }
@@ -4833,7 +4832,6 @@ textarea {
 
 .annotation-dashboard__note-text {
   margin: 0;
-  align-self: start;
   line-height: 1.56;
   -webkit-line-clamp: 3;
   min-height: calc(1.56em * 3);
