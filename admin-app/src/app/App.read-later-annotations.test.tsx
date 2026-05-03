@@ -172,6 +172,8 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('在读')).toBeTruthy()
     expect(screen.getByText('已读')).toBeTruthy()
     expect(screen.getByRole('combobox', { name: '排序规则' })).toBeTruthy()
+    expect(screen.queryByText('Product Weekly')).toBeNull()
+    expect(screen.queryByText('Design Notes')).toBeNull()
 
     const articleRail = screen.getByLabelText('批注文章列表')
     fireEvent.click(within(articleRail).getByRole('button', { name: /设计研究 B/ }))

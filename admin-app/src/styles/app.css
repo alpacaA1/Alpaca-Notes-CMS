@@ -4313,7 +4313,7 @@ textarea {
 /* ---- Annotation dashboard ---- */
 
 .annotation-dashboard {
-  --annotation-card-width: 216px;
+  --annotation-card-width: 320px;
   --annotation-card-height: 288px;
   --annotation-grid-gap: 12px;
   position: relative;
@@ -4504,6 +4504,7 @@ textarea {
 .annotation-dashboard__list {
   display: grid;
   align-content: start;
+  justify-content: start;
   gap: var(--annotation-grid-gap);
 }
 
@@ -4511,6 +4512,7 @@ textarea {
   display: grid;
   grid-template-columns: 168px minmax(0, 1fr);
   gap: 12px;
+  align-items: start;
   min-height: 0;
   flex: 1;
 }
@@ -4520,9 +4522,11 @@ textarea {
 }
 
 .annotation-dashboard__source-rail {
+  align-self: start;
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
+  max-height: min(68vh, 720px);
   border: 1px solid var(--admin-line);
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(255, 251, 246, 0.92));
@@ -4588,6 +4592,8 @@ textarea {
 }
 
 .annotation-dashboard__source-rail-body {
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: start;
   padding: 8px;
 }
 
@@ -4599,12 +4605,12 @@ textarea {
 .annotation-dashboard__source-item {
   appearance: none;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
   width: 100%;
-  min-height: 34px;
-  padding: 0 10px;
+  min-height: 54px;
+  padding: 9px 10px;
   border: 1px solid transparent;
   border-radius: 12px;
   background: transparent;
@@ -4629,9 +4635,11 @@ textarea {
 .annotation-dashboard__source-item-title {
   flex: 1;
   min-width: 0;
+  display: -webkit-box;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .annotation-dashboard__source-item-count {
@@ -4669,8 +4677,11 @@ textarea {
   grid-template-rows: auto auto auto auto;
   align-content: start;
   gap: 10px;
-  min-width: 0;
+  width: var(--annotation-card-width);
+  min-width: var(--annotation-card-width);
+  height: var(--annotation-card-height);
   min-height: var(--annotation-card-height);
+  max-height: var(--annotation-card-height);
   padding: 13px 14px 14px 18px;
   overflow: hidden;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
@@ -4783,8 +4794,7 @@ textarea {
 
 .annotation-dashboard__quote-text,
 .annotation-dashboard__note-text,
-.annotation-dashboard__source-title,
-.annotation-dashboard__source-meta {
+.annotation-dashboard__source-title {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
@@ -4862,14 +4872,6 @@ textarea {
   min-height: 1.42em;
 }
 
-.annotation-dashboard__source-meta {
-  margin: 0;
-  color: var(--admin-soft);
-  font-size: 0.82rem;
-  line-height: 1.4;
-  -webkit-line-clamp: 1;
-}
-
 .annotation-dashboard__empty {
   display: grid;
   gap: 8px;
@@ -4894,7 +4896,7 @@ textarea {
 
 @media (max-width: 960px) {
   .annotation-dashboard {
-    --annotation-card-width: 208px;
+    --annotation-card-width: 300px;
     --annotation-card-height: 280px;
     padding: 18px;
   }
@@ -4943,7 +4945,7 @@ textarea {
 
 @media (max-width: 720px) {
   .annotation-dashboard {
-    --annotation-card-width: 192px;
+    --annotation-card-width: 280px;
     --annotation-card-height: 274px;
     --annotation-grid-gap: 14px;
     padding: 14px;
@@ -4983,7 +4985,7 @@ textarea {
 
 @media (max-width: 640px) {
   .annotation-dashboard {
-    --annotation-card-width: 184px;
+    --annotation-card-width: 264px;
     --annotation-card-height: 266px;
   }
 
@@ -5347,7 +5349,7 @@ textarea {
 }
 
 .admin-shell--dark .annotation-dashboard__tag,
-.admin-shell--dark .annotation-dashboard__source-meta {
+.admin-shell--dark .annotation-dashboard__source-item-title {
   color: var(--admin-muted);
 }
 

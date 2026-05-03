@@ -192,8 +192,8 @@ export default function ReadLaterAnnotationsView({
   const visibleColumnCount = Math.min(5, Math.max(sortedAnnotations.length, 1))
   const listStyle = useMemo<CSSProperties>(
     () => ({
-      gridTemplateColumns: `repeat(${visibleColumnCount}, minmax(var(--annotation-card-width), 1fr))`,
-      minWidth: `max(100%, calc(${visibleColumnCount} * var(--annotation-card-width) + ${Math.max(visibleColumnCount - 1, 0)} * var(--annotation-grid-gap)))`,
+      gridTemplateColumns: `repeat(${visibleColumnCount}, var(--annotation-card-width))`,
+      width: `calc(${visibleColumnCount} * var(--annotation-card-width) + ${Math.max(visibleColumnCount - 1, 0)} * var(--annotation-grid-gap))`,
     }),
     [visibleColumnCount],
   )
@@ -441,13 +441,12 @@ export default function ReadLaterAnnotationsView({
                             </svg>
                           </span>
                           <span className="annotation-dashboard__label">来源文章</span>
-                        </div>
-                        <p className="annotation-dashboard__source-title">{annotation.postTitle}</p>
-                        <p className="annotation-dashboard__source-meta">{annotation.sourceName?.trim() || '作者未记录'}</p>
-                      </footer>
-                    </article>
-                  )
-                })}
+                    </div>
+                    <p className="annotation-dashboard__source-title">{annotation.postTitle}</p>
+                  </footer>
+                </article>
+              )
+            })}
               </div>
             </section>
           ) : (
