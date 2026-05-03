@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
@@ -171,6 +171,17 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('交互观察')).toBeTruthy()
     expect(screen.getByText('在读')).toBeTruthy()
     expect(screen.getByText('已读')).toBeTruthy()
+    expect(screen.getByRole('combobox', { name: '排序规则' })).toBeTruthy()
+
+    const articleRail = screen.getByLabelText('批注文章列表')
+    fireEvent.click(within(articleRail).getByRole('button', { name: /设计研究 B/ }))
+    expect(screen.queryByText('要回看的句子')).toBeNull()
+    expect(screen.getByText('交互上的提醒')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '收起文章栏' }))
+    expect(screen.getByRole('button', { name: '展开文章栏' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '展开文章栏' }))
+    expect(screen.getByRole('button', { name: '收起文章栏' })).toBeTruthy()
 
     fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
       target: { value: readLaterPosts[0].path },
@@ -201,6 +212,13 @@ describe('App read-later annotations view', () => {
       expect((screen.getByRole('textbox', { name: '搜索' }) as HTMLInputElement).value).toBe('')
       expect(screen.getByText('交互上的提醒')).toBeTruthy()
     })
+
+    fireEvent.change(screen.getByRole('combobox', { name: '排序规则' }), {
+      target: { value: 'source-asc' },
+    })
+    const sortedCards = screen.getAllByRole('article')
+    expect(within(sortedCards[0]).getByText('产品研究 A')).toBeTruthy()
+    expect(within(sortedCards[1]).getByText('设计研究 B')).toBeTruthy()
 
     fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
       target: { value: readLaterPosts[0].path },
