@@ -4315,6 +4315,7 @@ textarea {
 .annotation-dashboard {
   --annotation-card-width: 360px;
   --annotation-card-height: 344px;
+  --annotation-detail-width: 372px;
   --annotation-grid-gap: 12px;
   position: relative;
   z-index: 1;
@@ -4331,6 +4332,7 @@ textarea {
 .annotation-dashboard__toolbar,
 .annotation-dashboard__list-shell,
 .annotation-dashboard__card,
+.annotation-dashboard__detail,
 .annotation-dashboard__empty {
   border: 1px solid var(--admin-line);
   border-radius: 22px;
@@ -4513,7 +4515,7 @@ textarea {
 
 .annotation-dashboard__content {
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-columns: 168px minmax(0, 1fr) var(--annotation-detail-width);
   gap: 12px;
   align-items: stretch;
   min-height: 0;
@@ -4521,7 +4523,7 @@ textarea {
 }
 
 .annotation-dashboard__content--rail-collapsed {
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr) var(--annotation-detail-width);
 }
 
 .annotation-dashboard__source-rail {
@@ -4679,18 +4681,21 @@ textarea {
 
 .annotation-dashboard__card {
   position: relative;
-  display: grid;
-  grid-template-rows: auto auto minmax(78px, 1fr) auto;
-  align-content: stretch;
-  gap: 9px;
   width: var(--annotation-card-width);
   min-width: var(--annotation-card-width);
   height: var(--annotation-card-height);
   min-height: var(--annotation-card-height);
   max-height: var(--annotation-card-height);
-  padding: 14px 16px 15px 20px;
   overflow: hidden;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.annotation-dashboard__card.is-active,
+.annotation-dashboard__card:focus-within {
+  border-color: rgba(212, 165, 106, 0.32);
+  box-shadow:
+    0 18px 34px rgba(52, 39, 28, 0.08),
+    inset 0 0 0 1px rgba(212, 165, 106, 0.1);
 }
 
 .annotation-dashboard__card::before {
@@ -4712,9 +4717,30 @@ textarea {
     inset 0 0 0 1px rgba(212, 165, 106, 0.08);
 }
 
+.annotation-dashboard__card-trigger {
+  appearance: none;
+  display: grid;
+  grid-template-rows: auto auto minmax(78px, 1fr) auto;
+  align-content: stretch;
+  gap: 9px;
+  width: 100%;
+  height: 100%;
+  padding: 14px 16px 15px 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.annotation-dashboard__card-trigger:focus-visible {
+  outline: none;
+}
+
 .annotation-dashboard__card-head {
   display: grid;
   gap: 8px;
+  padding-right: 38px;
 }
 
 .annotation-dashboard__card-head-row {
@@ -4785,6 +4811,36 @@ textarea {
 
 .annotation-dashboard__tag--overflow {
   color: var(--admin-muted);
+}
+
+.annotation-dashboard__icon-btn {
+  appearance: none;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid rgba(64, 58, 51, 0.12);
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--admin-soft);
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.annotation-dashboard__icon-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-warm);
+  background: rgba(255, 250, 243, 0.96);
+  color: var(--admin-text);
+}
+
+.annotation-dashboard__icon-btn svg {
+  width: 14px;
+  height: 14px;
 }
 
 .annotation-dashboard__quote-block {
@@ -4882,6 +4938,123 @@ textarea {
   min-height: 1.42em;
 }
 
+.annotation-dashboard__detail {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.annotation-dashboard__detail-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid rgba(64, 58, 51, 0.06);
+}
+
+.annotation-dashboard__detail-head-main {
+  min-width: 0;
+}
+
+.annotation-dashboard__detail-kicker {
+  margin: 0;
+  color: var(--admin-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.annotation-dashboard__detail-title {
+  margin: 6px 0 0;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-size: 1.26rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--admin-text);
+}
+
+.annotation-dashboard__detail-meta {
+  margin: 8px 0 0;
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.annotation-dashboard__detail-body {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-height: 0;
+  padding: 14px 16px 18px;
+  overflow: auto;
+}
+
+.annotation-dashboard__detail-section {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid rgba(64, 58, 51, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.annotation-dashboard__detail-quote,
+.annotation-dashboard__detail-text,
+.annotation-dashboard__detail-source-title,
+.annotation-dashboard__detail-source-meta,
+.annotation-dashboard__detail-context {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.annotation-dashboard__detail-quote,
+.annotation-dashboard__detail-text,
+.annotation-dashboard__detail-context {
+  color: var(--admin-text);
+  line-height: 1.62;
+}
+
+.annotation-dashboard__detail-text--empty,
+.annotation-dashboard__detail-source-meta {
+  color: var(--admin-muted);
+}
+
+.annotation-dashboard__detail-source-title {
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.48;
+  color: var(--admin-text);
+}
+
+.annotation-dashboard__detail-source-meta {
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.annotation-dashboard__detail-context-highlight {
+  display: inline;
+  padding: 0 0.12em;
+  border-radius: 4px;
+  background: rgba(212, 165, 106, 0.24);
+  color: inherit;
+}
+
+.annotation-dashboard__detail-empty {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  min-height: 0;
+  height: 100%;
+  padding: 32px 24px;
+  text-align: center;
+}
+
 .annotation-dashboard__empty {
   display: grid;
   gap: 8px;
@@ -4908,6 +5081,7 @@ textarea {
   .annotation-dashboard {
     --annotation-card-width: 332px;
     --annotation-card-height: 324px;
+    --annotation-detail-width: 100%;
     padding: 18px;
   }
 
@@ -4947,6 +5121,10 @@ textarea {
 
   .annotation-dashboard__list-shell {
     height: auto;
+  }
+
+  .annotation-dashboard__detail {
+    min-height: 360px;
   }
 
   .annotation-dashboard__source-rail.is-collapsed .annotation-dashboard__source-rail-collapsed {
@@ -4997,6 +5175,11 @@ textarea {
     flex-wrap: wrap;
     overflow: visible;
   }
+
+  .annotation-dashboard__detail-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 @media (max-width: 640px) {
@@ -5010,11 +5193,17 @@ textarea {
   }
 
   .annotation-dashboard__card {
-    padding: 12px 12px 12px 16px;
+    width: 100%;
+    min-width: var(--annotation-card-width);
   }
 
+  .annotation-dashboard__card-trigger,
   .annotation-dashboard__quote-block {
     padding: 10px 12px;
+  }
+
+  .annotation-dashboard__card-trigger {
+    padding: 12px 12px 12px 16px;
   }
 }
 
@@ -5270,11 +5459,20 @@ textarea {
 .admin-shell--dark .annotation-dashboard__toolbar,
 .admin-shell--dark .annotation-dashboard__list-shell,
 .admin-shell--dark .annotation-dashboard__card,
+.admin-shell--dark .annotation-dashboard__detail,
 .admin-shell--dark .annotation-dashboard__empty,
 .admin-shell--dark .annotation-dashboard__source-rail {
   border-color: rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(28, 25, 21, 0.94), rgba(22, 19, 16, 0.92));
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
+}
+
+.admin-shell--dark .annotation-dashboard__card.is-active,
+.admin-shell--dark .annotation-dashboard__card:focus-within {
+  border-color: rgba(228, 163, 88, 0.26);
+  box-shadow:
+    0 20px 36px rgba(0, 0, 0, 0.22),
+    inset 0 0 0 1px rgba(228, 163, 88, 0.1);
 }
 
 .admin-shell--dark .annotation-dashboard__card:hover {
@@ -5321,6 +5519,18 @@ textarea {
   color: #f0be7a;
 }
 
+.admin-shell--dark .annotation-dashboard__icon-btn,
+.admin-shell--dark .annotation-dashboard__detail-section {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .annotation-dashboard__icon-btn:hover {
+  border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text);
+}
+
 .admin-shell--dark .annotation-dashboard__status--unread {
   background: rgba(140, 154, 170, 0.14);
   color: #c8d2df;
@@ -5349,6 +5559,10 @@ textarea {
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
+.admin-shell--dark .annotation-dashboard__detail-head {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
 .admin-shell--dark .annotation-dashboard__source-rail-header {
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
@@ -5367,6 +5581,10 @@ textarea {
 .admin-shell--dark .annotation-dashboard__tag,
 .admin-shell--dark .annotation-dashboard__source-item-title {
   color: var(--admin-muted);
+}
+
+.admin-shell--dark .annotation-dashboard__detail-context-highlight {
+  background: rgba(240, 190, 122, 0.2);
 }
 
 .admin-shell--dark .annotation-dashboard__source-icon {

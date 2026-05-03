@@ -43,6 +43,14 @@ function getReadingStatusLabel(status: ReadLaterAnnotationIndexItem['readingStat
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
 
+function getAnnotationQuoteText(quote: string) {
+  return quote.trim() || '未命名高亮'
+}
+
+function getAnnotationNoteText(note: string) {
+  return note.trim() || '暂未写评论'
+}
+
 function getAnnotationTimestamp(annotation: ReadLaterAnnotationIndexItem) {
   const candidates = [annotation.updatedAt, annotation.createdAt, annotation.postDate]
 
@@ -67,6 +75,7 @@ export default function ReadLaterAnnotationsView({
   const [selectedTag, setSelectedTag] = useState(ALL_TAGS)
   const [sortOrder, setSortOrder] = useState<AnnotationSortOrder>(DEFAULT_SORT)
   const [isSourceRailCollapsed, setIsSourceRailCollapsed] = useState(false)
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
 
   const sourceOptions = useMemo(() => {
     const deduped = new Map<string, { value: string; label: string; count: number; latestTimestamp: number }>()
@@ -177,6 +186,12 @@ export default function ReadLaterAnnotationsView({
     return nextAnnotations
   }, [filteredAnnotations, sortOrder])
 
+  useEffect(() => {
+    if (selectedAnnotationId && !sortedAnnotations.some((annotation) => annotation.id === selectedAnnotationId)) {
+      setSelectedAnnotationId(null)
+    }
+  }, [selectedAnnotationId, sortedAnnotations])
+
   const annotatedSourceCount = useMemo(
     () => new Set(annotations.map((annotation) => annotation.postPath)).size,
     [annotations],
@@ -188,6 +203,7 @@ export default function ReadLaterAnnotationsView({
   const hasActiveFilters = selectedSourcePath !== ALL_SOURCES || selectedTag !== ALL_TAGS || normalizedQuery.length > 0
   const searchSummary = search.trim()
   const selectedSourceOption = selectedSourcePath === ALL_SOURCES ? null : sourceOptions.find((option) => option.value === selectedSourcePath) || null
+  const selectedAnnotation = sortedAnnotations.find((annotation) => annotation.id === selectedAnnotationId) || null
   const selectedSortLabel = SORT_OPTIONS.find((option) => option.value === sortOrder)?.label || '最新批注'
   const visibleColumnCount = Math.min(4, Math.max(sortedAnnotations.length, 1))
   const listStyle = useMemo<CSSProperties>(
@@ -381,71 +397,89 @@ export default function ReadLaterAnnotationsView({
                 {sortedAnnotations.map((annotation) => {
                   const visibleTags = annotation.tags.slice(0, MAX_VISIBLE_TAGS)
                   const hiddenTagCount = Math.max(0, annotation.tags.length - visibleTags.length)
+                  const isSelected = annotation.id === selectedAnnotationId
 
                   return (
-                    <article key={annotation.id} className="annotation-dashboard__card">
-                      <header className="annotation-dashboard__card-head">
-                        <div className="annotation-dashboard__card-head-row">
-                          <span className="annotation-dashboard__section-pill">{annotation.sectionLabel}</span>
-                          <span className="annotation-dashboard__time">
-                            {formatAnnotationDateTime(annotation.updatedAt || annotation.createdAt, annotation.postDate)}
-                          </span>
-                        </div>
-
-                        <div className="annotation-dashboard__card-head-row annotation-dashboard__card-head-row--actions">
-                          <div className="annotation-dashboard__chips" aria-label="标签和状态">
-                            <span className={`annotation-dashboard__status annotation-dashboard__status--${annotation.readingStatus}`}>
-                              {getReadingStatusLabel(annotation.readingStatus)}
+                    <article key={annotation.id} className={`annotation-dashboard__card${isSelected ? ' is-active' : ''}`}>
+                      <button
+                        type="button"
+                        className="annotation-dashboard__card-trigger"
+                        aria-controls="annotation-dashboard-detail"
+                        aria-expanded={isSelected}
+                        onClick={() => setSelectedAnnotationId(annotation.id)}
+                      >
+                        <header className="annotation-dashboard__card-head">
+                          <div className="annotation-dashboard__card-head-row">
+                            <span className="annotation-dashboard__section-pill">{annotation.sectionLabel}</span>
+                            <span className="annotation-dashboard__time">
+                              {formatAnnotationDateTime(annotation.updatedAt || annotation.createdAt, annotation.postDate)}
                             </span>
-                            {visibleTags.map((tag) => (
-                              <span key={`${annotation.id}-${tag}`} className="annotation-dashboard__tag">
-                                #{tag}
-                              </span>
-                            ))}
-                            {hiddenTagCount > 0 ? (
-                              <span className="annotation-dashboard__tag annotation-dashboard__tag--overflow">
-                                +{hiddenTagCount}
-                              </span>
-                            ) : null}
                           </div>
 
-                          <button
-                            type="button"
-                            className="annotation-dashboard__open-btn"
-                            onClick={() => onOpenAnnotation(annotation)}
-                          >
-                            跳回原文
-                          </button>
-                        </div>
-                      </header>
+                          <div className="annotation-dashboard__card-head-row annotation-dashboard__card-head-row--actions">
+                            <div className="annotation-dashboard__chips" aria-label="标签和状态">
+                              <span className={`annotation-dashboard__status annotation-dashboard__status--${annotation.readingStatus}`}>
+                                {getReadingStatusLabel(annotation.readingStatus)}
+                              </span>
+                              {visibleTags.map((tag) => (
+                                <span key={`${annotation.id}-${tag}`} className="annotation-dashboard__tag">
+                                  #{tag}
+                                </span>
+                              ))}
+                              {hiddenTagCount > 0 ? (
+                                <span className="annotation-dashboard__tag annotation-dashboard__tag--overflow">
+                                  +{hiddenTagCount}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </header>
 
-                      <section className="annotation-dashboard__quote-block" aria-label="原文摘录">
-                        <span className="annotation-dashboard__label">原文摘录</span>
-                        <blockquote className="annotation-dashboard__quote-text">
-                          {annotation.quote.trim() || '未命名高亮'}
-                        </blockquote>
-                      </section>
+                        <section className="annotation-dashboard__quote-block" aria-label="原文摘录">
+                          <span className="annotation-dashboard__label">原文摘录</span>
+                          <blockquote className="annotation-dashboard__quote-text">
+                            {getAnnotationQuoteText(annotation.quote)}
+                          </blockquote>
+                        </section>
 
-                      <section className="annotation-dashboard__note-block" aria-label="评论内容">
-                        <p className={!annotation.note.trim() ? 'annotation-dashboard__note-text annotation-dashboard__note-text--empty' : 'annotation-dashboard__note-text'}>
-                          {annotation.note.trim() || '暂未写评论'}
-                        </p>
-                      </section>
+                        <section className="annotation-dashboard__note-block" aria-label="评论内容">
+                          <p className={!annotation.note.trim() ? 'annotation-dashboard__note-text annotation-dashboard__note-text--empty' : 'annotation-dashboard__note-text'}>
+                            {getAnnotationNoteText(annotation.note)}
+                          </p>
+                        </section>
 
-                      <footer className="annotation-dashboard__source-block">
-                        <div className="annotation-dashboard__source-header">
-                          <span className="annotation-dashboard__source-icon" aria-hidden="true">
-                            <svg viewBox="0 0 16 16" focusable="false">
-                              <path d="M4.5 6.5C4.5 4.82 5.46 3.46 7.38 2.4l.62.82c-1.1.71-1.68 1.48-1.76 2.32h1.84v3.7H4.5V6.5Zm5.3 0c0-1.68.96-3.04 2.88-4.1l.62.82c-1.1.71-1.69 1.48-1.76 2.32h1.84v3.7H9.8V6.5Z" fill="currentColor" />
-                            </svg>
-                          </span>
-                          <span className="annotation-dashboard__label">来源文章</span>
-                    </div>
-                    <p className="annotation-dashboard__source-title">{annotation.postTitle}</p>
-                  </footer>
-                </article>
-              )
-            })}
+                        <footer className="annotation-dashboard__source-block">
+                          <div className="annotation-dashboard__source-header">
+                            <span className="annotation-dashboard__source-icon" aria-hidden="true">
+                              <svg viewBox="0 0 16 16" focusable="false">
+                                <path d="M4.5 6.5C4.5 4.82 5.46 3.46 7.38 2.4l.62.82c-1.1.71-1.68 1.48-1.76 2.32h1.84v3.7H4.5V6.5Zm5.3 0c0-1.68.96-3.04 2.88-4.1l.62.82c-1.1.71-1.69 1.48-1.76 2.32h1.84v3.7H9.8V6.5Z" fill="currentColor" />
+                              </svg>
+                            </span>
+                            <span className="annotation-dashboard__label">来源文章</span>
+                          </div>
+                          <p className="annotation-dashboard__source-title">{annotation.postTitle}</p>
+                        </footer>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="annotation-dashboard__icon-btn"
+                        aria-label={`打开原文：${annotation.postTitle}`}
+                        title="打开原文"
+                        onClick={() => {
+                          setSelectedAnnotationId(annotation.id)
+                          onOpenAnnotation(annotation)
+                        }}
+                      >
+                        <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                          <path d="M9.5 3H13v3.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                          <path d="M12.75 3.25 7.5 8.5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                          <path d="M11.5 8.5v3a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h3" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" />
+                        </svg>
+                      </button>
+                    </article>
+                  )
+                })}
               </div>
             </section>
           ) : (
@@ -454,6 +488,74 @@ export default function ReadLaterAnnotationsView({
               <p className="annotation-dashboard__empty-desc">可以换个关键词，或者清空来源文章与标签筛选。</p>
             </section>
           )}
+
+          <aside
+            id="annotation-dashboard-detail"
+            className={`annotation-dashboard__detail${selectedAnnotation ? ' is-open' : ''}`}
+            aria-label="批注详情"
+          >
+            {selectedAnnotation ? (
+              <>
+                <header className="annotation-dashboard__detail-head">
+                  <div className="annotation-dashboard__detail-head-main">
+                    <p className="annotation-dashboard__detail-kicker">批注详情</p>
+                    <h2 className="annotation-dashboard__detail-title">{selectedAnnotation.postTitle}</h2>
+                    <p className="annotation-dashboard__detail-meta">
+                      {selectedAnnotation.sectionLabel} · {getReadingStatusLabel(selectedAnnotation.readingStatus)} · {formatAnnotationDateTime(selectedAnnotation.updatedAt || selectedAnnotation.createdAt, selectedAnnotation.postDate)}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="annotation-dashboard__open-btn"
+                    onClick={() => onOpenAnnotation(selectedAnnotation)}
+                  >
+                    打开原文
+                  </button>
+                </header>
+
+                <div className="annotation-dashboard__detail-body">
+                  <section className="annotation-dashboard__detail-section" aria-label="完整摘录">
+                    <span className="annotation-dashboard__label">完整摘录</span>
+                    <blockquote className="annotation-dashboard__detail-quote">
+                      {getAnnotationQuoteText(selectedAnnotation.quote)}
+                    </blockquote>
+                  </section>
+
+                  <section className="annotation-dashboard__detail-section" aria-label="完整评论">
+                    <span className="annotation-dashboard__label">完整评论</span>
+                    <p className={!selectedAnnotation.note.trim() ? 'annotation-dashboard__detail-text annotation-dashboard__detail-text--empty' : 'annotation-dashboard__detail-text'}>
+                      {getAnnotationNoteText(selectedAnnotation.note)}
+                    </p>
+                  </section>
+
+                  <section className="annotation-dashboard__detail-section" aria-label="来源文章">
+                    <span className="annotation-dashboard__label">来源文章</span>
+                    <p className="annotation-dashboard__detail-source-title">{selectedAnnotation.postTitle}</p>
+                    {selectedAnnotation.sourceName ? (
+                      <p className="annotation-dashboard__detail-source-meta">{selectedAnnotation.sourceName}</p>
+                    ) : null}
+                  </section>
+
+                  <section className="annotation-dashboard__detail-section" aria-label="上下文片段">
+                    <span className="annotation-dashboard__label">上下文片段</span>
+                    <p className="annotation-dashboard__detail-context">
+                      {selectedAnnotation.prefix}
+                      <mark className="annotation-dashboard__detail-context-highlight">
+                        {getAnnotationQuoteText(selectedAnnotation.quote)}
+                      </mark>
+                      {selectedAnnotation.suffix}
+                    </p>
+                  </section>
+                </div>
+              </>
+            ) : (
+              <div className="annotation-dashboard__detail-empty">
+                <p className="annotation-dashboard__empty-title">选择一条批注</p>
+                <p className="annotation-dashboard__empty-desc">点击中间卡片后，这里会展示完整摘录、完整评论、来源文章和上下文片段。</p>
+              </div>
+            )}
+          </aside>
         </div>
       ) : null}
     </section>

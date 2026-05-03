@@ -6,18 +6,18 @@ import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import * as postsIndexModule from './posts/index-posts'
 import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
 import * as readLaterIndexModule from './read-later/index-items'
-import type { ReadLaterAnnotation } from './read-later/item-types'
+import type { ReadLaterAnnotation, ReadLaterIndexItem } from './read-later/item-types'
 import * as sessionModule from './session'
 
-const readLaterPosts = [
+const readLaterPosts: ReadLaterIndexItem[] = [
   {
     path: 'source/read-later-items/product.md',
     sha: 'sha-product',
     title: '产品研究 A',
     date: '2026-04-28 10:00:00',
     desc: '关于产品写作的一篇文章',
-    published: false,
-    hasExplicitPublished: false,
+    published: false as const,
+    hasExplicitPublished: false as const,
     categories: [],
     tags: ['产品', '写作'],
     permalink: 'read-later/product-a/',
@@ -33,8 +33,8 @@ const readLaterPosts = [
     title: '设计研究 B',
     date: '2026-04-29 10:00:00',
     desc: '关于设计评审的一篇文章',
-    published: false,
-    hasExplicitPublished: false,
+    published: false as const,
+    hasExplicitPublished: false as const,
     categories: [],
     tags: ['设计'],
     permalink: 'read-later/design-b/',
@@ -50,8 +50,8 @@ const productAnnotation: ReadLaterAnnotation = {
   id: 'annotation-product',
   sectionKey: 'articleExcerpt' as const,
   quote: '要回看的句子',
-  prefix: '',
-  suffix: '',
+  prefix: '这是上文，',
+  suffix: '这里是下文。',
   note: '写作切入点',
   createdAt: '2026-04-29T08:00:00.000Z',
   updatedAt: '2026-04-29T08:00:00.000Z',
@@ -61,8 +61,8 @@ const designAnnotation: ReadLaterAnnotation = {
   id: 'annotation-design',
   sectionKey: 'summary' as const,
   quote: '交互上的提醒',
-  prefix: '',
-  suffix: '',
+  prefix: '设计师提到',
+  suffix: '需要反复检查。',
   note: '交互观察',
   createdAt: '2026-04-30T08:00:00.000Z',
   updatedAt: '2026-04-30T08:00:00.000Z',
@@ -82,6 +82,8 @@ function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexIt
     sectionKey: overrides.sectionKey || 'articleExcerpt',
     sectionLabel: overrides.sectionLabel || '原文摘录',
     quote: overrides.quote || '默认摘录',
+    prefix: overrides.prefix || '',
+    suffix: overrides.suffix || '',
     note: overrides.note || '默认评论',
     createdAt: overrides.createdAt || '2026-05-01T10:00:00.000Z',
     updatedAt: overrides.updatedAt || '2026-05-01T10:00:00.000Z',
@@ -193,11 +195,26 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('写作切入点')).toBeTruthy()
     expect(screen.getByText('交互观察')).toBeTruthy()
     expect(screen.queryByText('我的评论')).toBeNull()
+    expect(screen.queryByText('跳回原文')).toBeNull()
     expect(screen.getByText('在读')).toBeTruthy()
     expect(screen.getByText('已读')).toBeTruthy()
     expect(screen.getByRole('combobox', { name: '排序规则' })).toBeTruthy()
     expect(screen.queryByText('Product Weekly')).toBeNull()
     expect(screen.queryByText('Design Notes')).toBeNull()
+    expect(screen.getByRole('button', { name: '打开原文：产品研究 A' })).toBeTruthy()
+
+    fireEvent.click(screen.getByText('要回看的句子'))
+
+    const detailPanel = screen.getByLabelText('批注详情')
+    expect(within(detailPanel).getByRole('button', { name: '打开原文' })).toBeTruthy()
+    expect(within(detailPanel).getByText('完整摘录')).toBeTruthy()
+    expect(within(detailPanel).getByText('完整评论')).toBeTruthy()
+    expect(within(detailPanel).getByText('来源文章')).toBeTruthy()
+    expect(within(detailPanel).getByText('上下文片段')).toBeTruthy()
+    expect(within(detailPanel).getByText('Product Weekly')).toBeTruthy()
+    expect(
+      within(detailPanel).getByText((_, element) => element?.textContent === '这是上文，要回看的句子这里是下文。'),
+    ).toBeTruthy()
 
     const articleRail = screen.getByLabelText('批注文章列表')
     fireEvent.click(within(articleRail).getByRole('button', { name: /设计研究 B/ }))
@@ -249,7 +266,8 @@ describe('App read-later annotations view', () => {
     fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
       target: { value: readLaterPosts[0].path },
     })
-    fireEvent.click(screen.getByRole('button', { name: '跳回原文' }))
+    fireEvent.click(screen.getByText('要回看的句子'))
+    fireEvent.click(within(screen.getByLabelText('批注详情')).getByRole('button', { name: '打开原文' }))
 
     expect(await screen.findByRole('button', { name: '要回看的句子' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()

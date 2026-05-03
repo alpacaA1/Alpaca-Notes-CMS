@@ -7,8 +7,8 @@ const annotationA: ReadLaterAnnotation = {
   id: 'annotation-a',
   sectionKey: 'articleExcerpt' as const,
   quote: '第一条摘录',
-  prefix: '',
-  suffix: '',
+  prefix: '前文',
+  suffix: '后文',
   note: '第一条评论',
   createdAt: '2026-04-28T08:00:00.000Z',
   updatedAt: '2026-04-28T08:00:00.000Z',
@@ -124,7 +124,12 @@ describe('read-later annotation index', () => {
       note: '第二条评论',
     })
     expect(result[1].searchText).toContain('第一条摘录')
+    expect(result[1].searchText).toContain('前文')
     expect(result[1].searchText).toContain('站点 a')
     expect(result[1].searchText).toContain('在读')
+    expect(result[1]).toMatchObject({
+      prefix: '前文',
+      suffix: '后文',
+    })
   })
 })

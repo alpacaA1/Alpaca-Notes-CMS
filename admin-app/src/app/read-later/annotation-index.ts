@@ -22,6 +22,8 @@ export type ReadLaterAnnotationIndexItem = {
   sectionKey: ReadLaterAnnotation['sectionKey']
   sectionLabel: string
   quote: string
+  prefix: string
+  suffix: string
   note: string
   createdAt: string
   updatedAt: string
@@ -84,6 +86,8 @@ export async function buildReadLaterAnnotationIndex(
         sectionKey: annotation.sectionKey,
         sectionLabel: resolveSectionLabel(annotation.sectionKey),
         quote: annotation.quote,
+        prefix: annotation.prefix,
+        suffix: annotation.suffix,
         note: annotation.note,
         createdAt: annotation.createdAt,
         updatedAt: annotation.updatedAt,
@@ -94,7 +98,9 @@ export async function buildReadLaterAnnotationIndex(
           ...item.frontmatter.tags,
           resolveReadingStatusLabel(item.frontmatter.reading_status),
           resolveSectionLabel(annotation.sectionKey),
+          annotation.prefix,
           annotation.quote,
+          annotation.suffix,
           annotation.note,
         ].join('\n')),
       }))
