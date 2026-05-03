@@ -4673,9 +4673,8 @@ textarea {
 
 .annotation-dashboard__card {
   position: relative;
-  display: grid;
-  grid-template-rows: auto auto auto auto;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   width: var(--annotation-card-width);
   min-width: var(--annotation-card-width);
@@ -4709,6 +4708,7 @@ textarea {
 .annotation-dashboard__card-head {
   display: grid;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .annotation-dashboard__card-head-row {
@@ -4786,10 +4786,12 @@ textarea {
   align-content: start;
   gap: 6px;
   min-height: 0;
+  flex-shrink: 0;
   padding: 10px 12px;
   border-radius: 16px;
   border: 1px solid rgba(212, 165, 106, 0.12);
   background: linear-gradient(180deg, rgba(250, 242, 215, 0.5), rgba(252, 247, 232, 0.3));
+  overflow: hidden;
 }
 
 .annotation-dashboard__quote-text,
@@ -4798,6 +4800,8 @@ textarea {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .annotation-dashboard__quote-text {
@@ -4811,7 +4815,9 @@ textarea {
 .annotation-dashboard__note-block {
   display: grid;
   gap: 6px;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .annotation-dashboard__label {
@@ -4835,8 +4841,10 @@ textarea {
 .annotation-dashboard__source-block {
   display: grid;
   gap: 4px;
+  margin-top: auto;
   padding-top: 8px;
   border-top: 1px solid var(--admin-line);
+  flex-shrink: 0;
 }
 
 .annotation-dashboard__source-header {

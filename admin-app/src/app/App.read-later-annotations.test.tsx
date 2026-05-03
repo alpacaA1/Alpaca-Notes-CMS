@@ -2,7 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
+import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import * as postsIndexModule from './posts/index-posts'
+import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
 import * as readLaterIndexModule from './read-later/index-items'
 import type { ReadLaterAnnotation } from './read-later/item-types'
 import * as sessionModule from './session'
@@ -64,6 +66,27 @@ const designAnnotation: ReadLaterAnnotation = {
   note: '交互观察',
   createdAt: '2026-04-30T08:00:00.000Z',
   updatedAt: '2026-04-30T08:00:00.000Z',
+}
+
+function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexItem> = {}): ReadLaterAnnotationIndexItem {
+  return {
+    id: overrides.id || 'annotation-id',
+    annotationId: overrides.annotationId || 'annotation-id',
+    postPath: overrides.postPath || 'source/read-later-items/default.md',
+    postTitle: overrides.postTitle || '默认文章',
+    postDate: overrides.postDate || '2026-05-01 10:00:00',
+    sourceName: overrides.sourceName ?? null,
+    externalUrl: overrides.externalUrl ?? null,
+    tags: overrides.tags || ['默认标签'],
+    readingStatus: overrides.readingStatus || 'unread',
+    sectionKey: overrides.sectionKey || 'articleExcerpt',
+    sectionLabel: overrides.sectionLabel || '原文摘录',
+    quote: overrides.quote || '默认摘录',
+    note: overrides.note || '默认评论',
+    createdAt: overrides.createdAt || '2026-05-01T10:00:00.000Z',
+    updatedAt: overrides.updatedAt || '2026-05-01T10:00:00.000Z',
+    searchText: overrides.searchText || '默认文章 默认摘录 默认评论',
+  }
 }
 
 function createReadLaterContent(options: {
@@ -229,5 +252,32 @@ describe('App read-later annotations view', () => {
 
     expect(await screen.findByRole('button', { name: '要回看的句子' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
+  })
+
+  it('caps the annotations board at four columns', () => {
+    const annotations = Array.from({ length: 5 }, (_, index) =>
+      createAnnotationIndexItem({
+        id: `annotation-${index + 1}`,
+        annotationId: `annotation-${index + 1}`,
+        postPath: `source/read-later-items/item-${index + 1}.md`,
+        postTitle: `文章 ${index + 1}`,
+        quote: `摘录 ${index + 1}`,
+        note: `评论 ${index + 1}`,
+        searchText: `文章 ${index + 1} 摘录 ${index + 1} 评论 ${index + 1}`,
+      }),
+    )
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    const annotationList = screen.getByLabelText('批注列表') as HTMLDivElement
+    expect(annotationList.style.gridTemplateColumns).toBe('repeat(4, var(--annotation-card-width))')
+    expect(annotationList.style.width).toBe('calc(4 * var(--annotation-card-width) + 3 * var(--annotation-grid-gap))')
   })
 })

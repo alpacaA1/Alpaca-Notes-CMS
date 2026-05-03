@@ -189,7 +189,7 @@ export default function ReadLaterAnnotationsView({
   const searchSummary = search.trim()
   const selectedSourceOption = selectedSourcePath === ALL_SOURCES ? null : sourceOptions.find((option) => option.value === selectedSourcePath) || null
   const selectedSortLabel = SORT_OPTIONS.find((option) => option.value === sortOrder)?.label || '最新批注'
-  const visibleColumnCount = Math.min(5, Math.max(sortedAnnotations.length, 1))
+  const visibleColumnCount = Math.min(4, Math.max(sortedAnnotations.length, 1))
   const listStyle = useMemo<CSSProperties>(
     () => ({
       gridTemplateColumns: `repeat(${visibleColumnCount}, var(--annotation-card-width))`,
