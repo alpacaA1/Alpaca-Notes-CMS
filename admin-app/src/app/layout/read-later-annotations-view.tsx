@@ -111,13 +111,7 @@ export default function ReadLaterAnnotationsView({
   return (
     <section className="annotation-dashboard">
       <header className="annotation-dashboard__hero" aria-label="批注标题区">
-        <div className="annotation-dashboard__hero-copy">
-          <p className="annotation-dashboard__hero-kicker">Read Later Annotation Desk</p>
-          <h1 className="annotation-dashboard__hero-title">批注管理</h1>
-          <p className="annotation-dashboard__hero-desc">
-            集中查看高亮摘录、评论和来源文章，按固定双列节奏做快速回看与跳转。
-          </p>
-        </div>
+        <h1 className="annotation-dashboard__hero-title">批注管理</h1>
 
         <dl className="annotation-dashboard__hero-stats" aria-label="批注统计">
           <div className="annotation-dashboard__hero-stat">
@@ -263,7 +257,14 @@ export default function ReadLaterAnnotationsView({
                   </section>
 
                   <footer className="annotation-dashboard__source-block">
-                    <span className="annotation-dashboard__label">来源文章</span>
+                    <div className="annotation-dashboard__source-header">
+                      <span className="annotation-dashboard__source-icon" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" focusable="false">
+                          <path d="M4.5 6.5C4.5 4.82 5.46 3.46 7.38 2.4l.62.82c-1.1.71-1.68 1.48-1.76 2.32h1.84v3.7H4.5V6.5Zm5.3 0c0-1.68.96-3.04 2.88-4.1l.62.82c-1.1.71-1.69 1.48-1.76 2.32h1.84v3.7H9.8V6.5Z" fill="currentColor" />
+                        </svg>
+                      </span>
+                      <span className="annotation-dashboard__label">来源文章</span>
+                    </div>
                     <p className="annotation-dashboard__source-title">{annotation.postTitle}</p>
                     <p className="annotation-dashboard__source-meta">{annotation.sourceName?.trim() || '作者未记录'}</p>
                   </footer>

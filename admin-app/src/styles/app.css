@@ -4313,15 +4313,15 @@ textarea {
 /* ---- Annotation dashboard ---- */
 
 .annotation-dashboard {
-  --annotation-card-width: 356px;
-  --annotation-card-height: 392px;
-  --annotation-grid-gap: 18px;
+  --annotation-card-width: 348px;
+  --annotation-card-height: 316px;
+  --annotation-grid-gap: 16px;
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 20px 28px;
+  gap: 12px;
+  padding: 14px 18px 24px;
   overflow-x: hidden;
   overflow-y: auto;
 }
@@ -4332,13 +4332,12 @@ textarea {
 .annotation-dashboard__card,
 .annotation-dashboard__empty {
   border: 1px solid var(--admin-line);
-  border-radius: 30px;
-  background: linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(255, 249, 243, 0.88));
-  box-shadow: 0 18px 42px rgba(52, 39, 28, 0.06);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(255, 251, 246, 0.92));
+  box-shadow: 0 10px 26px rgba(52, 39, 28, 0.04);
 }
 
 .annotation-dashboard__label,
-.annotation-dashboard__hero-kicker,
 .annotation-dashboard__time,
 .annotation-dashboard__toolbar-meta {
   color: var(--admin-muted);
@@ -4348,74 +4347,53 @@ textarea {
 .annotation-dashboard__hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px 24px;
-  align-items: end;
-  padding: 20px 22px;
-}
-
-.annotation-dashboard__hero-copy {
-  display: grid;
-  gap: 8px;
-  min-width: 0;
-}
-
-.annotation-dashboard__hero-kicker {
-  margin: 0;
-  color: var(--admin-soft);
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  gap: 12px 18px;
+  align-items: center;
+  padding: 12px 16px;
 }
 
 .annotation-dashboard__hero-title {
   margin: 0;
   font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
-  font-size: clamp(1.62rem, 2vw, 2.08rem);
+  font-size: clamp(1.42rem, 1.8vw, 1.76rem);
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--admin-text);
 }
 
-.annotation-dashboard__hero-desc {
-  margin: 0;
-  max-width: 56ch;
-  color: var(--admin-soft);
-  line-height: 1.62;
-}
-
 .annotation-dashboard__hero-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(88px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
   margin: 0;
 }
 
 .annotation-dashboard__hero-stat {
-  display: grid;
+  display: inline-flex;
+  align-items: baseline;
   gap: 6px;
   min-width: 0;
-  padding: 13px 14px;
+  padding: 7px 11px;
   border: 1px solid rgba(64, 58, 51, 0.08);
-  border-radius: 22px;
-  background: rgba(255, 255, 255, 0.44);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
 }
 
 .annotation-dashboard__hero-stat dt {
   margin: 0;
   color: var(--admin-muted);
-  font-size: 0.74rem;
+  font-size: 0.76rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .annotation-dashboard__hero-stat dd {
   margin: 0;
   color: var(--admin-text);
-  font-size: 1.32rem;
+  font-size: 0.98rem;
   font-weight: 700;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
 }
 
 .annotation-dashboard__empty-desc {
@@ -4430,7 +4408,7 @@ textarea {
   justify-content: space-between;
   gap: 12px 16px;
   align-items: flex-start;
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
 .annotation-dashboard__toolbar-filters {
@@ -4455,10 +4433,10 @@ textarea {
 
 .annotation-dashboard__filter select {
   width: 100%;
-  min-height: 42px;
+  min-height: 38px;
   border: 1px solid var(--admin-line-strong);
-  border-radius: 16px;
-  padding: 0 42px 0 16px;
+  border-radius: 14px;
+  padding: 0 38px 0 14px;
   background:
     url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23918577' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
     no-repeat right 12px center,
@@ -4480,12 +4458,12 @@ textarea {
 .annotation-dashboard__toolbar-meta span {
   display: inline-flex;
   align-items: center;
-  min-height: 32px;
+  min-height: 28px;
   max-width: min(32ch, 100%);
-  padding: 0 12px;
+  padding: 0 10px;
   border: 1px solid var(--admin-line);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.46);
+  background: rgba(255, 255, 255, 0.56);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -4497,11 +4475,11 @@ textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
+  min-height: 34px;
   border-radius: 999px;
   border: 1px solid var(--admin-line-strong);
   background: rgba(255, 255, 255, 0.72);
-  padding: 0 13px;
+  padding: 0 12px;
   color: var(--admin-text);
   font-weight: 600;
   cursor: pointer;
@@ -4517,7 +4495,7 @@ textarea {
 
 .annotation-dashboard__list-shell {
   overflow: hidden;
-  padding: 18px;
+  padding: 14px;
 }
 
 .annotation-dashboard__list {
@@ -4529,31 +4507,45 @@ textarea {
 }
 
 .annotation-dashboard__card {
+  position: relative;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
-  gap: 14px;
+  grid-template-rows: auto auto auto auto;
+  align-content: start;
+  gap: 10px;
   min-width: 0;
   min-height: var(--annotation-card-height);
-  padding: 16px;
+  padding: 13px 14px 14px 18px;
+  overflow: hidden;
   transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.annotation-dashboard__card::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 14px;
+  bottom: 14px;
+  width: 2px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(212, 165, 106, 0.78), rgba(212, 165, 106, 0.18));
 }
 
 .annotation-dashboard__card:hover {
   transform: translateY(-1px);
   border-color: rgba(212, 165, 106, 0.32);
   box-shadow:
-    0 22px 46px rgba(52, 39, 28, 0.08),
+    0 16px 30px rgba(52, 39, 28, 0.06),
     inset 0 0 0 1px rgba(212, 165, 106, 0.08);
 }
 
 .annotation-dashboard__card-head {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .annotation-dashboard__card-head-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-width: 0;
@@ -4568,12 +4560,12 @@ textarea {
 .annotation-dashboard__tag {
   display: inline-flex;
   align-items: center;
-  min-height: 28px;
-  padding: 0 11px;
+  min-height: 24px;
+  padding: 0 9px;
   border-radius: 999px;
   background: rgba(212, 165, 106, 0.12);
   color: var(--admin-warm);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   font-weight: 600;
 }
 
@@ -4586,6 +4578,7 @@ textarea {
 }
 
 .annotation-dashboard__time {
+  font-size: 0.78rem;
   white-space: nowrap;
 }
 
@@ -4623,13 +4616,12 @@ textarea {
 .annotation-dashboard__quote-block {
   display: grid;
   align-content: start;
-  gap: 10px;
+  gap: 6px;
   min-height: 0;
-  padding: 14px 16px;
-  border-radius: 22px;
-  border: 1px solid rgba(212, 165, 106, 0.16);
-  background: linear-gradient(180deg, rgba(218, 180, 72, 0.2), rgba(218, 180, 72, 0.14));
-  box-shadow: inset 0 -1px 0 rgba(218, 180, 72, 0.22);
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(212, 165, 106, 0.12);
+  background: linear-gradient(180deg, rgba(250, 242, 215, 0.5), rgba(252, 247, 232, 0.3));
 }
 
 .annotation-dashboard__quote-text,
@@ -4644,20 +4636,20 @@ textarea {
 .annotation-dashboard__quote-text {
   margin: 0;
   color: var(--admin-text);
-  line-height: 1.72;
-  -webkit-line-clamp: 5;
-  min-height: calc(1.72em * 5);
+  line-height: 1.66;
+  -webkit-line-clamp: 2;
+  min-height: calc(1.66em * 2);
 }
 
 .annotation-dashboard__note-block {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-height: 0;
 }
 
 .annotation-dashboard__label {
   color: var(--admin-soft);
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -4675,28 +4667,49 @@ textarea {
 
 .annotation-dashboard__source-block {
   display: grid;
-  gap: 6px;
-  padding-top: 12px;
+  gap: 4px;
+  padding-top: 8px;
   border-top: 1px solid var(--admin-line);
+}
+
+.annotation-dashboard__source-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.annotation-dashboard__source-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(64, 58, 51, 0.04);
+  color: var(--admin-soft);
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__source-icon svg {
+  width: 11px;
+  height: 11px;
 }
 
 .annotation-dashboard__source-title {
   margin: 0;
-  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
-  font-size: 1.08rem;
-  line-height: 1.28;
-  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.42;
+  font-weight: 600;
   color: var(--admin-text);
-  letter-spacing: -0.01em;
-  -webkit-line-clamp: 2;
-  min-height: calc(1.28em * 2);
+  -webkit-line-clamp: 1;
+  min-height: 1.42em;
 }
 
 .annotation-dashboard__source-meta {
   margin: 0;
   color: var(--admin-soft);
-  font-size: 0.9rem;
-  line-height: 1.42;
+  font-size: 0.82rem;
+  line-height: 1.4;
   -webkit-line-clamp: 1;
 }
 
@@ -4720,7 +4733,7 @@ textarea {
 @media (max-width: 960px) {
   .annotation-dashboard {
     --annotation-card-width: 312px;
-    --annotation-card-height: 380px;
+    --annotation-card-height: 304px;
     padding: 18px;
   }
 
@@ -4730,7 +4743,7 @@ textarea {
   }
 
   .annotation-dashboard__hero-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-content: flex-start;
   }
 
   .annotation-dashboard__toolbar {
@@ -4746,7 +4759,7 @@ textarea {
 @media (max-width: 720px) {
   .annotation-dashboard {
     --annotation-card-width: 268px;
-    --annotation-card-height: 358px;
+    --annotation-card-height: 292px;
     --annotation-grid-gap: 14px;
     padding: 14px;
   }
@@ -4756,7 +4769,7 @@ textarea {
   .annotation-dashboard__list-shell,
   .annotation-dashboard__card,
   .annotation-dashboard__empty {
-    border-radius: 24px;
+    border-radius: 18px;
   }
 
   .annotation-dashboard__hero,
@@ -4786,11 +4799,7 @@ textarea {
 @media (max-width: 640px) {
   .annotation-dashboard {
     --annotation-card-width: 240px;
-    --annotation-card-height: 344px;
-  }
-
-  .annotation-dashboard__hero-stats {
-    grid-template-columns: 1fr;
+    --annotation-card-height: 284px;
   }
 
   .annotation-dashboard__toolbar-filters {
@@ -4798,11 +4807,11 @@ textarea {
   }
 
   .annotation-dashboard__card {
-    padding: 16px;
+    padding: 12px 12px 12px 16px;
   }
 
   .annotation-dashboard__quote-block {
-    padding: 14px 16px;
+    padding: 10px 12px;
   }
 }
 
@@ -5060,14 +5069,14 @@ textarea {
 .admin-shell--dark .annotation-dashboard__card,
 .admin-shell--dark .annotation-dashboard__empty {
   border-color: rgba(255, 255, 255, 0.06);
-  background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
-  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.18);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.94), rgba(22, 19, 16, 0.92));
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
 }
 
 .admin-shell--dark .annotation-dashboard__card:hover {
   border-color: rgba(228, 163, 88, 0.26);
   box-shadow:
-    0 24px 48px rgba(0, 0, 0, 0.24),
+    0 18px 32px rgba(0, 0, 0, 0.2),
     inset 0 0 0 1px rgba(228, 163, 88, 0.08);
 }
 
@@ -5123,8 +5132,11 @@ textarea {
 
 .admin-shell--dark .annotation-dashboard__quote-block {
   border-color: rgba(232, 179, 76, 0.18);
-  background: linear-gradient(180deg, rgba(118, 92, 38, 0.48), rgba(102, 77, 28, 0.3));
-  box-shadow: inset 0 -1px 0 rgba(247, 220, 130, 0.12);
+  background: linear-gradient(180deg, rgba(118, 92, 38, 0.34), rgba(102, 77, 28, 0.2));
+}
+
+.admin-shell--dark .annotation-dashboard__card::before {
+  background: linear-gradient(180deg, rgba(240, 190, 122, 0.78), rgba(240, 190, 122, 0.14));
 }
 
 .admin-shell--dark .annotation-dashboard__source-block {
@@ -5132,7 +5144,10 @@ textarea {
 }
 
 .admin-shell--dark .annotation-dashboard__tag,
-.admin-shell--dark .annotation-dashboard__source-meta,
-.admin-shell--dark .annotation-dashboard__hero-kicker {
+.admin-shell--dark .annotation-dashboard__source-meta {
   color: var(--admin-muted);
+}
+
+.admin-shell--dark .annotation-dashboard__source-icon {
+  background: rgba(255, 255, 255, 0.05);
 }
