@@ -202,11 +202,13 @@ describe('App read-later annotations view', () => {
     expect(screen.queryByText('Product Weekly')).toBeNull()
     expect(screen.queryByText('Design Notes')).toBeNull()
     expect(screen.getByRole('button', { name: '打开原文：产品研究 A' })).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: '批注详情' })).toBeNull()
 
     fireEvent.click(screen.getByText('要回看的句子'))
 
-    const detailPanel = screen.getByLabelText('批注详情')
+    const detailPanel = screen.getByRole('dialog', { name: '批注详情' })
     expect(within(detailPanel).getByRole('button', { name: '打开原文' })).toBeTruthy()
+    expect(within(detailPanel).getByRole('button', { name: '关闭详情' })).toBeTruthy()
     expect(within(detailPanel).getByText('完整摘录')).toBeTruthy()
     expect(within(detailPanel).getByText('完整评论')).toBeTruthy()
     expect(within(detailPanel).getByText('来源文章')).toBeTruthy()
@@ -215,6 +217,8 @@ describe('App read-later annotations view', () => {
     expect(
       within(detailPanel).getByText((_, element) => element?.textContent === '这是上文，要回看的句子这里是下文。'),
     ).toBeTruthy()
+    fireEvent.click(within(detailPanel).getByRole('button', { name: '关闭详情' }))
+    expect(screen.queryByRole('dialog', { name: '批注详情' })).toBeNull()
 
     const articleRail = screen.getByLabelText('批注文章列表')
     fireEvent.click(within(articleRail).getByRole('button', { name: /设计研究 B/ }))
@@ -267,7 +271,7 @@ describe('App read-later annotations view', () => {
       target: { value: readLaterPosts[0].path },
     })
     fireEvent.click(screen.getByText('要回看的句子'))
-    fireEvent.click(within(screen.getByLabelText('批注详情')).getByRole('button', { name: '打开原文' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '批注详情' })).getByRole('button', { name: '打开原文' }))
 
     expect(await screen.findByRole('button', { name: '要回看的句子' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()

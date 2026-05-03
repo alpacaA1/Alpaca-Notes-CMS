@@ -192,6 +192,21 @@ export default function ReadLaterAnnotationsView({
     }
   }, [selectedAnnotationId, sortedAnnotations])
 
+  useEffect(() => {
+    if (!selectedAnnotationId) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSelectedAnnotationId(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedAnnotationId])
+
   const annotatedSourceCount = useMemo(
     () => new Set(annotations.map((annotation) => annotation.postPath)).size,
     [annotations],
@@ -489,13 +504,22 @@ export default function ReadLaterAnnotationsView({
             </section>
           )}
 
-          <aside
-            id="annotation-dashboard-detail"
-            className={`annotation-dashboard__detail${selectedAnnotation ? ' is-open' : ''}`}
-            aria-label="批注详情"
-          >
-            {selectedAnnotation ? (
-              <>
+          {selectedAnnotation ? (
+            <div className="annotation-dashboard__detail-layer">
+              <button
+                type="button"
+                className="annotation-dashboard__detail-backdrop"
+                aria-label="关闭批注详情"
+                onClick={() => setSelectedAnnotationId(null)}
+              />
+
+              <aside
+                id="annotation-dashboard-detail"
+                className="annotation-dashboard__detail"
+                role="dialog"
+                aria-label="批注详情"
+                aria-modal="false"
+              >
                 <header className="annotation-dashboard__detail-head">
                   <div className="annotation-dashboard__detail-head-main">
                     <p className="annotation-dashboard__detail-kicker">批注详情</p>
@@ -505,13 +529,26 @@ export default function ReadLaterAnnotationsView({
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    className="annotation-dashboard__open-btn"
-                    onClick={() => onOpenAnnotation(selectedAnnotation)}
-                  >
-                    打开原文
-                  </button>
+                  <div className="annotation-dashboard__detail-head-actions">
+                    <button
+                      type="button"
+                      className="annotation-dashboard__open-btn"
+                      onClick={() => onOpenAnnotation(selectedAnnotation)}
+                    >
+                      打开原文
+                    </button>
+
+                    <button
+                      type="button"
+                      className="annotation-dashboard__detail-close-btn"
+                      aria-label="关闭详情"
+                      onClick={() => setSelectedAnnotationId(null)}
+                    >
+                      <svg viewBox="0 0 16 16" focusable="false" aria-hidden="true">
+                        <path d="M4 4 12 12M12 4 4 12" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="1.6" />
+                      </svg>
+                    </button>
+                  </div>
                 </header>
 
                 <div className="annotation-dashboard__detail-body">
@@ -548,14 +585,9 @@ export default function ReadLaterAnnotationsView({
                     </p>
                   </section>
                 </div>
-              </>
-            ) : (
-              <div className="annotation-dashboard__detail-empty">
-                <p className="annotation-dashboard__empty-title">选择一条批注</p>
-                <p className="annotation-dashboard__empty-desc">点击中间卡片后，这里会展示完整摘录、完整评论、来源文章和上下文片段。</p>
-              </div>
-            )}
-          </aside>
+              </aside>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </section>
