@@ -79,6 +79,7 @@ export default function SettingsPanel({
   const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
+  const isKnowledge = contentType === 'knowledge'
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -197,8 +198,8 @@ export default function SettingsPanel({
         <div className="settings-panel__header">
           <>
             <p className="settings-panel__eyebrow">元信息</p>
-            <h2>{isDiary ? '日记设置' : '发布设置'}</h2>
-            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
+            <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '发布设置'}</h2>
+            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : isKnowledge ? '沉淀摘录与理解，并保留来源上下文。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
           </>
         </div>
       ) : null}
@@ -321,7 +322,7 @@ export default function SettingsPanel({
                 />
               </label>
 
-              {!isDiary ? (
+              {!isDiary && !isKnowledge ? (
                 <>
                   <label className="settings-panel__toggle">
                     <span>已发布</span>
@@ -365,7 +366,25 @@ export default function SettingsPanel({
             />
           </div>
 
-          {!isDiary ? (
+          {isKnowledge ? (
+            <div className="settings-panel__field">
+              <span>来源</span>
+              <div className="settings-panel__document-note-entry" style={{ cursor: 'default' }}>
+                <strong>{frontmatter.source_title?.trim() || '手动新增知识点'}</strong>
+                <div style={{ marginTop: '8px', display: 'grid', gap: '4px' }}>
+                  <span>{frontmatter.source_type === 'read-later' ? '来源类型：待读' : frontmatter.source_type === 'post' ? '来源类型：文章' : '来源类型：手动整理'}</span>
+                  {frontmatter.source_path ? <span>{`来源路径：${frontmatter.source_path}`}</span> : null}
+                  {frontmatter.source_url ? (
+                    <a href={frontmatter.source_url} target="_blank" rel="noreferrer" style={{ width: 'fit-content' }}>
+                      打开原链接
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {!isDiary && !isKnowledge ? (
             <label className="settings-panel__field">
               <span>封面图</span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -408,7 +427,7 @@ export default function SettingsPanel({
                 disabled
               />
             </label>
-          ) : !isDiary ? (
+          ) : !isDiary && !isKnowledge ? (
             <label>
               <span>永久链接</span>
               <input

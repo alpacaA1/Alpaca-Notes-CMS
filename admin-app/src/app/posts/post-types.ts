@@ -1,7 +1,8 @@
 import type { ReadingStatus } from './parse-post'
 
 export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink' | 'external_url', string>>
-export type ContentType = 'post' | 'diary' | 'read-later'
+export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge'
+export type KnowledgeSourceType = 'post' | 'read-later'
 
 export type PostIndexItem = {
   path: string
@@ -21,6 +22,10 @@ export type PostIndexItem = {
   externalUrl?: string | null
   sourceName?: string | null
   readingStatus?: ReadingStatus
+  sourceType?: KnowledgeSourceType | null
+  sourcePath?: string | null
+  sourceTitle?: string | null
+  sourceUrl?: string | null
 }
 
 export type PostPublishState = 'all' | 'draft' | 'published'

@@ -3589,7 +3589,8 @@ textarea {
 }
 
 .post-dashboard__recovery,
-.post-dashboard__quick-capture {
+.post-dashboard__quick-capture,
+.post-dashboard__daily-knowledge {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -3605,14 +3606,16 @@ textarea {
 }
 
 .post-dashboard__recovery-header,
-.post-dashboard__quick-capture-copy {
+.post-dashboard__quick-capture-copy,
+.post-dashboard__daily-knowledge-header {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
 .post-dashboard__recovery-header strong,
-.post-dashboard__quick-capture-copy strong {
+.post-dashboard__quick-capture-copy strong,
+.post-dashboard__daily-knowledge-header strong {
   font-size: 1rem;
   color: var(--admin-text);
 }
@@ -3707,6 +3710,90 @@ textarea {
 .post-dashboard__quick-capture-btn:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.post-dashboard__daily-knowledge {
+  align-items: stretch;
+}
+
+.post-dashboard__daily-knowledge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.post-dashboard__daily-knowledge-card {
+  appearance: none;
+  display: grid;
+  gap: 10px;
+  min-height: 180px;
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 167, 119, 0.24);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(249, 243, 234, 0.86)),
+    rgba(255, 255, 255, 0.88);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.post-dashboard__daily-knowledge-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(141, 113, 77, 0.34);
+  box-shadow: 0 16px 30px rgba(141, 113, 77, 0.12);
+}
+
+.post-dashboard__daily-knowledge-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-width: 38px;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(141, 113, 77, 0.12);
+  color: var(--admin-warm);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.post-dashboard__daily-knowledge-card strong {
+  color: var(--admin-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.35;
+}
+
+.post-dashboard__daily-knowledge-card p {
+  margin: 0;
+  color: var(--admin-muted);
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.post-dashboard__daily-knowledge-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.post-dashboard__daily-knowledge-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--admin-soft);
+  font-size: 0.74rem;
 }
 
 .post-dashboard__toolbar {
@@ -5431,7 +5518,8 @@ textarea {
 }
 
 .admin-shell--dark .post-dashboard__recovery,
-.admin-shell--dark .post-dashboard__quick-capture {
+.admin-shell--dark .post-dashboard__quick-capture,
+.admin-shell--dark .post-dashboard__daily-knowledge {
   border-color: rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
@@ -5461,6 +5549,36 @@ textarea {
 
 .admin-shell--dark .post-dashboard__quick-capture-btn:hover {
   background: rgba(228, 163, 88, 0.16);
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-card {
+  border-color: rgba(228, 163, 88, 0.2);
+  background:
+    linear-gradient(180deg, rgba(58, 42, 28, 0.92), rgba(31, 24, 18, 0.94)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-card:hover {
+  border-color: rgba(228, 163, 88, 0.4);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-order {
+  background: rgba(228, 163, 88, 0.14);
+  color: #f3c489;
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-card strong {
+  color: #f7eee4;
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-card p {
+  color: rgba(244, 234, 222, 0.74);
+}
+
+.admin-shell--dark .post-dashboard__daily-knowledge-meta span {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(244, 234, 222, 0.72);
 }
 
 .admin-shell--dark .post-dashboard__toggle-group {

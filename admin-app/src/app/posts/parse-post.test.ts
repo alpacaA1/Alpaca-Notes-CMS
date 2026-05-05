@@ -119,4 +119,36 @@ desc: 记录一下最近的状态
     expect(parsed.frontmatter.diary).toBe(true)
     expect(parsed.frontmatter.published).toBe(false)
   })
+
+  it('detects knowledge items and preserves source metadata', () => {
+    const parsed = parsePost({
+      path: 'source/_knowledge/20260505010101.md',
+      sha: 'sha-knowledge',
+      content: `---
+title: 系统复用
+knowledge: true
+nav_exclude: true
+source_type: read-later
+source_path: source/read-later-items/example.md
+source_title: 一篇关于系统设计的文章
+source_url: https://example.com/system
+date: 2026-05-05 01:01:01
+tags:
+  - 复用
+desc: 关于系统复用的知识点
+---
+
+## 原文摘录
+> 能力来自反复验证的抽象。`,
+    })
+
+    expect(parsed.contentType).toBe('knowledge')
+    expect(parsed.frontmatter.knowledge).toBe(true)
+    expect(parsed.frontmatter.nav_exclude).toBe(true)
+    expect(parsed.frontmatter.source_type).toBe('read-later')
+    expect(parsed.frontmatter.source_path).toBe('source/read-later-items/example.md')
+    expect(parsed.frontmatter.source_title).toBe('一篇关于系统设计的文章')
+    expect(parsed.frontmatter.source_url).toBe('https://example.com/system')
+    expect(parsed.frontmatter.published).toBe(false)
+  })
 })

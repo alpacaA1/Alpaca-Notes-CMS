@@ -97,4 +97,42 @@ describe('serializePost', () => {
     expect(output).not.toContain('permalink:')
     expect(output).not.toContain('categories:')
   })
+
+  it('serializes knowledge posts with source metadata and without permalink or categories', () => {
+    const knowledge: ParsedPost = {
+      path: 'source/_knowledge/20260505010101.md',
+      sha: '',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      contentType: 'knowledge',
+      frontmatter: {
+        title: '系统复用',
+        date: '2026-05-05 01:01:01',
+        desc: '关于系统复用的知识点',
+        published: false,
+        pinned: true,
+        categories: [],
+        tags: ['复用'],
+        knowledge: true,
+        nav_exclude: true,
+        source_type: 'read-later',
+        source_path: 'source/read-later-items/example.md',
+        source_title: '一篇关于系统设计的文章',
+        source_url: 'https://example.com/system',
+      },
+      body: '## 原文摘录\n> 能力来自反复验证的抽象。',
+    }
+
+    const output = serializePost(knowledge)
+
+    expect(output).toContain('knowledge: true')
+    expect(output).toContain('nav_exclude: true')
+    expect(output).toContain('source_type: read-later')
+    expect(output).toContain('source_path: source/read-later-items/example.md')
+    expect(output).toContain('source_title: 一篇关于系统设计的文章')
+    expect(output).toContain('source_url: https://example.com/system')
+    expect(output).toContain('pinned: true')
+    expect(output).not.toContain('permalink:')
+    expect(output).not.toContain('categories:')
+  })
 })

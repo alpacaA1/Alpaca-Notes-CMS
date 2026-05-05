@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
-import type { ContentType } from '../posts/post-types'
+import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
@@ -13,7 +13,8 @@ type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote'
 type SelectionToolbarState = {
   top: number
   left: number
-  draft: ReadLaterAnnotationDraft
+  quote: string
+  annotationDraft: ReadLaterAnnotationDraft | null
 }
 
 type AnnotationActionPosition = {
@@ -32,6 +33,10 @@ type PreviewPaneProps = {
   sourceName?: string
   externalUrl?: string
   readingStatus?: ReadingStatus
+  sourceType?: KnowledgeSourceType
+  sourceTitle?: string
+  sourcePath?: string
+  sourceUrl?: string
   contentType?: ContentType
   previewImageUrls?: Record<string, string>
   annotations?: ReadLaterAnnotation[]
@@ -40,6 +45,7 @@ type PreviewPaneProps = {
   navigationRequest?: { targetId: string; requestId: number } | null
   onActiveOutlineTargetChange?: (targetId: string) => void
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
+  onCreateKnowledge?: (quote: string) => void
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
   onDeleteAnnotation?: (annotationId: string) => void
@@ -292,7 +298,7 @@ function getClosestSectionElement(node: Node | null) {
   return node.parentElement?.closest<HTMLElement>('[data-read-later-section-key]') || null
 }
 
-function getSelectionToolbarState(selection: Selection) {
+function getSelectionToolbarState(selection: Selection, article: HTMLElement, isReadLater: boolean) {
   if (selection.rangeCount === 0 || selection.isCollapsed) {
     return null
   }
@@ -302,26 +308,12 @@ function getSelectionToolbarState(selection: Selection) {
     return null
   }
 
-  const startSection = getClosestSectionElement(range.startContainer)
-  const endSection = getClosestSectionElement(range.endContainer)
-  if (!startSection || startSection !== endSection) {
+  if (!article.contains(range.commonAncestorContainer)) {
     return null
   }
 
-  const sectionKey = startSection.dataset.readLaterSectionKey
-  if (!isReadLaterSectionKey(sectionKey)) {
-    return null
-  }
-
-  const startOffset = getBoundaryTextOffset(startSection, range.startContainer, range.startOffset)
-  const endOffset = getBoundaryTextOffset(startSection, range.endContainer, range.endOffset)
-  if (startOffset === null || endOffset === null || endOffset <= startOffset) {
-    return null
-  }
-
-  const fullText = startSection.textContent || ''
-  const quote = fullText.slice(startOffset, endOffset)
-  if (!quote.trim()) {
+  const quote = selection.toString().trim()
+  if (!quote) {
     return null
   }
 
@@ -330,15 +322,36 @@ function getSelectionToolbarState(selection: Selection) {
     return null
   }
 
+  let annotationDraft: ReadLaterAnnotationDraft | null = null
+  if (isReadLater) {
+    const startSection = getClosestSectionElement(range.startContainer)
+    const endSection = getClosestSectionElement(range.endContainer)
+
+    if (startSection && startSection === endSection) {
+      const sectionKey = startSection.dataset.readLaterSectionKey
+
+      if (isReadLaterSectionKey(sectionKey)) {
+        const startOffset = getBoundaryTextOffset(startSection, range.startContainer, range.startOffset)
+        const endOffset = getBoundaryTextOffset(startSection, range.endContainer, range.endOffset)
+
+        if (startOffset !== null && endOffset !== null && endOffset > startOffset) {
+          const fullText = startSection.textContent || ''
+          annotationDraft = {
+            sectionKey,
+            quote: fullText.slice(startOffset, endOffset),
+            prefix: fullText.slice(Math.max(0, startOffset - ANNOTATION_CONTEXT_LENGTH), startOffset),
+            suffix: fullText.slice(endOffset, Math.min(fullText.length, endOffset + ANNOTATION_CONTEXT_LENGTH)),
+          }
+        }
+      }
+    }
+  }
+
   return {
     top: Math.max(12, rect.top - 52),
     left: rect.left + rect.width / 2,
-    draft: {
-      sectionKey,
-      quote,
-      prefix: fullText.slice(Math.max(0, startOffset - ANNOTATION_CONTEXT_LENGTH), startOffset),
-      suffix: fullText.slice(endOffset, Math.min(fullText.length, endOffset + ANNOTATION_CONTEXT_LENGTH)),
-    },
+    quote,
+    annotationDraft,
   }
 }
 
@@ -985,6 +998,10 @@ export default function PreviewPane({
   sourceName,
   externalUrl,
   readingStatus,
+  sourceType,
+  sourceTitle,
+  sourcePath,
+  sourceUrl,
   contentType = 'post',
   previewImageUrls,
   annotations = [],
@@ -993,6 +1010,7 @@ export default function PreviewPane({
   navigationRequest = null,
   onActiveOutlineTargetChange,
   onCreateAnnotation,
+  onCreateKnowledge,
   onSelectAnnotation,
   onClearActiveAnnotation,
   onDeleteAnnotation,
@@ -1006,6 +1024,8 @@ export default function PreviewPane({
   const suppressNextAnnotationScrollRef = useRef(false)
   const activeOutlineTargetRef = useRef<string | null>(null)
   const isReadLater = contentType === 'read-later'
+  const isKnowledge = contentType === 'knowledge'
+  const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later') && Boolean(onCreateKnowledge)
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
   const hasStructuredReadLaterSections = isReadLater
@@ -1013,10 +1033,11 @@ export default function PreviewPane({
     : false
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
+  const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
 
   useEffect(() => {
     setSelectionToolbar(null)
-  }, [markdown, annotations, activeAnnotationId])
+  }, [markdown, annotations, activeAnnotationId, contentType])
 
   useEffect(() => {
     if (!annotationDeleteTargetId || annotations.some((annotation) => annotation.id === annotationDeleteTargetId)) {
@@ -1191,7 +1212,8 @@ export default function PreviewPane({
   }, [isReadLater, markdown, navigationRequest])
 
   const handleSelectionChange = () => {
-    if (!isReadLater || !onCreateAnnotation) {
+    const article = articleRef.current
+    if ((!isReadLater || !onCreateAnnotation) && !canCreateKnowledge) {
       if (selectionToolbar) {
         setSelectionToolbar(null)
       }
@@ -1199,21 +1221,31 @@ export default function PreviewPane({
     }
 
     const selection = window.getSelection()
-    if (!selection) {
+    if (!selection || !article) {
       setSelectionToolbar(null)
       return
     }
 
-    const nextToolbar = getSelectionToolbarState(selection)
+    const nextToolbar = getSelectionToolbarState(selection, article, isReadLater)
     setSelectionToolbar(nextToolbar)
   }
 
   const handleCreateAnnotationClick = (action: ReadLaterAnnotationAction) => {
-    if (!selectionToolbar || !onCreateAnnotation) {
+    if (!selectionToolbar?.annotationDraft || !onCreateAnnotation) {
       return
     }
 
-    onCreateAnnotation(selectionToolbar.draft, action)
+    onCreateAnnotation(selectionToolbar.annotationDraft, action)
+    clearSelection()
+    setSelectionToolbar(null)
+  }
+
+  const handleCreateKnowledgeClick = () => {
+    if (!selectionToolbar || !onCreateKnowledge) {
+      return
+    }
+
+    onCreateKnowledge(selectionToolbar.quote)
     clearSelection()
     setSelectionToolbar(null)
   }
@@ -1248,12 +1280,21 @@ export default function PreviewPane({
           style={{ top: `${selectionToolbar.top}px`, left: `${selectionToolbar.left}px` }}
           onMouseDown={(event) => event.preventDefault()}
         >
-          <button type="button" onClick={() => handleCreateAnnotationClick('highlight')}>
-            高亮
-          </button>
-          <button type="button" onClick={() => handleCreateAnnotationClick('note')}>
-            批注
-          </button>
+          {selectionToolbar.annotationDraft && onCreateAnnotation ? (
+            <>
+              <button type="button" onClick={() => handleCreateAnnotationClick('highlight')}>
+                高亮
+              </button>
+              <button type="button" onClick={() => handleCreateAnnotationClick('note')}>
+                批注
+              </button>
+            </>
+          ) : null}
+          {canCreateKnowledge ? (
+            <button type="button" onClick={handleCreateKnowledgeClick}>
+              知识点
+            </button>
+          ) : null}
         </div>
       ) : null}
       {activeAnnotationAction && onDeleteAnnotation ? (
@@ -1300,6 +1341,34 @@ export default function PreviewPane({
                 ) : null}
               </div>
               {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
+            </div>
+          ) : isKnowledge ? (
+            <div className="preview-content__read-later-meta">
+              {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
+              <div className="preview-content__meta-grid">
+                <span className="preview-content__meta-chip">
+                  <strong>来源类型</strong>
+                  <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : '手动整理'}</span>
+                </span>
+                {sourceTitle?.trim() ? (
+                  <span className="preview-content__meta-chip">
+                    <strong>来源内容</strong>
+                    <span>{sourceTitle.trim()}</span>
+                  </span>
+                ) : null}
+                {safeSourceUrl ? (
+                  <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeSourceUrl} rel="noreferrer" target="_blank">
+                    <strong>原链接</strong>
+                    <span>打开原文</span>
+                  </a>
+                ) : null}
+                {sourcePath?.trim() ? (
+                  <span className="preview-content__meta-chip">
+                    <strong>来源路径</strong>
+                    <span>{sourcePath.trim()}</span>
+                  </span>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </header>

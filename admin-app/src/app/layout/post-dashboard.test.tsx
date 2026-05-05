@@ -40,6 +40,45 @@ const readLaterPosts: PostIndexItem[] = [
   },
 ]
 
+const knowledgePosts: PostIndexItem[] = [
+  {
+    path: 'source/_knowledge/knowledge-1.md',
+    sha: 'sha-k-1',
+    title: '系统复用',
+    date: '2026-05-05 09:30:00',
+    desc: '关于系统复用的知识点。',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['复用'],
+    permalink: null,
+    cover: null,
+    contentType: 'knowledge',
+    sourceType: 'read-later',
+    sourceTitle: '一篇关于系统设计的文章',
+    sourcePath: 'source/read-later-items/example.md',
+    sourceUrl: 'https://example.com/system',
+  },
+  {
+    path: 'source/_knowledge/knowledge-2.md',
+    sha: 'sha-k-2',
+    title: '抽象边界',
+    date: '2026-05-04 09:30:00',
+    desc: '关于抽象边界的知识点。',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['抽象'],
+    permalink: null,
+    cover: null,
+    contentType: 'knowledge',
+    sourceType: 'post',
+    sourceTitle: '写页面时我在意什么',
+    sourcePath: 'source/_posts/example.md',
+    sourceUrl: null,
+  },
+]
+
 describe('post dashboard', () => {
   afterEach(() => {
     cleanup()
@@ -122,5 +161,26 @@ describe('post dashboard', () => {
     const pinnedRow = container.querySelector('.post-dashboard__list-row--pinned')
     expect(pinnedRow).toBeTruthy()
     expect(pinnedRow?.querySelector('.post-dashboard__pin-mark')?.textContent).toBe('置顶')
+  })
+
+  it('renders a daily knowledge section and knowledge-specific labels', () => {
+    render(
+      <PostDashboard
+        posts={knowledgePosts}
+        search=""
+        isIndexing={false}
+        contentType="knowledge"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    const dailySection = screen.getByLabelText('今日知识点')
+
+    expect(screen.getByText('今天随机刷新 2 条知识点')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '+ 新建知识点' })).toBeTruthy()
+    expect(dailySection.textContent).toContain('一篇关于系统设计的文章')
   })
 })

@@ -55,6 +55,7 @@ const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabe
   { value: 'post', label: '文章', shortLabel: 'Post' },
   { value: 'diary', label: '日记', shortLabel: 'Diary' },
   { value: 'read-later', label: '待读', shortLabel: 'Later' },
+  { value: 'knowledge', label: '知识点', shortLabel: 'Know' },
 ]
 
 export default function TopBar({
@@ -85,9 +86,16 @@ export default function TopBar({
   const titleText = isAnnotationsView
     ? '批注管理'
     : isDashboardLike
-      ? (contentType === 'read-later' ? '待读管理' : contentType === 'diary' ? '日记管理' : '文章管理')
+      ? (contentType === 'read-later' ? '待读管理' : contentType === 'diary' ? '日记管理' : contentType === 'knowledge' ? '知识点管理' : '文章管理')
       : '内容编辑台'
-  const createLabel = contentType === 'read-later' ? '新建待读' : contentType === 'diary' ? '新建日记' : '新建文章'
+  const createLabel =
+    contentType === 'read-later'
+      ? '新建待读'
+      : contentType === 'diary'
+        ? '新建日记'
+        : contentType === 'knowledge'
+          ? '新建知识点'
+          : '新建文章'
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
   const showContentTypeSwitcher = isDashboardLike
@@ -98,6 +106,8 @@ export default function TopBar({
       ? '搜索标题、摘要、正文、来源或原文链接'
       : contentType === 'diary'
         ? '搜索标题、摘要、正文或标签'
+        : contentType === 'knowledge'
+          ? '搜索标题、摘要、摘录、理解、来源或标签'
         : '搜索标题、摘要、正文、标签或链接'
 
   return (

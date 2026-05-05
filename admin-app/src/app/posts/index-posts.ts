@@ -1,5 +1,5 @@
-import { DIARY_PATH } from '../config'
-import { fetchPostFile, listDiaryFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
+import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
+import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
 import type { SessionState } from '../session'
 import type { ContentType, PostIndexItem, PostIndexView } from './post-types'
 
@@ -51,12 +51,15 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const frontmatter = frontmatterMatch?.[1] || ''
   const readLaterRaw = readScalar(frontmatter, 'read_later')
   const diaryRaw = readScalar(frontmatter, 'diary')
+  const knowledgeRaw = readScalar(frontmatter, 'knowledge')
   const contentType: ContentType =
     readLaterRaw === 'true'
       ? 'read-later'
       : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
         ? 'diary'
-        : 'post'
+        : knowledgeRaw === 'true' || input.path.startsWith(`${KNOWLEDGE_PATH}/`)
+          ? 'knowledge'
+          : 'post'
   const title = readScalar(frontmatter, 'title') || input.path.split('/').pop() || input.path
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
@@ -64,6 +67,10 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const pinnedRaw = readScalar(frontmatter, 'pinned')
   const permalink = readScalar(frontmatter, 'permalink')
   const cover = readScalar(frontmatter, 'cover')
+  const sourceType = readScalar(frontmatter, 'source_type')
+  const sourcePath = readScalar(frontmatter, 'source_path')
+  const sourceTitle = readScalar(frontmatter, 'source_title')
+  const sourceUrl = readScalar(frontmatter, 'source_url')
   const categories = readList(frontmatter, 'categories')
   const tags = readList(frontmatter, 'tags')
   const body = stripFrontmatter(input.content)
@@ -72,6 +79,9 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     date,
     desc,
     permalink || '',
+    sourcePath || '',
+    sourceTitle || '',
+    sourceUrl || '',
     ...categories,
     ...tags,
     body,
@@ -83,7 +93,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     title,
     date,
     desc,
-    published: publishedRaw === null ? contentType !== 'diary' : publishedRaw === 'true',
+    published: publishedRaw === null ? (contentType === 'post' ? true : false) : publishedRaw === 'true',
     pinned: pinnedRaw === 'true',
     hasExplicitPublished: publishedRaw !== null,
     categories,
@@ -92,25 +102,35 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     cover: cover ? cover : null,
     searchText,
     contentType,
+    ...(sourceType === 'post' || sourceType === 'read-later' ? { sourceType } : {}),
+    ...(sourcePath ? { sourcePath } : {}),
+    ...(sourceTitle ? { sourceTitle } : {}),
+    ...(sourceUrl ? { sourceUrl } : {}),
   }
 }
 
-export async function buildPostIndex(session: SessionState): Promise<PostIndexItem[]> {
-  const files = await listPostFiles(session)
+async function buildIndexForFiles(
+  session: SessionState,
+  files: Promise<Awaited<ReturnType<typeof listPostFiles>>>,
+): Promise<PostIndexItem[]> {
+  const resolvedFiles = await files
   const posts = await Promise.all(
-    files.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
+    resolvedFiles.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
   )
 
   return sortPostIndex(posts, 'date-desc')
 }
 
-export async function buildDiaryIndex(session: SessionState): Promise<PostIndexItem[]> {
-  const files = await listDiaryFiles(session)
-  const posts = await Promise.all(
-    files.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
-  )
+export async function buildPostIndex(session: SessionState): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listPostFiles(session))
+}
 
-  return sortPostIndex(posts, 'date-desc')
+export async function buildDiaryIndex(session: SessionState): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listDiaryFiles(session))
+}
+
+export async function buildKnowledgeIndex(session: SessionState): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listKnowledgeFiles(session))
 }
 
 export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): PostIndexItem[] {
@@ -124,7 +144,10 @@ export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): Po
         (post.permalink || '').toLowerCase().includes(normalizedQuery) ||
         (post.searchText || '').includes(normalizedQuery) ||
         (post.sourceName || '').toLowerCase().includes(normalizedQuery) ||
-        (post.externalUrl || '').toLowerCase().includes(normalizedQuery)
+        (post.externalUrl || '').toLowerCase().includes(normalizedQuery) ||
+        (post.sourceTitle || '').toLowerCase().includes(normalizedQuery) ||
+        (post.sourcePath || '').toLowerCase().includes(normalizedQuery) ||
+        (post.sourceUrl || '').toLowerCase().includes(normalizedQuery)
 
       if (!matchesQuery) {
         return false

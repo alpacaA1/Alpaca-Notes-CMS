@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as githubClientModule from '../github-client'
-import { buildDiaryIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
+import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
 const legacyPost = parsePostIndexItem({
@@ -160,6 +160,35 @@ desc: 最近的状态
     expect(parsed.published).toBe(false)
   })
 
+  it('detects knowledge entries and indexes source metadata for search', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_knowledge/20260505010101.md',
+      sha: 'knowledge-sha',
+      content: `---
+title: 系统复用
+knowledge: true
+source_type: post
+source_path: source/_posts/example.md
+source_title: 关于系统设计的文章
+source_url: https://alpacaa1.github.io/Alpaca-Notes-CMS/example/
+date: 2026-05-05 01:01:01
+tags:
+  - 复用
+desc: 关于系统复用的知识点
+---
+
+能力来自反复验证的抽象。`,
+    })
+
+    expect(parsed.contentType).toBe('knowledge')
+    expect(parsed.published).toBe(false)
+    expect(parsed.sourceType).toBe('post')
+    expect(parsed.sourcePath).toBe('source/_posts/example.md')
+    expect(parsed.sourceTitle).toBe('关于系统设计的文章')
+    expect(parsed.sourceUrl).toBe('https://alpacaa1.github.io/Alpaca-Notes-CMS/example/')
+    expect(filterPostIndex([parsed], { ...defaultView, query: '系统设计' })).toEqual([parsed])
+  })
+
   it('builds the index from sha-matched cached markdown without refetching files', async () => {
     const cachedContent = `---
 title: Cached post
@@ -266,5 +295,35 @@ desc: 最近的状态
 
     expect(indexed[0]?.contentType).toBe('diary')
     expect(indexed[0]?.title).toBe('五月记录')
+  })
+
+  it('builds the knowledge index from the dedicated internal directory', async () => {
+    vi.spyOn(githubClientModule, 'listKnowledgeFiles').mockResolvedValue([
+      { path: 'source/_knowledge/20260505010101.md', sha: 'knowledge-sha', name: '20260505010101.md', type: 'file' },
+    ])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: 'source/_knowledge/20260505010101.md',
+      sha: 'knowledge-sha',
+      content: `---
+title: 系统复用
+knowledge: true
+source_type: read-later
+source_path: source/read-later-items/example.md
+source_title: 一篇关于系统设计的文章
+date: 2026-05-05 01:01:01
+published: false
+tags:
+  - 复用
+desc: 关于系统复用的知识点
+---
+
+## 原文摘录
+> 能力来自反复验证的抽象。`,
+    })
+
+    const indexed = await buildKnowledgeIndex({ token: 'token' })
+
+    expect(indexed[0]?.contentType).toBe('knowledge')
+    expect(indexed[0]?.sourceTitle).toBe('一篇关于系统设计的文章')
   })
 })

@@ -133,6 +133,8 @@ export function listLocalDraftSummaries(
           ? 'read-later'
           : draft.draftDocument.contentType === 'diary'
             ? 'diary'
+            : draft.draftDocument.contentType === 'knowledge'
+              ? 'knowledge'
             : 'post',
       title: draft.draftDocument.frontmatter.title.trim() || '未命名本地草稿',
       updatedAt: draft.updatedAt,

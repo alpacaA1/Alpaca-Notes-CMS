@@ -14,6 +14,7 @@ import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDra
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
+import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { resolveContentFormat } from './content-format'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
@@ -33,7 +34,7 @@ import { parseReadLaterItem } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
 import { createNewDiaryEntry, createNewPost } from './posts/new-post'
-import { buildDiaryIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
+import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
@@ -65,7 +66,7 @@ const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function createEmptyIndexedPostsByType(): IndexedPostsByType {
-  return { post: [], diary: [], 'read-later': [] }
+  return { post: [], diary: [], 'read-later': [], knowledge: [] }
 }
 
 function createReadLaterAnnotationId() {
@@ -81,6 +82,10 @@ function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | P
     return 'diary'
   }
 
+  if (post.contentType === 'knowledge') {
+    return 'knowledge'
+  }
+
   return 'post'
 }
 
@@ -89,7 +94,11 @@ function getContentTypeLabel(contentType: ContentType) {
     return '待读'
   }
 
-  return contentType === 'diary' ? '日记' : '文章'
+  if (contentType === 'diary') {
+    return '日记'
+  }
+
+  return contentType === 'knowledge' ? '知识点' : '文章'
 }
 
 function getDeleteContentTypeLabel(contentType: ContentType) {
@@ -97,11 +106,15 @@ function getDeleteContentTypeLabel(contentType: ContentType) {
     return '待读条目'
   }
 
-  return contentType === 'diary' ? '日记' : '文章'
+  if (contentType === 'diary') {
+    return '日记'
+  }
+
+  return contentType === 'knowledge' ? '知识点' : '文章'
 }
 
 function getContentCountUnit(contentType: ContentType) {
-  return contentType === 'read-later' ? '条' : '篇'
+  return contentType === 'read-later' || contentType === 'knowledge' ? '条' : '篇'
 }
 
 function normalizeUrlForComparison(value: string) {
@@ -155,6 +168,13 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
           sourceName: document.frontmatter.source_name || null,
           readingStatus: document.frontmatter.reading_status || 'unread',
         }
+      : resolvedContentType === 'knowledge'
+        ? {
+            sourceType: document.frontmatter.source_type || null,
+            sourcePath: document.frontmatter.source_path || null,
+            sourceTitle: document.frontmatter.source_title || null,
+            sourceUrl: document.frontmatter.source_url || null,
+          }
       : {}),
   }
 }
@@ -380,6 +400,8 @@ export default function App() {
             ? await buildReadLaterIndex(session)
             : indexedContentType === 'diary'
               ? await buildDiaryIndex(session)
+              : indexedContentType === 'knowledge'
+                ? await buildKnowledgeIndex(session)
               : await buildPostIndex(session)
         if (!cancelled) {
           updatePostsForType(indexedContentType, () => indexedPosts)
@@ -512,6 +534,8 @@ export default function App() {
         ? createNewReadLaterItem()
         : contentType === 'diary'
           ? createNewDiaryEntry()
+          : contentType === 'knowledge'
+            ? createNewKnowledgeItem()
           : createNewPost(),
     )
     setAdminView('editor')
@@ -978,6 +1002,33 @@ export default function App() {
     setEditingAnnotationId(action === 'note' ? annotation.id : null)
   }
 
+  const handleCreateKnowledgeFromSelection = (quote: string) => {
+    if (!document) {
+      return
+    }
+
+    const targetContentType = getContentTypeFromPostLike(document)
+    if (targetContentType !== 'post' && targetContentType !== 'read-later') {
+      return
+    }
+
+    const normalizedQuote = quote.trim()
+    if (!normalizedQuote) {
+      return
+    }
+
+    const captureDate = new Date()
+    const savedBaseDocument = createNewKnowledgeItem(captureDate)
+    const draftKnowledgeDocument = createKnowledgeFromSelection(document, normalizedQuote, captureDate)
+
+    setContentType('knowledge')
+    openDocument(savedBaseDocument, {
+      draftPost: draftKnowledgeDocument,
+      successMessage: `已从《${document.frontmatter.title.trim() || '未命名稿件'}》生成知识点草稿。`,
+    })
+    setAdminView('editor')
+  }
+
   const handleUploadImage = async (file: File) => {
     if (!session) {
       throw new Error('GitHub 会话已过期，请重新登录。')
@@ -1304,6 +1355,8 @@ export default function App() {
             ? await buildReadLaterIndex(session)
             : contentType === 'diary'
               ? await buildDiaryIndex(session)
+              : contentType === 'knowledge'
+                ? await buildKnowledgeIndex(session)
               : await buildPostIndex(session)
         updatePostsForType(contentType, () => indexedPosts)
       } catch {
@@ -1532,6 +1585,10 @@ export default function App() {
                       sourceName={document.frontmatter.source_name}
                       externalUrl={document.frontmatter.external_url}
                       readingStatus={document.frontmatter.reading_status}
+                      sourceType={document.frontmatter.source_type}
+                      sourceTitle={document.frontmatter.source_title}
+                      sourcePath={document.frontmatter.source_path}
+                      sourceUrl={document.frontmatter.source_url}
                       contentType={document.contentType}
                       previewImageUrls={previewImageUrls}
                       annotations={readLaterAnnotations}
@@ -1540,6 +1597,7 @@ export default function App() {
                       navigationRequest={readerNavigationRequest}
                       onActiveOutlineTargetChange={setActiveOutlineTargetId}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
+                      onCreateKnowledge={handleCreateKnowledgeFromSelection}
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}
                       onDeleteAnnotation={handleDeleteAnnotation}

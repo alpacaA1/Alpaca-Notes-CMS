@@ -5,6 +5,7 @@ export const REPO_BRANCH = 'main'
 export const POSTS_PATH = 'source/_posts'
 export const DIARY_PATH = 'source/diary'
 export const READ_LATER_PATH = 'source/read-later-items'
+export const KNOWLEDGE_PATH = 'source/_knowledge'
 export const SITE_ROOT_PATH = `/${REPO_NAME}`
 
 export const AUTH_ORIGIN = new URL(AUTH_BASE_URL).origin

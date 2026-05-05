@@ -79,8 +79,13 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.reading_status === right.frontmatter.reading_status &&
     left.frontmatter.read_later === right.frontmatter.read_later &&
     left.frontmatter.diary === right.frontmatter.diary &&
+    left.frontmatter.knowledge === right.frontmatter.knowledge &&
     left.frontmatter.nav_exclude === right.frontmatter.nav_exclude &&
     left.frontmatter.layout === right.frontmatter.layout &&
+    left.frontmatter.source_type === right.frontmatter.source_type &&
+    left.frontmatter.source_path === right.frontmatter.source_path &&
+    left.frontmatter.source_title === right.frontmatter.source_title &&
+    left.frontmatter.source_url === right.frontmatter.source_url &&
     sameStringArray(left.frontmatter.categories, right.frontmatter.categories) &&
     sameStringArray(left.frontmatter.tags, right.frontmatter.tags) &&
     sameStringArray(left.frontmatter.reader_annotations || [], right.frontmatter.reader_annotations || []) &&

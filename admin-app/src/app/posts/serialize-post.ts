@@ -10,13 +10,14 @@ function renderList(name: string, values: string[]) {
 
 export function serializePost(post: ParsedPost): string {
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
+  const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
   const lines = [
     '---',
     `title: ${post.frontmatter.title}`,
     ...(post.frontmatter.format ? [`format: ${post.frontmatter.format}`] : []),
-    ...(!isDiary && post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
+    ...(!isDiary && !isKnowledge && post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
     ...(post.frontmatter.layout ? [`layout: ${post.frontmatter.layout}`] : []),
-    ...(!isDiary && post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
+    ...(!isDiary && !isKnowledge && post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
     `date: ${post.frontmatter.date}`,
     ...(post.frontmatter.read_later
       ? [
@@ -28,8 +29,14 @@ export function serializePost(post: ParsedPost): string {
         ]
       : [
           ...(isDiary ? ['diary: true'] : []),
+          ...(isKnowledge ? ['knowledge: true'] : []),
+          ...((isKnowledge || post.frontmatter.nav_exclude) && post.frontmatter.nav_exclude ? ['nav_exclude: true'] : []),
+          ...(isKnowledge && post.frontmatter.source_type ? [`source_type: ${post.frontmatter.source_type}`] : []),
+          ...(isKnowledge && post.frontmatter.source_path ? [`source_path: ${post.frontmatter.source_path}`] : []),
+          ...(isKnowledge && post.frontmatter.source_title ? [`source_title: ${post.frontmatter.source_title}`] : []),
+          ...(isKnowledge && post.frontmatter.source_url ? [`source_url: ${post.frontmatter.source_url}`] : []),
           `published: ${
-            isDiary
+            isDiary || isKnowledge
               ? 'false'
               : post.hasExplicitPublished
                 ? String(post.frontmatter.published)
@@ -37,7 +44,7 @@ export function serializePost(post: ParsedPost): string {
           }`,
         ]),
     ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
-    ...(post.frontmatter.read_later || isDiary ? [] : [renderList('categories', post.frontmatter.categories)]),
+    ...(post.frontmatter.read_later || isDiary || isKnowledge ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
     `desc: ${post.frontmatter.desc}`,
     '---',

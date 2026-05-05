@@ -97,6 +97,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
   const permalink = post.frontmatter.permalink?.trim() || ''
   const isReadLater = post.frontmatter.read_later === true || post.contentType === 'read-later'
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
+  const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
 
   if (!post.frontmatter.title.trim()) {
     errors.title = '请填写标题。'
@@ -120,7 +121,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     return errors
   }
 
-  if (isDiary) {
+  if (isDiary || isKnowledge) {
     return errors
   }
 

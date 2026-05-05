@@ -21,6 +21,10 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
     return pinned ? '取消置顶日记' : '置顶日记'
   }
 
+  if (contentType === 'knowledge') {
+    return pinned ? '取消置顶知识点' : '置顶知识点'
+  }
+
   return pinned ? '取消置顶文章' : '置顶文章'
 }
 
@@ -139,9 +143,9 @@ export default function PostListPane({
   return (
     <aside className="post-pane">
       <div className="post-pane__header">
-        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : '文章归档'}</p>
+        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : '文章归档'}</p>
         <div className="post-pane__title-row">
-          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : '文章'}</h2>
+          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : '文章'}</h2>
           <span className="post-pane__count">{posts.length}</span>
         </div>
         <p className="post-pane__note">
@@ -149,6 +153,8 @@ export default function PostListPane({
             ? '先看来源、状态和原文链接，再打开对应条目。'
             : contentType === 'diary'
               ? '按时间浏览你的阶段记录，打开后直接续写。'
+              : contentType === 'knowledge'
+                ? '优先看来源、摘录与标签，快速回到你要复习的点。'
               : '先看标题、链接和元信息，再打开对应稿件。'}
         </p>
       </div>
@@ -165,6 +171,8 @@ export default function PostListPane({
               ? getReadLaterStatusLabel(post.readingStatus)
               : contentType === 'diary'
                 ? '日记'
+                : contentType === 'knowledge'
+                  ? '知识点'
                 : post.published
                   ? '已发布'
                   : '草稿'
@@ -188,6 +196,8 @@ export default function PostListPane({
                         ? (post.sourceName || '未填写来源')
                         : contentType === 'diary'
                           ? (post.tags[0] || '内部记录')
+                          : contentType === 'knowledge'
+                            ? (post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : '手动新增'))
                           : (post.permalink || '旧链接')}
                     </span>
                     <span>
@@ -195,6 +205,8 @@ export default function PostListPane({
                         ? (post.externalUrl || '未填写原文链接')
                         : contentType === 'diary'
                           ? post.path.replace(/^source\/diary\//, '')
+                          : contentType === 'knowledge'
+                            ? (post.sourceUrl || post.sourcePath || '内部知识库')
                           : (post.categories[0] || '未分类')}
                     </span>
                   </div>
@@ -215,7 +227,7 @@ export default function PostListPane({
                     className="post-list-item__delete-btn"
                     onClick={() => onDeletePost(post)}
                     disabled={isDeleting}
-                    aria-label={contentType === 'read-later' ? '删除待读条目' : contentType === 'diary' ? '删除日记' : '删除文章'}
+                    aria-label={contentType === 'read-later' ? '删除待读条目' : contentType === 'diary' ? '删除日记' : contentType === 'knowledge' ? '删除知识点' : '删除文章'}
                     title={`删除《${post.title}》`}
                   >
                     {isDeletingThisPost ? '删除中…' : '删除'}

@@ -1,5 +1,5 @@
-import { DIARY_PATH } from '../config'
-import type { ContentType } from './post-types'
+import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
+import type { ContentType, KnowledgeSourceType } from './post-types'
 
 export type ReadingStatus = 'unread' | 'reading' | 'done'
 
@@ -33,8 +33,13 @@ export type PostFrontmatter = {
   reader_annotations?: string[]
   read_later?: boolean
   diary?: boolean
+  knowledge?: boolean
   nav_exclude?: boolean
   layout?: string
+  source_type?: KnowledgeSourceType
+  source_path?: string
+  source_title?: string
+  source_url?: string
 }
 
 export type ParsedPost = {
@@ -90,14 +95,21 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const readerAnnotationsRaw = readList(frontmatterBlock, 'reader_annotations')
   const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
   const diaryRaw = readScalar(frontmatterBlock, 'diary')
+  const knowledgeRaw = readScalar(frontmatterBlock, 'knowledge')
   const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
   const layoutRaw = readScalar(frontmatterBlock, 'layout')
+  const sourceTypeRaw = readScalar(frontmatterBlock, 'source_type')
+  const sourcePathRaw = readScalar(frontmatterBlock, 'source_path')
+  const sourceTitleRaw = readScalar(frontmatterBlock, 'source_title')
+  const sourceUrlRaw = readScalar(frontmatterBlock, 'source_url')
   const contentType: ContentType =
     readLaterRaw === 'true'
       ? 'read-later'
       : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
         ? 'diary'
-        : 'post'
+        : knowledgeRaw === 'true' || input.path.startsWith(`${KNOWLEDGE_PATH}/`)
+          ? 'knowledge'
+          : 'post'
 
   return {
     path: input.path,
@@ -111,7 +123,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       date: readScalar(frontmatterBlock, 'date') || '',
       desc: readScalar(frontmatterBlock, 'desc') || '',
       ...(formatRaw && formatRaw.length > 0 ? { format: formatRaw } : {}),
-      published: publishedRaw === null ? contentType !== 'diary' : publishedRaw === 'true',
+      published: publishedRaw === null ? (contentType === 'post' ? true : false) : publishedRaw === 'true',
       pinned: pinnedRaw === 'true',
       categories: readList(frontmatterBlock, 'categories'),
       tags: readList(frontmatterBlock, 'tags'),
@@ -125,8 +137,13 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(readerAnnotationsRaw.length > 0 ? { reader_annotations: readerAnnotationsRaw } : {}),
       ...(readLaterRaw === 'true' ? { read_later: true } : {}),
       ...(contentType === 'diary' ? { diary: true } : {}),
+      ...(contentType === 'knowledge' ? { knowledge: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),
+      ...(sourceTypeRaw === 'post' || sourceTypeRaw === 'read-later' ? { source_type: sourceTypeRaw } : {}),
+      ...(sourcePathRaw && sourcePathRaw.length > 0 ? { source_path: sourcePathRaw } : {}),
+      ...(sourceTitleRaw && sourceTitleRaw.length > 0 ? { source_title: sourceTitleRaw } : {}),
+      ...(sourceUrlRaw && sourceUrlRaw.length > 0 ? { source_url: sourceUrlRaw } : {}),
     },
   }
 }
