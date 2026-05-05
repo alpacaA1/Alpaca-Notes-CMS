@@ -3944,7 +3944,7 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  min-height: clamp(360px, 32vw, 420px);
+  min-height: clamp(280px, 24vw, 320px);
   padding: 24px;
   gap: 14px;
 }
@@ -4034,17 +4034,18 @@ textarea {
   align-items: flex-end;
   overflow: hidden;
   min-height: 0;
+  padding-bottom: 6px;
 }
 
 .post-dashboard__knowledge-card-content {
   margin: 0;
   color: var(--admin-text);
   font-size: 1rem;
-  line-height: 1.8;
+  line-height: 1.72;
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 10;
+  -webkit-line-clamp: 6;
 }
 
 .post-dashboard__card-footer {
