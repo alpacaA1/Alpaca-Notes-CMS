@@ -39,6 +39,44 @@ function stripFrontmatter(content: string) {
   return content.replace(/^---\n[\s\S]*?\n---\n?/, '')
 }
 
+function readSection(body: string, heading: string, nextHeading: string | null) {
+  const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const escapedNextHeading = nextHeading?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = nextHeading
+    ? new RegExp(`## ${escapedHeading}\\n([\\s\\S]*?)\\n## ${escapedNextHeading}(?:\\n|$)`)
+    : new RegExp(`## ${escapedHeading}\\n([\\s\\S]*)$`)
+  const match = body.match(pattern)
+  return (match?.[1] || '').trim()
+}
+
+function stripPreviewMarkdown(markdown: string) {
+  return markdown
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/^>\s?/gm, '')
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/[*_~`]/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .join('\n')
+    .trim()
+}
+
+function extractKnowledgePreview(body: string) {
+  const quote = stripPreviewMarkdown(readSection(body, '原文摘录', '我的理解'))
+  const note = stripPreviewMarkdown(readSection(body, '我的理解', null))
+  const preview = [quote, note]
+    .filter((section) => section.length > 0)
+    .join('\n')
+
+  if (preview) {
+    return preview
+  }
+
+  return stripPreviewMarkdown(body)
+}
+
 function normalizeSearchText(value: string) {
   return value
     .replace(/\s+/g, ' ')
@@ -74,6 +112,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const categories = readList(frontmatter, 'categories')
   const tags = readList(frontmatter, 'tags')
   const body = stripFrontmatter(input.content)
+  const knowledgePreview = contentType === 'knowledge' ? extractKnowledgePreview(body) : ''
   const searchText = normalizeSearchText([
     title,
     date,
@@ -92,7 +131,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     sha: input.sha,
     title,
     date,
-    desc,
+    desc: knowledgePreview || desc,
     published: publishedRaw === null ? (contentType === 'post' ? true : false) : publishedRaw === 'true',
     pinned: pinnedRaw === 'true',
     hasExplicitPublished: publishedRaw !== null,
