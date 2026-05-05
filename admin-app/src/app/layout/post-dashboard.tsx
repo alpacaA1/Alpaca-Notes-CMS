@@ -65,6 +65,7 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 ]
 
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
+const DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP = 8
 
 function readStoredViewMode(): DashboardViewMode {
   try {
@@ -176,6 +177,82 @@ function formatRecoveredDraftTime(value: string) {
 
 function formatKnowledgeCardDate(value: string) {
   return value ? value.slice(0, 10) : '无日期'
+}
+
+function getKnowledgeCardContent(post: PostIndexItem) {
+  return post.title.trim() || post.desc.trim() || '未命名知识点'
+}
+
+function KnowledgeCard({
+  post,
+  onOpenPost,
+}: {
+  post: PostIndexItem
+  onOpenPost: (post: PostIndexItem) => void
+}) {
+  const bodyRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLParagraphElement>(null)
+  const [lineClamp, setLineClamp] = useState(DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP)
+
+  useEffect(() => {
+    const bodyElement = bodyRef.current
+    if (!bodyElement) {
+      return
+    }
+
+    const updateLineClamp = () => {
+      const nextBodyElement = bodyRef.current
+      if (!nextBodyElement) {
+        return
+      }
+
+      const contentElement = contentRef.current
+      const styles = window.getComputedStyle(contentElement || nextBodyElement)
+      const fontSize = Number.parseFloat(styles.fontSize) || 16
+      const lineHeight = Number.parseFloat(styles.lineHeight) || fontSize * 1.8
+      const availableHeight = nextBodyElement.clientHeight
+
+      if (availableHeight <= 0 || lineHeight <= 0) {
+        setLineClamp(DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP)
+        return
+      }
+
+      setLineClamp(Math.max(1, Math.floor(availableHeight / lineHeight)))
+    }
+
+    updateLineClamp()
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const resizeObserver = new ResizeObserver(() => {
+        updateLineClamp()
+      })
+      resizeObserver.observe(bodyElement)
+
+      return () => {
+        resizeObserver.disconnect()
+      }
+    }
+
+    window.addEventListener('resize', updateLineClamp)
+    return () => {
+      window.removeEventListener('resize', updateLineClamp)
+    }
+  }, [post.path])
+
+  return (
+    <button
+      type="button"
+      className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
+      onClick={() => onOpenPost(post)}
+    >
+      <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
+      <div className="post-dashboard__knowledge-card-body" ref={bodyRef}>
+        <p ref={contentRef} className="post-dashboard__knowledge-card-content" style={{ WebkitLineClamp: lineClamp }}>
+          {getKnowledgeCardContent(post)}
+        </p>
+      </div>
+    </button>
+  )
 }
 
 export default function PostDashboard({
@@ -588,15 +665,7 @@ export default function PostDashboard({
           {filteredPosts.map((post) => {
             if (isKnowledge) {
               return (
-                <button
-                  key={post.path}
-                  type="button"
-                  className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
-                  onClick={() => onOpenPost(post)}
-                >
-                  <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
-                  <p className="post-dashboard__knowledge-card-content">{post.title.trim() || post.desc.trim() || '未命名知识点'}</p>
-                </button>
+                <KnowledgeCard key={post.path} post={post} onOpenPost={onOpenPost} />
               )
             }
 

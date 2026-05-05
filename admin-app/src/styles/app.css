@@ -3940,6 +3940,8 @@ textarea {
 
 .post-dashboard__card--knowledge {
   position: relative;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   min-height: 210px;
   padding: 24px;
   gap: 18px;
@@ -4022,6 +4024,11 @@ textarea {
   font-size: 0.82rem;
   color: var(--admin-soft);
   letter-spacing: 0.04em;
+}
+
+.post-dashboard__knowledge-card-body {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .post-dashboard__knowledge-card-content {
