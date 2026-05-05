@@ -192,7 +192,6 @@ export default function App() {
     savedDocument,
     mode,
     isDirty,
-    publishLocked,
     validationErrors,
     canNavigateAway,
     setMode,
@@ -1524,7 +1523,6 @@ export default function App() {
               <SettingsPanel
                 document={document}
                 validationErrors={validationErrors}
-                publishLocked={publishLocked}
                 contentType={contentType}
                 availableCategories={availableCategories}
                 availableTags={availableTags}

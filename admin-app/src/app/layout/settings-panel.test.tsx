@@ -47,7 +47,6 @@ function createExistingPost(): ParsedPost {
 type RenderSettingsPanelOptions = {
   document?: ParsedPost
   validationErrors?: PostValidationErrors
-  publishLocked?: boolean
   availableCategories?: string[]
   availableTags?: string[]
   contentType?: 'post' | 'read-later'
@@ -56,7 +55,6 @@ type RenderSettingsPanelOptions = {
 function renderControlledSettingsPanel({
   document = createNewPost(new Date(2026, 3, 3, 10, 11, 12)),
   validationErrors = {},
-  publishLocked = false,
   availableCategories = ['专业', '思考'],
   availableTags = ['产品', '记录'],
   contentType = 'post',
@@ -71,7 +69,6 @@ function renderControlledSettingsPanel({
       <SettingsPanel
         document={currentDocument}
         validationErrors={validationErrors}
-        publishLocked={publishLocked}
         contentType={contentType}
         availableCategories={availableCategories}
         availableTags={availableTags}
@@ -158,7 +155,6 @@ describe('settings panel', () => {
           desc: '请填写摘要。',
           permalink: '首次保存前请填写永久链接。',
         }}
-        publishLocked={false}
         contentType="post"
         availableCategories={[]}
         availableTags={[]}
@@ -178,7 +174,6 @@ describe('settings panel', () => {
         validationErrors={{
           permalink: '永久链接请填写站内相对路径，例如 zhenai/。',
         }}
-        publishLocked={false}
         contentType="post"
         availableCategories={[]}
         availableTags={[]}
@@ -201,7 +196,6 @@ describe('settings panel', () => {
       <SettingsPanel
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -245,7 +239,6 @@ describe('settings panel', () => {
           },
         }}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -269,7 +262,6 @@ describe('settings panel', () => {
           },
         }}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -329,7 +321,6 @@ describe('settings panel', () => {
       <SettingsPanel
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -359,7 +350,6 @@ describe('settings panel', () => {
       <SettingsPanel
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -380,7 +370,6 @@ describe('settings panel', () => {
       <SettingsPanel
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{}}
-        publishLocked={false}
         contentType="read-later"
         availableCategories={[]}
         availableTags={[]}
@@ -397,7 +386,6 @@ describe('settings panel', () => {
   it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {
     const { onFieldChange } = renderControlledSettingsPanel({
       document: createExistingPost(),
-      publishLocked: true,
       availableCategories: [],
       availableTags: [],
     })
@@ -406,7 +394,8 @@ describe('settings panel', () => {
     expect(screen.getByPlaceholderText('旧文章可留空')).toBeTruthy()
     expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '移除标签 产品' })).toBeTruthy()
-    expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).disabled).toBe(true)
+    expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).disabled).toBe(false)
+    expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).checked).toBe(true)
     expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
 
     fireEvent.click(screen.getByRole('button', { name: '选择分类' }))

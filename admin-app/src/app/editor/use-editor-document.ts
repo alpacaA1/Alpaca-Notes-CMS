@@ -98,8 +98,6 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
   const [validationErrors, setValidationErrors] = useState<PostValidationErrors>({})
 
   const isDirty = useMemo(() => !samePost(savedPost, draftPost), [draftPost, savedPost])
-  const publishLocked = Boolean(savedPost?.frontmatter.published)
-
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!isDirty) {
@@ -131,10 +129,6 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
   ) => {
     setDraftPost((currentPost) => {
       if (!currentPost) {
-        return currentPost
-      }
-
-      if (field === 'published' && publishLocked && value === false) {
         return currentPost
       }
 
@@ -204,7 +198,6 @@ export function useEditorDocument(initialPost: EditableDocument | null = null) {
     savedDocument: savedPost,
     mode,
     isDirty,
-    publishLocked,
     validationErrors,
     canNavigateAway,
     setMode,

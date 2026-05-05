@@ -55,16 +55,15 @@ describe('useEditorDocument', () => {
     expect(result.current.mode).toBe('markdown')
   })
 
-  it('enforces publish lock for already-published posts', () => {
+  it('allows unpublishing already-published posts', () => {
     const { result } = renderHook(() => useEditorDocument(createExistingPost()))
-
-    expect(result.current.publishLocked).toBe(true)
 
     act(() => {
       result.current.updateFrontmatter('published', false)
     })
 
-    expect(result.current.document?.frontmatter.published).toBe(true)
+    expect(result.current.document?.frontmatter.published).toBe(false)
+    expect(result.current.isDirty).toBe(true)
   })
 
   it('blocks navigation while dirty and clears warning after save', () => {

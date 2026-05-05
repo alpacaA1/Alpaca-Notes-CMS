@@ -13,7 +13,6 @@ type ReadLaterTab = 'info' | 'commentary'
 type SettingsPanelProps = {
   document: ParsedPost | null
   validationErrors: PostValidationErrors
-  publishLocked: boolean
   contentType?: 'post' | 'read-later'
   availableCategories: string[]
   availableTags: string[]
@@ -51,7 +50,6 @@ function getAnnotationNotePreview(annotation: ReadLaterAnnotation) {
 export default function SettingsPanel({
   document,
   validationErrors,
-  publishLocked,
   contentType = 'post',
   availableCategories,
   availableTags,
@@ -317,7 +315,6 @@ export default function SettingsPanel({
                   aria-label="已发布"
                   type="checkbox"
                   checked={Boolean(frontmatter.published)}
-                  disabled={publishLocked}
                   onChange={(event) => onFieldChange('published', event.target.checked)}
                 />
               </label>

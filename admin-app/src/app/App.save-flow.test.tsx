@@ -357,6 +357,53 @@ Original body.`,
     expect(await screen.findByDisplayValue('updated-save-flow/')).toBeTruthy()
   })
 
+  it('allows unpublishing an already-published post and saves published false', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: otherPost.path,
+      sha: otherPost.sha,
+      content: otherContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: otherPost.path,
+      sha: 'sha-other-updated',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Other post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /other post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    const publishedCheckbox = screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement
+    expect(publishedCheckbox.checked).toBe(true)
+    expect(publishedCheckbox.disabled).toBe(false)
+
+    fireEvent.click(publishedCheckbox)
+    expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).checked).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    expect(saveMarkdownFile).toHaveBeenCalledWith(
+      { token: 'persisted-token' },
+      expect.objectContaining({
+        path: otherPost.path,
+        sha: otherPost.sha,
+        content: expect.stringContaining('published: false'),
+      }),
+    )
+    expect(await screen.findByText('已保存。')).toBeTruthy()
+  })
+
   it('surfaces stale-sha save conflicts and keeps local dirty state', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
