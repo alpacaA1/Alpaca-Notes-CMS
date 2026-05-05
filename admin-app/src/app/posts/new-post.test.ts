@@ -36,6 +36,7 @@ describe('new post helpers', () => {
 
     expect(diary.path).toBe('source/diary/20260403060708.md')
     expect(diary.contentType).toBe('diary')
+    expect(diary.frontmatter.title).toBe('2026-04-03-星期五')
     expect(diary.frontmatter.diary).toBe(true)
     expect(diary.frontmatter.published).toBe(false)
 

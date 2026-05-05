@@ -6,6 +6,11 @@ function pad(value: number) {
   return String(value).padStart(2, '0')
 }
 
+function formatDiaryTitle(date: Date) {
+  const weekdayLabels = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}-${weekdayLabels[date.getDay()]}`
+}
+
 export function formatPostTimestamp(date: Date) {
   return [
     date.getFullYear(),
@@ -75,7 +80,7 @@ export function createNewDiaryEntry(date = new Date()): ParsedPost {
     hasExplicitPermalink: false,
     contentType: 'diary',
     frontmatter: {
-      title: '',
+      title: formatDiaryTitle(date),
       date: formatPostDate(date),
       desc: '',
       published: false,
