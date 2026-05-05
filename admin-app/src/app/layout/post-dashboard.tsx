@@ -179,7 +179,7 @@ function formatKnowledgeCardDate(value: string) {
 }
 
 function getKnowledgeCardContent(post: PostIndexItem) {
-  return post.title.trim() || post.desc.trim() || '未命名知识点'
+  return post.desc.trim() || post.title.trim() || '未命名知识点'
 }
 
 function KnowledgeCard({
