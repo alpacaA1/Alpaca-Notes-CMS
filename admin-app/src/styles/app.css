@@ -3940,8 +3940,9 @@ textarea {
 
 .post-dashboard__card--knowledge {
   position: relative;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   min-height: 210px;
   padding: 24px;
   gap: 18px;
@@ -4027,12 +4028,15 @@ textarea {
 }
 
 .post-dashboard__knowledge-card-body {
+  display: flex;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .post-dashboard__knowledge-card-content {
   margin: 0;
+  align-self: stretch;
   color: var(--admin-text);
   font-size: 1rem;
   line-height: 1.8;
