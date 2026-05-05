@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ParsedPost } from '../posts/parse-post'
+import type { ContentType } from '../posts/post-types'
 import { fromPostDateTimeInputValue, toPostDateTimeInputValue } from '../posts/new-post'
 import type { PostValidationErrors } from '../posts/post-types'
 import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-types'
@@ -13,7 +14,7 @@ type ReadLaterTab = 'info' | 'commentary'
 type SettingsPanelProps = {
   document: ParsedPost | null
   validationErrors: PostValidationErrors
-  contentType?: 'post' | 'read-later'
+  contentType?: ContentType
   availableCategories: string[]
   availableTags: string[]
   onFieldChange: <K extends keyof ParsedPost['frontmatter']>(
@@ -77,6 +78,7 @@ export default function SettingsPanel({
   const [documentNoteDraft, setDocumentNoteDraft] = useState('')
   const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
+  const isDiary = contentType === 'diary'
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -195,8 +197,8 @@ export default function SettingsPanel({
         <div className="settings-panel__header">
           <>
             <p className="settings-panel__eyebrow">元信息</p>
-            <h2>发布设置</h2>
-            <p>发布前把标题、链接与分类信息整理清楚。</p>
+            <h2>{isDiary ? '日记设置' : '发布设置'}</h2>
+            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
           </>
         </div>
       ) : null}
@@ -310,16 +312,6 @@ export default function SettingsPanel({
           ) : (
             <>
               <label className="settings-panel__toggle">
-                <span>已发布</span>
-                <input
-                  aria-label="已发布"
-                  type="checkbox"
-                  checked={Boolean(frontmatter.published)}
-                  onChange={(event) => onFieldChange('published', event.target.checked)}
-                />
-              </label>
-
-              <label className="settings-panel__toggle">
                 <span>置顶</span>
                 <input
                   aria-label="置顶"
@@ -329,19 +321,33 @@ export default function SettingsPanel({
                 />
               </label>
 
-              <div className="settings-panel__field settings-panel__taxonomy">
-                <span>分类</span>
-                <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
-                <TaxonomyMultiSelect
-                  label="分类"
-                  value={frontmatter.categories}
-                  availableOptions={availableCategories}
-                  onChange={(value) => onFieldChange('categories', value)}
-                  onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
-                  onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
-                  onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
-                />
-              </div>
+              {!isDiary ? (
+                <>
+                  <label className="settings-panel__toggle">
+                    <span>已发布</span>
+                    <input
+                      aria-label="已发布"
+                      type="checkbox"
+                      checked={Boolean(frontmatter.published)}
+                      onChange={(event) => onFieldChange('published', event.target.checked)}
+                    />
+                  </label>
+
+                  <div className="settings-panel__field settings-panel__taxonomy">
+                    <span>分类</span>
+                    <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
+                    <TaxonomyMultiSelect
+                      label="分类"
+                      value={frontmatter.categories}
+                      availableOptions={availableCategories}
+                      onChange={(value) => onFieldChange('categories', value)}
+                      onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
+                      onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
+                      onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
+                    />
+                  </div>
+                </>
+              ) : null}
             </>
           )}
 
@@ -359,36 +365,38 @@ export default function SettingsPanel({
             />
           </div>
 
-          <label className="settings-panel__field">
-            <span>封面图</span>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <input
-                style={{ flex: 1 }}
-                aria-label="封面图"
-                value={frontmatter.cover || ''}
-                placeholder="图片 URL 或系统外链"
-                onChange={(event) => onFieldChange('cover', event.target.value)}
-              />
-              {onUploadImage ? (
-                <button
-                  type="button"
-                  className="top-bar__button"
-                  style={{ minHeight: '36px', padding: '0 12px' }}
-                  onClick={handleUploadClick}
-                >
-                  上传封面
-                </button>
+          {!isDiary ? (
+            <label className="settings-panel__field">
+              <span>封面图</span>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  style={{ flex: 1 }}
+                  aria-label="封面图"
+                  value={frontmatter.cover || ''}
+                  placeholder="图片 URL 或系统外链"
+                  onChange={(event) => onFieldChange('cover', event.target.value)}
+                />
+                {onUploadImage ? (
+                  <button
+                    type="button"
+                    className="top-bar__button"
+                    style={{ minHeight: '36px', padding: '0 12px' }}
+                    onClick={handleUploadClick}
+                  >
+                    上传封面
+                  </button>
+                ) : null}
+              </div>
+              {frontmatter.cover ? (
+                <img
+                  src={(previewImageUrls && previewImageUrls[frontmatter.cover]) || frontmatter.cover}
+                  alt="Cover Preview"
+                  style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
+                  loading="lazy"
+                />
               ) : null}
-            </div>
-            {frontmatter.cover ? (
-              <img
-                src={(previewImageUrls && previewImageUrls[frontmatter.cover]) || frontmatter.cover}
-                alt="Cover Preview"
-                style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
-                loading="lazy"
-              />
-            ) : null}
-          </label>
+            </label>
+          ) : null}
 
           {isReadLater ? (
             <label>
@@ -400,7 +408,7 @@ export default function SettingsPanel({
                 disabled
               />
             </label>
-          ) : (
+          ) : !isDiary ? (
             <label>
               <span>永久链接</span>
               <input
@@ -411,7 +419,7 @@ export default function SettingsPanel({
               />
               {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
             </label>
-          )}
+          ) : null}
         </div>
       ) : null}
 

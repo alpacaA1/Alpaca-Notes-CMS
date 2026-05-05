@@ -384,8 +384,38 @@ describe('management layout components', () => {
     )
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
 
     expect(onContentTypeChange).toHaveBeenCalledWith('read-later')
+    expect(onContentTypeChange).toHaveBeenCalledWith('diary')
     expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
+  })
+
+  it('shows diary-specific top bar copy in dashboard mode', () => {
+    render(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="diary"
+        isPreviewing={false}
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+      />,
+    )
+
+    expect(screen.getByText('日记管理')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /新建日记/ })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toContain('正文或标签')
   })
 })

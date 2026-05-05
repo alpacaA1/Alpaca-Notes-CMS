@@ -1,4 +1,4 @@
-import { POSTS_PATH, READ_LATER_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
+import { DIARY_PATH, POSTS_PATH, READ_LATER_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
 import { isSupportedContentFileName } from './content-format'
 import { AuthError, type SessionState } from './session'
 
@@ -165,6 +165,10 @@ export async function listPostFiles(session: SessionState): Promise<GitHubDirect
 
 export async function listReadLaterFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
   return listMarkdownFiles(session, READ_LATER_PATH)
+}
+
+export async function listDiaryFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  return listMarkdownFiles(session, DIARY_PATH)
 }
 
 export async function fetchPostFile(

@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
-import type { PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
+import type { ContentType, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
 
 type DashboardViewMode = 'grid' | 'list'
-type ContentType = 'post' | 'read-later'
 type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
 type StatusTone = Exclude<DashboardStatusFilter, 'all'>
 
@@ -96,12 +95,20 @@ function getStatusLabel(post: PostIndexItem, contentType: ContentType) {
     return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
   }
 
+  if (contentType === 'diary') {
+    return '日记'
+  }
+
   return post.published ? '已发布' : '草稿'
 }
 
 function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
   if (contentType === 'read-later') {
     return pinned ? '取消置顶待读' : '置顶待读'
+  }
+
+  if (contentType === 'diary') {
+    return pinned ? '取消置顶日记' : '置顶日记'
   }
 
   return pinned ? '取消置顶文章' : '置顶文章'
@@ -182,6 +189,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
+  const isDiary = contentType === 'diary'
   const showQuickActions = true
 
   const { categories, tags: availableTags } = useMemo(() => collectPostIndexFacets(posts), [posts])
@@ -196,8 +204,8 @@ export default function PostDashboard({
   const filteredPosts = useMemo(() => {
     const basePosts = filterPostIndex(posts, {
       query: search,
-      publishState: isReadLater ? 'all' : (statusFilter as PostPublishState),
-      category: isReadLater ? null : selectedCategory,
+      publishState: isReadLater || isDiary ? 'all' : (statusFilter as PostPublishState),
+      category: isReadLater || isDiary ? null : selectedCategory,
       tag: selectedTag,
       sort,
     })
@@ -225,7 +233,7 @@ export default function PostDashboard({
     [posts],
   )
 
-  const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : POST_STATUS_OPTIONS
+  const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : isDiary ? [{ value: 'all' as const, label: '全部' }] : POST_STATUS_OPTIONS
   const sortOptions = isReadLater ? READ_LATER_SORT_OPTIONS : POST_SORT_OPTIONS
   const statCards = isReadLater
     ? [
@@ -234,6 +242,10 @@ export default function PostDashboard({
         { value: 'reading' as const, label: '在读', count: readingCount, tone: 'reading' as const },
         { value: 'done' as const, label: '已读', count: doneCount, tone: 'done' as const },
       ]
+    : isDiary
+      ? [
+          { value: 'all' as const, label: '全部日记', count: posts.length },
+        ]
     : [
         { value: 'all' as const, label: '全部文章', count: posts.length },
         { value: 'published' as const, label: '已发布', count: publishedCount, tone: 'published' as const },
@@ -283,7 +295,7 @@ export default function PostDashboard({
 
   const isFiltered =
     statusFilter !== 'all' ||
-    (!isReadLater && selectedCategory !== null) ||
+    (!isReadLater && !isDiary && selectedCategory !== null) ||
     selectedTag !== null ||
     search.trim().length > 0
 
@@ -398,7 +410,7 @@ export default function PostDashboard({
           </div>
         </div>
 
-        {!isReadLater ? (
+        {!isReadLater && !isDiary ? (
           <div className="post-dashboard__filter-group">
             <span className="post-dashboard__filter-label">分类</span>
             <select
@@ -486,9 +498,9 @@ export default function PostDashboard({
             type="button"
             className="post-dashboard__new-btn"
             onClick={onNewPost}
-            title={isReadLater ? '新建待读 (N)' : '新建文章 (N)'}
+            title={isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : '新建文章 (N)'}
           >
-            {isReadLater ? '+ 新建待读' : '+ 新建文章'}
+            {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : '+ 新建文章'}
           </button>
         </div>
       </div>
@@ -511,7 +523,7 @@ export default function PostDashboard({
           <EmptyIllustration />
           {isFiltered ? (
             <>
-              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : '文章'}</p>
+              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : isDiary ? '日记' : '文章'}</p>
               <p className="post-dashboard__empty-desc">试试调整筛选条件，或清除搜索内容。</p>
               <button type="button" className="post-dashboard__empty-action" onClick={clearFilters}>
                 清除所有筛选
@@ -519,12 +531,12 @@ export default function PostDashboard({
             </>
           ) : (
             <>
-              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : '文章'}</p>
+              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : isDiary ? '日记' : '文章'}</p>
               <p className="post-dashboard__empty-desc">
-                {isReadLater ? '点击下方按钮保存第一条待读。' : '点击下方按钮创建你的第一篇草稿。'}
+                {isReadLater ? '点击下方按钮保存第一条待读。' : isDiary ? '点击下方按钮写下第一则日记。' : '点击下方按钮创建你的第一篇草稿。'}
               </p>
               <button type="button" className="post-dashboard__empty-action" onClick={onNewPost}>
-                {isReadLater ? '+ 新建待读' : '+ 新建文章'}
+                {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : '+ 新建文章'}
               </button>
             </>
           )}
@@ -534,8 +546,8 @@ export default function PostDashboard({
           {filteredPosts.map((post) => {
             const statusTone = getStatusTone(post, contentType)
             const statusLabel = getStatusLabel(post, contentType)
-            const primaryMeta = isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'
-            const secondaryMeta = isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'
+            const primaryMeta = isReadLater ? post.sourceName || '未填写来源' : isDiary ? post.tags[0] || '内部记录' : post.categories[0] || '未分类'
+            const secondaryMeta = isReadLater ? post.externalUrl || '未填写原文链接' : isDiary ? post.path.replace(/^source\/diary\//, '') : post.permalink || '—'
 
             return (
               <button
@@ -580,10 +592,10 @@ export default function PostDashboard({
             <div className="post-dashboard__list-header-main">
               <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : '分类'}</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : isDiary ? '标记' : '分类'}</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : '链接'}</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : isDiary ? '文件' : '链接'}</span>
             </div>
             {showQuickActions ? <span className="post-dashboard__list-col post-dashboard__list-col--actions">操作</span> : null}
           </div>
@@ -617,7 +629,7 @@ export default function PostDashboard({
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--category">
                     <span className="post-dashboard__card-category">
-                      {isReadLater ? post.sourceName || '未填写来源' : post.categories[0] || '未分类'}
+                      {isReadLater ? post.sourceName || '未填写来源' : isDiary ? post.tags[0] || '内部记录' : post.categories[0] || '未分类'}
                     </span>
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--tags">
@@ -636,7 +648,7 @@ export default function PostDashboard({
                     {post.date ? post.date.slice(0, 10) : '—'}
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--link">
-                    {isReadLater ? post.externalUrl || '未填写原文链接' : post.permalink || '—'}
+                    {isReadLater ? post.externalUrl || '未填写原文链接' : isDiary ? post.path.replace(/^source\/diary\//, '') : post.permalink || '—'}
                   </span>
                 </button>
                 {showQuickActions ? (
@@ -656,7 +668,7 @@ export default function PostDashboard({
                       className="post-list-item__delete-btn"
                       onClick={() => onDeletePost(post)}
                       disabled={isDeleting}
-                      aria-label={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
+                      aria-label={contentType === 'read-later' ? '删除待读条目' : contentType === 'diary' ? '删除日记' : '删除文章'}
                       title={`删除《${post.title}》`}
                     >
                       {isDeletingThisPost ? '删除中…' : '删除'}
@@ -671,7 +683,7 @@ export default function PostDashboard({
 
       {!isIndexing && filteredPosts.length > 0 ? (
         <p className="post-dashboard__count-note">
-          共 {filteredPosts.length} {isReadLater ? '条待读' : '篇文章'}
+          共 {filteredPosts.length} {isReadLater ? '条待读' : isDiary ? '篇日记' : '篇文章'}
           {filteredPosts.length !== posts.length ? `（全部 ${posts.length} ${isReadLater ? '条' : '篇'}）` : ''}
         </p>
       ) : null}

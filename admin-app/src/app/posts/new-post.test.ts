@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  createNewDiaryEntry,
   createNewPost,
   formatPostDate,
   formatPostTimestamp,
@@ -28,6 +29,17 @@ describe('new post helpers', () => {
       categories: [],
       tags: [],
     })
+  })
+
+  it('creates diary entries in the dedicated directory without requiring permalink', () => {
+    const diary = createNewDiaryEntry(fixedDate)
+
+    expect(diary.path).toBe('source/diary/20260403060708.md')
+    expect(diary.contentType).toBe('diary')
+    expect(diary.frontmatter.diary).toBe(true)
+    expect(diary.frontmatter.published).toBe(false)
+
+    expect(validatePostForSave(diary, { isNewPost: true }).permalink).toBeUndefined()
   })
 
   it('converts between stored post date and datetime input value', () => {

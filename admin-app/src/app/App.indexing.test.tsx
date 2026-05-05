@@ -57,6 +57,23 @@ const readLaterIndexedPosts: PostIndexItem[] = [
   },
 ]
 
+const diaryIndexedPosts: PostIndexItem[] = [
+  {
+    path: 'source/diary/20260505010101.md',
+    sha: 'sha-diary-1',
+    title: '五月第一则日记',
+    date: '2026-05-05 01:01:01',
+    desc: '记录最近的状态',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['记录'],
+    permalink: null,
+    cover: null,
+    contentType: 'diary',
+  },
+]
+
 function createDeferred<T>() {
   let resolve!: (value: T) => void
   const promise = new Promise<T>((nextResolve) => {
@@ -159,6 +176,24 @@ describe('App indexing flow', () => {
     const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
     expect(editor.value).toContain('Original body.')
     expect(fetchMarkdownFile).not.toHaveBeenCalled()
+  })
+
+  it('loads diary entries after switching content type', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(postsModule, 'buildDiaryIndex').mockResolvedValue(diaryIndexedPosts)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    })
   })
 
   it('toggles pinned from the dashboard list without opening the editor', async () => {

@@ -69,4 +69,32 @@ describe('serializePost', () => {
 
     expect(serializePost(post)).toContain('format: plaintxt')
   })
+
+  it('serializes diary posts with the diary marker and without permalink or categories', () => {
+    const diary: ParsedPost = {
+      path: 'source/diary/20260505010101.md',
+      sha: '',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      contentType: 'diary',
+      frontmatter: {
+        title: '五月记录',
+        date: '2026-05-05 01:01:01',
+        desc: '记录一下最近的状态',
+        published: false,
+        pinned: false,
+        categories: [],
+        tags: ['月初'],
+        diary: true,
+      },
+      body: '今天先记一笔。',
+    }
+
+    const output = serializePost(diary)
+
+    expect(output).toContain('diary: true')
+    expect(output).toContain('published: false')
+    expect(output).not.toContain('permalink:')
+    expect(output).not.toContain('categories:')
+  })
 })

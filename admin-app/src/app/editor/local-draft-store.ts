@@ -1,3 +1,4 @@
+import type { ContentType } from '../posts/post-types'
 import type { ParsedPost } from '../posts/parse-post'
 
 const LOCAL_DRAFT_STORAGE_PREFIX = 'alpaca-admin-local-draft:'
@@ -11,7 +12,7 @@ export type StoredLocalDraft = {
 
 export type LocalDraftSummary = {
   path: string
-  contentType: 'post' | 'read-later'
+  contentType: ContentType
   title: string
   updatedAt: string
   hasSavedBaseline: boolean
@@ -127,7 +128,12 @@ export function listLocalDraftSummaries(
 
     summaries.push({
       path,
-      contentType: draft.draftDocument.contentType === 'read-later' ? 'read-later' : 'post',
+      contentType:
+        draft.draftDocument.contentType === 'read-later'
+          ? 'read-later'
+          : draft.draftDocument.contentType === 'diary'
+            ? 'diary'
+            : 'post',
       title: draft.draftDocument.frontmatter.title.trim() || '未命名本地草稿',
       updatedAt: draft.updatedAt,
       hasSavedBaseline: Boolean(draft.savedDocument?.sha),

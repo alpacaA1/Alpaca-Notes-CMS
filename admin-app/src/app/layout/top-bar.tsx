@@ -1,4 +1,5 @@
 import type { Ref } from 'react'
+import type { ContentType } from '../posts/post-types'
 
 type AdminView = 'dashboard' | 'editor' | 'annotations'
 
@@ -18,9 +19,6 @@ function AlpacaLogo() {
     </svg>
   )
 }
-
-
-type ContentType = 'post' | 'read-later'
 
 type TopBarProps = {
   search: string
@@ -55,6 +53,7 @@ type TopBarProps = {
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
   { value: 'post', label: '文章', shortLabel: 'Post' },
+  { value: 'diary', label: '日记', shortLabel: 'Diary' },
   { value: 'read-later', label: '待读', shortLabel: 'Later' },
 ]
 
@@ -86,9 +85,9 @@ export default function TopBar({
   const titleText = isAnnotationsView
     ? '批注管理'
     : isDashboardLike
-      ? (contentType === 'read-later' ? '待读管理' : '文章管理')
+      ? (contentType === 'read-later' ? '待读管理' : contentType === 'diary' ? '日记管理' : '文章管理')
       : '内容编辑台'
-  const createLabel = contentType === 'read-later' ? '新建待读' : '新建文章'
+  const createLabel = contentType === 'read-later' ? '新建待读' : contentType === 'diary' ? '新建日记' : '新建文章'
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
   const showContentTypeSwitcher = isDashboardLike
@@ -97,7 +96,9 @@ export default function TopBar({
     ? '搜索摘录、批注、来源文章、来源或标签'
     : contentType === 'read-later'
       ? '搜索标题、摘要、正文、来源或原文链接'
-      : '搜索标题、摘要、正文、标签或链接'
+      : contentType === 'diary'
+        ? '搜索标题、摘要、正文或标签'
+        : '搜索标题、摘要、正文、标签或链接'
 
   return (
     <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>

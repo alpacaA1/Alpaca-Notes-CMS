@@ -2,10 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
+import type { ContentType } from '../posts/post-types'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
-
-type ContentType = 'post' | 'read-later'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 

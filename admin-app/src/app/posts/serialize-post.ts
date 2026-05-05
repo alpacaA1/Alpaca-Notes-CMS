@@ -9,13 +9,14 @@ function renderList(name: string, values: string[]) {
 }
 
 export function serializePost(post: ParsedPost): string {
+  const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const lines = [
     '---',
     `title: ${post.frontmatter.title}`,
     ...(post.frontmatter.format ? [`format: ${post.frontmatter.format}`] : []),
-    ...(post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
+    ...(!isDiary && post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
     ...(post.frontmatter.layout ? [`layout: ${post.frontmatter.layout}`] : []),
-    ...(post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
+    ...(!isDiary && post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
     `date: ${post.frontmatter.date}`,
     ...(post.frontmatter.read_later
       ? [
@@ -25,9 +26,18 @@ export function serializePost(post: ParsedPost): string {
           ...(post.frontmatter.source_name ? [`source_name: ${post.frontmatter.source_name}`] : []),
           ...(post.frontmatter.reading_status ? [`reading_status: ${post.frontmatter.reading_status}`] : []),
         ]
-      : [`published: ${post.hasExplicitPublished ? String(post.frontmatter.published) : 'true'}`]),
+      : [
+          ...(isDiary ? ['diary: true'] : []),
+          `published: ${
+            isDiary
+              ? 'false'
+              : post.hasExplicitPublished
+                ? String(post.frontmatter.published)
+                : 'true'
+          }`,
+        ]),
     ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
-    ...(post.frontmatter.read_later ? [] : [renderList('categories', post.frontmatter.categories)]),
+    ...(post.frontmatter.read_later || isDiary ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
     `desc: ${post.frontmatter.desc}`,
     '---',

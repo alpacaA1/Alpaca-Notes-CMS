@@ -32,16 +32,15 @@ import { importReadLaterFromUrl } from './read-later/import-client'
 import { parseReadLaterItem } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
-import { createNewPost } from './posts/new-post'
-import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
+import { createNewDiaryEntry, createNewPost } from './posts/new-post'
+import { buildDiaryIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
-import type { PostIndexItem } from './posts/post-types'
+import type { ContentType, PostIndexItem } from './posts/post-types'
 import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent } from './posts/taxonomy-operations'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
-type ContentType = 'post' | 'read-later'
 type IndexedPostsByType = Record<ContentType, PostIndexItem[]>
 type ReadLaterTab = 'info' | 'commentary'
 type ReadLaterAnnotationAction = 'highlight' | 'note'
@@ -66,7 +65,7 @@ const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function createEmptyIndexedPostsByType(): IndexedPostsByType {
-  return { post: [], 'read-later': [] }
+  return { post: [], diary: [], 'read-later': [] }
 }
 
 function createReadLaterAnnotationId() {
@@ -74,7 +73,35 @@ function createReadLaterAnnotationId() {
 }
 
 function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | Pick<ParsedPost, 'contentType'>): ContentType {
-  return post.contentType === 'read-later' ? 'read-later' : 'post'
+  if (post.contentType === 'read-later') {
+    return 'read-later'
+  }
+
+  if (post.contentType === 'diary') {
+    return 'diary'
+  }
+
+  return 'post'
+}
+
+function getContentTypeLabel(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '待读'
+  }
+
+  return contentType === 'diary' ? '日记' : '文章'
+}
+
+function getDeleteContentTypeLabel(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '待读条目'
+  }
+
+  return contentType === 'diary' ? '日记' : '文章'
+}
+
+function getContentCountUnit(contentType: ContentType) {
+  return contentType === 'read-later' ? '条' : '篇'
 }
 
 function normalizeUrlForComparison(value: string) {
@@ -138,7 +165,7 @@ function EmptyState({ error }: { error: string | null }) {
       <div className="hero-card__grid" />
       <p className="eyebrow">写作后台</p>
       <h1>内容编辑台</h1>
-      <p>请选择一篇文章开始编辑，或新建一篇草稿。</p>
+      <p>请选择一条内容开始编辑，或新建一篇草稿。</p>
       {error ? <p className="error-message">{error}</p> : null}
     </section>
   )
@@ -348,9 +375,12 @@ export default function App() {
       setIsIndexing(true)
 
       try {
-        const indexedPosts = indexedContentType === 'read-later'
-          ? await buildReadLaterIndex(session)
-          : await buildPostIndex(session)
+        const indexedPosts =
+          indexedContentType === 'read-later'
+            ? await buildReadLaterIndex(session)
+            : indexedContentType === 'diary'
+              ? await buildDiaryIndex(session)
+              : await buildPostIndex(session)
         if (!cancelled) {
           updatePostsForType(indexedContentType, () => indexedPosts)
         }
@@ -364,7 +394,7 @@ export default function App() {
           return
         }
 
-        setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '加载待读列表失败。' : '加载文章列表失败。')
+        setError(caughtError instanceof Error ? caughtError.message : `加载${getContentTypeLabel(indexedContentType)}列表失败。`)
       } finally {
         if (!cancelled) {
           setIsIndexing(false)
@@ -477,7 +507,13 @@ export default function App() {
       return
     }
 
-    openDocument(contentType === 'read-later' ? createNewReadLaterItem() : createNewPost())
+    openDocument(
+      contentType === 'read-later'
+        ? createNewReadLaterItem()
+        : contentType === 'diary'
+          ? createNewDiaryEntry()
+          : createNewPost(),
+    )
     setAdminView('editor')
   }
 
@@ -486,8 +522,9 @@ export default function App() {
       return
     }
 
+    const targetContentType = getContentTypeFromPostLike(post)
     const parseOpenedFile = (file: { path: string; sha: string; content: string }) =>
-      contentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
+      targetContentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
 
     setAdminView('editor')
     setSuccessMessage(null)
@@ -521,7 +558,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '打开待读失败。' : '打开文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : `打开${getContentTypeLabel(targetContentType)}失败。`)
     } finally {
       setIsOpeningPost(false)
     }
@@ -580,7 +617,7 @@ export default function App() {
       })
       removeLocalDraft(post.path)
 
-      const deletedContentType: ContentType = post.contentType === 'read-later' ? 'read-later' : 'post'
+      const deletedContentType = getContentTypeFromPostLike(post)
       updatePostsForType(deletedContentType, (currentPosts) =>
         currentPosts.filter((currentPost) => currentPost.path !== post.path),
       )
@@ -607,7 +644,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '删除待读失败。' : '删除文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : `删除${getContentTypeLabel(getContentTypeFromPostLike(post))}失败。`)
     } finally {
       setIsDeletingPost(false)
       setDeletingPostPath(null)
@@ -629,7 +666,7 @@ export default function App() {
 
     if (document?.path === post.path && !canNavigateAway) {
       setSuccessMessage(null)
-      setError(targetContentType === 'read-later' ? '当前待读有未保存的修改，请先保存后再置顶。' : '当前文章有未保存的修改，请先保存后再置顶。')
+      setError(`当前${getContentTypeLabel(targetContentType)}有未保存的修改，请先保存后再置顶。`)
       return
     }
 
@@ -700,7 +737,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : targetContentType === 'read-later' ? '更新待读置顶状态失败。' : '更新文章置顶状态失败。')
+      setError(caughtError instanceof Error ? caughtError.message : `更新${getContentTypeLabel(targetContentType)}置顶状态失败。`)
     } finally {
       setIsTogglingPinned(false)
       setTogglingPinnedPostPath(null)
@@ -722,7 +759,8 @@ export default function App() {
     setError(null)
 
     try {
-      const content = contentType === 'read-later' ? serializeReadLaterItem(document as ParsedReadLaterItem) : serializePost(document)
+      const targetContentType = getContentTypeFromPostLike(document)
+      const content = targetContentType === 'read-later' ? serializeReadLaterItem(document as ParsedReadLaterItem) : serializePost(document)
       const savedFile = await saveMarkdownFile(session, {
         path: document.path,
         sha: document.sha || undefined,
@@ -733,7 +771,7 @@ export default function App() {
         path: savedFile.path,
         sha: savedFile.sha,
       }
-      const savedPostIndexItem = contentType === 'read-later'
+      const savedPostIndexItem = targetContentType === 'read-later'
         ? parseReadLaterIndexItem({
             path: savedFile.path,
             sha: savedFile.sha,
@@ -747,7 +785,7 @@ export default function App() {
       markSaved(savedDocument)
       removeLocalDraft(savedFile.path)
       setActivePostPath(savedFile.path)
-      updatePostsForType(document.contentType, (currentPosts) =>
+      updatePostsForType(targetContentType, (currentPosts) =>
         sortPostIndex(
           [
             ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedFile.path),
@@ -768,7 +806,7 @@ export default function App() {
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : contentType === 'read-later' ? '保存待读失败。' : '保存文章失败。')
+      setError(caughtError instanceof Error ? caughtError.message : `保存${getContentTypeLabel(getContentTypeFromPostLike(document))}失败。`)
     } finally {
       setIsSaving(false)
     }
@@ -1127,7 +1165,7 @@ export default function App() {
       return
     }
 
-    const nextContentType = storedDraft.draftDocument.contentType === 'read-later' ? 'read-later' : 'post'
+    const nextContentType = getContentTypeFromPostLike(storedDraft.draftDocument)
     setContentType(nextContentType)
     openDocument(storedDraft.savedDocument || storedDraft.draftDocument, {
       draftPost: storedDraft.draftDocument,
@@ -1202,6 +1240,8 @@ export default function App() {
 
     try {
       const { affectedPaths } = taxonomyConfirm
+      const targetContentLabel = getContentTypeLabel(contentType)
+      const targetCountUnit = getContentCountUnit(contentType)
 
       if (taxonomyConfirm.kind === 'rename') {
         const { type, oldName, newName } = taxonomyConfirm
@@ -1210,7 +1250,7 @@ export default function App() {
           affectedPaths,
           `Rename ${type} "${oldName}" to "${newName}"`,
           (content) => renameTaxonomyInContent(content, type, oldName, newName),
-          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} ${targetCountUnit}${targetContentLabel}…`),
         )
 
         // Update current document's frontmatter if it contains the old name
@@ -1225,7 +1265,7 @@ export default function App() {
         }
 
         if (result.failed.length > 0) {
-          setError(`重命名完成，但 ${result.failed.length} 篇文章更新失败。`)
+          setError(`重命名完成，但 ${result.failed.length} ${targetCountUnit}${targetContentLabel}更新失败。`)
         } else {
           setSuccessMessage(`已将${TAXONOMY_LABELS[type]}「${oldName}」重命名为「${newName}」。`)
         }
@@ -1236,7 +1276,7 @@ export default function App() {
           affectedPaths,
           `Delete ${type} "${name}"`,
           (content) => deleteTaxonomyFromContent(content, type, name),
-          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+          (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} ${targetCountUnit}${targetContentLabel}…`),
         )
 
         // Update current document's frontmatter if it contains the deleted name
@@ -1251,17 +1291,20 @@ export default function App() {
         }
 
         if (result.failed.length > 0) {
-          setError(`删除完成，但 ${result.failed.length} 篇文章更新失败。`)
+          setError(`删除完成，但 ${result.failed.length} ${targetCountUnit}${targetContentLabel}更新失败。`)
         } else {
-          setSuccessMessage(`已从所有文章中删除${TAXONOMY_LABELS[type]}「${name}」。`)
+          setSuccessMessage(`已从所有${targetContentLabel}中删除${TAXONOMY_LABELS[type]}「${name}」。`)
         }
       }
 
       // Refresh post index to reflect the changes
       try {
-        const indexedPosts = contentType === 'read-later'
-          ? await buildReadLaterIndex(session)
-          : await buildPostIndex(session)
+        const indexedPosts =
+          contentType === 'read-later'
+            ? await buildReadLaterIndex(session)
+            : contentType === 'diary'
+              ? await buildDiaryIndex(session)
+              : await buildPostIndex(session)
         updatePostsForType(contentType, () => indexedPosts)
       } catch {
         // If re-indexing fails, the UI still reflects the old data but the operation succeeded
@@ -1290,16 +1333,17 @@ export default function App() {
   const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating || isTogglingPinned
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
-  const indexedLabel = contentType === 'read-later' ? '待读' : '文章'
-  const loadingLabel = contentType === 'read-later' ? '正在加载待读…' : '正在加载文章…'
+  const indexedLabel = getContentTypeLabel(contentType)
+  const indexedCountUnit = getContentCountUnit(contentType)
+  const loadingLabel = `正在加载${indexedLabel}…`
   const showIndexLoading = isIndexing && posts.length === 0
 
   const status = adminView === 'dashboard'
     ? isIndexing
       ? posts.length > 0
-        ? `正在刷新${indexedLabel}… · 共 ${posts.length} 篇${indexedLabel}`
+        ? `正在刷新${indexedLabel}… · 共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
         : loadingLabel
-      : `共 ${posts.length} 篇${indexedLabel}`
+      : `共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
     : adminView === 'annotations'
       ? isAnnotationIndexing
         ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
@@ -1513,7 +1557,7 @@ export default function App() {
               ) : isOpeningPost ? (
                 <section className="hero-card">
                   <div className="hero-card__grid" />
-                  <p>{contentType === 'read-later' ? '正在加载待读…' : '正在加载文章…'}</p>
+                  <p>{loadingLabel}</p>
                 </section>
               ) : (
                 <EmptyState error={error} />
@@ -1558,8 +1602,8 @@ export default function App() {
           }
           message={
             taxonomyConfirm.kind === 'rename'
-              ? `确定将${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.oldName}」重命名为「${taxonomyConfirm.newName}」吗？这将修改 ${taxonomyConfirm.affectedPaths.length} 篇文章。`
-              : `确定删除${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.name}」吗？这将从 ${taxonomyConfirm.affectedPaths.length} 篇文章中移除该${TAXONOMY_LABELS[taxonomyConfirm.type]}。`
+              ? `确定将${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.oldName}」重命名为「${taxonomyConfirm.newName}」吗？这将修改 ${taxonomyConfirm.affectedPaths.length} ${indexedCountUnit}${indexedLabel}。`
+              : `确定删除${TAXONOMY_LABELS[taxonomyConfirm.type]}「${taxonomyConfirm.name}」吗？这将从 ${taxonomyConfirm.affectedPaths.length} ${indexedCountUnit}${indexedLabel}中移除该${TAXONOMY_LABELS[taxonomyConfirm.type]}。`
           }
           confirmLabel={taxonomyConfirm.kind === 'rename' ? '确认重命名' : '确认删除'}
           isDangerous={taxonomyConfirm.kind === 'delete'}
@@ -1571,7 +1615,7 @@ export default function App() {
       ) : null}
       {postDeleteConfirm ? (
         <ConfirmDialog
-          title={contentType === 'read-later' ? '删除待读条目' : '删除文章'}
+          title={`删除${getDeleteContentTypeLabel(getContentTypeFromPostLike(postDeleteConfirm.post))}`}
           message={`确定删除《${postDeleteConfirm.post.title}》吗？该操作会直接删除仓库中的 Markdown 文件，且不可恢复。`}
           confirmLabel="确认删除"
           isDangerous

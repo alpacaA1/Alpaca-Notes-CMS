@@ -1,6 +1,7 @@
-import { fetchPostFile, listPostFiles, readCachedMarkdownFile } from '../github-client'
+import { DIARY_PATH } from '../config'
+import { fetchPostFile, listDiaryFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
 import type { SessionState } from '../session'
-import type { PostIndexItem, PostIndexView } from './post-types'
+import type { ContentType, PostIndexItem, PostIndexView } from './post-types'
 
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
@@ -48,6 +49,14 @@ function normalizeSearchText(value: string) {
 export function parsePostIndexItem(input: { path: string; sha: string; content: string }): PostIndexItem {
   const frontmatterMatch = input.content.match(/^---\n([\s\S]*?)\n---/)
   const frontmatter = frontmatterMatch?.[1] || ''
+  const readLaterRaw = readScalar(frontmatter, 'read_later')
+  const diaryRaw = readScalar(frontmatter, 'diary')
+  const contentType: ContentType =
+    readLaterRaw === 'true'
+      ? 'read-later'
+      : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
+        ? 'diary'
+        : 'post'
   const title = readScalar(frontmatter, 'title') || input.path.split('/').pop() || input.path
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
@@ -74,7 +83,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     title,
     date,
     desc,
-    published: publishedRaw === null ? true : publishedRaw === 'true',
+    published: publishedRaw === null ? contentType !== 'diary' : publishedRaw === 'true',
     pinned: pinnedRaw === 'true',
     hasExplicitPublished: publishedRaw !== null,
     categories,
@@ -82,11 +91,21 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     permalink: permalink ? permalink : null,
     cover: cover ? cover : null,
     searchText,
+    contentType,
   }
 }
 
 export async function buildPostIndex(session: SessionState): Promise<PostIndexItem[]> {
   const files = await listPostFiles(session)
+  const posts = await Promise.all(
+    files.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
+  )
+
+  return sortPostIndex(posts, 'date-desc')
+}
+
+export async function buildDiaryIndex(session: SessionState): Promise<PostIndexItem[]> {
+  const files = await listDiaryFiles(session)
   const posts = await Promise.all(
     files.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
   )

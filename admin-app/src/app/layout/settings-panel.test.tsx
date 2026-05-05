@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SettingsPanel from './settings-panel'
-import { createNewPost } from '../posts/new-post'
+import { createNewDiaryEntry, createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
-import type { PostValidationErrors } from '../posts/post-types'
+import type { ContentType, PostValidationErrors } from '../posts/post-types'
 import { createNewReadLaterItem, createReadLaterBody } from '../read-later/new-item'
 
 const annotation = {
@@ -49,7 +49,7 @@ type RenderSettingsPanelOptions = {
   validationErrors?: PostValidationErrors
   availableCategories?: string[]
   availableTags?: string[]
-  contentType?: 'post' | 'read-later'
+  contentType?: ContentType
 }
 
 function renderControlledSettingsPanel({
@@ -182,6 +182,27 @@ describe('settings panel', () => {
     )
 
     expect(screen.getByText('永久链接请填写站内相对路径，例如 zhenai/。')).toBeTruthy()
+  })
+
+  it('renders a simplified diary settings panel', () => {
+    const { onFieldChange } = renderControlledSettingsPanel({
+      document: createNewDiaryEntry(new Date(2026, 4, 5, 1, 1, 1)),
+      contentType: 'diary',
+    })
+
+    expect(screen.getByText('日记设置')).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
+    expect(screen.queryByText('分类')).toBeNull()
+    expect(screen.queryByLabelText('永久链接')).toBeNull()
+    expect(screen.queryByLabelText('封面图')).toBeNull()
+
+    fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
+    fireEvent.click(screen.getByRole('button', { name: '选择标签' }))
+    fireEvent.click(screen.getByRole('option', { name: '记录' }))
+
+    expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
+    expect(onFieldChange).toHaveBeenCalledWith('tags', ['记录'])
   })
 
   it('renders read-later settings and updates external metadata fields', () => {

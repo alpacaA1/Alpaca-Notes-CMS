@@ -1,3 +1,6 @@
+import { DIARY_PATH } from '../config'
+import type { ContentType } from './post-types'
+
 export type ReadingStatus = 'unread' | 'reading' | 'done'
 
 export type ReadLaterSectionKey = 'articleExcerpt' | 'summary' | 'commentary'
@@ -29,6 +32,7 @@ export type PostFrontmatter = {
   reading_status?: ReadingStatus
   reader_annotations?: string[]
   read_later?: boolean
+  diary?: boolean
   nav_exclude?: boolean
   layout?: string
 }
@@ -40,7 +44,7 @@ export type ParsedPost = {
   body: string
   hasExplicitPublished: boolean
   hasExplicitPermalink: boolean
-  contentType?: 'post' | 'read-later'
+  contentType?: ContentType
   annotations?: ReaderAnnotation[]
 }
 
@@ -85,8 +89,15 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const readingStatusRaw = readScalar(frontmatterBlock, 'reading_status')
   const readerAnnotationsRaw = readList(frontmatterBlock, 'reader_annotations')
   const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
+  const diaryRaw = readScalar(frontmatterBlock, 'diary')
   const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
   const layoutRaw = readScalar(frontmatterBlock, 'layout')
+  const contentType: ContentType =
+    readLaterRaw === 'true'
+      ? 'read-later'
+      : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
+        ? 'diary'
+        : 'post'
 
   return {
     path: input.path,
@@ -94,13 +105,13 @@ export function parsePost(input: { path: string; sha: string; content: string })
     body,
     hasExplicitPublished: publishedRaw !== null,
     hasExplicitPermalink: permalinkRaw !== null && permalinkRaw !== '',
-    contentType: readLaterRaw === 'true' ? 'read-later' : 'post',
+    contentType,
     frontmatter: {
       title: readScalar(frontmatterBlock, 'title') || '',
       date: readScalar(frontmatterBlock, 'date') || '',
       desc: readScalar(frontmatterBlock, 'desc') || '',
       ...(formatRaw && formatRaw.length > 0 ? { format: formatRaw } : {}),
-      published: publishedRaw === null ? true : publishedRaw === 'true',
+      published: publishedRaw === null ? contentType !== 'diary' : publishedRaw === 'true',
       pinned: pinnedRaw === 'true',
       categories: readList(frontmatterBlock, 'categories'),
       tags: readList(frontmatterBlock, 'tags'),
@@ -113,6 +124,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
         : {}),
       ...(readerAnnotationsRaw.length > 0 ? { reader_annotations: readerAnnotationsRaw } : {}),
       ...(readLaterRaw === 'true' ? { read_later: true } : {}),
+      ...(contentType === 'diary' ? { diary: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),
     },

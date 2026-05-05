@@ -98,4 +98,25 @@ Body`,
 
     expect(parsed.frontmatter.format).toBe('plaintxt')
   })
+
+  it('detects diary entries and keeps them unpublished by default', () => {
+    const parsed = parsePost({
+      path: 'source/diary/20260505010101.md',
+      sha: 'sha-diary',
+      content: `---
+title: 五月记录
+diary: true
+date: 2026-05-05 01:01:01
+tags:
+  - 月初
+desc: 记录一下最近的状态
+---
+
+今天先记一笔。`,
+    })
+
+    expect(parsed.contentType).toBe('diary')
+    expect(parsed.frontmatter.diary).toBe(true)
+    expect(parsed.frontmatter.published).toBe(false)
+  })
 })

@@ -1,3 +1,4 @@
+import { DIARY_PATH } from '../config'
 import type { ParsedPost } from './parse-post'
 import type { PostValidationErrors } from './post-types'
 
@@ -65,10 +66,32 @@ export function createNewPost(date = new Date()): ParsedPost {
   }
 }
 
+export function createNewDiaryEntry(date = new Date()): ParsedPost {
+  return {
+    path: `${DIARY_PATH}/${formatPostTimestamp(date)}.md`,
+    sha: '',
+    body: '',
+    hasExplicitPublished: true,
+    hasExplicitPermalink: false,
+    contentType: 'diary',
+    frontmatter: {
+      title: '',
+      date: formatPostDate(date),
+      desc: '',
+      published: false,
+      pinned: false,
+      categories: [],
+      tags: [],
+      diary: true,
+    },
+  }
+}
+
 export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: boolean }): PostValidationErrors {
   const errors: PostValidationErrors = {}
   const permalink = post.frontmatter.permalink?.trim() || ''
   const isReadLater = post.frontmatter.read_later === true || post.contentType === 'read-later'
+  const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
 
   if (!post.frontmatter.title.trim()) {
     errors.title = '请填写标题。'
@@ -89,6 +112,10 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     } else if (!/^https?:\/\//i.test(externalUrl)) {
       errors.external_url = '原文链接需以 http:// 或 https:// 开头。'
     }
+    return errors
+  }
+
+  if (isDiary) {
     return errors
   }
 

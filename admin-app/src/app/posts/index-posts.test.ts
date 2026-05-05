@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as githubClientModule from '../github-client'
-import { buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
+import { buildDiaryIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
 const legacyPost = parsePostIndexItem({
@@ -140,6 +140,26 @@ Body`,
     expect(parsed.tags).toEqual(['产品'])
   })
 
+  it('detects diary entries and keeps them as unpublished internal content', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/diary/20260505010101.md',
+      sha: 'diary-sha',
+      content: `---
+title: 五月记录
+diary: true
+date: 2026-05-05 01:01:01
+tags:
+  - 记录
+desc: 最近的状态
+---
+
+今天先记一笔。`,
+    })
+
+    expect(parsed.contentType).toBe('diary')
+    expect(parsed.published).toBe(false)
+  })
+
   it('builds the index from sha-matched cached markdown without refetching files', async () => {
     const cachedContent = `---
 title: Cached post
@@ -220,5 +240,31 @@ Body`
 
     expect(fetchPostFile).toHaveBeenCalledWith({ token: 'token' }, 'source/_posts/stale.md')
     expect(indexed.map((post) => post.title)).toEqual(['Fresh post'])
+  })
+
+  it('builds the diary index from the dedicated directory', async () => {
+    vi.spyOn(githubClientModule, 'listDiaryFiles').mockResolvedValue([
+      { path: 'source/diary/20260505010101.md', sha: 'diary-sha', name: '20260505010101.md', type: 'file' },
+    ])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: 'source/diary/20260505010101.md',
+      sha: 'diary-sha',
+      content: `---
+title: 五月记录
+diary: true
+date: 2026-05-05 01:01:01
+published: false
+tags:
+  - 记录
+desc: 最近的状态
+---
+
+今天先记一笔。`,
+    })
+
+    const indexed = await buildDiaryIndex({ token: 'token' })
+
+    expect(indexed[0]?.contentType).toBe('diary')
+    expect(indexed[0]?.title).toBe('五月记录')
   })
 })
