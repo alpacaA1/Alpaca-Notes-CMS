@@ -65,7 +65,6 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 ]
 
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
-const DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP = 8
 
 function readStoredViewMode(): DashboardViewMode {
   try {
@@ -190,55 +189,6 @@ function KnowledgeCard({
   post: PostIndexItem
   onOpenPost: (post: PostIndexItem) => void
 }) {
-  const bodyRef = useRef<HTMLDivElement>(null)
-  const contentRef = useRef<HTMLParagraphElement>(null)
-  const [lineClamp, setLineClamp] = useState(DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP)
-
-  useEffect(() => {
-    const bodyElement = bodyRef.current
-    if (!bodyElement) {
-      return
-    }
-
-    const updateLineClamp = () => {
-      const nextBodyElement = bodyRef.current
-      if (!nextBodyElement) {
-        return
-      }
-
-      const contentElement = contentRef.current
-      const styles = window.getComputedStyle(contentElement || nextBodyElement)
-      const fontSize = Number.parseFloat(styles.fontSize) || 16
-      const lineHeight = Number.parseFloat(styles.lineHeight) || fontSize * 1.8
-      const availableHeight = nextBodyElement.clientHeight
-
-      if (availableHeight <= 0 || lineHeight <= 0) {
-        setLineClamp(DEFAULT_KNOWLEDGE_CARD_LINE_CLAMP)
-        return
-      }
-
-      setLineClamp(Math.max(1, Math.floor(availableHeight / lineHeight)))
-    }
-
-    updateLineClamp()
-
-    if (typeof ResizeObserver !== 'undefined') {
-      const resizeObserver = new ResizeObserver(() => {
-        updateLineClamp()
-      })
-      resizeObserver.observe(bodyElement)
-
-      return () => {
-        resizeObserver.disconnect()
-      }
-    }
-
-    window.addEventListener('resize', updateLineClamp)
-    return () => {
-      window.removeEventListener('resize', updateLineClamp)
-    }
-  }, [post.path])
-
   return (
     <button
       type="button"
@@ -246,8 +196,8 @@ function KnowledgeCard({
       onClick={() => onOpenPost(post)}
     >
       <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
-      <div className="post-dashboard__knowledge-card-body" ref={bodyRef}>
-        <p ref={contentRef} className="post-dashboard__knowledge-card-content" style={{ WebkitLineClamp: lineClamp }}>
+      <div className="post-dashboard__knowledge-card-body">
+        <p className="post-dashboard__knowledge-card-content">
           {getKnowledgeCardContent(post)}
         </p>
       </div>
