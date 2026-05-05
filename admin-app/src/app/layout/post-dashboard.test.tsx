@@ -16,6 +16,7 @@ const posts: PostIndexItem[] = [
     categories: ['思考'],
     tags: ['记录'],
     permalink: 'why-start-this-blog/',
+    cover: null,
   },
 ]
 
@@ -97,5 +98,29 @@ describe('post dashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '删除待读条目' }))
     expect(onDeletePost).toHaveBeenCalledWith(readLaterPosts[0])
+  })
+
+  it('renders keyboard hints in the stats row and highlights pinned posts in list view', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    const pinnedPost = { ...posts[0], path: 'source/_posts/pinned.md', pinned: true, title: '置顶文章' }
+    const { container } = render(
+      <PostDashboard
+        posts={[pinnedPost]}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    const kbdHints = screen.getByLabelText('快捷键')
+    expect(kbdHints.closest('.post-dashboard__stats-bar')).toBeTruthy()
+
+    const pinnedRow = container.querySelector('.post-dashboard__list-row--pinned')
+    expect(pinnedRow).toBeTruthy()
+    expect(pinnedRow?.querySelector('.post-dashboard__pin-mark')?.textContent).toBe('置顶')
   })
 })

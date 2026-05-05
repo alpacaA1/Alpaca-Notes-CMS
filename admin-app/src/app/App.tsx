@@ -1396,7 +1396,7 @@ export default function App() {
         />
       ) : null}
       {isDashboard ? (
-        <>
+        <section className="admin-shell__viewport">
           {successMessage ? <p className="success-message">{successMessage}</p> : null}
           {error ? <p className="error-message">{error}</p> : null}
           <PostDashboard
@@ -1420,9 +1420,9 @@ export default function App() {
             onTogglePinned={handleTogglePinned}
             onSearchFocus={() => searchInputRef.current?.focus()}
           />
-        </>
+        </section>
       ) : isAnnotationsView ? (
-        <>
+        <section className="admin-shell__viewport">
           {successMessage ? <p className="success-message">{successMessage}</p> : null}
           {error ? <p className="error-message">{error}</p> : null}
           <ReadLaterAnnotationsView
@@ -1432,7 +1432,7 @@ export default function App() {
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
           />
-        </>
+        </section>
       ) : (
         <div className={`admin-layout${isReadLaterPreview ? ' admin-layout--reader' : ''}`}>
           <PostListPane

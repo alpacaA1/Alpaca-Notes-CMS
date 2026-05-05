@@ -353,24 +353,32 @@ export default function PostDashboard({
         </section>
       ) : null}
 
-      <div className="post-dashboard__stats">
-        {statCards.map((card) => (
-          <button
-            key={card.value}
-            type="button"
-            className={`post-dashboard__stat-card${card.tone ? ` post-dashboard__stat-card--${card.tone}` : ''}${statusFilter === card.value ? ' post-dashboard__stat-card--active' : ''}`}
-            onClick={() => {
-              setStatusFilter(statusFilter === card.value && card.value !== 'all' ? 'all' : card.value)
-              if (card.value === 'all') {
-                setSelectedCategory(null)
-                setSelectedTag(null)
-              }
-            }}
-          >
-            <span className="post-dashboard__stat-value">{card.count}</span>
-            <span className="post-dashboard__stat-label">{card.label}</span>
-          </button>
-        ))}
+      <div className="post-dashboard__stats-bar">
+        <div className="post-dashboard__stats">
+          {statCards.map((card) => (
+            <button
+              key={card.value}
+              type="button"
+              className={`post-dashboard__stat-card${card.tone ? ` post-dashboard__stat-card--${card.tone}` : ''}${statusFilter === card.value ? ' post-dashboard__stat-card--active' : ''}`}
+              onClick={() => {
+                setStatusFilter(statusFilter === card.value && card.value !== 'all' ? 'all' : card.value)
+                if (card.value === 'all') {
+                  setSelectedCategory(null)
+                  setSelectedTag(null)
+                }
+              }}
+            >
+              <span className="post-dashboard__stat-value">{card.count}</span>
+              <span className="post-dashboard__stat-label">{card.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="post-dashboard__kbd-hints" aria-label="快捷键">
+          <span><kbd>N</kbd> 新建</span>
+          <span><kbd>/</kbd> 搜索</span>
+          <span><kbd>G</kbd> 切换视图</span>
+        </div>
       </div>
 
       <div className="post-dashboard__toolbar">
@@ -485,12 +493,6 @@ export default function PostDashboard({
         </div>
       </div>
 
-      <div className="post-dashboard__kbd-hints">
-        <span><kbd>N</kbd> 新建</span>
-        <span><kbd>/</kbd> 搜索</span>
-        <span><kbd>G</kbd> 切换视图</span>
-      </div>
-
       {isIndexing ? (
         <div className="post-dashboard__loading">
           <div className="post-dashboard__skeleton-grid">
@@ -539,16 +541,19 @@ export default function PostDashboard({
               <button
                 key={post.path}
                 type="button"
-                className="post-dashboard__card"
+                className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
                 onClick={() => onOpenPost(post)}
               >
                 {post.cover ? (
                   <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
                 ) : null}
                 <div className="post-dashboard__card-top">
-                  <span className={`post-status-badge post-status-badge--${statusTone}`}>
-                    {statusLabel}
-                  </span>
+                  <div className="post-dashboard__card-badges">
+                    <span className={`post-status-badge post-status-badge--${statusTone}`}>
+                      {statusLabel}
+                    </span>
+                    {post.pinned ? <span className="post-dashboard__pin-mark">置顶</span> : null}
+                  </div>
                   <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
                 </div>
                 <h3 className="post-dashboard__card-title">{post.title}</h3>
@@ -592,7 +597,7 @@ export default function PostDashboard({
             return (
               <div
                 key={post.path}
-                className={`post-dashboard__list-row${showQuickActions ? ' post-dashboard__list-row--with-actions' : ''}`}
+                className={`post-dashboard__list-row${showQuickActions ? ' post-dashboard__list-row--with-actions' : ''}${post.pinned ? ' post-dashboard__list-row--pinned' : ''}`}
               >
                 <button
                   type="button"
@@ -604,7 +609,10 @@ export default function PostDashboard({
                     <span className="post-dashboard__list-status-text">{statusLabel}</span>
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--title">
-                    <strong>{post.title}</strong>
+                    <span className="post-dashboard__list-title-line">
+                      <strong>{post.title}</strong>
+                      {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
+                    </span>
                     {post.desc ? <span className="post-dashboard__list-desc">{post.desc}</span> : null}
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--category">
