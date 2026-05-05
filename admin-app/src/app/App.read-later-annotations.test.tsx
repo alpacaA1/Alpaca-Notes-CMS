@@ -226,6 +226,8 @@ describe('App read-later annotations view', () => {
     expect(screen.getByText('交互上的提醒')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '收起文章栏' }))
+    expect(articleRail.textContent?.trim()).toBe('')
+    expect(within(articleRail).queryByRole('button', { name: /设计研究 B/ })).toBeNull()
     expect(screen.getByRole('button', { name: '展开文章栏' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '展开文章栏' }))
     expect(screen.getByRole('button', { name: '收起文章栏' })).toBeTruthy()

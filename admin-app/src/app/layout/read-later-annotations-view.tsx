@@ -351,8 +351,8 @@ export default function ReadLaterAnnotationsView({
             className={`annotation-dashboard__source-rail${isSourceRailCollapsed ? ' is-collapsed' : ''}`}
             aria-label="批注文章列表"
           >
-            <div className="annotation-dashboard__source-rail-header">
-              <span className="annotation-dashboard__source-rail-title">{isSourceRailCollapsed ? '文' : '文章'}</span>
+            <div className={`annotation-dashboard__source-rail-header${isSourceRailCollapsed ? ' is-collapsed' : ''}`}>
+              {!isSourceRailCollapsed ? <span className="annotation-dashboard__source-rail-title">文章</span> : null}
               <button
                 type="button"
                 className="annotation-dashboard__source-rail-toggle"
@@ -366,13 +366,7 @@ export default function ReadLaterAnnotationsView({
               </button>
             </div>
 
-            {isSourceRailCollapsed ? (
-              <div className="annotation-dashboard__source-rail-collapsed">
-                <span className="annotation-dashboard__source-rail-collapsed-text" title={selectedSourceOption?.label || '全部文章'}>
-                  {selectedSourceOption?.label?.slice(0, 2) || '全部'}
-                </span>
-              </div>
-            ) : (
+            {!isSourceRailCollapsed ? (
               <div className="annotation-dashboard__source-rail-body">
                 <button
                   type="button"
@@ -399,7 +393,7 @@ export default function ReadLaterAnnotationsView({
                   ))}
                 </div>
               </div>
-            )}
+            ) : null}
           </aside>
 
           {sortedAnnotations.length > 0 ? (

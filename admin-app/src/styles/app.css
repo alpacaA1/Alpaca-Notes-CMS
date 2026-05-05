@@ -4523,7 +4523,7 @@ textarea {
 }
 
 .annotation-dashboard__content--rail-collapsed {
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
 }
 
 .annotation-dashboard__source-rail {
@@ -4540,7 +4540,7 @@ textarea {
 }
 
 .annotation-dashboard__source-rail.is-collapsed {
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto;
 }
 
 .annotation-dashboard__source-rail-header {
@@ -4550,6 +4550,12 @@ textarea {
   gap: 8px;
   padding: 10px 10px 8px;
   border-bottom: 1px solid rgba(64, 58, 51, 0.06);
+}
+
+.annotation-dashboard__source-rail-header.is-collapsed {
+  justify-content: center;
+  padding: 10px 6px;
+  border-bottom: 0;
 }
 
 .annotation-dashboard__source-rail-title {
@@ -4604,6 +4610,8 @@ textarea {
 
 .annotation-dashboard__source-item-list {
   overflow-y: auto;
+  align-content: start;
+  grid-auto-rows: min-content;
   padding-right: 2px;
 }
 
@@ -4663,20 +4671,6 @@ textarea {
   color: var(--admin-soft);
   font-size: 0.72rem;
   font-weight: 700;
-}
-
-.annotation-dashboard__source-rail-collapsed {
-  display: grid;
-  place-items: center;
-  padding: 10px 6px 12px;
-}
-
-.annotation-dashboard__source-rail-collapsed-text {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  color: var(--admin-soft);
-  font-size: 0.78rem;
-  letter-spacing: 0.08em;
 }
 
 .annotation-dashboard__card {
@@ -5208,14 +5202,6 @@ textarea {
     max-width: min(100vw, 540px);
   }
 
-  .annotation-dashboard__source-rail.is-collapsed .annotation-dashboard__source-rail-collapsed {
-    place-items: start;
-    padding: 0 10px 10px;
-  }
-
-  .annotation-dashboard__source-rail-collapsed-text {
-    writing-mode: initial;
-  }
 }
 
 @media (max-width: 720px) {
