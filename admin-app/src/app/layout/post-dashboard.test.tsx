@@ -187,5 +187,30 @@ describe('post dashboard', () => {
     expect(screen.getByText('2026-05-05')).toBeTruthy()
     expect(screen.queryByText('系统复用')).toBeNull()
     expect(screen.queryByText('一篇关于系统设计的文章')).toBeNull()
+    expect(screen.getAllByRole('button', { name: '删除知识点' })).toHaveLength(2)
+  })
+
+  it('does not open the knowledge card when the delete icon is clicked', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    const onOpenPost = vi.fn()
+    const onDeletePost = vi.fn()
+
+    render(
+      <PostDashboard
+        posts={knowledgePosts}
+        search=""
+        isIndexing={false}
+        contentType="knowledge"
+        onOpenPost={onOpenPost}
+        onNewPost={vi.fn()}
+        onDeletePost={onDeletePost}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getAllByRole('button', { name: '删除知识点' })[0])
+
+    expect(onDeletePost).toHaveBeenCalledWith(knowledgePosts[0])
+    expect(onOpenPost).not.toHaveBeenCalled()
   })
 })

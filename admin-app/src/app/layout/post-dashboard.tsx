@@ -127,6 +127,22 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
   return pinned ? '取消置顶文章' : '置顶文章'
 }
 
+function getDeleteActionLabel(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '删除待读条目'
+  }
+
+  if (contentType === 'diary') {
+    return '删除日记'
+  }
+
+  if (contentType === 'knowledge') {
+    return '删除知识点'
+  }
+
+  return '删除文章'
+}
+
 function GridIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -144,6 +160,19 @@ function ListIcon() {
       <rect x="1" y="2" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="7" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="12" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function DeleteIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2.5 4h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M6 2.5h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M5 6.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 6.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11 6.5v5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M4 4l.45 7.2A1.5 1.5 0 0 0 5.95 12.6h4.1a1.5 1.5 0 0 0 1.5-1.4L12 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -184,24 +213,40 @@ function getKnowledgeCardContent(post: PostIndexItem) {
 
 function KnowledgeCard({
   post,
+  isDeleting,
   onOpenPost,
+  onDeletePost,
 }: {
   post: PostIndexItem
+  isDeleting: boolean
   onOpenPost: (post: PostIndexItem) => void
+  onDeletePost: (post: PostIndexItem) => void
 }) {
   return (
-    <button
-      type="button"
-      className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
-      onClick={() => onOpenPost(post)}
-    >
-      <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
-      <div className="post-dashboard__knowledge-card-body">
-        <p className="post-dashboard__knowledge-card-content">
-          {getKnowledgeCardContent(post)}
-        </p>
-      </div>
-    </button>
+    <article className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}>
+      <button
+        type="button"
+        className="post-dashboard__knowledge-card-main"
+        onClick={() => onOpenPost(post)}
+      >
+        <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
+        <div className="post-dashboard__knowledge-card-body">
+          <p className="post-dashboard__knowledge-card-content">
+            {getKnowledgeCardContent(post)}
+          </p>
+        </div>
+      </button>
+      <button
+        type="button"
+        className={`post-dashboard__knowledge-card-delete${isDeleting ? ' is-loading' : ''}`}
+        onClick={() => onDeletePost(post)}
+        disabled={isDeleting}
+        aria-label={getDeleteActionLabel('knowledge')}
+        title={isDeleting ? `正在删除《${post.title}》` : `删除《${post.title}》`}
+      >
+        <DeleteIcon />
+      </button>
+    </article>
   )
 }
 
@@ -615,7 +660,13 @@ export default function PostDashboard({
           {filteredPosts.map((post) => {
             if (isKnowledge) {
               return (
-                <KnowledgeCard key={post.path} post={post} onOpenPost={onOpenPost} />
+                <KnowledgeCard
+                  key={post.path}
+                  post={post}
+                  isDeleting={deletingPostPath === post.path}
+                  onOpenPost={onOpenPost}
+                  onDeletePost={onDeletePost}
+                />
               )
             }
 
@@ -761,7 +812,7 @@ export default function PostDashboard({
                       className="post-list-item__delete-btn"
                       onClick={() => onDeletePost(post)}
                       disabled={isDeleting}
-                      aria-label={contentType === 'read-later' ? '删除待读条目' : contentType === 'diary' ? '删除日记' : contentType === 'knowledge' ? '删除知识点' : '删除文章'}
+                      aria-label={getDeleteActionLabel(contentType)}
                       title={`删除《${post.title}》`}
                     >
                       {isDeletingThisPost ? '删除中…' : '删除'}
