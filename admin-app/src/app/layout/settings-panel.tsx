@@ -323,31 +323,31 @@ export default function SettingsPanel({
               </label>
 
               {!isDiary && !isKnowledge ? (
-                <>
-                  <label className="settings-panel__toggle">
-                    <span>已发布</span>
-                    <input
-                      aria-label="已发布"
-                      type="checkbox"
-                      checked={Boolean(frontmatter.published)}
-                      onChange={(event) => onFieldChange('published', event.target.checked)}
-                    />
-                  </label>
+                <label className="settings-panel__toggle">
+                  <span>已发布</span>
+                  <input
+                    aria-label="已发布"
+                    type="checkbox"
+                    checked={Boolean(frontmatter.published)}
+                    onChange={(event) => onFieldChange('published', event.target.checked)}
+                  />
+                </label>
+              ) : null}
 
-                  <div className="settings-panel__field settings-panel__taxonomy">
-                    <span>分类</span>
-                    <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
-                    <TaxonomyMultiSelect
-                      label="分类"
-                      value={frontmatter.categories}
-                      availableOptions={availableCategories}
-                      onChange={(value) => onFieldChange('categories', value)}
-                      onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
-                      onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
-                      onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
-                    />
-                  </div>
-                </>
+              {!isDiary ? (
+                <div className="settings-panel__field settings-panel__taxonomy">
+                  <span>分类</span>
+                  <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
+                  <TaxonomyMultiSelect
+                    label="分类"
+                    value={frontmatter.categories}
+                    availableOptions={availableCategories}
+                    onChange={(value) => onFieldChange('categories', value)}
+                    onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('categories', name) : undefined}
+                    onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('categories', oldName, newName) : undefined}
+                    onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
+                  />
+                </div>
               ) : null}
             </>
           )}

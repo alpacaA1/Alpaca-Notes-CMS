@@ -15,6 +15,7 @@ import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
+import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
 import { resolveContentFormat } from './content-format'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
@@ -261,10 +262,19 @@ export default function App() {
       }),
     [posts, search],
   )
-  const { categories: availableCategories, tags: availableTags } = useMemo(
-    () => collectPostIndexFacets(posts),
-    [posts],
-  )
+  const { categories: availableCategories, tags: availableTags } = useMemo(() => {
+    const facets = collectPostIndexFacets(posts)
+    if (contentType !== 'knowledge' || facets.categories.includes(KNOWLEDGE_RANDOM_CATEGORY)) {
+      return facets
+    }
+
+    return {
+      ...facets,
+      categories: [KNOWLEDGE_RANDOM_CATEGORY, ...facets.categories].sort((left, right) =>
+        left.localeCompare(right, 'zh-CN'),
+      ),
+    }
+  }, [contentType, posts])
   const readLaterAnnotations = useMemo(
     () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
     [document],

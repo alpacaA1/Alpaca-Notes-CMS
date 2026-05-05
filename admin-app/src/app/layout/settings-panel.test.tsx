@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import SettingsPanel from './settings-panel'
+import { createNewKnowledgeItem } from '../knowledge/new-item'
 import { createNewDiaryEntry, createNewPost } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
 import type { ContentType, PostValidationErrors } from '../posts/post-types'
@@ -203,6 +204,38 @@ describe('settings panel', () => {
 
     expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
     expect(onFieldChange).toHaveBeenCalledWith('tags', ['记录'])
+  })
+
+  it('renders knowledge settings with category editing and source context', () => {
+    const { onFieldChange } = renderControlledSettingsPanel({
+      document: {
+        ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)),
+        frontmatter: {
+          ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)).frontmatter,
+          title: '系统复用',
+          desc: '关于系统复用的知识点',
+          source_title: '一篇关于系统设计的文章',
+          source_type: 'read-later',
+          source_path: 'source/read-later-items/example.md',
+          source_url: 'https://example.com/system',
+        },
+      },
+      contentType: 'knowledge',
+      availableCategories: ['随机展示'],
+    })
+
+    expect(screen.getByText('知识点设置')).toBeTruthy()
+    expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
+    expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
+    expect(screen.getByText('分类')).toBeTruthy()
+    expect(screen.queryByLabelText('永久链接')).toBeNull()
+    expect(screen.queryByLabelText('封面图')).toBeNull()
+    expect(screen.getByText('一篇关于系统设计的文章')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    fireEvent.click(screen.getByRole('option', { name: '随机展示' }))
+
+    expect(onFieldChange).toHaveBeenCalledWith('categories', ['随机展示'])
   })
 
   it('renders read-later settings and updates external metadata fields', () => {

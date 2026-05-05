@@ -98,7 +98,7 @@ describe('serializePost', () => {
     expect(output).not.toContain('categories:')
   })
 
-  it('serializes knowledge posts with source metadata and without permalink or categories', () => {
+  it('serializes knowledge posts with source metadata and categories', () => {
     const knowledge: ParsedPost = {
       path: 'source/_knowledge/20260505010101.md',
       sha: '',
@@ -111,7 +111,7 @@ describe('serializePost', () => {
         desc: '关于系统复用的知识点',
         published: false,
         pinned: true,
-        categories: [],
+        categories: ['随机展示'],
         tags: ['复用'],
         knowledge: true,
         nav_exclude: true,
@@ -132,7 +132,7 @@ describe('serializePost', () => {
     expect(output).toContain('source_title: 一篇关于系统设计的文章')
     expect(output).toContain('source_url: https://example.com/system')
     expect(output).toContain('pinned: true')
+    expect(output).toContain('categories:\n  - 随机展示')
     expect(output).not.toContain('permalink:')
-    expect(output).not.toContain('categories:')
   })
 })

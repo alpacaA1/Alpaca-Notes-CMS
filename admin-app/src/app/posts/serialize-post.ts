@@ -44,7 +44,7 @@ export function serializePost(post: ParsedPost): string {
           }`,
         ]),
     ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
-    ...(post.frontmatter.read_later || isDiary || isKnowledge ? [] : [renderList('categories', post.frontmatter.categories)]),
+    ...(post.frontmatter.read_later || isDiary ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
     `desc: ${post.frontmatter.desc}`,
     '---',

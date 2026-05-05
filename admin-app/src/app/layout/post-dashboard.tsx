@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { pickDailyKnowledgeItems } from '../knowledge/daily-selection'
+import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
 import type { ContentType, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
@@ -65,7 +65,6 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 ]
 
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
-const DAILY_KNOWLEDGE_LIMIT = 15
 
 function readStoredViewMode(): DashboardViewMode {
   try {
@@ -175,6 +174,10 @@ function formatRecoveredDraftTime(value: string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
+function formatKnowledgeCardDate(value: string) {
+  return value ? value.slice(0, 10) : '无日期'
+}
+
 export default function PostDashboard({
   posts,
   search,
@@ -207,7 +210,19 @@ export default function PostDashboard({
   const isKnowledge = contentType === 'knowledge'
   const showQuickActions = true
 
-  const { categories, tags: availableTags } = useMemo(() => collectPostIndexFacets(posts), [posts])
+  const { categories, tags: availableTags } = useMemo(() => {
+    const facets = collectPostIndexFacets(posts)
+    if (!isKnowledge || facets.categories.includes(KNOWLEDGE_RANDOM_CATEGORY)) {
+      return facets
+    }
+
+    return {
+      ...facets,
+      categories: [KNOWLEDGE_RANDOM_CATEGORY, ...facets.categories].sort((left, right) =>
+        left.localeCompare(right, 'zh-CN'),
+      ),
+    }
+  }, [isKnowledge, posts])
 
   useEffect(() => {
     setStatusFilter('all')
@@ -220,7 +235,7 @@ export default function PostDashboard({
     const basePosts = filterPostIndex(posts, {
       query: search,
       publishState: isReadLater || isDiary || isKnowledge ? 'all' : (statusFilter as PostPublishState),
-      category: isReadLater || isDiary || isKnowledge ? null : selectedCategory,
+      category: isReadLater || isDiary ? null : selectedCategory,
       tag: selectedTag,
       sort,
     })
@@ -247,10 +262,6 @@ export default function PostDashboard({
     () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'done').length,
     [posts],
   )
-  const dailyKnowledgeItems = useMemo(
-    () => (isKnowledge ? pickDailyKnowledgeItems(posts, DAILY_KNOWLEDGE_LIMIT) : []),
-    [isKnowledge, posts],
-  )
 
   const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : isDiary || isKnowledge ? [{ value: 'all' as const, label: '全部' }] : POST_STATUS_OPTIONS
   const sortOptions = isReadLater ? READ_LATER_SORT_OPTIONS : POST_SORT_OPTIONS
@@ -275,7 +286,13 @@ export default function PostDashboard({
         { value: 'draft' as const, label: '草稿', count: draftCount, tone: 'draft' as const },
       ]
 
+  const resolvedViewMode: DashboardViewMode = isKnowledge ? 'grid' : viewMode
+
   const toggleViewMode = useCallback(() => {
+    if (isKnowledge) {
+      return
+    }
+
     setViewMode((current) => {
       const next = current === 'grid' ? 'list' : 'grid'
       try {
@@ -285,7 +302,7 @@ export default function PostDashboard({
       }
       return next
     })
-  }, [])
+  }, [isKnowledge])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -318,7 +335,7 @@ export default function PostDashboard({
 
   const isFiltered =
     statusFilter !== 'all' ||
-    (contentType === 'post' && selectedCategory !== null) ||
+    (!isReadLater && !isDiary && selectedCategory !== null) ||
     selectedTag !== null ||
     search.trim().length > 0
 
@@ -388,36 +405,6 @@ export default function PostDashboard({
         </section>
       ) : null}
 
-      {isKnowledge && dailyKnowledgeItems.length > 0 ? (
-        <section className="post-dashboard__daily-knowledge" aria-label="今日知识点">
-          <div className="post-dashboard__daily-knowledge-header">
-            <div>
-              <p className="post-dashboard__filter-label">今日知识点</p>
-              <strong>今天随机刷新 {dailyKnowledgeItems.length} 条知识点</strong>
-            </div>
-            <span className="post-dashboard__recovery-note">同一天内保持固定，明天自动换一批。</span>
-          </div>
-          <div className="post-dashboard__daily-knowledge-grid">
-            {dailyKnowledgeItems.map((post, index) => (
-              <button
-                key={post.path}
-                type="button"
-                className="post-dashboard__daily-knowledge-card"
-                onClick={() => onOpenPost(post)}
-              >
-                <span className="post-dashboard__daily-knowledge-order">{String(index + 1).padStart(2, '0')}</span>
-                <strong>{post.title}</strong>
-                <p>{post.desc || '打开后补充你的理解与摘要。'}</p>
-                <div className="post-dashboard__daily-knowledge-meta">
-                  <span>{post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : '手动新增')}</span>
-                  <span>{post.tags[0] || '待整理'}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       <div className="post-dashboard__stats-bar">
         <div className="post-dashboard__stats">
           {statCards.map((card) => (
@@ -442,7 +429,7 @@ export default function PostDashboard({
         <div className="post-dashboard__kbd-hints" aria-label="快捷键">
           <span><kbd>N</kbd> 新建</span>
           <span><kbd>/</kbd> 搜索</span>
-          <span><kbd>G</kbd> 切换视图</span>
+          {!isKnowledge ? <span><kbd>G</kbd> 切换视图</span> : null}
         </div>
       </div>
 
@@ -463,7 +450,7 @@ export default function PostDashboard({
           </div>
         </div>
 
-        {contentType === 'post' ? (
+        {!isReadLater && !isDiary ? (
           <div className="post-dashboard__filter-group">
             <span className="post-dashboard__filter-label">分类</span>
             <select
@@ -513,40 +500,42 @@ export default function PostDashboard({
         </div>
 
         <div className="post-dashboard__toolbar-right">
-          <div className="post-dashboard__view-toggle">
-            <button
-              type="button"
-              className={`post-dashboard__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
-              onClick={() => {
-                setViewMode('grid')
-                try {
-                  localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid')
-                } catch {
-                  // Ignore storage errors
-                }
-              }}
-              aria-label="网格视图"
-              title="网格视图 (G)"
-            >
-              <GridIcon />
-            </button>
-            <button
-              type="button"
-              className={`post-dashboard__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
-              onClick={() => {
-                setViewMode('list')
-                try {
-                  localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
-                } catch {
-                  // Ignore storage errors
-                }
-              }}
-              aria-label="列表视图"
-              title="列表视图 (G)"
-            >
-              <ListIcon />
-            </button>
-          </div>
+          {!isKnowledge ? (
+            <div className="post-dashboard__view-toggle">
+              <button
+                type="button"
+                className={`post-dashboard__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
+                onClick={() => {
+                  setViewMode('grid')
+                  try {
+                    localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid')
+                  } catch {
+                    // Ignore storage errors
+                  }
+                }}
+                aria-label="网格视图"
+                title="网格视图 (G)"
+              >
+                <GridIcon />
+              </button>
+              <button
+                type="button"
+                className={`post-dashboard__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
+                onClick={() => {
+                  setViewMode('list')
+                  try {
+                    localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
+                  } catch {
+                    // Ignore storage errors
+                  }
+                }}
+                aria-label="列表视图"
+                title="列表视图 (G)"
+              >
+                <ListIcon />
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             className="post-dashboard__new-btn"
@@ -594,9 +583,23 @@ export default function PostDashboard({
             </>
           )}
         </div>
-      ) : viewMode === 'grid' ? (
+      ) : resolvedViewMode === 'grid' ? (
         <div className="post-dashboard__grid">
           {filteredPosts.map((post) => {
+            if (isKnowledge) {
+              return (
+                <button
+                  key={post.path}
+                  type="button"
+                  className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
+                  onClick={() => onOpenPost(post)}
+                >
+                  <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
+                  <p className="post-dashboard__knowledge-card-content">{post.title.trim() || post.desc.trim() || '未命名知识点'}</p>
+                </button>
+              )
+            }
+
             const statusTone = getStatusTone(post, contentType)
             const statusLabel = getStatusLabel(post, contentType)
             const primaryMeta = isReadLater

@@ -3938,6 +3938,13 @@ textarea {
   overflow: hidden;
 }
 
+.post-dashboard__card--knowledge {
+  position: relative;
+  min-height: 210px;
+  padding: 24px;
+  gap: 18px;
+}
+
 .post-dashboard__card--pinned {
   border-color: rgba(203, 167, 119, 0.55);
   box-shadow:
@@ -4009,6 +4016,23 @@ textarea {
   -webkit-box-orient: vertical;
   overflow: hidden;
   flex-grow: 1;
+}
+
+.post-dashboard__knowledge-card-date {
+  font-size: 0.82rem;
+  color: var(--admin-soft);
+  letter-spacing: 0.04em;
+}
+
+.post-dashboard__knowledge-card-content {
+  margin: 0;
+  color: var(--admin-text);
+  font-size: 1rem;
+  line-height: 1.8;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
 }
 
 .post-dashboard__card-footer {

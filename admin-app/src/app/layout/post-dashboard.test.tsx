@@ -163,7 +163,8 @@ describe('post dashboard', () => {
     expect(pinnedRow?.querySelector('.post-dashboard__pin-mark')?.textContent).toBe('置顶')
   })
 
-  it('renders a daily knowledge section and knowledge-specific labels', () => {
+  it('renders knowledge as cards only and exposes the random-display category', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
     render(
       <PostDashboard
         posts={knowledgePosts}
@@ -177,10 +178,14 @@ describe('post dashboard', () => {
       />,
     )
 
-    const dailySection = screen.getByLabelText('今日知识点')
-
-    expect(screen.getByText('今天随机刷新 2 条知识点')).toBeTruthy()
     expect(screen.getByRole('button', { name: '+ 新建知识点' })).toBeTruthy()
-    expect(dailySection.textContent).toContain('一篇关于系统设计的文章')
+    expect(screen.queryByLabelText('今日知识点')).toBeNull()
+    expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
+    expect(screen.getByRole('option', { name: '随机展示' })).toBeTruthy()
+    expect(screen.getByText('系统复用')).toBeTruthy()
+    expect(screen.getByText('2026-05-05')).toBeTruthy()
+    expect(screen.queryByText('关于系统复用的知识点。')).toBeNull()
+    expect(screen.queryByText('一篇关于系统设计的文章')).toBeNull()
   })
 })
