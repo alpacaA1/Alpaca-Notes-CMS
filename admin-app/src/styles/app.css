@@ -4030,11 +4030,11 @@ textarea {
 
 .post-dashboard__knowledge-card-body {
   display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
-  align-items: flex-end;
+  justify-content: flex-start;
   overflow: hidden;
   min-height: 0;
-  padding-bottom: 6px;
 }
 
 .post-dashboard__knowledge-card-content {
