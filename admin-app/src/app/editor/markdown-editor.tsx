@@ -366,6 +366,7 @@ export default function MarkdownEditor({
   const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const isComposingRef = useRef(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const textareaId = useId()
 
@@ -460,6 +461,21 @@ export default function MarkdownEditor({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const { selectionStart, selectionEnd } = event.currentTarget
     const normalizedKey = event.key.toLowerCase()
+    const nativeKeyEvent = event.nativeEvent as KeyboardEvent & {
+      isComposing?: boolean
+      keyCode?: number
+      which?: number
+    }
+    const isImeConfirming =
+      normalizedKey === 'enter' &&
+      (isComposingRef.current ||
+        nativeKeyEvent.isComposing === true ||
+        nativeKeyEvent.keyCode === 229 ||
+        nativeKeyEvent.which === 229)
+
+    if (isImeConfirming) {
+      return
+    }
 
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
       const wrap =
@@ -731,6 +747,12 @@ export default function MarkdownEditor({
         value={value}
         disabled={isUploadingImage}
         onChange={(event) => onChange(event.target.value)}
+        onCompositionStart={() => {
+          isComposingRef.current = true
+        }}
+        onCompositionEnd={() => {
+          isComposingRef.current = false
+        }}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
       />

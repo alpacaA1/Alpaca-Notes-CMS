@@ -169,6 +169,38 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(editor.value.length)
   })
 
+  it('does not continue numbered lists when Enter confirms an IME composition', () => {
+    const editor = renderControlledEditor('1. 五一')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.compositionStart(editor)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. 五一')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+
+    fireEvent.compositionEnd(editor)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. 五一\n2. ')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('does not continue numbered lists when IME Enter reports keyCode 229', () => {
+    const editor = renderControlledEditor('1. 五一')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter', keyCode: 229, which: 229 })
+
+    expect(editor.value).toBe('1. 五一')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
   it('continues alphabetic lists when pressing Enter', () => {
     const editor = renderControlledEditor('  a. item')
 
