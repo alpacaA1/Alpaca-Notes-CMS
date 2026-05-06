@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react'
 
 const INDENT = '  '
+const LIST_INDENT = '    '
 const DEFAULT_LINK_URL = 'https://'
 const DEFAULT_LINK_TEXT = '链接文本'
 const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
@@ -34,6 +35,10 @@ function getLineEnd(value: string, index: number) {
   return nextBreak === -1 ? value.length : nextBreak
 }
 
+function getLineIndex(value: string, index: number) {
+  return value.slice(0, index).split('\n').length - 1
+}
+
 function getSelectedLineRange(value: string, selectionStart: number, selectionEnd: number) {
   const start = getLineStart(value, selectionStart)
   const effectiveEnd = selectionEnd > selectionStart && value[selectionEnd - 1] === '\n'
@@ -48,6 +53,10 @@ function removeIndent(line: string) {
     return line.slice(1)
   }
 
+  if (line.startsWith(LIST_INDENT)) {
+    return line.slice(LIST_INDENT.length)
+  }
+
   if (line.startsWith(INDENT)) {
     return line.slice(INDENT.length)
   }
@@ -57,29 +66,6 @@ function removeIndent(line: string) {
   }
 
   return line
-}
-
-function indentLine(line: string) {
-  const topLevelOrderedMatch = line.match(/^(\d+)([.)])(\s.*)$/)
-  if (topLevelOrderedMatch) {
-    return `${INDENT}a${topLevelOrderedMatch[2]}${topLevelOrderedMatch[3]}`
-  }
-
-  const nestedAlphaMatch = line.match(/^(\s{2})([a-zA-Z])([.)])(\s.*)$/)
-  if (nestedAlphaMatch) {
-    return `${nestedAlphaMatch[1]}${INDENT}i${nestedAlphaMatch[3]}${nestedAlphaMatch[4]}`
-  }
-
-  return `${INDENT}${line}`
-}
-
-function outdentLine(line: string) {
-  const nestedRomanMatch = line.match(/^(\s{4})i([.)])(\s.*)$/i)
-  if (nestedRomanMatch) {
-    return `${INDENT}a${nestedRomanMatch[2]}${nestedRomanMatch[3]}`
-  }
-
-  return removeIndent(line)
 }
 
 function getNextRomanMarker(marker: string) {
@@ -174,52 +160,117 @@ function formatOrderedMarker(kind: OrderedMarkerKind, ordinal: number, separator
   return `${String.fromCharCode(baseCode + clampedOrdinal)}${separator}`
 }
 
-function getOutdentedEmptyOrderedLine(value: string, lineStart: number, currentLine: string) {
-  const orderedMatch = currentLine.match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])\s*$/)
+function normalizeIndentWhitespace(whitespace: string) {
+  return whitespace.replace(/\t/g, INDENT)
+}
+
+function getIndentWidth(whitespace: string) {
+  return normalizeIndentWhitespace(whitespace).length
+}
+
+function buildIndentWhitespace(width: number) {
+  return ' '.repeat(Math.max(0, width))
+}
+
+function getLeadingWhitespace(line: string) {
+  return line.match(/^\s*/)?.[0] ?? ''
+}
+
+function getOrderedLineMatch(line: string) {
+  const orderedMatch = line.match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])(\s.*)$/)
   if (!orderedMatch) {
     return null
   }
 
-  const currentMarker = parseOrderedMarker(orderedMatch[2])
-  if (!currentMarker) {
+  const marker = parseOrderedMarker(orderedMatch[2])
+  if (!marker) {
     return null
   }
 
-  const targetKind =
-    currentMarker.kind === 'alpha' ? 'numeric' : currentMarker.kind === 'roman' ? 'alpha' : null
-
-  if (!targetKind) {
-    return null
+  return {
+    indentWidth: getIndentWidth(orderedMatch[1]),
+    ordinal: marker.ordinal,
+    separator: marker.separator,
+    suffix: orderedMatch[3],
   }
+}
 
-  const targetIndent = removeIndent(orderedMatch[1])
-  const previousLines = value.slice(0, lineStart).split('\n')
+function isBulletListLine(line: string) {
+  return /^\s*[-*+](?:\s+\[(?: |x|X)\])?\s.*$/.test(line)
+}
 
-  for (let index = previousLines.length - 1; index >= 0; index -= 1) {
-    const previousMatch = previousLines[index].match(/^(\s*)((?:\d+|[a-zA-Z]+)[.)])(?:\s.*)?$/)
-    if (!previousMatch || previousMatch[1] !== targetIndent) {
+function findOrderedListBoundary(lines: string[], lineIndex: number, targetIndentWidth: number) {
+  for (let index = lineIndex - 1; index >= 0; index -= 1) {
+    const line = lines[index]
+    if (!line.trim()) {
       continue
     }
 
-    const previousMarker = parseOrderedMarker(previousMatch[2])
-    if (!previousMarker || previousMarker.kind !== targetKind) {
+    if (getIndentWidth(getLeadingWhitespace(line)) < targetIndentWidth) {
+      return index
+    }
+  }
+
+  return -1
+}
+
+function getNextOrderedLineOrdinal(lines: string[], lineIndex: number, targetIndentWidth: number) {
+  const boundaryIndex = findOrderedListBoundary(lines, lineIndex, targetIndentWidth)
+  let nextOrdinal = 1
+
+  for (let index = boundaryIndex + 1; index < lineIndex; index += 1) {
+    const orderedMatch = getOrderedLineMatch(lines[index])
+    if (!orderedMatch || orderedMatch.indentWidth !== targetIndentWidth) {
       continue
     }
 
-    return `${targetIndent}${formatOrderedMarker(
-      targetKind,
-      previousMarker.ordinal + 1,
-      previousMarker.separator,
-      previousMarker.uppercase,
-    )} `
+    nextOrdinal = orderedMatch.ordinal + 1
   }
 
-  return `${targetIndent}${formatOrderedMarker(
-    targetKind,
-    1,
-    currentMarker.separator,
-    currentMarker.uppercase,
-  )} `
+  return nextOrdinal
+}
+
+function indentLineInContext(lines: string[], lineIndex: number) {
+  const line = lines[lineIndex]
+  const orderedMatch = getOrderedLineMatch(line)
+  if (orderedMatch) {
+    const targetIndentWidth = orderedMatch.indentWidth + LIST_INDENT.length
+    const nextOrdinal = getNextOrderedLineOrdinal(lines, lineIndex, targetIndentWidth)
+    return `${buildIndentWhitespace(targetIndentWidth)}${formatOrderedMarker('numeric', nextOrdinal, orderedMatch.separator, false)}${orderedMatch.suffix}`
+  }
+
+  if (isBulletListLine(line)) {
+    const targetIndentWidth = getIndentWidth(getLeadingWhitespace(line)) + LIST_INDENT.length
+    return `${buildIndentWhitespace(targetIndentWidth)}${line.trimStart()}`
+  }
+
+  return `${INDENT}${line}`
+}
+
+function outdentLineInContext(lines: string[], lineIndex: number) {
+  const line = lines[lineIndex]
+  const orderedMatch = getOrderedLineMatch(line)
+  if (orderedMatch) {
+    if (orderedMatch.indentWidth === 0) {
+      return line
+    }
+
+    const targetIndentWidth = Math.max(0, orderedMatch.indentWidth - LIST_INDENT.length)
+    const nextOrdinal = getNextOrderedLineOrdinal(lines, lineIndex, targetIndentWidth)
+    return `${buildIndentWhitespace(targetIndentWidth)}${formatOrderedMarker('numeric', nextOrdinal, orderedMatch.separator, false)}${orderedMatch.suffix}`
+  }
+
+  if (isBulletListLine(line)) {
+    const currentIndentWidth = getIndentWidth(getLeadingWhitespace(line))
+    if (currentIndentWidth === 0) {
+      return line
+    }
+
+    const targetIndentWidth = Math.max(0, currentIndentWidth - LIST_INDENT.length)
+    return `${buildIndentWhitespace(targetIndentWidth)}${line.trimStart()}`
+  }
+
+  return removeIndent(line)
 }
 
 function getContinuedListPrefix(line: string) {
@@ -628,6 +679,7 @@ export default function MarkdownEditor({
     if (event.key === 'Backspace' && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
+      const lineIndex = getLineIndex(value, lineStart)
       const currentLine = value.slice(lineStart, lineEnd)
       const emptyListPrefix = getListPrefixToRemove(currentLine)
       const indentOnlyPrefix = currentLine.match(/^(\s+)/)?.[0] || ''
@@ -639,7 +691,8 @@ export default function MarkdownEditor({
         (currentLine.startsWith(INDENT) || currentLine.startsWith('\t'))
       ) {
         event.preventDefault()
-        const nextLine = getOutdentedEmptyOrderedLine(value, lineStart, currentLine) ?? outdentLine(currentLine)
+        const lines = value.split('\n')
+        const nextLine = outdentLineInContext(lines, lineIndex)
         const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
         const nextCaret = lineStart + nextLine.length
         dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
@@ -647,6 +700,18 @@ export default function MarkdownEditor({
       }
 
       if (cursorOffset > 0 && cursorOffset <= indentOnlyPrefix.length) {
+        if (cursorOffset === indentOnlyPrefix.length && (getOrderedLineMatch(currentLine) || isBulletListLine(currentLine))) {
+          const lines = value.split('\n')
+          const nextLine = outdentLineInContext(lines, lineIndex)
+          if (nextLine !== currentLine) {
+            event.preventDefault()
+            const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
+            const nextCaret = lineStart + getLeadingWhitespace(nextLine).length
+            dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+            return
+          }
+        }
+
         const removedWidth = indentOnlyPrefix.startsWith('\t', Math.max(0, cursorOffset - 1))
           ? 1
           : Math.min(INDENT.length, cursorOffset)
@@ -722,6 +787,7 @@ export default function MarkdownEditor({
     if (!event.shiftKey && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
+      const lineIndex = getLineIndex(value, lineStart)
       const currentLine = value.slice(lineStart, lineEnd)
       const emptyListPrefix = getListPrefixToRemove(currentLine)
 
@@ -733,7 +799,8 @@ export default function MarkdownEditor({
       }
 
       if (selectionStart === lineStart || (emptyListPrefix && selectionStart === lineEnd)) {
-        const indentedLine = indentLine(currentLine)
+        const lines = value.split('\n')
+        const indentedLine = indentLineInContext(lines, lineIndex)
         const nextValue = `${value.slice(0, lineStart)}${indentedLine}${value.slice(lineEnd)}`
         const nextCaret = selectionStart + (indentedLine.length - currentLine.length)
         dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
@@ -749,8 +816,10 @@ export default function MarkdownEditor({
     if (event.shiftKey && selectionStart === selectionEnd) {
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
+      const lineIndex = getLineIndex(value, lineStart)
       const currentLine = value.slice(lineStart, lineEnd)
-      const outdentedLine = outdentLine(currentLine)
+      const lines = value.split('\n')
+      const outdentedLine = outdentLineInContext(lines, lineIndex)
       const removedCount = currentLine.length - outdentedLine.length
 
       if (removedCount === 0) {
@@ -764,11 +833,15 @@ export default function MarkdownEditor({
     }
 
     const { start, end } = getSelectedLineRange(value, selectionStart, selectionEnd)
-    const selectedBlock = value.slice(start, end)
-    const nextBlock = selectedBlock
-      .split('\n')
-      .map((line) => (event.shiftKey ? outdentLine(line) : indentLine(line)))
-      .join('\n')
+    const startLineIndex = getLineIndex(value, start)
+    const endLineIndex = getLineIndex(value, end)
+    const lines = value.split('\n')
+
+    for (let index = startLineIndex; index <= endLineIndex; index += 1) {
+      lines[index] = event.shiftKey ? outdentLineInContext(lines, index) : indentLineInContext(lines, index)
+    }
+
+    const nextBlock = lines.slice(startLineIndex, endLineIndex + 1).join('\n')
     const nextValue = `${value.slice(0, start)}${nextBlock}${value.slice(end)}`
 
     dispatchValueChange(nextValue, { start, end: start + nextBlock.length }, selection)

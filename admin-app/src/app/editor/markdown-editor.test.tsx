@@ -70,16 +70,16 @@ describe('markdown editor', () => {
     cleanup()
   })
 
-  it('inserts indentation when pressing Tab', () => {
-    const editor = renderControlledEditor('1. aaa\na. item')
+  it('inserts nested ordered indentation when pressing Tab', () => {
+    const editor = renderControlledEditor('1. aaa\n1. item')
 
     editor.focus()
     editor.setSelectionRange(7, 7)
     fireEvent.keyDown(editor, { key: 'Tab' })
 
-    expect(editor.value).toBe('1. aaa\n  a. item')
-    expect(editor.selectionStart).toBe(9)
-    expect(editor.selectionEnd).toBe(9)
+    expect(editor.value).toBe('1. aaa\n    1. item')
+    expect(editor.selectionStart).toBe(11)
+    expect(editor.selectionEnd).toBe(11)
   })
 
   it('indents empty list items when pressing Tab', () => {
@@ -89,7 +89,7 @@ describe('markdown editor', () => {
     editor.setSelectionRange(editor.value.length, editor.value.length)
     fireEvent.keyDown(editor, { key: 'Tab' })
 
-    expect(editor.value).toBe('- 12\n  - ')
+    expect(editor.value).toBe('- 12\n    - ')
     expect(editor.selectionStart).toBe(editor.value.length)
     expect(editor.selectionEnd).toBe(editor.value.length)
     expect(document.activeElement).toBe(editor)
@@ -112,50 +112,50 @@ describe('markdown editor', () => {
     expect(onParentKeyDown).not.toHaveBeenCalled()
   })
 
-  it('converts empty ordered items to alphabetic markers when indenting with Tab', () => {
+  it('restarts nested ordered items from one when indenting with Tab', () => {
     const editor = renderControlledEditor('1. aaa\n2. ')
 
     editor.focus()
     editor.setSelectionRange(editor.value.length, editor.value.length)
     fireEvent.keyDown(editor, { key: 'Tab' })
 
-    expect(editor.value).toBe('1. aaa\n  a. ')
+    expect(editor.value).toBe('1. aaa\n    1. ')
     expect(editor.selectionStart).toBe(editor.value.length)
     expect(editor.selectionEnd).toBe(editor.value.length)
   })
 
-  it('converts alphabetic ordered items to roman markers when indenting with Tab', () => {
-    const editor = renderControlledEditor('1. aaa\n  a. item')
+  it('adds another ordered nesting level when pressing Tab', () => {
+    const editor = renderControlledEditor('1. aaa\n    1. item')
 
     editor.focus()
     editor.setSelectionRange(7, 7)
     fireEvent.keyDown(editor, { key: 'Tab' })
 
-    expect(editor.value).toBe('1. aaa\n    i. item')
-    expect(editor.selectionStart).toBe(9)
-    expect(editor.selectionEnd).toBe(9)
+    expect(editor.value).toBe('1. aaa\n        1. item')
+    expect(editor.selectionStart).toBe(11)
+    expect(editor.selectionEnd).toBe(11)
   })
 
   it('removes indentation when pressing Shift+Tab', () => {
-    const editor = renderControlledEditor('1. aaa\n  a. item')
+    const editor = renderControlledEditor('1. aaa\n    1. item')
 
     editor.focus()
-    editor.setSelectionRange(9, 9)
+    editor.setSelectionRange(11, 11)
     fireEvent.keyDown(editor, { key: 'Tab', shiftKey: true })
 
-    expect(editor.value).toBe('1. aaa\na. item')
+    expect(editor.value).toBe('1. aaa\n2. item')
     expect(editor.selectionStart).toBe(7)
     expect(editor.selectionEnd).toBe(7)
   })
 
   it('indents all selected lines when pressing Tab', () => {
-    const editor = renderControlledEditor('1. aaa\na. item\nb. item')
+    const editor = renderControlledEditor('1. aaa\n2. item\n3. item')
 
     editor.focus()
     editor.setSelectionRange(7, editor.value.length)
     fireEvent.keyDown(editor, { key: 'Tab' })
 
-    expect(editor.value).toBe('1. aaa\n  a. item\n  b. item')
+    expect(editor.value).toBe('1. aaa\n    1. item\n    2. item')
   })
 
   it('continues numbered lists when pressing Enter', () => {
@@ -325,16 +325,16 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(0)
   })
 
-  it('outdents one level when pressing Backspace in leading indentation', () => {
-    const editor = renderControlledEditor('    a. item')
+  it('outdents ordered list items one level when pressing Backspace in leading indentation', () => {
+    const editor = renderControlledEditor('    1. item')
 
     editor.focus()
     editor.setSelectionRange(4, 4)
     fireEvent.keyDown(editor, { key: 'Backspace' })
 
-    expect(editor.value).toBe('  a. item')
-    expect(editor.selectionStart).toBe(2)
-    expect(editor.selectionEnd).toBe(2)
+    expect(editor.value).toBe('1. item')
+    expect(editor.selectionStart).toBe(0)
+    expect(editor.selectionEnd).toBe(0)
   })
 
   it('outdents empty list items when pressing Backspace at the end', () => {
@@ -349,14 +349,14 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(editor.value.length)
   })
 
-  it('renumbers alphabetic empty list items when pressing Backspace to outdent', () => {
-    const editor = renderControlledEditor('1. first\n  a. \n  b. ')
+  it('renumbers empty ordered list items when pressing Backspace to outdent', () => {
+    const editor = renderControlledEditor('1. first\n    1. \n    2. ')
 
     editor.focus()
     editor.setSelectionRange(editor.value.length, editor.value.length)
     fireEvent.keyDown(editor, { key: 'Backspace' })
 
-    expect(editor.value).toBe('1. first\n  a. \n2. ')
+    expect(editor.value).toBe('1. first\n    1. \n2. ')
     expect(editor.selectionStart).toBe(editor.value.length)
     expect(editor.selectionEnd).toBe(editor.value.length)
   })
@@ -364,6 +364,7 @@ describe('markdown editor', () => {
   it('keeps the editor textarea horizontal padding aligned with the editor surface', () => {
     expect(appStyles).toMatch(/\.editor-surface,\s*\.settings-panel,\s*\.preview-pane\s*\{[^}]*padding:\s*24px;/s)
     expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*padding:\s*18px 24px;/s)
+    expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*tab-size:\s*2;/s)
   })
 
   it('keeps the editor workspace scrollable inside the fixed admin shell', () => {
@@ -690,12 +691,12 @@ describe('markdown editor', () => {
   })
 
   it('keeps normal Backspace behavior outside leading indentation', () => {
-    const editor = renderControlledEditor('  a. item')
+    const editor = renderControlledEditor('    1. item')
 
     editor.focus()
     editor.setSelectionRange(editor.value.length, editor.value.length)
     fireEvent.keyDown(editor, { key: 'Backspace' })
 
-    expect(editor.value).toBe('  a. item')
+    expect(editor.value).toBe('    1. item')
   })
 })
