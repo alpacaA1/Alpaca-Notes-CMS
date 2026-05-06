@@ -213,4 +213,35 @@ describe('post dashboard', () => {
     expect(onDeletePost).toHaveBeenCalledWith(knowledgePosts[0])
     expect(onOpenPost).not.toHaveBeenCalled()
   })
+
+  it('preserves paragraph and list structure in knowledge cards', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+
+    render(
+      <PostDashboard
+        posts={[
+          {
+            ...knowledgePosts[0],
+            desc: '先判断风险和后悔成本。\n\n1. 能不能承受失败\n2. 会不会留下遗憾\n\n答案清楚后再执行。',
+          },
+        ]}
+        search=""
+        isIndexing={false}
+        contentType="knowledge"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    const content = document.querySelector('.post-dashboard__knowledge-card-content')
+
+    expect(content?.querySelectorAll('p')).toHaveLength(2)
+    expect(content?.querySelectorAll('ol li')).toHaveLength(2)
+    expect(screen.getByText('先判断风险和后悔成本。')).toBeTruthy()
+    expect(screen.getByText('能不能承受失败')).toBeTruthy()
+    expect(screen.getByText('会不会留下遗憾')).toBeTruthy()
+    expect(screen.getByText('答案清楚后再执行。')).toBeTruthy()
+  })
 })

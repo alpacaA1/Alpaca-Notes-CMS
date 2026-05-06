@@ -4068,14 +4068,32 @@ textarea {
 }
 
 .post-dashboard__knowledge-card-content {
-  margin: 0;
   color: var(--admin-text);
   font-size: 1rem;
   line-height: 1.72;
-  display: -webkit-box;
   overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
+  max-height: calc(1rem * 1.72 * 6);
+}
+
+.post-dashboard__knowledge-card-content > * {
+  margin: 0 0 0.72em;
+}
+
+.post-dashboard__knowledge-card-content > :first-child {
+  margin-top: 0;
+}
+
+.post-dashboard__knowledge-card-content > :last-child {
+  margin-bottom: 0;
+}
+
+.post-dashboard__knowledge-card-content ul,
+.post-dashboard__knowledge-card-content ol {
+  padding-left: 1.4em;
+}
+
+.post-dashboard__knowledge-card-content li + li {
+  margin-top: 0.24em;
 }
 
 .post-dashboard__knowledge-card-delete {

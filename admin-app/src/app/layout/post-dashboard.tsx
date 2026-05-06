@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { renderContentBlocks } from '../editor/preview-pane'
 import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
@@ -231,9 +232,9 @@ function KnowledgeCard({
       >
         <span className="post-dashboard__knowledge-card-date">{formatKnowledgeCardDate(post.date)}</span>
         <div className="post-dashboard__knowledge-card-body">
-          <p className="post-dashboard__knowledge-card-content">
-            {getKnowledgeCardContent(post)}
-          </p>
+          <div className="post-dashboard__knowledge-card-content">
+            {renderContentBlocks(getKnowledgeCardContent(post), 'markdown')}
+          </div>
         </div>
       </button>
       <button

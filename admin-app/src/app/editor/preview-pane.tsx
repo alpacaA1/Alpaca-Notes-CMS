@@ -937,7 +937,7 @@ function renderPlainTextBlocks(text: string) {
   return nodes
 }
 
-function renderContentBlocks(
+export function renderContentBlocks(
   text: string,
   contentFormat: ResolvedContentFormat,
   previewImageUrls?: Record<string, string>,
