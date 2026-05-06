@@ -29,6 +29,19 @@ type StructuredMarkdownSection = {
   body: string
 }
 
+type MarkdownListKind = 'ordered' | 'unordered'
+
+type ParsedMarkdownListItem = {
+  content: string
+  children: ParsedMarkdownListBlock[]
+}
+
+type ParsedMarkdownListBlock = {
+  kind: MarkdownListKind
+  indent: number
+  items: ParsedMarkdownListItem[]
+}
+
 type PreviewPaneProps = {
   title: string
   date: string
@@ -679,6 +692,134 @@ function parseTaskListItem(markdown: string) {
   }
 }
 
+function getMarkdownIndentWidth(indent: string) {
+  return indent.replace(/\t/g, '  ').length
+}
+
+function matchMarkdownListItem(line: string) {
+  const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    indent: getMarkdownIndentWidth(match[1]),
+    kind: /^\d+\.$/.test(match[2]) ? 'ordered' as const : 'unordered' as const,
+    content: match[3],
+  }
+}
+
+function appendMarkdownListContinuation(item: ParsedMarkdownListItem | undefined, line: string) {
+  if (!item) {
+    return
+  }
+
+  const continuation = line.trim()
+  if (!continuation) {
+    return
+  }
+
+  item.content = item.content ? `${item.content}\n${continuation}` : continuation
+}
+
+function parseMarkdownListBlock(lines: string[], startIndex: number) {
+  const firstItem = matchMarkdownListItem(lines[startIndex])
+  if (!firstItem) {
+    return null
+  }
+
+  const block: ParsedMarkdownListBlock = {
+    kind: firstItem.kind,
+    indent: firstItem.indent,
+    items: [],
+  }
+  let index = startIndex
+
+  while (index < lines.length) {
+    const line = lines[index]
+    if (!line.trim()) {
+      break
+    }
+
+    const matchedItem = matchMarkdownListItem(line)
+    if (!matchedItem) {
+      appendMarkdownListContinuation(block.items[block.items.length - 1], line)
+      index += 1
+      continue
+    }
+
+    if (matchedItem.indent < block.indent) {
+      break
+    }
+
+    if (matchedItem.indent > block.indent) {
+      const childBlock = parseMarkdownListBlock(lines, index)
+      if (!childBlock) {
+        appendMarkdownListContinuation(block.items[block.items.length - 1], line)
+        index += 1
+        continue
+      }
+
+      const parentItem = block.items[block.items.length - 1]
+      if (!parentItem) {
+        break
+      }
+
+      parentItem.children.push(childBlock.block)
+      index = childBlock.nextIndex
+      continue
+    }
+
+    if (matchedItem.kind !== block.kind) {
+      break
+    }
+
+    block.items.push({
+      content: matchedItem.content,
+      children: [],
+    })
+    index += 1
+  }
+
+  return {
+    block,
+    nextIndex: index,
+  }
+}
+
+function renderMarkdownListBlock(
+  block: ParsedMarkdownListBlock,
+  keyPrefix: string,
+  previewImageUrls?: Record<string, string>,
+): ReactNode {
+  const isTaskList = block.kind === 'unordered' && block.items.every((item) => Boolean(parseTaskListItem(item.content)))
+  const ListTag = block.kind === 'ordered' ? 'ol' : 'ul'
+
+  return (
+    <ListTag key={`${keyPrefix}-list`} className={isTaskList ? 'preview-content__task-list' : undefined}>
+      {block.items.map((item, itemIndex) => {
+        const task = isTaskList ? parseTaskListItem(item.content) : null
+
+        return (
+          <li key={`${keyPrefix}-item-${itemIndex}`} className={task ? 'preview-content__task-item' : undefined}>
+            {task ? (
+              <label className="preview-content__task-label">
+                <input type="checkbox" checked={task.checked} readOnly disabled />
+                <span>{renderInlineWithLineBreaks(task.label, previewImageUrls)}</span>
+              </label>
+            ) : (
+              renderInlineWithLineBreaks(item.content, previewImageUrls)
+            )}
+            {item.children.map((childBlock, childIndex) =>
+              renderMarkdownListBlock(childBlock, `${keyPrefix}-item-${itemIndex}-child-${childIndex}`, previewImageUrls),
+            )}
+          </li>
+        )
+      })}
+    </ListTag>
+  )
+}
+
 function splitTableCells(line: string) {
   return line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
 }
@@ -884,58 +1025,11 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       continue
     }
 
-    const unorderedMatch = line.match(/^\s*[-*+]\s+(.*)$/)
-    if (unorderedMatch) {
+    const listBlock = matchMarkdownListItem(line) ? parseMarkdownListBlock(lines, index) : null
+    if (listBlock) {
       flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
-      const items = [unorderedMatch[1]]
-      while (index + 1 < lines.length) {
-        const nextMatch = lines[index + 1].match(/^\s*[-*+]\s+(.*)$/)
-        if (!nextMatch) {
-          break
-        }
-        index += 1
-        items.push(nextMatch[1])
-      }
-      const parsedItems = items.map((item) => ({ raw: item, task: parseTaskListItem(item) }))
-      const isTaskList = parsedItems.every((item) => Boolean(item.task))
-      nodes.push(
-        <ul key={`ul-${nodes.length}`} className={isTaskList ? 'preview-content__task-list' : undefined}>
-          {parsedItems.map((item, itemIndex) => (
-            <li key={`ul-item-${itemIndex}`} className={item.task ? 'preview-content__task-item' : undefined}>
-              {item.task ? (
-                <label className="preview-content__task-label">
-                  <input type="checkbox" checked={item.task.checked} readOnly disabled />
-                  <span>{renderInline(item.task.label, previewImageUrls)}</span>
-                </label>
-              ) : (
-                renderInline(item.raw, previewImageUrls)
-              )}
-            </li>
-          ))}
-        </ul>,
-      )
-      continue
-    }
-
-    const orderedMatch = line.match(/^\s*\d+\.\s+(.*)$/)
-    if (orderedMatch) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
-      const items = [orderedMatch[1]]
-      while (index + 1 < lines.length) {
-        const nextMatch = lines[index + 1].match(/^\s*\d+\.\s+(.*)$/)
-        if (!nextMatch) {
-          break
-        }
-        index += 1
-        items.push(nextMatch[1])
-      }
-      nodes.push(
-        <ol key={`ol-${nodes.length}`}>
-          {items.map((item, itemIndex) => (
-            <li key={`ol-item-${itemIndex}`}>{renderInline(item, previewImageUrls)}</li>
-          ))}
-        </ol>,
-      )
+      nodes.push(renderMarkdownListBlock(listBlock.block, `list-${nodes.length}`, previewImageUrls))
+      index = listBlock.nextIndex - 1
       continue
     }
 
