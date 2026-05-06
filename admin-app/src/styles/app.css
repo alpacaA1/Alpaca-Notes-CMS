@@ -2936,6 +2936,36 @@ textarea {
   padding-left: 1.4rem;
 }
 
+.preview-content__task-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.preview-content__task-item {
+  margin: 0;
+}
+
+.preview-content__task-item + .preview-content__task-item {
+  margin-top: 0.55rem;
+}
+
+.preview-content__task-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.preview-content__task-label input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0.42rem 0 0;
+  accent-color: var(--admin-warm);
+}
+
+.preview-content__task-label span {
+  flex: 1 1 auto;
+}
+
 .preview-content table {
   width: 100%;
   max-width: 100%;

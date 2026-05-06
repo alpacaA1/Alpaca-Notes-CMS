@@ -137,7 +137,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     cover: cover ? cover : null,
     searchText,
     contentType,
-    ...(sourceType === 'post' || sourceType === 'read-later' ? { sourceType } : {}),
+    ...(sourceType === 'post' || sourceType === 'read-later' || sourceType === 'diary' ? { sourceType } : {}),
     ...(sourcePath ? { sourcePath } : {}),
     ...(sourceTitle ? { sourceTitle } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),

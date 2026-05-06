@@ -23,6 +23,27 @@ function createSourcePost(): ParsedPost {
   }
 }
 
+function createDiarySource(): ParsedPost {
+  return {
+    path: 'source/diary/20260506090909.md',
+    sha: 'sha-diary',
+    hasExplicitPublished: true,
+    hasExplicitPermalink: false,
+    contentType: 'diary',
+    frontmatter: {
+      title: '2026-05-06-星期三',
+      date: '2026-05-06 09:09:09',
+      desc: '',
+      published: false,
+      pinned: false,
+      categories: [],
+      tags: ['复盘'],
+      diary: true,
+    },
+    body: 'diary body',
+  }
+}
+
 describe('knowledge item helpers', () => {
   const fixedDate = new Date(2026, 4, 5, 9, 8, 7)
 
@@ -56,5 +77,19 @@ describe('knowledge item helpers', () => {
     expect(draft.frontmatter.source_path).toBe('source/_posts/source.md')
     expect(draft.frontmatter.source_title).toBe('来源文章')
     expect(draft.body).toBe('系统能力不是堆功能，而是稳定地复用关键决策。')
+  })
+
+  it('keeps diary provenance when a knowledge item is extracted from a diary entry', () => {
+    const draft = createKnowledgeFromSelection(
+      createDiarySource(),
+      '系统能力来自稳定复用过的决策边界。',
+      fixedDate,
+    )
+
+    expect(draft.frontmatter.source_type).toBe('diary')
+    expect(draft.frontmatter.source_path).toBe('source/diary/20260506090909.md')
+    expect(draft.frontmatter.source_title).toBe('2026-05-06-星期三')
+    expect(draft.frontmatter.source_url).toBeUndefined()
+    expect(draft.frontmatter.tags).toEqual(['复盘'])
   })
 })

@@ -151,4 +151,28 @@ desc: 关于系统复用的知识点
     expect(parsed.frontmatter.source_url).toBe('https://example.com/system')
     expect(parsed.frontmatter.published).toBe(false)
   })
+
+  it('accepts diary as a knowledge source type', () => {
+    const parsed = parsePost({
+      path: 'source/_knowledge/20260506010101.md',
+      sha: 'sha-knowledge-diary',
+      content: `---
+title: 日记里的决策
+knowledge: true
+source_type: diary
+source_path: source/diary/20260506090909.md
+source_title: 2026-05-06-星期三
+date: 2026-05-06 10:10:10
+tags:
+  - 复盘
+desc: 从日记沉淀的知识点
+---
+
+系统能力来自稳定复用过的决策边界。`,
+    })
+
+    expect(parsed.frontmatter.source_type).toBe('diary')
+    expect(parsed.frontmatter.source_path).toBe('source/diary/20260506090909.md')
+    expect(parsed.frontmatter.source_title).toBe('2026-05-06-星期三')
+  })
 })

@@ -58,7 +58,11 @@ export function createKnowledgeFromSelection(
 ): ParsedPost {
   const knowledge = createNewKnowledgeItem(date)
   const normalizedQuote = quote.trim()
-  const sourceType = source.contentType === 'read-later' ? 'read-later' : 'post'
+  const sourceType = source.contentType === 'read-later'
+    ? 'read-later'
+    : source.contentType === 'diary'
+      ? 'diary'
+      : 'post'
   const sourceUrl = source.contentType === 'read-later' ? source.frontmatter.external_url?.trim() || undefined : undefined
 
   return {

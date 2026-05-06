@@ -94,6 +94,37 @@ layout: read-later-item
 ## 我的评论
 这里是我的评论。`
 
+const diaryPost = {
+  path: 'source/diary/20260506090909.md',
+  sha: 'sha-diary-editor-mode',
+  title: '2026-05-06-星期三',
+  date: '2026-05-06 09:09:09',
+  desc: '',
+  published: false,
+  hasExplicitPublished: true,
+  categories: [],
+  tags: ['复盘'],
+  permalink: null,
+  contentType: 'diary' as const,
+}
+
+const diaryContent = `---
+title: 2026-05-06-星期三
+date: 2026-05-06 09:09:09
+diary: true
+published: false
+tags:
+  - 复盘
+desc:
+---
+
+## 今日进展
+- [x] 完成预览适配
+- [ ] 整理上线检查
+
+## 知识点
+系统能力来自稳定复用过的决策边界。`
+
 function selectReadLaterText(text: string) {
   const paragraph = screen.getByText(text)
   const textNode = paragraph.firstChild
@@ -539,6 +570,53 @@ describe('App editor modes', () => {
     expect(screen.getByRole('tab', { name: '评论' })).toBeTruthy()
     expect(screen.queryByText('知识点设置')).toBeNull()
     expect(screen.getByText('这里是原文摘录。')).toBeTruthy()
+  })
+
+  it('allows saving a knowledge item from diary preview selection', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([diaryPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: diaryPost.path,
+      sha: diaryPost.sha,
+      content: diaryContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: 'source/_knowledge/20260506010101.md',
+      sha: 'sha-knowledge-from-diary',
+      content: 'saved',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+    await waitFor(() => {
+      expect(screen.getByText('2026-05-06-星期三')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+    await screen.findByText('系统能力来自稳定复用过的决策边界。')
+
+    selectReadLaterText('系统能力来自稳定复用过的决策边界。')
+    expect(await screen.findByRole('toolbar', { name: '文本批注工具栏' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '知识点' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    const [, request] = saveMarkdownFile.mock.calls[0] || []
+    expect(request.path).toMatch(/^source\/_knowledge\/\d{14}\.md$/)
+    expect(request.content).toContain('source_type: diary')
+    expect(request.content).toContain('source_path: source/diary/20260506090909.md')
+    expect(request.content).toContain('source_title: 2026-05-06-星期三')
+    expect(request.content).toContain('系统能力来自稳定复用过的决策边界。')
+    expect(screen.queryByText('知识点设置')).toBeNull()
+    expect(screen.getByText('系统能力来自稳定复用过的决策边界。')).toBeTruthy()
   })
 
   it('scrolls to and deletes a read-later highlight from the reading canvas', async () => {

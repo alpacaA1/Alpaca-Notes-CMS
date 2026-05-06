@@ -218,6 +218,37 @@ desc: desc
 
 See https://example.com!thanks`
 
+const diaryPost = {
+  path: 'source/diary/20260506090909.md',
+  sha: 'sha-diary-preview',
+  title: '2026-05-06-星期三',
+  date: '2026-05-06 09:09:09',
+  desc: '',
+  published: false,
+  hasExplicitPublished: true,
+  categories: [],
+  tags: ['复盘'],
+  permalink: null,
+  contentType: 'diary' as const,
+}
+
+const diaryContent = `---
+title: 2026-05-06-星期三
+date: 2026-05-06 09:09:09
+diary: true
+published: false
+tags:
+  - 复盘
+desc:
+---
+
+## 今日进展
+- [x] 完成预览适配
+- [ ] 整理上线检查
+
+## 知识点
+系统能力来自稳定复用过的决策边界。`
+
 const bareUrlWithColonAndFollowingChineseTextContent = `---
 title: Preview supported post
 permalink: preview-supported-post/
@@ -1025,6 +1056,38 @@ describe('App preview mode', () => {
     expect(screen.queryByRole('heading', { name: '这不是分段标题' })).toBeNull()
     expect(screen.queryByText((_, element) => element?.tagName === 'LI' && element.textContent === '这不是列表')).toBeNull()
     expect(screen.getByRole('link', { name: 'https://example.com/plain-reader' }).getAttribute('href')).toBe('https://example.com/plain-reader')
+  })
+
+  it('renders diary task lists in preview mode and keeps knowledge sections readable', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([diaryPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: diaryPost.path,
+      sha: diaryPost.sha,
+      content: diaryContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('2026-05-06-星期三')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    const completedCheckbox = await screen.findByRole('checkbox', { name: '完成预览适配' }) as HTMLInputElement
+    const pendingCheckbox = screen.getByRole('checkbox', { name: '整理上线检查' }) as HTMLInputElement
+
+    expect(completedCheckbox.checked).toBe(true)
+    expect(pendingCheckbox.checked).toBe(false)
+    expect(screen.getByRole('heading', { name: '知识点' })).toBeTruthy()
+    expect(screen.getByText('系统能力来自稳定复用过的决策边界。')).toBeTruthy()
   })
 
   it('renders markdown blockquote soft line breaks in preview mode', async () => {

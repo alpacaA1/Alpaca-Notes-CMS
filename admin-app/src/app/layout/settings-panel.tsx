@@ -375,7 +375,15 @@ export default function SettingsPanel({
               <div className="settings-panel__document-note-entry" style={{ cursor: 'default' }}>
                 <strong>{frontmatter.source_title?.trim() || '手动新增知识点'}</strong>
                 <div style={{ marginTop: '8px', display: 'grid', gap: '4px' }}>
-                  <span>{frontmatter.source_type === 'read-later' ? '来源类型：待读' : frontmatter.source_type === 'post' ? '来源类型：文章' : '来源类型：手动整理'}</span>
+                  <span>
+                    {frontmatter.source_type === 'read-later'
+                      ? '来源类型：待读'
+                      : frontmatter.source_type === 'post'
+                        ? '来源类型：文章'
+                        : frontmatter.source_type === 'diary'
+                          ? '来源类型：日记'
+                          : '来源类型：手动整理'}
+                  </span>
                   {frontmatter.source_path ? <span>{`来源路径：${frontmatter.source_path}`}</span> : null}
                   {frontmatter.source_url ? (
                     <a href={frontmatter.source_url} target="_blank" rel="noreferrer" style={{ width: 'fit-content' }}>

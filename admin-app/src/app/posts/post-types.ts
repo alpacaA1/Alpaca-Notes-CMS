@@ -2,7 +2,7 @@ import type { ReadingStatus } from './parse-post'
 
 export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink' | 'external_url', string>>
 export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge'
-export type KnowledgeSourceType = 'post' | 'read-later'
+export type KnowledgeSourceType = 'post' | 'read-later' | 'diary'
 
 export type PostIndexItem = {
   path: string

@@ -23,6 +23,12 @@ type AnnotationActionPosition = {
   annotationId: string
 }
 
+type StructuredMarkdownSection = {
+  id: string
+  title: string
+  body: string
+}
+
 type PreviewPaneProps = {
   title: string
   date: string
@@ -661,6 +667,18 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
   return nodes.length > 0 ? nodes : [markdown]
 }
 
+function parseTaskListItem(markdown: string) {
+  const match = markdown.match(/^\[( |x|X)\]\s+(.*)$/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    checked: match[1].toLowerCase() === 'x',
+    label: match[2],
+  }
+}
+
 function splitTableCells(line: string) {
   return line.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim())
 }
@@ -878,10 +896,21 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
         index += 1
         items.push(nextMatch[1])
       }
+      const parsedItems = items.map((item) => ({ raw: item, task: parseTaskListItem(item) }))
+      const isTaskList = parsedItems.every((item) => Boolean(item.task))
       nodes.push(
-        <ul key={`ul-${nodes.length}`}>
-          {items.map((item, itemIndex) => (
-            <li key={`ul-item-${itemIndex}`}>{renderInline(item, previewImageUrls)}</li>
+        <ul key={`ul-${nodes.length}`} className={isTaskList ? 'preview-content__task-list' : undefined}>
+          {parsedItems.map((item, itemIndex) => (
+            <li key={`ul-item-${itemIndex}`} className={item.task ? 'preview-content__task-item' : undefined}>
+              {item.task ? (
+                <label className="preview-content__task-label">
+                  <input type="checkbox" checked={item.task.checked} readOnly disabled />
+                  <span>{renderInline(item.task.label, previewImageUrls)}</span>
+                </label>
+              ) : (
+                renderInline(item.raw, previewImageUrls)
+              )}
+            </li>
           ))}
         </ul>,
       )
@@ -988,6 +1017,49 @@ function renderPlainReadLaterContent(
   )
 }
 
+function parseStructuredMarkdownSections(markdown: string): { lead: string; sections: StructuredMarkdownSection[] } {
+  const lines = markdown.split('\n')
+  const leadLines: string[] = []
+  const sections: Array<{ title: string; lines: string[] }> = []
+  let currentSection: { title: string; lines: string[] } | null = null
+
+  for (const line of lines) {
+    const headingMatch = line.match(/^##\s+(.*)$/)
+    if (headingMatch) {
+      if (currentSection) {
+        sections.push(currentSection)
+      }
+
+      currentSection = {
+        title: headingMatch[1].trim(),
+        lines: [],
+      }
+      continue
+    }
+
+    if (currentSection) {
+      currentSection.lines.push(line)
+    } else {
+      leadLines.push(line)
+    }
+  }
+
+  if (currentSection) {
+    sections.push(currentSection)
+  }
+
+  return {
+    lead: leadLines.join('\n').trim(),
+    sections: sections
+      .map((section, index) => ({
+        id: `structured-section-${index + 1}`,
+        title: section.title,
+        body: section.lines.join('\n').trim(),
+      }))
+      .filter((section) => section.title || section.body),
+  }
+}
+
 export default function PreviewPane({
   title,
   date,
@@ -1024,9 +1096,13 @@ export default function PreviewPane({
   const suppressNextAnnotationScrollRef = useRef(false)
   const activeOutlineTargetRef = useRef<string | null>(null)
   const isReadLater = contentType === 'read-later'
+  const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
-  const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later') && Boolean(onCreateKnowledge)
+  const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later' || contentType === 'diary') && Boolean(onCreateKnowledge)
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
+  const structuredSections = !isReadLater && contentFormat === 'markdown' && (isDiary || isKnowledge)
+    ? parseStructuredMarkdownSections(markdown)
+    : null
   const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
   const hasStructuredReadLaterSections = isReadLater
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
@@ -1347,7 +1423,7 @@ export default function PreviewPane({
               <div className="preview-content__meta-grid">
                 <span className="preview-content__meta-chip">
                   <strong>来源类型</strong>
-                  <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : '手动整理'}</span>
+                  <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : sourceType === 'diary' ? '日记' : '手动整理'}</span>
                 </span>
                 {sourceTitle?.trim() ? (
                   <span className="preview-content__meta-chip">
@@ -1400,6 +1476,26 @@ export default function PreviewPane({
           </div>
         ) : isReadLater ? (
           renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls)
+        ) : structuredSections && structuredSections.sections.length > 0 ? (
+          <>
+            {structuredSections.lead ? (
+              <section className="preview-content__section preview-content__section--lead">
+                <div className="preview-content__section-body">
+                  {renderContentBlocks(structuredSections.lead, contentFormat, previewImageUrls)}
+                </div>
+              </section>
+            ) : null}
+            <div className="preview-content__sections">
+              {structuredSections.sections.map((section) => (
+                <section key={section.id} id={section.id} className="preview-content__section">
+                  <h2>{renderInline(section.title, previewImageUrls)}</h2>
+                  <div className="preview-content__section-body">
+                    {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id)}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
         ) : (
           renderContentBlocks(markdown, contentFormat, previewImageUrls)
         )}

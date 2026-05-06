@@ -199,7 +199,7 @@ export default function PostListPane({
                         : contentType === 'diary'
                           ? (post.tags[0] || '内部记录')
                           : contentType === 'knowledge'
-                            ? (post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : '手动新增'))
+                            ? (post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增'))
                           : (post.permalink || '旧链接')}
                     </span>
                     <span>

@@ -140,7 +140,9 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(contentType === 'knowledge' ? { knowledge: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),
-      ...(sourceTypeRaw === 'post' || sourceTypeRaw === 'read-later' ? { source_type: sourceTypeRaw } : {}),
+      ...(sourceTypeRaw === 'post' || sourceTypeRaw === 'read-later' || sourceTypeRaw === 'diary'
+        ? { source_type: sourceTypeRaw }
+        : {}),
       ...(sourcePathRaw && sourcePathRaw.length > 0 ? { source_path: sourcePathRaw } : {}),
       ...(sourceTitleRaw && sourceTitleRaw.length > 0 ? { source_title: sourceTitleRaw } : {}),
       ...(sourceUrlRaw && sourceUrlRaw.length > 0 ? { source_url: sourceUrlRaw } : {}),

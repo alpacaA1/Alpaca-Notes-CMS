@@ -189,6 +189,31 @@ desc: 关于系统复用的知识点
     expect(filterPostIndex([parsed], { ...defaultView, query: '系统设计' })).toEqual([parsed])
   })
 
+  it('keeps diary knowledge provenance in the index', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_knowledge/20260506010101.md',
+      sha: 'knowledge-diary-sha',
+      content: `---
+title: 日记里的决策
+knowledge: true
+source_type: diary
+source_path: source/diary/20260506090909.md
+source_title: 2026-05-06-星期三
+date: 2026-05-06 10:10:10
+tags:
+  - 复盘
+desc: 从日记沉淀的知识点
+---
+
+系统能力来自稳定复用过的决策边界。`,
+    })
+
+    expect(parsed.sourceType).toBe('diary')
+    expect(parsed.sourcePath).toBe('source/diary/20260506090909.md')
+    expect(parsed.sourceTitle).toBe('2026-05-06-星期三')
+    expect(filterPostIndex([parsed], { ...defaultView, query: '2026-05-06-星期三' })).toEqual([parsed])
+  })
+
   it('builds the index from sha-matched cached markdown without refetching files', async () => {
     const cachedContent = `---
 title: Cached post

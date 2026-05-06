@@ -1042,7 +1042,7 @@ export default function App() {
     }
 
     const targetContentType = getContentTypeFromPostLike(document)
-    if (targetContentType !== 'post' && targetContentType !== 'read-later') {
+    if (targetContentType !== 'post' && targetContentType !== 'read-later' && targetContentType !== 'diary') {
       return
     }
 
