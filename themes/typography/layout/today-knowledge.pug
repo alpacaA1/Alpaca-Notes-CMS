@@ -48,87 +48,76 @@ block content
                 }
 
                 .today-knowledge__card {
-                    padding: 22px 20px;
+                    padding: 24px 22px 26px;
                     border: 1px solid var(--tk-line);
                     border-radius: 24px;
                     background: var(--tk-paper);
                     box-shadow: var(--tk-shadow);
                 }
 
-                .today-knowledge__card-top {
-                    display: flex;
-                    align-items: center;
-                    justify-content: space-between;
-                    gap: 12px;
-                    margin-bottom: 14px;
-                }
-
-                .today-knowledge__order {
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    width: 34px;
-                    height: 34px;
-                    border-radius: 50%;
-                    background: var(--tk-accent-soft);
-                    color: var(--tk-accent);
-                    font-size: 14px;
-                    font-weight: 700;
-                }
-
                 .today-knowledge__date {
+                    margin: 0 0 16px;
                     color: var(--tk-soft);
                     font-size: 13px;
-                }
-
-                .today-knowledge__title {
-                    margin: 0;
-                    font-size: 22px;
-                    line-height: 1.4;
-                }
-
-                .today-knowledge__desc {
-                    margin: 10px 0 0;
-                    color: var(--tk-muted);
-                    line-height: 1.8;
-                }
-
-                .today-knowledge__section {
-                    margin-top: 16px;
-                    padding-top: 16px;
-                    border-top: 1px solid rgba(90, 67, 45, 0.09);
-                }
-
-                .today-knowledge__section-label {
-                    margin: 0 0 8px;
-                    color: var(--tk-accent);
-                    font-size: 12px;
-                    font-weight: 700;
-                    letter-spacing: 0.1em;
+                    letter-spacing: 0.08em;
                     text-transform: uppercase;
                 }
 
-                .today-knowledge__quote,
-                .today-knowledge__note {
+                .today-knowledge__body {
                     margin: 0;
                     white-space: pre-wrap;
                     word-break: break-word;
-                    line-height: 1.9;
-                }
-
-                .today-knowledge__quote {
-                    padding: 14px 16px;
-                    border-left: 3px solid rgba(166, 107, 44, 0.42);
-                    border-radius: 0 16px 16px 0;
-                    background: rgba(166, 107, 44, 0.06);
-                }
-
-                .today-knowledge__note {
-                    color: var(--tk-text);
+                    line-height: 1.95;
+                    font-size: clamp(17px, 2.1vw, 20px);
                 }
 
                 .today-knowledge__card--active {
                     pointer-events: auto;
+                }
+
+                .today-knowledge__pager {
+                    display: none;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 14px;
+                    margin-top: 18px;
+                }
+
+                .today-knowledge__pager-button {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 38px;
+                    height: 38px;
+                    border: 1px solid var(--tk-line-strong);
+                    border-radius: 999px;
+                    background: var(--tk-paper-strong);
+                    color: var(--tk-accent);
+                    font-size: 20px;
+                    line-height: 1;
+                    cursor: pointer;
+                    transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+                }
+
+                .today-knowledge__pager-button:hover:not(:disabled) {
+                    transform: translateY(-1px);
+                    border-color: rgba(166, 107, 44, 0.35);
+                    box-shadow: 0 10px 24px rgba(66, 42, 20, 0.08);
+                }
+
+                .today-knowledge__pager-button:disabled {
+                    cursor: default;
+                    opacity: 0.38;
+                    box-shadow: none;
+                }
+
+                .today-knowledge__pager-current {
+                    min-width: 58px;
+                    text-align: center;
+                    color: var(--tk-soft);
+                    font-size: 15px;
+                    font-weight: 600;
+                    letter-spacing: 0.08em;
                 }
 
                 @media (min-width: 768px) {
@@ -202,20 +191,29 @@ block content
                     }
 
                     .today-knowledge__card {
-                        padding: 18px 16px;
+                        padding: 22px 18px 24px;
                         border-radius: 20px;
                     }
 
-                    .today-knowledge__title {
-                        font-size: 20px;
+                    .today-knowledge__list--mobile-deck {
+                        display: block;
                     }
 
-                    .today-knowledge__card-top {
-                        align-items: flex-start;
+                    .today-knowledge__body {
+                        font-size: 18px;
+                        line-height: 1.9;
+                    }
+
+                    .today-knowledge__pager {
+                        display: flex;
                     }
                 }
             .today-knowledge#today-knowledge-app(data-data-path=url_for('today-knowledge/data.json') data-timezone=(config.timezone || 'Asia/Shanghai'))
                 .today-knowledge__state#today-knowledge-state 正在加载知识点…
                 .today-knowledge__deck-status#today-knowledge-deck-status(hidden)
                 .today-knowledge__list#today-knowledge-list(hidden)
+                .today-knowledge__pager#today-knowledge-pager(hidden)
+                    button.today-knowledge__pager-button#today-knowledge-pager-prev(type="button" aria-label="上一条知识点") &lt;
+                    span.today-knowledge__pager-current#today-knowledge-pager-current
+                    button.today-knowledge__pager-button#today-knowledge-pager-next(type="button" aria-label="下一条知识点") &gt;
             script(src=url_for('js/today-knowledge.js'))

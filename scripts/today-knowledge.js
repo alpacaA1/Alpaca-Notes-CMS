@@ -71,6 +71,18 @@ function normalizeBlock(value) {
     .trim();
 }
 
+function joinContentBlocks(blocks) {
+  return blocks
+    .map(normalizeBlock)
+    .filter(Boolean)
+    .join('\n\n')
+    .trim();
+}
+
+function buildBody(quote, note, fallbackContent) {
+  return joinContentBlocks([quote, note]) || normalizeBlock(fallbackContent);
+}
+
 function buildKnowledgeItem(fileName, content) {
   const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
   const frontmatter = frontmatterMatch ? frontmatterMatch[1] : '';
@@ -84,13 +96,15 @@ function buildKnowledgeItem(fileName, content) {
   const quote = normalizeBlock(readSection(body, '原文摘录', '我的理解'));
   const note = normalizeBlock(readSection(body, '我的理解', null));
   const fallbackContent = normalizeBlock(body);
-  const desc = buildPreview(note || quote || fallbackContent, title) || readScalar(frontmatter, 'desc') || '';
+  const bodyContent = buildBody(quote, note, fallbackContent);
+  const desc = buildPreview(bodyContent, title) || readScalar(frontmatter, 'desc') || '';
 
   return {
     id: fileName.replace(/\.md$/i, ''),
     path: `source/${KNOWLEDGE_SOURCE_DIR}/${fileName}`,
     title,
     date,
+    body: bodyContent,
     desc,
     quote,
     note,
@@ -114,22 +128,35 @@ function readKnowledgeItems(sourceDir) {
     });
 }
 
-hexo.extend.generator.register('today-knowledge-data', function generateTodayKnowledgeData() {
-  const sourceDir = path.join(this.source_dir, KNOWLEDGE_SOURCE_DIR);
-  const items = readKnowledgeItems(sourceDir);
+function registerTodayKnowledgeDataGenerator(hexoInstance) {
+  hexoInstance.extend.generator.register('today-knowledge-data', function generateTodayKnowledgeData() {
+    const sourceDir = path.join(this.source_dir, KNOWLEDGE_SOURCE_DIR);
+    const items = readKnowledgeItems(sourceDir);
 
-  return [
-    {
-      path: OUTPUT_PATH,
-      data: JSON.stringify(
-        {
-          generatedAt: new Date().toISOString(),
-          timeZone: this.config.timezone || 'Asia/Shanghai',
-          items,
-        },
-        null,
-        2,
-      ),
-    },
-  ];
-});
+    return [
+      {
+        path: OUTPUT_PATH,
+        data: JSON.stringify(
+          {
+            generatedAt: new Date().toISOString(),
+            timeZone: this.config.timezone || 'Asia/Shanghai',
+            items,
+          },
+          null,
+          2,
+        ),
+      },
+    ];
+  });
+}
+
+if (typeof hexo !== 'undefined' && hexo && hexo.extend && hexo.extend.generator) {
+  registerTodayKnowledgeDataGenerator(hexo);
+}
+
+module.exports = {
+  buildBody,
+  buildKnowledgeItem,
+  readKnowledgeItems,
+  registerTodayKnowledgeDataGenerator,
+};

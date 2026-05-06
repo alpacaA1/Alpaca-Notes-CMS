@@ -22,6 +22,7 @@
 })(typeof window !== 'undefined' ? window : globalThis, function () {
   const DESKTOP_QUERY = '(min-width: 768px)';
   const WHEEL_THRESHOLD = 40;
+  const SWIPE_THRESHOLD = 46;
   const WHEEL_RESET_DELAY = 160;
   const TRANSITION_LOCK_DELAY = 260;
 
@@ -95,35 +96,35 @@
       .slice(0, Math.max(0, Math.floor(limit)));
   }
 
-  function renderSection(label, className, value) {
-    if (!value) {
+  function normalizeBlock(value) {
+    return String(value || '')
+      .replace(/\r\n?/g, '\n')
+      .trim();
+  }
+
+  function joinContentBlocks(blocks) {
+    return blocks
+      .map(normalizeBlock)
+      .filter(Boolean)
+      .join('\n\n')
+      .trim();
+  }
+
+  function buildCardBody(item) {
+    if (!item) {
       return '';
     }
 
-    return (
-      '<section class="today-knowledge__section">' +
-        '<p class="today-knowledge__section-label">' + label + '</p>' +
-        '<p class="' + className + '">' + escapeHtml(value) + '</p>' +
-      '</section>'
-    );
+    return normalizeBlock(item.body) || joinContentBlocks([item.quote, item.note]) || normalizeBlock(item.content);
   }
 
   function renderCard(item, index) {
-    const title = escapeHtml(item.title || '未命名知识点');
-    const desc = item.desc ? '<p class="today-knowledge__desc">' + escapeHtml(item.desc) + '</p>' : '';
-    const quote = renderSection('原文摘录', 'today-knowledge__quote', item.quote);
-    const note = renderSection('我的理解', 'today-knowledge__note', item.note || item.content);
+    const body = escapeHtml(buildCardBody(item) || '暂无内容');
 
     return (
       '<article class="today-knowledge__card" data-card-index="' + String(index) + '">' +
-        '<div class="today-knowledge__card-top">' +
-          '<span class="today-knowledge__order">' + pad(index + 1) + '</span>' +
-          '<span class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</span>' +
-        '</div>' +
-        '<h2 class="today-knowledge__title">' + title + '</h2>' +
-        desc +
-        quote +
-        note +
+        '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
+        '<p class="today-knowledge__body">' + body + '</p>' +
       '</article>'
     );
   }
@@ -152,12 +153,18 @@
 
     const envWindow = (env && env.window) || (listNode.ownerDocument && listNode.ownerDocument.defaultView) || null;
     const cards = Array.prototype.slice.call(listNode.querySelectorAll('.today-knowledge__card'));
+    const pagerNode = app.querySelector('#today-knowledge-pager');
+    const pagerCurrentNode = app.querySelector('#today-knowledge-pager-current');
+    const pagerPrevButton = app.querySelector('#today-knowledge-pager-prev');
+    const pagerNextButton = app.querySelector('#today-knowledge-pager-next');
     let activeIndex = 0;
     let deckEnabled = false;
+    let pagerEnabled = false;
     let wheelDistance = 0;
     let wheelResetTimer = null;
     let transitionLockTimer = null;
     let isTransitionLocked = false;
+    let touchStartPoint = null;
 
     function clearTimer(timerId) {
       if (!timerId) {
@@ -185,24 +192,59 @@
         (cards.length > 1 ? '滚轮切换 ' : '今日知识点 ') + pad(activeIndex + 1) + ' / ' + pad(cards.length);
     }
 
+    function updatePager() {
+      if (!pagerNode || !pagerCurrentNode) {
+        return;
+      }
+
+      if (!pagerEnabled) {
+        pagerNode.hidden = true;
+        pagerCurrentNode.textContent = '';
+
+        if (pagerPrevButton) {
+          pagerPrevButton.disabled = true;
+        }
+
+        if (pagerNextButton) {
+          pagerNextButton.disabled = true;
+        }
+        return;
+      }
+
+      pagerNode.hidden = false;
+      pagerCurrentNode.textContent = String(activeIndex + 1) + '/' + String(cards.length);
+
+      if (pagerPrevButton) {
+        pagerPrevButton.disabled = activeIndex <= 0;
+      }
+
+      if (pagerNextButton) {
+        pagerNextButton.disabled = activeIndex >= cards.length - 1;
+      }
+    }
+
     function applyActiveCard() {
-      if (!deckEnabled) {
+      if (!deckEnabled && !pagerEnabled) {
         cards.forEach(function (card) {
           card.classList.remove('today-knowledge__card--active');
+          card.hidden = false;
           card.removeAttribute('aria-hidden');
         });
         listNode.removeAttribute('data-active-index');
         updateStatus();
+        updatePager();
         return;
       }
 
       cards.forEach(function (card, index) {
         const isActive = index === activeIndex;
         card.classList.toggle('today-knowledge__card--active', isActive);
+        card.hidden = pagerEnabled ? !isActive : false;
         card.setAttribute('aria-hidden', isActive ? 'false' : 'true');
       });
       listNode.setAttribute('data-active-index', String(activeIndex));
       updateStatus();
+      updatePager();
     }
 
     function setActiveIndex(nextIndex, force) {
@@ -219,8 +261,11 @@
 
     function syncMode() {
       deckEnabled = matchDesktop(envWindow) && cards.length > 0;
+      pagerEnabled = !deckEnabled && cards.length > 0;
       app.classList.toggle('today-knowledge--wheel-deck', deckEnabled);
+      app.classList.toggle('today-knowledge--mobile-deck', pagerEnabled);
       listNode.classList.toggle('today-knowledge__list--wheel-deck', deckEnabled);
+      listNode.classList.toggle('today-knowledge__list--mobile-deck', pagerEnabled);
       activeIndex = Math.max(0, Math.min(cards.length - 1, activeIndex));
       applyActiveCard();
     }
@@ -274,7 +319,62 @@
       }
     }
 
+    function moveByOffset(offset) {
+      if (!pagerEnabled || cards.length < 2) {
+        return;
+      }
+
+      setActiveIndex(activeIndex + offset, false);
+    }
+
+    function handlePagerPrev() {
+      moveByOffset(-1);
+    }
+
+    function handlePagerNext() {
+      moveByOffset(1);
+    }
+
+    function handleTouchStart(event) {
+      if (!pagerEnabled || !event.touches || event.touches.length !== 1) {
+        touchStartPoint = null;
+        return;
+      }
+
+      touchStartPoint = {
+        x: event.touches[0].clientX,
+        y: event.touches[0].clientY,
+      };
+    }
+
+    function handleTouchEnd(event) {
+      if (!pagerEnabled || !touchStartPoint || !event.changedTouches || event.changedTouches.length !== 1) {
+        touchStartPoint = null;
+        return;
+      }
+
+      const deltaX = event.changedTouches[0].clientX - touchStartPoint.x;
+      const deltaY = event.changedTouches[0].clientY - touchStartPoint.y;
+      touchStartPoint = null;
+
+      if (Math.abs(deltaX) < SWIPE_THRESHOLD || Math.abs(deltaX) <= Math.abs(deltaY)) {
+        return;
+      }
+
+      moveByOffset(deltaX < 0 ? 1 : -1);
+    }
+
     listNode.addEventListener('wheel', handleWheel, { passive: false });
+    listNode.addEventListener('touchstart', handleTouchStart, { passive: true });
+    listNode.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    if (pagerPrevButton) {
+      pagerPrevButton.addEventListener('click', handlePagerPrev);
+    }
+
+    if (pagerNextButton) {
+      pagerNextButton.addEventListener('click', handlePagerNext);
+    }
 
     if (envWindow) {
       envWindow.addEventListener('resize', syncMode, { passive: true });
@@ -288,15 +388,29 @@
         transitionLockTimer = clearTimer(transitionLockTimer);
         isTransitionLocked = false;
         wheelDistance = 0;
+        touchStartPoint = null;
         listNode.removeEventListener('wheel', handleWheel);
+        listNode.removeEventListener('touchstart', handleTouchStart);
+        listNode.removeEventListener('touchend', handleTouchEnd);
+
+        if (pagerPrevButton) {
+          pagerPrevButton.removeEventListener('click', handlePagerPrev);
+        }
+
+        if (pagerNextButton) {
+          pagerNextButton.removeEventListener('click', handlePagerNext);
+        }
 
         if (envWindow) {
           envWindow.removeEventListener('resize', syncMode);
         }
 
         app.classList.remove('today-knowledge--wheel-deck');
+        app.classList.remove('today-knowledge--mobile-deck');
         listNode.classList.remove('today-knowledge__list--wheel-deck');
+        listNode.classList.remove('today-knowledge__list--mobile-deck');
         deckEnabled = false;
+        pagerEnabled = false;
         applyActiveCard();
       },
       getActiveIndex: function () {
@@ -304,6 +418,9 @@
       },
       isDeckEnabled: function () {
         return deckEnabled;
+      },
+      isPagerEnabled: function () {
+        return pagerEnabled;
       },
       syncMode: syncMode,
     };
