@@ -493,6 +493,54 @@ describe('App editor modes', () => {
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
   })
 
+  it('saves a knowledge item in the background from preview selection without leaving the current document', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: 'source/_knowledge/20260506010101.md',
+      sha: 'sha-knowledge-created',
+      content: 'saved',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Read-later mode item')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
+    await screen.findByText('这里是原文摘录。')
+
+    selectReadLaterText('这里是原文摘录。')
+    expect(await screen.findByRole('toolbar', { name: '文本批注工具栏' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '知识点' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+
+    const [, request] = saveMarkdownFile.mock.calls[0] || []
+    expect(request.path).toMatch(/^source\/_knowledge\/\d{14}\.md$/)
+    expect(request.content).toContain('source_type: read-later')
+    expect(request.content).toContain('source_title: Read-later mode item')
+    expect(request.content).toContain('source_url: https://example.com/original')
+    expect(request.content).toContain('这里是原文摘录。')
+    expect(request.content).not.toContain('## 原文摘录')
+    expect(request.content).not.toContain('## 我的理解')
+
+    expect(screen.getByRole('tab', { name: '评论' })).toBeTruthy()
+    expect(screen.queryByText('知识点设置')).toBeNull()
+    expect(screen.getByText('这里是原文摘录。')).toBeTruthy()
+  })
+
   it('scrolls to and deletes a read-later highlight from the reading canvas', async () => {
     const scrollIntoView = vi.fn()
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {

@@ -803,36 +803,14 @@ export default function App() {
     setError(null)
 
     try {
-      const targetContentType = getContentTypeFromPostLike(document)
-      const content = targetContentType === 'read-later' ? serializeReadLaterItem(document as ParsedReadLaterItem) : serializePost(document)
-      const savedFile = await saveMarkdownFile(session, {
-        path: document.path,
-        sha: document.sha || undefined,
-        content,
-      })
-      const savedDocument: ParsedPost = {
-        ...document,
-        path: savedFile.path,
-        sha: savedFile.sha,
-      }
-      const savedPostIndexItem = targetContentType === 'read-later'
-        ? parseReadLaterIndexItem({
-            path: savedFile.path,
-            sha: savedFile.sha,
-            content,
-          })
-        : parsePostIndexItem({
-            path: savedFile.path,
-            sha: savedFile.sha,
-            content,
-          })
+      const { targetContentType, savedDocument, savedPostIndexItem } = await saveDocumentToRepo(document)
       markSaved(savedDocument)
-      removeLocalDraft(savedFile.path)
-      setActivePostPath(savedFile.path)
+      removeLocalDraft(savedDocument.path)
+      setActivePostPath(savedDocument.path)
       updatePostsForType(targetContentType, (currentPosts) =>
         sortPostIndex(
           [
-            ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedFile.path),
+            ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedDocument.path),
             savedPostIndexItem,
           ],
           'date-desc',
@@ -995,6 +973,42 @@ export default function App() {
     setEditingAnnotationId(null)
   }
 
+  const saveDocumentToRepo = async (targetDocument: ParsedPost) => {
+    if (!session) {
+      throw new Error('GitHub 会话已过期，请重新登录。')
+    }
+
+    const targetContentType = getContentTypeFromPostLike(targetDocument)
+    const content = targetContentType === 'read-later' ? serializeReadLaterItem(targetDocument as ParsedReadLaterItem) : serializePost(targetDocument)
+    const savedFile = await saveMarkdownFile(session, {
+      path: targetDocument.path,
+      sha: targetDocument.sha || undefined,
+      content,
+    })
+    const savedDocument: ParsedPost = {
+      ...targetDocument,
+      path: savedFile.path,
+      sha: savedFile.sha,
+    }
+    const savedPostIndexItem = targetContentType === 'read-later'
+      ? parseReadLaterIndexItem({
+          path: savedFile.path,
+          sha: savedFile.sha,
+          content,
+        })
+      : parsePostIndexItem({
+          path: savedFile.path,
+          sha: savedFile.sha,
+          content,
+        })
+
+    return {
+      targetContentType,
+      savedDocument,
+      savedPostIndexItem,
+    }
+  }
+
   const handleCreateReadLaterAnnotation = (
     draft: ReadLaterAnnotationDraft,
     action: ReadLaterAnnotationAction,
@@ -1023,7 +1037,7 @@ export default function App() {
   }
 
   const handleCreateKnowledgeFromSelection = (quote: string) => {
-    if (!document) {
+    if (!document || !session) {
       return
     }
 
@@ -1037,16 +1051,39 @@ export default function App() {
       return
     }
 
-    const captureDate = new Date()
-    const savedBaseDocument = createNewKnowledgeItem(captureDate)
-    const draftKnowledgeDocument = createKnowledgeFromSelection(document, normalizedQuote, captureDate)
+    void (async () => {
+      setSuccessMessage(null)
+      setError(null)
 
-    setContentType('knowledge')
-    openDocument(savedBaseDocument, {
-      draftPost: draftKnowledgeDocument,
-      successMessage: `已从《${document.frontmatter.title.trim() || '未命名稿件'}》生成知识点草稿。`,
-    })
-    setAdminView('editor')
+      try {
+        const captureDate = new Date()
+        const knowledgeDocument = createKnowledgeFromSelection(document, normalizedQuote, captureDate)
+        const { targetContentType, savedPostIndexItem } = await saveDocumentToRepo(knowledgeDocument)
+
+        updatePostsForType(targetContentType, (currentPosts) =>
+          sortPostIndex(
+            [
+              ...currentPosts.filter((post) => post.path !== savedPostIndexItem.path),
+              savedPostIndexItem,
+            ],
+            'date-desc',
+          ),
+        )
+        setSuccessMessage(`已从《${document.frontmatter.title.trim() || '未命名稿件'}》保存知识点。`)
+      } catch (caughtError) {
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+          return
+        }
+
+        if (caughtError instanceof GitHubConflictError) {
+          setError(caughtError.message)
+          return
+        }
+
+        setError(caughtError instanceof Error ? caughtError.message : '生成知识点失败。')
+      }
+    })()
   }
 
   const handleUploadImage = async (file: File) => {

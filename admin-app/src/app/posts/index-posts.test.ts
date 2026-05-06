@@ -328,6 +328,6 @@ desc: 关于系统复用的知识点
 
     expect(indexed[0]?.contentType).toBe('knowledge')
     expect(indexed[0]?.sourceTitle).toBe('一篇关于系统设计的文章')
-    expect(indexed[0]?.desc).toBe('能力来自反复验证的抽象。\n把经验沉淀成可复用结构。')
+    expect(indexed[0]?.desc).toBe('能力来自反复验证的抽象。')
   })
 })

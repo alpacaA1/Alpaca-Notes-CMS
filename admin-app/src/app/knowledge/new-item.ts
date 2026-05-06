@@ -3,7 +3,6 @@ import { formatPostDate, formatPostTimestamp } from '../posts/new-post'
 import type { ParsedPost } from '../posts/parse-post'
 
 const KNOWLEDGE_TITLE_MAX_LENGTH = 28
-const KNOWLEDGE_DESC_MAX_LENGTH = 80
 
 function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim()
@@ -17,20 +16,6 @@ function truncateText(value: string, maxLength: number) {
   return `${value.slice(0, Math.max(1, maxLength - 1)).trim()}…`
 }
 
-function formatQuoteBlock(quote: string) {
-  const lines = quote
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-
-  if (lines.every((line) => line.length === 0)) {
-    return ''
-  }
-
-  return lines
-    .map((line) => (line ? `> ${line}` : '>'))
-    .join('\n')
-}
-
 export function buildKnowledgeTitleFromQuote(quote: string) {
   const normalized = normalizeText(quote)
   if (!normalized) {
@@ -40,23 +25,8 @@ export function buildKnowledgeTitleFromQuote(quote: string) {
   return truncateText(normalized, KNOWLEDGE_TITLE_MAX_LENGTH)
 }
 
-export function buildKnowledgeDescFromQuote(quote: string) {
-  const normalized = normalizeText(quote)
-  if (!normalized) {
-    return ''
-  }
-
-  return truncateText(normalized, KNOWLEDGE_DESC_MAX_LENGTH)
-}
-
-export function createKnowledgeBody(options?: { quote?: string; note?: string }) {
-  return [
-    '## 原文摘录',
-    options?.quote ? formatQuoteBlock(options.quote) : '',
-    '',
-    '## 我的理解',
-    options?.note || '',
-  ].join('\n')
+export function createKnowledgeBody(quote = '') {
+  return quote.trim()
 }
 
 export function createNewKnowledgeItem(date = new Date()): ParsedPost {
@@ -97,7 +67,6 @@ export function createKnowledgeFromSelection(
     frontmatter: {
       ...knowledge.frontmatter,
       title: buildKnowledgeTitleFromQuote(normalizedQuote),
-      desc: buildKnowledgeDescFromQuote(normalizedQuote),
       tags: [...source.frontmatter.tags],
       source_type: sourceType,
       source_path: source.path,

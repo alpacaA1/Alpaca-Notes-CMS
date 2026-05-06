@@ -64,14 +64,10 @@ function stripPreviewMarkdown(markdown: string) {
 }
 
 function extractKnowledgePreview(body: string) {
-  const quote = stripPreviewMarkdown(readSection(body, '原文摘录', '我的理解'))
-  const note = stripPreviewMarkdown(readSection(body, '我的理解', null))
-  const preview = [quote, note]
-    .filter((section) => section.length > 0)
-    .join('\n')
+  const quote = stripPreviewMarkdown(readSection(body, '原文摘录', '我的理解') || readSection(body, '原文摘录', null))
 
-  if (preview) {
-    return preview
+  if (quote) {
+    return quote
   }
 
   return stripPreviewMarkdown(body)

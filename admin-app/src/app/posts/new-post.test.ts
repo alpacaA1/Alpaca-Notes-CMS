@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createNewKnowledgeItem } from '../knowledge/new-item'
 import {
   createNewDiaryEntry,
   createNewPost,
@@ -93,5 +94,12 @@ describe('new post helpers', () => {
 
     post.frontmatter.external_url = 'https://example.com/article'
     expect(validatePostForSave(post).external_url).toBeUndefined()
+  })
+
+  it('does not require desc for knowledge saves', () => {
+    const knowledge = createNewKnowledgeItem(fixedDate)
+    knowledge.frontmatter.title = '摘录'
+
+    expect(validatePostForSave(knowledge, { isNewPost: true }).desc).toBeUndefined()
   })
 })

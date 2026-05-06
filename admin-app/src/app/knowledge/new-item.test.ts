@@ -34,11 +34,12 @@ describe('knowledge item helpers', () => {
     expect(item.frontmatter.knowledge).toBe(true)
     expect(item.frontmatter.nav_exclude).toBe(true)
     expect(item.frontmatter.published).toBe(false)
+    expect(item.body).toBe('')
   })
 
-  it('renders selected quote into a readable body structure', () => {
-    expect(createKnowledgeBody({ quote: '第一行\n第二行' })).toContain('> 第一行\n> 第二行')
-    expect(createKnowledgeBody({ note: '我的理解' })).toContain('## 我的理解\n我的理解')
+  it('uses the quote itself as knowledge body', () => {
+    expect(createKnowledgeBody('第一行\n第二行')).toBe('第一行\n第二行')
+    expect(createKnowledgeBody('  摘录内容  ')).toBe('摘录内容')
   })
 
   it('creates a knowledge draft from a source selection and carries source metadata', () => {
@@ -49,7 +50,7 @@ describe('knowledge item helpers', () => {
     )
 
     expect(draft.frontmatter.title).toBe('系统能力不是堆功能，而是稳定地复用关键决策。')
-    expect(draft.frontmatter.desc).toBe('系统能力不是堆功能，而是稳定地复用关键决策。')
+    expect(draft.frontmatter.desc).toBe('')
     expect(draft.frontmatter.tags).toEqual(['产品', '系统'])
     expect(draft.frontmatter.source_type).toBe('post')
     expect(draft.frontmatter.source_path).toBe('source/_posts/source.md')

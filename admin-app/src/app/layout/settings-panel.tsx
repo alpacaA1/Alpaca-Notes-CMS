@@ -199,7 +199,7 @@ export default function SettingsPanel({
           <>
             <p className="settings-panel__eyebrow">元信息</p>
             <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '发布设置'}</h2>
-            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : isKnowledge ? '沉淀摘录与理解，并保留来源上下文。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
+            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : isKnowledge ? '保留正文与来源上下文，快速沉淀知识点。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
           </>
         </div>
       ) : null}
@@ -248,11 +248,13 @@ export default function SettingsPanel({
             {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
           </label>
 
-          <label>
-            <span>摘要</span>
-            <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
-            {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
-          </label>
+          {!isKnowledge ? (
+            <label>
+              <span>摘要</span>
+              <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
+              {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
+            </label>
+          ) : null}
 
           {isReadLater ? (
             <>

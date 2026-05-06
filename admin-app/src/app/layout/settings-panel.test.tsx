@@ -225,6 +225,7 @@ describe('settings panel', () => {
     })
 
     expect(screen.getByText('知识点设置')).toBeTruthy()
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
     expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
     expect(screen.getByText('分类')).toBeTruthy()

@@ -107,7 +107,7 @@ export default function TopBar({
       : contentType === 'diary'
         ? '搜索标题、摘要、正文或标签'
         : contentType === 'knowledge'
-          ? '搜索标题、摘要、摘录、理解、来源或标签'
+          ? '搜索标题、内容、来源或标签'
         : '搜索标题、摘要、正文、标签或链接'
 
   return (

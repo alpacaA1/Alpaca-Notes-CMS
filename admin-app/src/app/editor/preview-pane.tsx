@@ -1344,7 +1344,6 @@ export default function PreviewPane({
             </div>
           ) : isKnowledge ? (
             <div className="preview-content__read-later-meta">
-              {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
               <div className="preview-content__meta-grid">
                 <span className="preview-content__meta-chip">
                   <strong>来源类型</strong>
