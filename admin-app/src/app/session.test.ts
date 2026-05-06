@@ -22,6 +22,7 @@ describe('session config and popup flow', () => {
   afterEach(() => {
     vi.restoreAllMocks()
     window.sessionStorage.clear()
+    window.localStorage.clear()
   })
 
   it('exposes the approved production config defaults', () => {
@@ -37,6 +38,8 @@ describe('session config and popup flow', () => {
 
   it('stores and clears the session in sessionStorage', () => {
     persistSession({ token: 'test-token' })
+    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBe(JSON.stringify({ token: 'test-token' }))
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBeNull()
     expect(readStoredSession()).toEqual({ token: 'test-token' })
 
     clearStoredSession()

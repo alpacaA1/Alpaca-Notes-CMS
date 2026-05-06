@@ -3,6 +3,8 @@ import { isSupportedContentFileName } from './content-format'
 import { AuthError, type SessionState } from './session'
 
 const GITHUB_API_BASE = 'https://api.github.com'
+const PRIVATE_REPO_SCOPE_ERROR =
+  '当前 GitHub 授权未授予私有内容仓库所需的 repo 权限。请先在 GitHub Settings > Applications > Authorized OAuth Apps 中撤销当前应用授权，再重新登录。'
 
 type GitHubContentFile = {
   type: 'file'
@@ -160,7 +162,7 @@ async function listMarkdownFiles(session: SessionState, basePath: string): Promi
     entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
   } catch (error) {
     if (error instanceof Error && error.message === 'Not Found') {
-      throw new GitHubAuthError('当前 GitHub 授权缺少私有内容仓库权限，请重新登录。')
+      throw new GitHubAuthError(PRIVATE_REPO_SCOPE_ERROR)
     }
     throw error
   }

@@ -1,5 +1,6 @@
 const {
   assertAllowedOwner,
+  assertPrivateRepoScope,
   clearStateCookie,
   exchangeCodeForToken,
   fetchGitHubUser,
@@ -34,11 +35,12 @@ module.exports = async function handler(req, res) {
       });
     }
 
-    const token = await exchangeCodeForToken(req, code);
-    const user = await fetchGitHubUser(token);
+    const { accessToken, scope } = await exchangeCodeForToken(req, code);
+    const user = await fetchGitHubUser(accessToken);
     assertAllowedOwner(user);
+    assertPrivateRepoScope(scope);
 
-    return sendPopupResult(res, req, 'success', { token });
+    return sendPopupResult(res, req, 'success', { token: accessToken });
   } catch (error) {
     const fallbackCookie = clearStateCookie(req);
     if (req.headers.accept && req.headers.accept.includes('text/html')) {

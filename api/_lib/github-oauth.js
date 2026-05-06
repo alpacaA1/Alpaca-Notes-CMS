@@ -3,6 +3,8 @@ const crypto = require('node:crypto');
 const STATE_COOKIE = 'alpaca_admin_oauth_state';
 const DEFAULT_SCOPE = 'repo';
 const COOKIE_MAX_AGE_SECONDS = 10 * 60;
+const PRIVATE_REPO_SCOPE_ERROR =
+  '当前 GitHub 授权未授予私有内容仓库所需的 repo 权限。请先在 GitHub Settings > Applications > Authorized OAuth Apps 中撤销当前应用授权，再重新登录。';
 
 function getEnv(name) {
   const value = process.env[name];
@@ -16,11 +18,15 @@ function getOptionalEnv(name, fallback) {
   return process.env[name] || fallback;
 }
 
-function resolveScope(rawScope) {
-  const scopes = String(rawScope || '')
+function parseScopes(rawScope) {
+  return String(rawScope || '')
     .split(/[,\s]+/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function resolveScope(rawScope) {
+  const scopes = parseScopes(rawScope);
 
   if (scopes.includes('repo')) {
     return Array.from(new Set(scopes)).join(' ');
@@ -28,6 +34,16 @@ function resolveScope(rawScope) {
 
   const upgradedScopes = scopes.map((item) => (item === 'public_repo' ? 'repo' : item));
   return Array.from(new Set(upgradedScopes.length > 0 ? upgradedScopes : [DEFAULT_SCOPE])).join(' ');
+}
+
+function hasRepoScope(rawScope) {
+  return parseScopes(rawScope).includes('repo');
+}
+
+function assertPrivateRepoScope(rawScope) {
+  if (!hasRepoScope(rawScope)) {
+    throw new Error(PRIVATE_REPO_SCOPE_ERROR);
+  }
 }
 
 function getRequestBaseUrl(req) {
@@ -130,7 +146,10 @@ async function exchangeCodeForToken(req, code) {
     throw new Error(data.error_description || data.error || 'GitHub access token exchange failed.');
   }
 
-  return data.access_token;
+  return {
+    accessToken: data.access_token,
+    scope: typeof data.scope === 'string' ? data.scope : '',
+  };
 }
 
 async function fetchGitHubUser(token) {
@@ -229,16 +248,19 @@ function sendPopupResult(res, req, status, payload) {
 }
 
 module.exports = {
+  assertPrivateRepoScope,
   assertAllowedOwner,
   buildAuthorizeUrl,
   exchangeCodeForToken,
   fetchGitHubUser,
   getQueryParam,
+  hasRepoScope,
   readCookies,
   sendPopupResult,
   sendRedirect,
   sendText,
   clearStateCookie,
   makeStateCookie,
+  PRIVATE_REPO_SCOPE_ERROR,
   resolveScope,
 };

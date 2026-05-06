@@ -217,7 +217,7 @@ describe('github client encoding', () => {
     )
 
     await expect(listPostFiles({ token: 'token' })).rejects.toEqual(
-      new GitHubAuthError('当前 GitHub 授权缺少私有内容仓库权限，请重新登录。'),
+      new GitHubAuthError('当前 GitHub 授权未授予私有内容仓库所需的 repo 权限。请先在 GitHub Settings > Applications > Authorized OAuth Apps 中撤销当前应用授权，再重新登录。'),
     )
   })
 
