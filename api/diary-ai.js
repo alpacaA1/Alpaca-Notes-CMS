@@ -147,13 +147,14 @@ ${diaryBlock}`;
 }
 
 async function callDiaryModel(entries) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.DIARY_AI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) {
     throw new DiaryAiRequestError('未配置日记 AI 模型密钥。', 500);
   }
 
+  const baseUrl = (process.env.DIARY_AI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
   const model = process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -244,5 +245,6 @@ async function handler(req, res) {
 module.exports = handler;
 module.exports._private = {
   buildDiaryPrompt,
+  callDiaryModel,
   normalizeEntries,
 };
