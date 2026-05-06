@@ -22,6 +22,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Checkout private content repository
+        uses: actions/checkout@v4
+        with:
+          repository: alpacaA1/Alpaca-Notes-Content
+          ssh-key: ${{ secrets.PRIVATE_CONTENTS_DEPLOY_KEY }}
+          path: private-content
+          sparse-checkout: |
+            source/_posts
+            source/images
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -33,6 +43,9 @@ jobs:
 
       - name: Run admin tests
         run: npm test --workspace admin-app
+
+      - name: Run private content sync tests
+        run: npm run test:sync-private-content
 
       - name: Run site page tests
         run: npm run test:today-knowledge

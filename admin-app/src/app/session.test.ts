@@ -29,7 +29,7 @@ describe('session config and popup flow', () => {
     expect(AUTH_START_URL).toBe('https://alpaca-notes-cms.vercel.app/api/auth')
     expect(AUTH_ORIGIN).toBe('https://alpaca-notes-cms.vercel.app')
     expect(REPO_OWNER).toBe('alpacaA1')
-    expect(REPO_NAME).toBe('Alpaca-Notes-CMS')
+    expect(REPO_NAME).toBe('Alpaca-Notes-Content')
     expect(REPO_BRANCH).toBe('main')
     expect(POSTS_PATH).toBe('source/_posts')
     expect(SITE_ROOT_PATH).toBe('/Alpaca-Notes-CMS')

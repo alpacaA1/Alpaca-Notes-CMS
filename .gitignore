@@ -4,6 +4,12 @@ db.json
 *.log
 node_modules/
 public/
+private-content/
+source/_posts/
+source/diary/
+source/read-later-items/
+source/_knowledge/
+source/images/
 .deploy*/
 _multiconfig.yml
 .worktrees/
