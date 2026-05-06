@@ -15,6 +15,16 @@ type MarkdownEditorProps = {
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
 }
 
+type SelectionRange = {
+  start: number
+  end: number
+}
+
+type HistoryEntry = {
+  value: string
+  selection: SelectionRange
+}
+
 function getLineStart(value: string, index: number) {
   return value.lastIndexOf('\n', Math.max(index - 1, 0)) + 1
 }
@@ -354,6 +364,13 @@ function getImageFileFromClipboardData(clipboardData: DataTransfer) {
   return null
 }
 
+function getSelectionRange(textarea: HTMLTextAreaElement | null): SelectionRange {
+  return {
+    start: textarea?.selectionStart ?? 0,
+    end: textarea?.selectionEnd ?? 0,
+  }
+}
+
 export default function MarkdownEditor({
   value,
   onChange,
@@ -366,6 +383,10 @@ export default function MarkdownEditor({
   const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
+  const trackedSelectionRef = useRef<SelectionRange>({ start: 0, end: 0 })
+  const expectedValueRef = useRef<string | null>(null)
+  const undoStackRef = useRef<HistoryEntry[]>([])
+  const redoStackRef = useRef<HistoryEntry[]>([])
   const isComposingRef = useRef(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
   const textareaId = useId()
@@ -381,11 +402,54 @@ export default function MarkdownEditor({
       pendingSelectionRef.current.start,
       pendingSelectionRef.current.end,
     )
+    trackedSelectionRef.current = pendingSelectionRef.current
     pendingSelectionRef.current = null
   }, [value])
 
-  const applyValue = (nextValue: string, nextSelection: { start: number; end: number }) => {
+  useLayoutEffect(() => {
+    if (expectedValueRef.current === value) {
+      expectedValueRef.current = null
+      return
+    }
+
+    expectedValueRef.current = null
+    undoStackRef.current = []
+    redoStackRef.current = []
+    trackedSelectionRef.current = getSelectionRange(textareaRef.current)
+  }, [value])
+
+  const pushHistoryEntry = (stack: React.MutableRefObject<HistoryEntry[]>, entry: HistoryEntry) => {
+    const lastEntry = stack.current[stack.current.length - 1]
+    if (lastEntry && lastEntry.value === entry.value) {
+      stack.current[stack.current.length - 1] = entry
+      return
+    }
+
+    stack.current.push(entry)
+    if (stack.current.length > 200) {
+      stack.current.shift()
+    }
+  }
+
+  const dispatchValueChange = (
+    nextValue: string,
+    nextSelection: SelectionRange,
+    previousSelection: SelectionRange = trackedSelectionRef.current,
+  ) => {
+    if (nextValue === currentValueRef.current) {
+      pendingSelectionRef.current = nextSelection
+      trackedSelectionRef.current = nextSelection
+      return
+    }
+
+    pushHistoryEntry(undoStackRef, {
+      value: currentValueRef.current,
+      selection: previousSelection,
+    })
+    redoStackRef.current = []
     pendingSelectionRef.current = nextSelection
+    trackedSelectionRef.current = nextSelection
+    expectedValueRef.current = nextValue
     onChange(nextValue)
   }
 
@@ -399,7 +463,7 @@ export default function MarkdownEditor({
       DEFAULT_LINK_TEXT,
     )
     const urlStart = nextValue.lastIndexOf(DEFAULT_LINK_URL)
-    applyValue(nextValue, { start: urlStart, end: urlStart + DEFAULT_LINK_URL.length })
+    dispatchValueChange(nextValue, { start: urlStart, end: urlStart + DEFAULT_LINK_URL.length }, selection)
   }
 
   const insertUploadedMarkdown = async (
@@ -417,7 +481,7 @@ export default function MarkdownEditor({
       const latestValue = currentValueRef.current
       const nextValue = `${latestValue.slice(0, selection.start)}${markdown}${latestValue.slice(selection.end)}`
       const nextCaret = selection.start + markdown.length
-      applyValue(nextValue, { start: nextCaret, end: nextCaret })
+      dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
     } catch {
       // App-level error handling is intentionally deferred.
     } finally {
@@ -430,10 +494,8 @@ export default function MarkdownEditor({
       return
     }
 
-    uploadSelectionRef.current = {
-      start: textareaRef.current.selectionStart,
-      end: textareaRef.current.selectionEnd,
-    }
+    uploadSelectionRef.current = getSelectionRange(textareaRef.current)
+    trackedSelectionRef.current = uploadSelectionRef.current
   }
 
   const handleUploadButtonClick = () => {
@@ -461,6 +523,8 @@ export default function MarkdownEditor({
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     const { selectionStart, selectionEnd } = event.currentTarget
     const normalizedKey = event.key.toLowerCase()
+    const selection = { start: selectionStart, end: selectionEnd }
+    trackedSelectionRef.current = selection
     const nativeKeyEvent = event.nativeEvent as KeyboardEvent & {
       isComposing?: boolean
       keyCode?: number
@@ -478,6 +542,46 @@ export default function MarkdownEditor({
     }
 
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+      const isRedoShortcut =
+        (normalizedKey === 'z' && event.shiftKey) || (normalizedKey === 'y' && event.ctrlKey && !event.shiftKey)
+
+      if (normalizedKey === 'z' || isRedoShortcut) {
+        event.preventDefault()
+        event.stopPropagation()
+
+        if (isRedoShortcut) {
+          const nextEntry = redoStackRef.current.pop()
+          if (!nextEntry) {
+            return
+          }
+
+          pushHistoryEntry(undoStackRef, {
+            value: currentValueRef.current,
+            selection,
+          })
+          pendingSelectionRef.current = nextEntry.selection
+          trackedSelectionRef.current = nextEntry.selection
+          expectedValueRef.current = nextEntry.value
+          onChange(nextEntry.value)
+          return
+        }
+
+        const previousEntry = undoStackRef.current.pop()
+        if (!previousEntry) {
+          return
+        }
+
+        pushHistoryEntry(redoStackRef, {
+          value: currentValueRef.current,
+          selection,
+        })
+        pendingSelectionRef.current = previousEntry.selection
+        trackedSelectionRef.current = previousEntry.selection
+        expectedValueRef.current = previousEntry.value
+        onChange(previousEntry.value)
+        return
+      }
+
       const wrap =
         normalizedKey === 'b'
           ? { prefix: '**', suffix: '**', placeholder: '粗体' }
@@ -503,7 +607,7 @@ export default function MarkdownEditor({
           wrap.suffix,
           wrap.placeholder,
         )
-        applyValue(nextValue, nextSelection)
+        dispatchValueChange(nextValue, nextSelection, selection)
         return
       }
     }
@@ -515,7 +619,7 @@ export default function MarkdownEditor({
         event.stopPropagation()
         const nextState = moveCurrentLine(value, selectionStart, direction)
         if (nextState) {
-          applyValue(nextState.nextValue, nextState.nextSelection)
+          dispatchValueChange(nextState.nextValue, nextState.nextSelection, selection)
         }
         return
       }
@@ -538,7 +642,7 @@ export default function MarkdownEditor({
         const nextLine = getOutdentedEmptyOrderedLine(value, lineStart, currentLine) ?? outdentLine(currentLine)
         const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
         const nextCaret = lineStart + nextLine.length
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
@@ -549,7 +653,7 @@ export default function MarkdownEditor({
         const removeStart = selectionStart - removedWidth
         event.preventDefault()
         const nextValue = `${value.slice(0, removeStart)}${value.slice(selectionEnd)}`
-        applyValue(nextValue, { start: removeStart, end: removeStart })
+        dispatchValueChange(nextValue, { start: removeStart, end: removeStart }, selection)
         return
       }
     }
@@ -564,7 +668,7 @@ export default function MarkdownEditor({
         const indent = codeFenceMatch[1]
         const nextValue = `${value.slice(0, selectionStart)}\n${indent}\n${indent}\`\`\`${value.slice(selectionEnd)}`
         const nextCaret = selectionStart + 1 + indent.length
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
@@ -573,7 +677,7 @@ export default function MarkdownEditor({
         const indent = getCurrentLineIndent(currentLine)
         const nextValue = `${value.slice(0, selectionStart)}\n${indent}${value.slice(selectionEnd)}`
         const nextCaret = selectionStart + 1 + indent.length
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
@@ -582,7 +686,7 @@ export default function MarkdownEditor({
         event.preventDefault()
         const nextValue = `${value.slice(0, selectionStart)}\n${blockquoteContinuationPrefix}${value.slice(selectionEnd)}`
         const nextCaret = selectionStart + 1 + blockquoteContinuationPrefix.length
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
@@ -591,7 +695,7 @@ export default function MarkdownEditor({
       if (listPrefixToRemove) {
         event.preventDefault()
         const nextValue = `${value.slice(0, lineStart)}${value.slice(selectionEnd)}`
-        applyValue(nextValue, { start: lineStart, end: lineStart })
+        dispatchValueChange(nextValue, { start: lineStart, end: lineStart }, selection)
         return
       }
 
@@ -604,7 +708,7 @@ export default function MarkdownEditor({
       event.preventDefault()
       const nextValue = `${value.slice(0, selectionStart)}\n${continuedPrefix}${value.slice(selectionEnd)}`
       const nextCaret = selectionStart + 1 + continuedPrefix.length
-      applyValue(nextValue, { start: nextCaret, end: nextCaret })
+      dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
       return
     }
 
@@ -624,7 +728,7 @@ export default function MarkdownEditor({
       if (isInsideCodeFence(value, selectionStart)) {
         const nextValue = `${value.slice(0, selectionStart)}${INDENT}${value.slice(selectionEnd)}`
         const nextCaret = selectionStart + INDENT.length
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
@@ -632,13 +736,13 @@ export default function MarkdownEditor({
         const indentedLine = indentLine(currentLine)
         const nextValue = `${value.slice(0, lineStart)}${indentedLine}${value.slice(lineEnd)}`
         const nextCaret = selectionStart + (indentedLine.length - currentLine.length)
-        applyValue(nextValue, { start: nextCaret, end: nextCaret })
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
       }
 
       const nextValue = `${value.slice(0, selectionStart)}${INDENT}${value.slice(selectionEnd)}`
       const nextCaret = selectionStart + INDENT.length
-      applyValue(nextValue, { start: nextCaret, end: nextCaret })
+      dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
       return
     }
 
@@ -655,7 +759,7 @@ export default function MarkdownEditor({
 
       const nextValue = `${value.slice(0, lineStart)}${outdentedLine}${value.slice(lineEnd)}`
       const nextCaret = Math.max(lineStart, selectionStart - removedCount)
-      applyValue(nextValue, { start: nextCaret, end: nextCaret })
+      dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
       return
     }
 
@@ -667,18 +771,23 @@ export default function MarkdownEditor({
       .join('\n')
     const nextValue = `${value.slice(0, start)}${nextBlock}${value.slice(end)}`
 
-    applyValue(nextValue, { start, end: start + nextBlock.length })
+    dispatchValueChange(nextValue, { start, end: start + nextBlock.length }, selection)
   }
 
   const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const selection = {
+      start: event.currentTarget.selectionStart,
+      end: event.currentTarget.selectionEnd,
+    }
+    trackedSelectionRef.current = selection
     const imageFile = onUploadImage ? getImageFileFromClipboardData(event.clipboardData) : null
     if (imageFile) {
       event.preventDefault()
       event.stopPropagation()
 
       void insertUploadedMarkdown(imageFile, {
-        start: event.currentTarget.selectionStart,
-        end: event.currentTarget.selectionEnd,
+        start: selection.start,
+        end: selection.end,
       })
       return
     }
@@ -695,7 +804,7 @@ export default function MarkdownEditor({
     const normalizedText = normalizePastedMarkdown(pastedText)
     const nextValue = `${value.slice(0, selectionStart)}${normalizedText}${value.slice(selectionEnd)}`
     const nextCaret = selectionStart + normalizedText.length
-    applyValue(nextValue, { start: nextCaret, end: nextCaret })
+    dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
   }
 
   return (
@@ -746,12 +855,18 @@ export default function MarkdownEditor({
         className="editor-textarea editor-textarea--editor-canvas"
         value={value}
         disabled={isUploadingImage}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          const nextSelection = getSelectionRange(event.currentTarget)
+          dispatchValueChange(event.target.value, nextSelection)
+        }}
         onCompositionStart={() => {
           isComposingRef.current = true
         }}
         onCompositionEnd={() => {
           isComposingRef.current = false
+        }}
+        onSelect={(event) => {
+          trackedSelectionRef.current = getSelectionRange(event.currentTarget)
         }}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}

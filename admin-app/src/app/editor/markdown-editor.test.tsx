@@ -658,6 +658,27 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(7)
   })
 
+  it('undoes plain text changes with mod+z', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    fireEvent.change(editor, { target: { value: 'hello world' } })
+    fireEvent.keyDown(editor, { key: 'z', metaKey: true })
+
+    expect(editor.value).toBe('hello')
+  })
+
+  it('undoes editor formatting shortcuts with mod+z', () => {
+    const editor = renderControlledEditor('hello')
+
+    editor.focus()
+    editor.setSelectionRange(0, 5)
+    fireEvent.keyDown(editor, { key: 'b', metaKey: true })
+    fireEvent.keyDown(editor, { key: 'z', metaKey: true })
+
+    expect(editor.value).toBe('hello')
+  })
+
   it('moves the current list item downward with alt+ArrowDown', () => {
     const editor = renderControlledEditor('- first\n- second')
 
