@@ -93,7 +93,7 @@ export function createKnowledgeFromSelection(
 
   return {
     ...knowledge,
-    body: createKnowledgeBody({ quote: normalizedQuote }),
+    body: normalizedQuote,
     frontmatter: {
       ...knowledge.frontmatter,
       title: buildKnowledgeTitleFromQuote(normalizedQuote),

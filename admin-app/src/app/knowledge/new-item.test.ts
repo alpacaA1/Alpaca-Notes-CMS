@@ -54,6 +54,6 @@ describe('knowledge item helpers', () => {
     expect(draft.frontmatter.source_type).toBe('post')
     expect(draft.frontmatter.source_path).toBe('source/_posts/source.md')
     expect(draft.frontmatter.source_title).toBe('来源文章')
-    expect(draft.body).toContain('> 系统能力不是堆功能，而是稳定地复用关键决策。')
+    expect(draft.body).toBe('系统能力不是堆功能，而是稳定地复用关键决策。')
   })
 })

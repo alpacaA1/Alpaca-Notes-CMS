@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { renderContentBlocks } from '../editor/preview-pane'
 import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
@@ -214,17 +214,21 @@ function getKnowledgeCardContent(post: PostIndexItem) {
 
 function KnowledgeCard({
   post,
+  isActive,
   isDeleting,
   onOpenPost,
   onDeletePost,
 }: {
   post: PostIndexItem
+  isActive: boolean
   isDeleting: boolean
   onOpenPost: (post: PostIndexItem) => void
   onDeletePost: (post: PostIndexItem) => void
 }) {
   return (
-    <article className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}`}>
+    <article
+      className={`post-dashboard__card post-dashboard__card--knowledge${post.pinned ? ' post-dashboard__card--pinned' : ''}${isActive ? ' is-active' : ''}`}
+    >
       <button
         type="button"
         className="post-dashboard__knowledge-card-main"
@@ -277,6 +281,7 @@ export default function PostDashboard({
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [sort, setSort] = useState<PostSort>('date-desc')
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
+  const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -411,6 +416,30 @@ export default function PostDashboard({
     (!isReadLater && !isDiary && selectedCategory !== null) ||
     selectedTag !== null ||
     search.trim().length > 0
+  const filteredKnowledgeKey = useMemo(
+    () => (isKnowledge ? filteredPosts.map((post) => post.path).join('|') : ''),
+    [filteredPosts, isKnowledge],
+  )
+
+  useEffect(() => {
+    setActiveKnowledgeIndex(0)
+  }, [filteredKnowledgeKey, isKnowledge])
+
+  const handleShowPreviousKnowledge = useCallback(() => {
+    if (filteredPosts.length <= 1) {
+      return
+    }
+
+    setActiveKnowledgeIndex((current) => (current - 1 + filteredPosts.length) % filteredPosts.length)
+  }, [filteredPosts.length])
+
+  const handleShowNextKnowledge = useCallback(() => {
+    if (filteredPosts.length <= 1) {
+      return
+    }
+
+    setActiveKnowledgeIndex((current) => (current + 1) % filteredPosts.length)
+  }, [filteredPosts.length])
 
   const clearFilters = () => {
     setStatusFilter('all')
@@ -657,74 +686,107 @@ export default function PostDashboard({
           )}
         </div>
       ) : resolvedViewMode === 'grid' ? (
-        <div className="post-dashboard__grid">
-          {filteredPosts.map((post) => {
-            if (isKnowledge) {
+        isKnowledge ? (
+          <div
+            className="post-dashboard__knowledge-carousel"
+            style={{ '--knowledge-active-index': activeKnowledgeIndex } as CSSProperties}
+          >
+            <div className="post-dashboard__knowledge-viewport">
+              <div className="post-dashboard__knowledge-track">
+                {filteredPosts.map((post, index) => (
+                  <KnowledgeCard
+                    key={post.path}
+                    post={post}
+                    isActive={index === activeKnowledgeIndex}
+                    isDeleting={deletingPostPath === post.path}
+                    onOpenPost={onOpenPost}
+                    onDeletePost={onDeletePost}
+                  />
+                ))}
+              </div>
+            </div>
+            {filteredPosts.length > 1 ? (
+              <div className="post-dashboard__knowledge-pager" aria-label="知识点翻页">
+                <button
+                  type="button"
+                  className="post-dashboard__knowledge-nav-btn"
+                  onClick={handleShowPreviousKnowledge}
+                  aria-label="上一条知识点"
+                >
+                  {'<'}
+                </button>
+                <span className="post-dashboard__knowledge-page-indicator" aria-live="polite">
+                  {activeKnowledgeIndex + 1}/{filteredPosts.length}
+                </span>
+                <button
+                  type="button"
+                  className="post-dashboard__knowledge-nav-btn"
+                  onClick={handleShowNextKnowledge}
+                  aria-label="下一条知识点"
+                >
+                  {'>'}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : (
+          <div className="post-dashboard__grid">
+            {filteredPosts.map((post) => {
+              const statusTone = getStatusTone(post, contentType)
+              const statusLabel = getStatusLabel(post, contentType)
+              const primaryMeta = isReadLater
+                ? post.sourceName || '未填写来源'
+                : isDiary
+                  ? post.tags[0] || '内部记录'
+                  : isKnowledge
+                    ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : '手动新增')
+                    : post.categories[0] || '未分类'
+              const secondaryMeta = isReadLater
+                ? post.externalUrl || '未填写原文链接'
+                : isDiary
+                  ? post.path.replace(/^source\/diary\//, '')
+                  : isKnowledge
+                    ? post.sourceUrl || post.sourcePath || '内部知识库'
+                    : post.permalink || '—'
+
               return (
-                <KnowledgeCard
+                <button
                   key={post.path}
-                  post={post}
-                  isDeleting={deletingPostPath === post.path}
-                  onOpenPost={onOpenPost}
-                  onDeletePost={onDeletePost}
-                />
+                  type="button"
+                  className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
+                  onClick={() => onOpenPost(post)}
+                >
+                  {post.cover ? (
+                    <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
+                  ) : null}
+                  <div className="post-dashboard__card-top">
+                    <div className="post-dashboard__card-badges">
+                      <span className={`post-status-badge post-status-badge--${statusTone}`}>
+                        {statusLabel}
+                      </span>
+                      {post.pinned ? <span className="post-dashboard__pin-mark">置顶</span> : null}
+                    </div>
+                    <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
+                  </div>
+                  <h3 className="post-dashboard__card-title">{post.title}</h3>
+                  <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p>
+                  {post.tags.length > 0 ? (
+                    <div className="post-dashboard__card-tags">
+                      {post.tags.slice(0, 4).map((tag) => (
+                        <TagBadge key={tag} tag={tag} />
+                      ))}
+                      {post.tags.length > 4 ? <span className="post-dashboard__tag-more">+{post.tags.length - 4}</span> : null}
+                    </div>
+                  ) : null}
+                  <div className="post-dashboard__card-footer">
+                    <span className="post-dashboard__card-category">{primaryMeta}</span>
+                    <span className="post-dashboard__card-link">{secondaryMeta}</span>
+                  </div>
+                </button>
               )
-            }
-
-            const statusTone = getStatusTone(post, contentType)
-            const statusLabel = getStatusLabel(post, contentType)
-            const primaryMeta = isReadLater
-              ? post.sourceName || '未填写来源'
-              : isDiary
-                ? post.tags[0] || '内部记录'
-                : isKnowledge
-                  ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : '手动新增')
-                  : post.categories[0] || '未分类'
-            const secondaryMeta = isReadLater
-              ? post.externalUrl || '未填写原文链接'
-              : isDiary
-                ? post.path.replace(/^source\/diary\//, '')
-                : isKnowledge
-                  ? post.sourceUrl || post.sourcePath || '内部知识库'
-                  : post.permalink || '—'
-
-            return (
-              <button
-                key={post.path}
-                type="button"
-                className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
-                onClick={() => onOpenPost(post)}
-              >
-                {post.cover ? (
-                  <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
-                ) : null}
-                <div className="post-dashboard__card-top">
-                  <div className="post-dashboard__card-badges">
-                    <span className={`post-status-badge post-status-badge--${statusTone}`}>
-                      {statusLabel}
-                    </span>
-                    {post.pinned ? <span className="post-dashboard__pin-mark">置顶</span> : null}
-                  </div>
-                  <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
-                </div>
-                <h3 className="post-dashboard__card-title">{post.title}</h3>
-                <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p>
-                {post.tags.length > 0 ? (
-                  <div className="post-dashboard__card-tags">
-                    {post.tags.slice(0, 4).map((tag) => (
-                      <TagBadge key={tag} tag={tag} />
-                    ))}
-                    {post.tags.length > 4 ? <span className="post-dashboard__tag-more">+{post.tags.length - 4}</span> : null}
-                  </div>
-                ) : null}
-                <div className="post-dashboard__card-footer">
-                  <span className="post-dashboard__card-category">{primaryMeta}</span>
-                  <span className="post-dashboard__card-link">{secondaryMeta}</span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+            })}
+          </div>
+        )
       ) : (
         <div className="post-dashboard__list">
           <div className={`post-dashboard__list-header${showQuickActions ? ' post-dashboard__list-header--with-actions' : ''}`}>

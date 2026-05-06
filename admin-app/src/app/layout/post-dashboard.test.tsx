@@ -244,4 +244,30 @@ describe('post dashboard', () => {
     expect(screen.getByText('会不会留下遗憾')).toBeTruthy()
     expect(screen.getByText('答案清楚后再执行。')).toBeTruthy()
   })
+
+  it('switches knowledge cards with the pager controls', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
+    const { container } = render(
+      <PostDashboard
+        posts={knowledgePosts}
+        search=""
+        isIndexing={false}
+        contentType="knowledge"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('1/2')).toBeTruthy()
+    expect(container.querySelectorAll('.post-dashboard__card--knowledge.is-active')).toHaveLength(1)
+    expect(container.querySelector('.post-dashboard__card--knowledge.is-active')?.textContent).toContain('关于系统复用的知识点。')
+
+    fireEvent.click(screen.getByRole('button', { name: '下一条知识点' }))
+
+    expect(screen.getByText('2/2')).toBeTruthy()
+    expect(container.querySelectorAll('.post-dashboard__card--knowledge.is-active')).toHaveLength(1)
+    expect(container.querySelector('.post-dashboard__card--knowledge.is-active')?.textContent).toContain('关于抽象边界的知识点。')
+  })
 })
