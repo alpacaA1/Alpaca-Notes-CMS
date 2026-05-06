@@ -4072,7 +4072,7 @@ textarea {
   font-size: 1rem;
   line-height: 1.72;
   overflow: hidden;
-  max-height: calc(1rem * 1.72 * 6);
+  max-height: calc(1rem * 1.72 * 8);
 }
 
 .post-dashboard__knowledge-card-content > * {
