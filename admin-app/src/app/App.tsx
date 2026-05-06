@@ -17,6 +17,7 @@ import { useEditorDocument } from './editor/use-editor-document'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
 import { resolveContentFormat } from './content-format'
+import { organizeDiaryMaterials, type DiaryAiEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
@@ -213,8 +214,10 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
   const [isQuickCollectingReadLater, setIsQuickCollectingReadLater] = useState(false)
+  const [isOrganizingDiaryMaterials, setIsOrganizingDiaryMaterials] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [diaryMaterialResult, setDiaryMaterialResult] = useState<string | null>(null)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
@@ -310,6 +313,13 @@ export default function App() {
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
+
+  useEffect(() => {
+    if (contentType !== 'diary') {
+      setDiaryMaterialResult(null)
+      setIsOrganizingDiaryMaterials(false)
+    }
+  }, [contentType])
 
   useEffect(() => {
     if (!session || contentType !== 'read-later' || adminView !== 'annotations') {
@@ -1214,6 +1224,51 @@ export default function App() {
     }
   }
 
+  const handleOrganizeDiaryMaterials = async (selectedPosts: PostIndexItem[]) => {
+    if (!session || isOrganizingDiaryMaterials) {
+      return
+    }
+
+    if (selectedPosts.length === 0) {
+      setSuccessMessage(null)
+      setError('请先勾选要整理的日记。')
+      return
+    }
+
+    setIsOrganizingDiaryMaterials(true)
+    setDiaryMaterialResult(null)
+    setSuccessMessage(null)
+    setError(null)
+
+    try {
+      const entries: DiaryAiEntry[] = await Promise.all(
+        selectedPosts.map(async (post) => {
+          const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
+          const diary = parsePost(file)
+
+          return {
+            path: diary.path,
+            title: diary.frontmatter.title || post.title,
+            date: diary.frontmatter.date || post.date,
+            body: diary.body,
+          }
+        }),
+      )
+      const result = await organizeDiaryMaterials(session, entries)
+      setDiaryMaterialResult(result.materialMarkdown)
+      setSuccessMessage(`已整理 ${entries.length} 篇日记素材。`)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '日记素材整理失败。')
+    } finally {
+      setIsOrganizingDiaryMaterials(false)
+    }
+  }
+
   const handleOpenRecoveredDraft = async (path: string) => {
     if (!confirmNavigation()) {
       return
@@ -1402,7 +1457,9 @@ export default function App() {
   const showIndexLoading = isIndexing && posts.length === 0
 
   const status = adminView === 'dashboard'
-    ? isIndexing
+    ? isOrganizingDiaryMaterials
+      ? '正在整理日记素材…'
+      : isIndexing
       ? posts.length > 0
         ? `正在刷新${indexedLabel}… · 共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
         : loadingLabel
@@ -1411,6 +1468,8 @@ export default function App() {
       ? isAnnotationIndexing
         ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
         : `共 ${readLaterAnnotationIndex.length} 条批注`
+      : isOrganizingDiaryMaterials
+        ? '正在整理日记素材…'
       : isSaving && document
         ? `正在保存 ${document.path}`
         : isTogglingPinned && togglingPinnedPostPath
@@ -1481,6 +1540,7 @@ export default function App() {
             setSuccessMessage(null)
             setSearch('')
             setQuickReadLaterUrl('')
+            setDiaryMaterialResult(null)
             setContentType(value)
             setAdminView('dashboard')
           }}
@@ -1517,6 +1577,8 @@ export default function App() {
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
             togglingPinnedPostPath={togglingPinnedPostPath}
+            isOrganizingDiaryMaterials={isOrganizingDiaryMaterials}
+            diaryMaterialResult={diaryMaterialResult}
             onOpenPost={handleOpenPost}
             onOpenRecoveredDraft={handleOpenRecoveredDraft}
             onNewPost={handleNewPost}
@@ -1524,6 +1586,7 @@ export default function App() {
             onQuickCapture={handleQuickCollectReadLater}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
+            onOrganizeDiaryMaterials={(selectedPosts) => { void handleOrganizeDiaryMaterials(selectedPosts) }}
             onSearchFocus={() => searchInputRef.current?.focus()}
           />
         </section>

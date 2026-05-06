@@ -79,6 +79,37 @@ const knowledgePosts: PostIndexItem[] = [
   },
 ]
 
+const diaryPosts: PostIndexItem[] = [
+  {
+    path: 'source/diary/20260505010101.md',
+    sha: 'sha-diary-1',
+    title: '五月第一则日记',
+    date: '2026-05-05 01:01:01',
+    desc: '写完四月月报',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['复盘'],
+    permalink: null,
+    cover: null,
+    contentType: 'diary',
+  },
+  {
+    path: 'source/diary/20260430120000.md',
+    sha: 'sha-diary-2',
+    title: '四月最后一则日记',
+    date: '2026-04-30 12:00:00',
+    desc: '继续开发后台',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['开发'],
+    permalink: null,
+    cover: null,
+    contentType: 'diary',
+  },
+]
+
 describe('post dashboard', () => {
   afterEach(() => {
     cleanup()
@@ -269,5 +300,61 @@ describe('post dashboard', () => {
     expect(screen.getByText('2/2')).toBeTruthy()
     expect(container.querySelectorAll('.post-dashboard__card--knowledge.is-active')).toHaveLength(1)
     expect(container.querySelector('.post-dashboard__card--knowledge.is-active')?.textContent).toContain('关于抽象边界的知识点。')
+  })
+
+  it('groups diary entries by month and supports selecting entries for material organization', () => {
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'grid')
+    const onOrganizeDiaryMaterials = vi.fn()
+
+    render(
+      <PostDashboard
+        posts={diaryPosts}
+        search=""
+        isIndexing={false}
+        contentType="diary"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onOrganizeDiaryMaterials={onOrganizeDiaryMaterials}
+      />,
+    )
+
+    expect(screen.getByText('2026 年 05 月')).toBeTruthy()
+    expect(screen.getByText('2026 年 04 月')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
+
+    fireEvent.click(screen.getByLabelText('选择日记 五月第一则日记'))
+    expect(screen.getByText('已选 1 篇')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '整理选中日记' }))
+    expect(onOrganizeDiaryMaterials).toHaveBeenCalledWith([diaryPosts[0]])
+  })
+
+  it('selects all diary entries in a month and renders the material result', () => {
+    const onOrganizeDiaryMaterials = vi.fn()
+
+    render(
+      <PostDashboard
+        posts={diaryPosts}
+        search=""
+        isIndexing={false}
+        contentType="diary"
+        diaryMaterialResult="# 日记素材整理\n\n## 高频主题\n- 博客开发"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onOrganizeDiaryMaterials={onOrganizeDiaryMaterials}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('选择 2026 年 04 月 全部日记'))
+    fireEvent.click(screen.getByRole('button', { name: '整理选中日记' }))
+
+    expect(onOrganizeDiaryMaterials).toHaveBeenCalledWith([diaryPosts[1]])
+    expect(screen.getByText('整理结果')).toBeTruthy()
+    expect(screen.getByText(/博客开发/)).toBeTruthy()
   })
 })
