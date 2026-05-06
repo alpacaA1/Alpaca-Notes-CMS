@@ -98,6 +98,22 @@ const readLaterDocument: ParsedPost = {
   },
 }
 
+const diaryPosts: PostIndexItem[] = [
+  {
+    path: 'source/diary/20260505010101.md',
+    sha: 'sha-diary-1',
+    title: '五月第一则日记',
+    date: '2026-05-05 01:01:01',
+    desc: '写完四月月报',
+    published: false,
+    hasExplicitPublished: true,
+    categories: [],
+    tags: ['复盘'],
+    permalink: null,
+    contentType: 'diary',
+  },
+]
+
 describe('management layout components', () => {
   afterEach(() => {
     cleanup()
@@ -416,6 +432,22 @@ describe('management layout components', () => {
 
     expect(screen.getByText('日记管理')).toBeTruthy()
     expect(screen.getByRole('button', { name: /新建日记/ })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toContain('正文或标签')
+    expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toBe('搜索标题、正文或标签')
+  })
+
+  it('does not render diary summaries in the archive list', () => {
+    render(
+      <PostListPane
+        posts={diaryPosts}
+        hidden={false}
+        contentType="diary"
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    expect(screen.queryByText('写完四月月报')).toBeNull()
   })
 })

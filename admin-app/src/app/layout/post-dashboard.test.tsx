@@ -322,6 +322,8 @@ describe('post dashboard', () => {
 
     expect(screen.getByText('2026 年 05 月')).toBeTruthy()
     expect(screen.getByText('2026 年 04 月')).toBeTruthy()
+    expect(screen.queryByText('写完四月月报')).toBeNull()
+    expect(screen.queryByText('继续开发后台')).toBeNull()
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
 

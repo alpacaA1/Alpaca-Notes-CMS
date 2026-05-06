@@ -194,6 +194,7 @@ describe('settings panel', () => {
     expect(screen.getByText('日记设置')).toBeTruthy()
     expect(screen.queryByRole('checkbox', { name: '已发布' })).toBeNull()
     expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect(screen.queryByText('分类')).toBeNull()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.queryByLabelText('封面图')).toBeNull()

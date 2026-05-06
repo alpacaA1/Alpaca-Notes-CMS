@@ -105,7 +105,7 @@ export default function TopBar({
     : contentType === 'read-later'
       ? '搜索标题、摘要、正文、来源或原文链接'
       : contentType === 'diary'
-        ? '搜索标题、摘要、正文或标签'
+        ? '搜索标题、正文或标签'
         : contentType === 'knowledge'
           ? '搜索标题、内容、来源或标签'
         : '搜索标题、摘要、正文、标签或链接'

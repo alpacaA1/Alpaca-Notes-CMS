@@ -886,7 +886,6 @@ export default function PostDashboard({
                             <strong>{post.title}</strong>
                             {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
                           </span>
-                          {post.desc ? <span className="post-dashboard__diary-desc">{post.desc}</span> : null}
                           <span className="post-dashboard__diary-file">{post.path.replace(/^source\/diary\//, '')}</span>
                         </button>
                         <div className="post-dashboard__list-actions">
@@ -1003,7 +1002,7 @@ export default function PostDashboard({
                     <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
                   </div>
                   <h3 className="post-dashboard__card-title">{post.title}</h3>
-                  <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p>
+                  {contentType !== 'diary' ? <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p> : null}
                   {post.tags.length > 0 ? (
                     <div className="post-dashboard__card-tags">
                       {post.tags.slice(0, 4).map((tag) => (

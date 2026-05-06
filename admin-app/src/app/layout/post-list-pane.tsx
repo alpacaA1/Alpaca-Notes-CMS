@@ -189,7 +189,9 @@ export default function PostListPane({
                     <span>{post.date}</span>
                   </div>
                   <strong>{post.title}</strong>
-                  <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span>
+                  {contentType !== 'diary' ? (
+                    <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span>
+                  ) : null}
                   <div className="post-row-button__footer">
                     <span>
                       {contentType === 'read-later'

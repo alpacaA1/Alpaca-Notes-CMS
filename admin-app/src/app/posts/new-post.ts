@@ -107,7 +107,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.date = '请填写日期。'
   }
 
-  if (!post.frontmatter.desc.trim() && !isKnowledge) {
+  if (!post.frontmatter.desc.trim() && !isKnowledge && !isDiary) {
     errors.desc = '请填写摘要。'
   }
 

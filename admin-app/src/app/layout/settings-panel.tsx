@@ -80,6 +80,7 @@ export default function SettingsPanel({
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
+  const showSummaryField = !isKnowledge && !isDiary
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -248,7 +249,7 @@ export default function SettingsPanel({
             {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
           </label>
 
-          {!isKnowledge ? (
+          {showSummaryField ? (
             <label>
               <span>摘要</span>
               <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />

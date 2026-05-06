@@ -42,6 +42,7 @@ describe('new post helpers', () => {
     expect(diary.frontmatter.published).toBe(false)
 
     expect(validatePostForSave(diary, { isNewPost: true }).permalink).toBeUndefined()
+    expect(validatePostForSave(diary, { isNewPost: true }).desc).toBeUndefined()
   })
 
   it('converts between stored post date and datetime input value', () => {
