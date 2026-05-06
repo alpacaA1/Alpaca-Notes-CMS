@@ -211,6 +211,16 @@ describe('github client encoding', () => {
     await expect(listPostFiles({ token: 'token' })).rejects.toBeInstanceOf(GitHubAuthError)
   })
 
+  it('treats private-repo 404s during index listing as insufficient GitHub auth scope', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createErrorResponse(404, 'Not Found'),
+    )
+
+    await expect(listPostFiles({ token: 'token' })).rejects.toEqual(
+      new GitHubAuthError('当前 GitHub 授权缺少私有内容仓库权限，请重新登录。'),
+    )
+  })
+
   it('surfaces GitHub rate limits without logging the user out', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       createErrorResponse(403, 'API rate limit exceeded', {

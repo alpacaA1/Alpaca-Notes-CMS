@@ -154,7 +154,16 @@ async function requestGitHub<T>(session: SessionState, path: string, init?: Requ
 
 async function listMarkdownFiles(session: SessionState, basePath: string): Promise<GitHubDirectoryEntry[]> {
   const path = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${basePath}?ref=${encodeURIComponent(REPO_BRANCH)}`
-  const entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
+  let entries: GitHubDirectoryEntry[]
+
+  try {
+    entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Not Found') {
+      throw new GitHubAuthError('当前 GitHub 授权缺少私有内容仓库权限，请重新登录。')
+    }
+    throw error
+  }
 
   return entries.filter((entry) => entry.type === 'file' && isSupportedContentFileName(entry.name))
 }

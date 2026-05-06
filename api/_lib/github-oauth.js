@@ -1,7 +1,7 @@
 const crypto = require('node:crypto');
 
 const STATE_COOKIE = 'alpaca_admin_oauth_state';
-const DEFAULT_SCOPE = 'public_repo';
+const DEFAULT_SCOPE = 'repo';
 const COOKIE_MAX_AGE_SECONDS = 10 * 60;
 
 function getEnv(name) {
@@ -14,6 +14,20 @@ function getEnv(name) {
 
 function getOptionalEnv(name, fallback) {
   return process.env[name] || fallback;
+}
+
+function resolveScope(rawScope) {
+  const scopes = String(rawScope || '')
+    .split(/[,\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  if (scopes.includes('repo')) {
+    return Array.from(new Set(scopes)).join(' ');
+  }
+
+  const upgradedScopes = scopes.map((item) => (item === 'public_repo' ? 'repo' : item));
+  return Array.from(new Set(upgradedScopes.length > 0 ? upgradedScopes : [DEFAULT_SCOPE])).join(' ');
 }
 
 function getRequestBaseUrl(req) {
@@ -29,7 +43,7 @@ function getCallbackUrl(req) {
 
 function buildAuthorizeUrl(req) {
   const clientId = getEnv('GITHUB_CLIENT_ID');
-  const scope = getOptionalEnv('GITHUB_OAUTH_SCOPE', DEFAULT_SCOPE);
+  const scope = resolveScope(getOptionalEnv('GITHUB_OAUTH_SCOPE', DEFAULT_SCOPE));
   const state = crypto.randomBytes(24).toString('hex');
   const callbackUrl = getCallbackUrl(req);
 
@@ -226,4 +240,5 @@ module.exports = {
   sendText,
   clearStateCookie,
   makeStateCookie,
+  resolveScope,
 };

@@ -1,6 +1,6 @@
 import { AUTH_ORIGIN, AUTH_START_URL } from './config'
 
-const SESSION_STORAGE_KEY = 'alpaca-admin-session'
+const SESSION_STORAGE_KEY = 'alpaca-admin-session-v2'
 const AUTH_READY_MESSAGE = 'authorizing:github'
 const AUTH_SUCCESS_PREFIX = 'authorization:github:success:'
 const AUTH_ERROR_PREFIX = 'authorization:github:error:'
