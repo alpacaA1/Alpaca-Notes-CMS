@@ -34,6 +34,9 @@ jobs:
       - name: Run admin tests
         run: npm test --workspace admin-app
 
+      - name: Run site page tests
+        run: npm run test:today-knowledge
+
       - name: Build Hexo site
         run: npm run build
 

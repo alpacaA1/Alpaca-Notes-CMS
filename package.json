@@ -10,7 +10,8 @@
     "build:admin": "npm run build --workspace admin-app",
     "clean": "hexo clean",
     "deploy": "hexo deploy",
-    "server": "hexo server"
+    "server": "hexo server",
+    "test:today-knowledge": "node --test scripts/today-knowledge-page.test.js"
   },
   "hexo": {
     "version": "8.1.1"

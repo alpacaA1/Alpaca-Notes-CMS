@@ -38,6 +38,10 @@ block content
                     color: var(--tk-muted);
                 }
 
+                .today-knowledge__deck-status {
+                    display: none;
+                }
+
                 .today-knowledge__list {
                     display: grid;
                     gap: 18px;
@@ -123,6 +127,75 @@ block content
                     color: var(--tk-text);
                 }
 
+                .today-knowledge__card--active {
+                    pointer-events: auto;
+                }
+
+                @media (min-width: 768px) {
+                    .today-knowledge--wheel-deck {
+                        min-height: calc(100vh - 72px);
+                        display: flex;
+                        flex-direction: column;
+                    }
+
+                    .today-knowledge--wheel-deck .today-knowledge__deck-status {
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 12px;
+                        margin-bottom: 14px;
+                        color: var(--tk-soft);
+                        font-size: 13px;
+                        letter-spacing: 0.08em;
+                        text-transform: uppercase;
+                    }
+
+                    .today-knowledge--wheel-deck .today-knowledge__deck-status::before {
+                        content: 'Desktop';
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        padding: 5px 10px;
+                        border-radius: 999px;
+                        background: rgba(255, 252, 247, 0.7);
+                        border: 1px solid rgba(90, 67, 45, 0.08);
+                        color: var(--tk-accent);
+                        font-size: 11px;
+                        font-weight: 700;
+                        letter-spacing: 0.14em;
+                    }
+
+                    .today-knowledge--wheel-deck .today-knowledge__list--wheel-deck {
+                        position: relative;
+                        flex: 1;
+                        min-height: clamp(520px, 74vh, 760px);
+                        overflow: hidden;
+                        overscroll-behavior: contain;
+                    }
+
+                    .today-knowledge--wheel-deck .today-knowledge__card {
+                        position: absolute;
+                        inset: 0;
+                        margin: 0;
+                        padding: 28px 26px 30px;
+                        opacity: 0;
+                        transform: translate3d(0, 44px, 0) scale(0.985);
+                        transition: opacity 220ms ease, transform 260ms ease;
+                        pointer-events: none;
+                    }
+
+                    .today-knowledge--wheel-deck .today-knowledge__card--active {
+                        opacity: 1;
+                        transform: translate3d(0, 0, 0) scale(1);
+                    }
+                }
+
+                @media (prefers-reduced-motion: reduce) {
+                    .today-knowledge--wheel-deck .today-knowledge__card {
+                        transition: none;
+                    }
+                }
+
                 @media (max-width: 767px) {
                     .today-knowledge {
                         padding: 14px 0 40px;
@@ -143,155 +216,6 @@ block content
                 }
             .today-knowledge#today-knowledge-app(data-data-path=url_for('today-knowledge/data.json') data-timezone=(config.timezone || 'Asia/Shanghai'))
                 .today-knowledge__state#today-knowledge-state 正在加载知识点…
+                .today-knowledge__deck-status#today-knowledge-deck-status(hidden)
                 .today-knowledge__list#today-knowledge-list(hidden)
-            script.
-                (function () {
-                    const app = document.getElementById('today-knowledge-app');
-                    if (!app) {
-                        return;
-                    }
-
-                    const stateNode = document.getElementById('today-knowledge-state');
-                    const listNode = document.getElementById('today-knowledge-list');
-                    const dataPath = app.dataset.dataPath;
-                    const timeZone = app.dataset.timezone || 'Asia/Shanghai';
-
-                    function escapeHtml(value) {
-                        return String(value || '')
-                            .replace(/&/g, '&amp;')
-                            .replace(/</g, '&lt;')
-                            .replace(/>/g, '&gt;')
-                            .replace(/"/g, '&quot;')
-                            .replace(/'/g, '&#39;');
-                    }
-
-                    function pad(value) {
-                        return String(value).padStart(2, '0');
-                    }
-
-                    function getDateParts(date, zone) {
-                        const formatter = new Intl.DateTimeFormat('en-CA', {
-                            timeZone: zone,
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                        });
-                        const parts = formatter.formatToParts(date);
-                        const values = {};
-
-                        parts.forEach(function (part) {
-                            if (part.type !== 'literal') {
-                                values[part.type] = part.value;
-                            }
-                        });
-
-                        return {
-                            year: Number(values.year),
-                            month: Number(values.month),
-                            day: Number(values.day),
-                        };
-                    }
-
-                    function getDateKey(date, zone) {
-                        const parts = getDateParts(date, zone);
-                        return parts.year + '-' + pad(parts.month) + '-' + pad(parts.day);
-                    }
-
-                    function hashValue(value) {
-                        let hash = 2166136261;
-
-                        for (let index = 0; index < value.length; index += 1) {
-                            hash ^= value.charCodeAt(index);
-                            hash = Math.imul(hash, 16777619);
-                        }
-
-                        return hash >>> 0;
-                    }
-
-                    function pickDailyItems(items, limit, date, zone) {
-                        const seed = getDateKey(date, zone);
-
-                        return items
-                            .slice()
-                            .sort(function (left, right) {
-                                const leftScore = hashValue(seed + ':' + left.path);
-                                const rightScore = hashValue(seed + ':' + right.path);
-
-                                if (leftScore !== rightScore) {
-                                    return leftScore - rightScore;
-                                }
-
-                                return left.path.localeCompare(right.path, 'zh-CN');
-                            })
-                            .slice(0, Math.max(0, Math.floor(limit)));
-                    }
-
-                    function renderSection(label, className, value) {
-                        if (!value) {
-                            return '';
-                        }
-
-                        return (
-                            '<section class="today-knowledge__section">' +
-                                '<p class="today-knowledge__section-label">' + label + '</p>' +
-                                '<p class="' + className + '">' + escapeHtml(value) + '</p>' +
-                            '</section>'
-                        );
-                    }
-
-                    function renderCard(item, index) {
-                        const title = escapeHtml(item.title || '未命名知识点');
-                        const desc = item.desc ? '<p class="today-knowledge__desc">' + escapeHtml(item.desc) + '</p>' : '';
-                        const quote = renderSection('原文摘录', 'today-knowledge__quote', item.quote);
-                        const note = renderSection('我的理解', 'today-knowledge__note', item.note || item.content);
-
-                        return (
-                            '<article class="today-knowledge__card">' +
-                                '<div class="today-knowledge__card-top">' +
-                                    '<span class="today-knowledge__order">' + String(index + 1).padStart(2, '0') + '</span>' +
-                                    '<span class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</span>' +
-                                '</div>' +
-                                '<h2 class="today-knowledge__title">' + title + '</h2>' +
-                                desc +
-                                quote +
-                                note +
-                            '</article>'
-                        );
-                    }
-
-                    function showState(message) {
-                        stateNode.textContent = message;
-                        stateNode.hidden = false;
-                        listNode.hidden = true;
-                        listNode.innerHTML = '';
-                    }
-
-                    function showList(items) {
-                        listNode.innerHTML = items.map(renderCard).join('');
-                        listNode.hidden = false;
-                        stateNode.hidden = true;
-                    }
-
-                    fetch(dataPath, { cache: 'no-store' })
-                        .then(function (response) {
-                            if (!response.ok) {
-                                throw new Error('加载今日知识点数据失败');
-                            }
-
-                            return response.json();
-                        })
-                        .then(function (payload) {
-                            const items = Array.isArray(payload.items) ? payload.items : [];
-
-                            if (items.length === 0) {
-                                showState('知识点仓库还是空的，先去后台沉淀几条再来。');
-                                return;
-                            }
-
-                            const dailyItems = pickDailyItems(items, 15, new Date(), timeZone);
-                            showList(dailyItems);
-                        })
-                        .catch(function (error) {
-                            showState(error instanceof Error ? error.message : '加载知识点失败，请稍后重试。');
-                        });
-                })();
+            script(src=url_for('js/today-knowledge.js'))
