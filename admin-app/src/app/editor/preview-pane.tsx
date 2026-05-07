@@ -625,7 +625,8 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
     if (wikiTargetKey) {
       const normalizedTargetKey = wikiTargetKey.trim()
       const resolvedTitle = wikiLinkOptions?.resolveWikiLinkTitle?.(normalizedTargetKey)?.trim() || ''
-      const displayLabel = wikiLabel?.trim() || resolvedTitle || normalizedTargetKey
+      const explicitLabel = wikiLabel?.trim() || ''
+      const displayLabel = explicitLabel || (normalizedTargetKey.includes('/') ? resolvedTitle || normalizedTargetKey : normalizedTargetKey)
       const isResolved = Boolean(resolvedTitle)
 
       nodes.push(
