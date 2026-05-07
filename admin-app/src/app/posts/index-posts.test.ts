@@ -215,6 +215,43 @@ desc: 从日记沉淀的知识点
     expect(filterPostIndex([parsed], { ...defaultView, query: '2026-05-06-星期三' })).toEqual([parsed])
   })
 
+  it('strips generated topic backlink sections from indexed body and search text', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_posts/influence-topic.md',
+      sha: 'topic-generated-sha',
+      content: `---
+title: 影响力
+date: 2026-05-07 10:10:10
+desc: 关于《影响力》的主题页
+topic: true
+topic_type: book
+node_key: book/影响力
+published: false
+categories:
+  - 读书
+tags:
+  - 说服
+---
+
+这是一个主题文章。
+
+<!-- topic-backlinks:start -->
+
+## 相关双链摘录
+
+### 重读说服机制
+
+文章 · 2026-05-04
+
+> 今天又想到 《影响力》 里讲的互惠原则。
+
+<!-- topic-backlinks:end -->`,
+    })
+
+    expect(parsed.body).toBe('\n这是一个主题文章。')
+    expect(parsed.searchText?.includes('重读说服机制')).toBe(false)
+  })
+
   it('builds the index from sha-matched cached markdown without refetching files', async () => {
     const cachedContent = `---
 title: Cached post

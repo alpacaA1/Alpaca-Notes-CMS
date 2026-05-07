@@ -1,5 +1,6 @@
 import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
 import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
+import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { SessionState } from '../session'
 import type { ContentType, PostIndexItem, PostIndexView } from './post-types'
 
@@ -112,7 +113,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const aliases = readList(frontmatter, 'aliases')
   const categories = readList(frontmatter, 'categories')
   const tags = readList(frontmatter, 'tags')
-  const body = stripFrontmatter(input.content)
+  const body = stripGeneratedTopicBacklinks(stripFrontmatter(input.content))
   const knowledgePreview = contentType === 'knowledge' ? extractKnowledgePreview(body) : ''
   const searchText = normalizeSearchText([
     title,

@@ -16,7 +16,13 @@ import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
-import { buildTopicBacklinkMap, buildTopicNodeMap } from './knowledge/wiki-links'
+import {
+  appendTopicBacklinksToMarkdown,
+  buildTopicBacklinkMap,
+  buildTopicNodeMap,
+  collectResolvedWikiLinkTargetKeys,
+  isTopicNodePost,
+} from './knowledge/wiki-links'
 import { resolveContentFormat } from './content-format'
 import { organizeDiaryMaterials, type DiaryAiEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
@@ -192,6 +198,38 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
   }
 }
 
+function replacePostIndexItem(currentPosts: PostIndexItem[], nextPost: PostIndexItem, previousPath?: string) {
+  return sortPostIndex(
+    currentPosts.filter((post) => post.path !== nextPost.path && post.path !== previousPath).concat(nextPost),
+    'date-desc',
+  )
+}
+
+function buildNextPostsByType(
+  currentPostsByType: IndexedPostsByType,
+  contentType: ContentType,
+  nextPost: PostIndexItem,
+  previousPath?: string,
+): IndexedPostsByType {
+  return {
+    ...currentPostsByType,
+    [contentType]: replacePostIndexItem(currentPostsByType[contentType], nextPost, previousPath),
+  }
+}
+
+function upsertDocumentIntoIndexItems(posts: PostIndexItem[], document: ParsedPost | null) {
+  if (!document) {
+    return posts
+  }
+
+  const nextPost = buildPostIndexItemFromDocument(document)
+  return [nextPost, ...posts.filter((post) => post.path !== nextPost.path)]
+}
+
+function isTopicDocument(document: ParsedPost | PostIndexItem | null | undefined) {
+  return Boolean(document && isTopicNodePost(document))
+}
+
 async function buildIndexByContentType(session: { token: string }, type: ContentType) {
   if (type === 'read-later') {
     return buildReadLaterIndex(session)
@@ -322,14 +360,24 @@ export default function App() {
     const resolvedContentType = getContentTypeFromPostLike(document)
     return postsByType[resolvedContentType].find((post) => post.path === document.path) || buildPostIndexItemFromDocument(document)
   }, [document, postsByType])
-  const backlinkSourcePosts = useMemo(
-    () => [...postsByType.post, ...postsByType.diary, ...postsByType.knowledge],
-    [postsByType],
-  )
-  const topicNodesByKey = useMemo(
-    () => buildTopicNodeMap([...postsByType.post, ...postsByType.knowledge]),
-    [postsByType.knowledge, postsByType.post],
-  )
+  const backlinkSourcePosts = useMemo(() => {
+    const indexedPosts = [...postsByType.post, ...postsByType.diary, ...postsByType.knowledge]
+
+    if (!document || document.contentType === 'read-later') {
+      return indexedPosts
+    }
+
+    return upsertDocumentIntoIndexItems(indexedPosts, document)
+  }, [document, postsByType.diary, postsByType.knowledge, postsByType.post])
+  const topicNodesByKey = useMemo(() => {
+    const indexedPosts = [...postsByType.post, ...postsByType.knowledge]
+
+    if (!document || (document.contentType !== 'post' && document.contentType !== 'knowledge')) {
+      return buildTopicNodeMap(indexedPosts)
+    }
+
+    return buildTopicNodeMap(upsertDocumentIntoIndexItems(indexedPosts, document))
+  }, [document, postsByType.knowledge, postsByType.post])
   const topicBacklinksByKey = useMemo(() => buildTopicBacklinkMap(backlinkSourcePosts), [backlinkSourcePosts])
   const activeTopicNodeKey =
     document?.contentType === 'post' && document.frontmatter.topic === true
@@ -344,6 +392,17 @@ export default function App() {
 
     return (topicBacklinksByKey.get(activeTopicNodeKey) || []).filter((item) => item.sourcePath !== document.path)
   }, [activeTopicNodeKey, document, topicBacklinksByKey])
+  const previewMarkdown = useMemo(() => {
+    if (!document) {
+      return ''
+    }
+
+    if (!activeTopicNodeKey) {
+      return document.body
+    }
+
+    return appendTopicBacklinksToMarkdown(document.body, activeTopicBacklinks)
+  }, [activeTopicBacklinks, activeTopicNodeKey, document])
   const recoverableDrafts = useMemo(() => {
     const knownPaths = new Set(postsByType[contentType].map((post) => post.path))
 
@@ -848,23 +907,28 @@ export default function App() {
             sha: savedFile.sha,
             content: savedContent,
           })
-
-      updatePostsForType(targetContentType, (currentPosts) =>
-        sortPostIndex(
-          [
-            ...currentPosts.filter((currentPost) => currentPost.path !== post.path && currentPost.path !== savedFile.path),
+      const syncResult = isTopicDocument(savedDocument)
+        ? await syncTopicDocumentsAfterSave({
+            currentPostsByType: postsByType,
+            previousDocument: openedPost.contentType === 'read-later' ? null : (openedPost as ParsedPost),
+            savedContent,
+            savedDocument,
             savedPostIndexItem,
-          ],
-          'date-desc',
-        ),
-      )
+          })
+        : {
+            postsByType: buildNextPostsByType(postsByType, targetContentType, savedPostIndexItem, post.path),
+            savedDocument,
+            savedPostIndexItem,
+          }
+
+      setPostsByType(syncResult.postsByType)
 
       if (document?.path === post.path && canNavigateAway) {
-        markSaved(savedDocument)
-        setActivePostPath(savedFile.path)
+        markSaved(syncResult.savedDocument)
+        setActivePostPath(syncResult.savedDocument.path)
       }
 
-      setSuccessMessage(savedDocument.frontmatter.pinned ? `已置顶《${post.title}》。` : `已取消《${post.title}》的置顶。`)
+      setSuccessMessage(syncResult.savedDocument.frontmatter.pinned ? `已置顶《${post.title}》。` : `已取消《${post.title}》的置顶。`)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -898,19 +962,18 @@ export default function App() {
     setError(null)
 
     try {
-      const { targetContentType, savedDocument, savedPostIndexItem } = await saveDocumentToRepo(document)
-      markSaved(savedDocument)
-      removeLocalDraft(savedDocument.path)
-      setActivePostPath(savedDocument.path)
-      updatePostsForType(targetContentType, (currentPosts) =>
-        sortPostIndex(
-          [
-            ...currentPosts.filter((post) => post.path !== document.path && post.path !== savedDocument.path),
-            savedPostIndexItem,
-          ],
-          'date-desc',
-        ),
-      )
+      const saveResult = await saveDocumentToRepo(document)
+      const syncResult = await syncTopicDocumentsAfterSave({
+        currentPostsByType: postsByType,
+        previousDocument: savedDocument,
+        savedContent: saveResult.savedContent,
+        savedDocument: saveResult.savedDocument,
+        savedPostIndexItem: saveResult.savedPostIndexItem,
+      })
+      markSaved(syncResult.savedDocument)
+      removeLocalDraft(syncResult.savedDocument.path)
+      setActivePostPath(syncResult.savedDocument.path)
+      setPostsByType(syncResult.postsByType)
       setSuccessMessage(SAVE_SUCCESS_MESSAGE)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -1099,8 +1162,137 @@ export default function App() {
 
     return {
       targetContentType,
+      savedContent: content,
       savedDocument,
       savedPostIndexItem,
+    }
+  }
+
+  const syncTopicDocumentsAfterSave = async ({
+    currentPostsByType,
+    previousDocument,
+    savedContent,
+    savedDocument,
+    savedPostIndexItem,
+  }: {
+    currentPostsByType: IndexedPostsByType
+    previousDocument: ParsedPost | null
+    savedContent: string
+    savedDocument: ParsedPost
+    savedPostIndexItem: PostIndexItem
+  }) => {
+    if (!session) {
+      throw new Error('GitHub 会话已过期，请重新登录。')
+    }
+
+    const targetContentType = getContentTypeFromPostLike(savedDocument)
+    let nextPostsByType = buildNextPostsByType(currentPostsByType, targetContentType, savedPostIndexItem, previousDocument?.path)
+    let nextSavedDocument = savedDocument
+    let nextSavedPostIndexItem = savedPostIndexItem
+    let nextSavedContent = savedContent
+
+    if (targetContentType === 'read-later') {
+      return {
+        postsByType: nextPostsByType,
+        savedDocument: nextSavedDocument,
+        savedPostIndexItem: nextSavedPostIndexItem,
+      }
+    }
+
+    const topicNodesByKey = buildTopicNodeMap([...nextPostsByType.post, ...nextPostsByType.knowledge])
+    const topicPosts = [...nextPostsByType.post, ...nextPostsByType.knowledge].filter((post) => isTopicNodePost(post))
+    const shouldSyncAllTopicPosts = isTopicDocument(previousDocument) || isTopicDocument(savedDocument)
+    const affectedTopicKeys = shouldSyncAllTopicPosts
+      ? []
+      : Array.from(
+          new Set([
+            ...collectResolvedWikiLinkTargetKeys(previousDocument?.body || '', topicNodesByKey),
+            ...collectResolvedWikiLinkTargetKeys(savedDocument.body, topicNodesByKey),
+          ]),
+        )
+    const topicPostsToSync = shouldSyncAllTopicPosts
+      ? topicPosts
+      : Array.from(
+          new Map(
+            affectedTopicKeys
+              .map((targetKey) => topicNodesByKey.get(targetKey))
+              .filter((post): post is PostIndexItem => Boolean(post && isTopicNodePost(post)))
+              .map((post) => [post.path, post]),
+          ).values(),
+        )
+
+    if (topicPostsToSync.length === 0) {
+      return {
+        postsByType: nextPostsByType,
+        savedDocument: nextSavedDocument,
+        savedPostIndexItem: nextSavedPostIndexItem,
+      }
+    }
+
+    const topicBacklinksByKey = buildTopicBacklinkMap([...nextPostsByType.post, ...nextPostsByType.diary, ...nextPostsByType.knowledge])
+
+    for (const topicPost of topicPostsToSync) {
+      const currentTopicFile = topicPost.path === nextSavedDocument.path
+        ? {
+            path: nextSavedDocument.path,
+            sha: nextSavedDocument.sha,
+            content: nextSavedContent,
+          }
+        : readCachedMarkdownFile(topicPost.path, topicPost.sha) ?? await fetchMarkdownFile(session, topicPost.path)
+
+      const parsedTopicDocument = parsePost(currentTopicFile)
+      const topicNodeKey = parsedTopicDocument.frontmatter.node_key?.trim() || topicPost.nodeKey?.trim() || ''
+      if (!topicNodeKey) {
+        continue
+      }
+
+      const nextTopicDocument = {
+        ...parsedTopicDocument,
+        body: appendTopicBacklinksToMarkdown(
+          parsedTopicDocument.body,
+          (topicBacklinksByKey.get(topicNodeKey) || []).filter((backlink) => backlink.sourcePath !== topicPost.path),
+        ),
+      }
+      const nextTopicContent = serializePost(nextTopicDocument)
+
+      if (nextTopicContent === currentTopicFile.content) {
+        continue
+      }
+
+      const savedTopicFile = await saveMarkdownFile(session, {
+        path: topicPost.path,
+        sha: currentTopicFile.sha || undefined,
+        content: nextTopicContent,
+      })
+      const nextTopicSavedDocument = parsePost({
+        path: savedTopicFile.path,
+        sha: savedTopicFile.sha,
+        content: nextTopicContent,
+      })
+      const nextTopicSavedPostIndexItem = parsePostIndexItem({
+        path: savedTopicFile.path,
+        sha: savedTopicFile.sha,
+        content: nextTopicContent,
+      })
+
+      nextPostsByType = buildNextPostsByType(
+        nextPostsByType,
+        getContentTypeFromPostLike(nextTopicSavedDocument),
+        nextTopicSavedPostIndexItem,
+        topicPost.path,
+      )
+
+      if (topicPost.path === nextSavedDocument.path) {
+        nextSavedDocument = nextTopicSavedDocument
+        nextSavedPostIndexItem = nextTopicSavedPostIndexItem
+        nextSavedContent = nextTopicContent
+      }
+    }
+
+    return {
+      postsByType: nextPostsByType,
+      savedDocument: nextSavedDocument,
+      savedPostIndexItem: nextSavedPostIndexItem,
     }
   }
 
@@ -1153,17 +1345,16 @@ export default function App() {
       try {
         const captureDate = new Date()
         const knowledgeDocument = createKnowledgeFromSelection(document, normalizedQuote, captureDate)
-        const { targetContentType, savedPostIndexItem } = await saveDocumentToRepo(knowledgeDocument)
+        const saveResult = await saveDocumentToRepo(knowledgeDocument)
+        const syncResult = await syncTopicDocumentsAfterSave({
+          currentPostsByType: postsByType,
+          previousDocument: null,
+          savedContent: saveResult.savedContent,
+          savedDocument: saveResult.savedDocument,
+          savedPostIndexItem: saveResult.savedPostIndexItem,
+        })
 
-        updatePostsForType(targetContentType, (currentPosts) =>
-          sortPostIndex(
-            [
-              ...currentPosts.filter((post) => post.path !== savedPostIndexItem.path),
-              savedPostIndexItem,
-            ],
-            'date-desc',
-          ),
-        )
+        setPostsByType(syncResult.postsByType)
         setSuccessMessage(`已从《${document.frontmatter.title.trim() || '未命名稿件'}》保存知识点。`)
       } catch (caughtError) {
         if (caughtError instanceof GitHubAuthError) {
@@ -1776,7 +1967,7 @@ export default function App() {
                     <PreviewPane
                       title={document.frontmatter.title}
                       date={document.frontmatter.date}
-                      markdown={document.body}
+                      markdown={previewMarkdown}
                       contentFormat={documentContentFormat}
                       desc={document.frontmatter.desc}
                       cover={document.frontmatter.cover}

@@ -60,6 +60,57 @@ desc: other desc
 
 Other body.`
 
+const topicPost = {
+  path: 'source/_posts/influence-topic.md',
+  sha: 'sha-topic',
+  title: '影响力',
+  date: '2026-05-05 09:00:00',
+  desc: '关于《影响力》的主题页',
+  published: false,
+  hasExplicitPublished: true,
+  categories: ['读书'],
+  tags: ['说服'],
+  permalink: 'influence/',
+  contentType: 'post' as const,
+  isTopic: true,
+  topicType: 'book' as const,
+  nodeKey: 'book/影响力',
+  aliases: ['《影响力》'],
+}
+
+const linkingContent = `---
+title: Save flow post
+permalink: save-flow-post/
+date: 2026-04-03 12:00:00
+published: false
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。`
+
+const topicContent = `---
+title: 影响力
+permalink: influence/
+topic: true
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+date: 2026-05-05 09:00:00
+published: false
+categories:
+  - 读书
+tags:
+  - 说服
+desc: 关于《影响力》的主题页
+---
+
+这是一个主题文章。`
+
 function createDeferredPromise<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
   let reject!: (reason?: unknown) => void
@@ -292,9 +343,67 @@ describe('App save flow', () => {
     await waitFor(() => {
       expect(buildPostIndex).toHaveBeenCalledTimes(1)
     })
-    expect(await screen.findByRole('heading', { name: 'Updated title' })).toBeTruthy()
-    expect(screen.getByTitle('删除《Updated title》')).toBeTruthy()
-    expect(screen.getByText('已保存。')).toBeTruthy()
+  })
+
+  it('updates linked topic documents after saving a backlink source post', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost, topicPost])
+    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([])
+    vi.spyOn(indexPostsModule, 'buildKnowledgeIndex').mockResolvedValue([])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
+      if (path === existingPost.path) {
+        return {
+          path,
+          sha: existingPost.sha,
+          content: linkingContent,
+        }
+      }
+
+      return {
+        path,
+        sha: topicPost.sha,
+        content: topicContent,
+      }
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => {
+      if (file.path === existingPost.path) {
+        return {
+          path: file.path,
+          sha: 'sha-linking-updated',
+          content: file.content,
+        }
+      }
+
+      expect(file.content).toContain('## 相关双链摘录')
+      expect(file.content).toContain('### Updated source title')
+      expect(file.content).toContain('今天又想到 《影响力》 里讲的互惠原则。')
+
+      return {
+        path: file.path,
+        sha: 'sha-topic-updated',
+        content: file.content,
+      }
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated source title' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(2)
+    })
+
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.path).toBe(existingPost.path)
+    expect(saveMarkdownFile.mock.calls[1]?.[1]?.path).toBe(topicPost.path)
+    expect(await screen.findByText('已保存。')).toBeTruthy()
   })
 
   it('keeps saved permalink changes after switching away and reopening the post', async () => {

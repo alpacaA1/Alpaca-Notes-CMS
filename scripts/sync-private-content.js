@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { stripGeneratedTopicBacklinks } = require('./topic-transclusion.js');
 
 const DEFAULT_SITE_ROOT_PATH = '/Alpaca-Notes-CMS';
 const DEFAULT_CONTENT_ROOT = 'private-content';
@@ -80,6 +81,31 @@ function copyDirectory(sourceDir, destinationDir) {
   }
 }
 
+function stripGeneratedBacklinksInDirectory(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+    const fullPath = path.join(dirPath, entry.name);
+
+    if (entry.isDirectory()) {
+      stripGeneratedBacklinksInDirectory(fullPath);
+      continue;
+    }
+
+    if (!/\.(md|txt|plaintxt)$/i.test(entry.name)) {
+      continue;
+    }
+
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const strippedContent = stripGeneratedTopicBacklinks(content);
+    if (strippedContent !== content) {
+      fs.writeFileSync(fullPath, strippedContent);
+    }
+  }
+}
+
 function countMarkdownFiles(dirPath) {
   if (!fs.existsSync(dirPath)) {
     return 0;
@@ -96,6 +122,7 @@ function syncOptionalContentDirectory(sourceDir, destinationDir) {
   }
 
   copyDirectory(sourceDir, destinationDir);
+  stripGeneratedBacklinksInDirectory(destinationDir);
   return countMarkdownFiles(destinationDir);
 }
 
@@ -174,6 +201,7 @@ function syncPrivateContent(options = {}) {
   fs.rmSync(path.join(publicSourceDir, 'diary'), { recursive: true, force: true });
 
   copyDirectory(contentPostsDir, publicPostsDir);
+  stripGeneratedBacklinksInDirectory(publicPostsDir);
   const copiedReadLater = syncOptionalContentDirectory(contentReadLaterDir, publicReadLaterDir);
   const copiedKnowledge = syncOptionalContentDirectory(contentKnowledgeDir, publicKnowledgeDir);
 

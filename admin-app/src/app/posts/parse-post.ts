@@ -1,4 +1,5 @@
 import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
+import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { ContentType, KnowledgeKind, KnowledgeSourceType, TopicNodeType } from './post-types'
 
 export type ReadingStatus = 'unread' | 'reading' | 'done'
@@ -88,7 +89,7 @@ function readList(frontmatter: string, field: string): string[] {
 export function parsePost(input: { path: string; sha: string; content: string }): ParsedPost {
   const match = input.content.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/)
   const frontmatterBlock = match?.[1] || ''
-  const body = (match?.[2] || input.content).replace(/^\n/, '')
+  const body = stripGeneratedTopicBacklinks((match?.[2] || input.content).replace(/^\n/, ''))
   const publishedRaw = readScalar(frontmatterBlock, 'published')
   const pinnedRaw = readScalar(frontmatterBlock, 'pinned')
   const formatRaw = readScalar(frontmatterBlock, 'format')

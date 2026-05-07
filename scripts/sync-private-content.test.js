@@ -50,7 +50,19 @@ published: true
 cover: /Alpaca-Notes-CMS/images/2026/04/cover.png
 ---
 
-![published](/Alpaca-Notes-CMS/images/2026/04/published.png)`);
+![published](/Alpaca-Notes-CMS/images/2026/04/published.png)
+
+<!-- topic-backlinks:start -->
+
+## 相关双链摘录
+
+### 重读说服机制
+
+文章 · 2026-05-04
+
+> 今天又想到 《影响力》 里讲的互惠原则。
+
+<!-- topic-backlinks:end -->`);
   writeFile(path.join(contentRoot, 'source', '_posts', 'implicit-published.md'), `---
 title: Implicit Published
 ---
@@ -100,6 +112,10 @@ published: false
   assert.equal(summary.copiedImages, 6);
   assert.equal(fs.existsSync(path.join(publicSourceDir, '_posts', 'published.md')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, '_posts', 'draft.md')), true);
+  assert.equal(
+    fs.readFileSync(path.join(publicSourceDir, '_posts', 'published.md'), 'utf8').includes('topic-backlinks:start'),
+    false,
+  );
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'read-later-items', 'saved.md')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, '_knowledge', 'fact.md')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'published.png')), true);

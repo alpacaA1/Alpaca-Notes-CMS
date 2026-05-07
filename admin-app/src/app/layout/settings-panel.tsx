@@ -513,9 +513,9 @@ export default function SettingsPanel({
                   <span>反向引用</span>
                   {topicBacklinks.length > 0 ? (
                     <div className="settings-panel__linked-posts">
-                      {topicBacklinks.map((backlink) => (
+                      {topicBacklinks.map((backlink, index) => (
                         <button
-                          key={`${backlink.sourcePath}-${backlink.targetKey}`}
+                          key={`${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`}
                           type="button"
                           className="settings-panel__linked-post"
                           onClick={() => onOpenLinkedPost?.(backlink.sourcePost)}
@@ -579,9 +579,9 @@ export default function SettingsPanel({
                 <span>反向引用</span>
                 {topicBacklinks.length > 0 ? (
                   <div className="settings-panel__linked-posts">
-                    {topicBacklinks.map((backlink) => (
+                    {topicBacklinks.map((backlink, index) => (
                       <button
-                        key={`${backlink.sourcePath}-${backlink.targetKey}`}
+                        key={`${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`}
                         type="button"
                         className="settings-panel__linked-post"
                         onClick={() => onOpenLinkedPost?.(backlink.sourcePost)}

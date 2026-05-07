@@ -235,4 +235,41 @@ desc: 关于《影响力》的主题页
     expect(parsed.frontmatter.node_key).toBe('book/影响力')
     expect(parsed.frontmatter.aliases).toEqual(['《影响力》', 'Influence'])
   })
+
+  it('strips generated topic backlink sections from the editable body', () => {
+    const parsed = parsePost({
+      path: 'source/_posts/influence-topic.md',
+      sha: 'sha-topic-post',
+      content: `---
+title: 影响力
+permalink: influence/
+topic: true
+topic_type: book
+node_key: book/影响力
+date: 2026-05-07 10:10:10
+published: false
+categories:
+  - 读书
+tags:
+  - 说服
+desc: 关于《影响力》的主题页
+---
+
+这是一个主题文章。
+
+<!-- topic-backlinks:start -->
+
+## 相关双链摘录
+
+### 重读说服机制
+
+文章 · 2026-05-04
+
+> 今天又想到 《影响力》 里讲的互惠原则。
+
+<!-- topic-backlinks:end -->`,
+    })
+
+    expect(parsed.body).toBe('这是一个主题文章。')
+  })
 })
