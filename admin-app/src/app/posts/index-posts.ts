@@ -86,6 +86,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const readLaterRaw = readScalar(frontmatter, 'read_later')
   const diaryRaw = readScalar(frontmatter, 'diary')
   const knowledgeRaw = readScalar(frontmatter, 'knowledge')
+  const topicRaw = readScalar(frontmatter, 'topic')
   const contentType: ContentType =
     readLaterRaw === 'true'
       ? 'read-later'
@@ -148,6 +149,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     ...(sourcePath ? { sourcePath } : {}),
     ...(sourceTitle ? { sourceTitle } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),
+    ...(topicRaw === 'true' ? { isTopic: true } : {}),
     ...(knowledgeKind === 'topic' ? { knowledgeKind: 'topic' as const } : {}),
     ...(topicType === 'book' || topicType === 'movie' || topicType === 'person' || topicType === 'theme'
       ? { topicType }

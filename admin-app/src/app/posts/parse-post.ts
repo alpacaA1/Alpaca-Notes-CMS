@@ -34,6 +34,7 @@ export type PostFrontmatter = {
   read_later?: boolean
   diary?: boolean
   knowledge?: boolean
+  topic?: boolean
   nav_exclude?: boolean
   layout?: string
   source_type?: KnowledgeSourceType
@@ -100,6 +101,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
   const diaryRaw = readScalar(frontmatterBlock, 'diary')
   const knowledgeRaw = readScalar(frontmatterBlock, 'knowledge')
+  const topicRaw = readScalar(frontmatterBlock, 'topic')
   const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
   const layoutRaw = readScalar(frontmatterBlock, 'layout')
   const sourceTypeRaw = readScalar(frontmatterBlock, 'source_type')
@@ -146,6 +148,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(readLaterRaw === 'true' ? { read_later: true } : {}),
       ...(contentType === 'diary' ? { diary: true } : {}),
       ...(contentType === 'knowledge' ? { knowledge: true } : {}),
+      ...(topicRaw === 'true' ? { topic: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),
       ...(sourceTypeRaw === 'post' || sourceTypeRaw === 'read-later' || sourceTypeRaw === 'diary'

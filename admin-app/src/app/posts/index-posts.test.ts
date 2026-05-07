@@ -385,4 +385,37 @@ desc:
     expect(parsed.aliases).toEqual(['《影响力》', 'Influence'])
     expect(filterPostIndex([parsed], { ...defaultView, query: 'Influence' })).toEqual([parsed])
   })
+
+  it('indexes topic article metadata and aliases for search', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_posts/influence-topic.md',
+      sha: 'topic-post-sha',
+      content: `---
+title: 影响力
+permalink: influence/
+topic: true
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+  - Influence
+date: 2026-05-07 10:10:10
+published: false
+categories:
+  - 读书
+tags:
+  - 说服
+desc: 关于《影响力》的主题页
+---
+
+这是一个主题文章。`,
+    })
+
+    expect(parsed.contentType).toBe('post')
+    expect(parsed.isTopic).toBe(true)
+    expect(parsed.topicType).toBe('book')
+    expect(parsed.nodeKey).toBe('book/影响力')
+    expect(parsed.aliases).toEqual(['《影响力》', 'Influence'])
+    expect(filterPostIndex([parsed], { ...defaultView, query: 'Influence' })).toEqual([parsed])
+  })
 })

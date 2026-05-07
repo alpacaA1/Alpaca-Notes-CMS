@@ -81,6 +81,7 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.read_later === right.frontmatter.read_later &&
     left.frontmatter.diary === right.frontmatter.diary &&
     left.frontmatter.knowledge === right.frontmatter.knowledge &&
+    left.frontmatter.topic === right.frontmatter.topic &&
     left.frontmatter.nav_exclude === right.frontmatter.nav_exclude &&
     left.frontmatter.layout === right.frontmatter.layout &&
     left.frontmatter.source_type === right.frontmatter.source_type &&

@@ -168,4 +168,36 @@ describe('serializePost', () => {
     expect(output).toContain('node_key: book/影响力')
     expect(output).toContain('aliases:\n  - 《影响力》\n  - Influence')
   })
+
+  it('serializes topic article metadata when present', () => {
+    const topicPost: ParsedPost = {
+      path: 'source/_posts/influence-topic.md',
+      sha: '',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: true,
+      contentType: 'post',
+      frontmatter: {
+        title: '影响力',
+        permalink: 'influence/',
+        date: '2026-05-07 10:10:10',
+        desc: '关于《影响力》的主题页',
+        published: false,
+        pinned: false,
+        categories: ['读书'],
+        tags: ['说服'],
+        topic: true,
+        topic_type: 'book',
+        node_key: 'book/影响力',
+        aliases: ['《影响力》', 'Influence'],
+      },
+      body: '这是一个主题文章。',
+    }
+
+    const output = serializePost(topicPost)
+
+    expect(output).toContain('topic: true')
+    expect(output).toContain('topic_type: book')
+    expect(output).toContain('node_key: book/影响力')
+    expect(output).toContain('aliases:\n  - 《影响力》\n  - Influence')
+  })
 })

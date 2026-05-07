@@ -98,6 +98,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
   const isReadLater = post.frontmatter.read_later === true || post.contentType === 'read-later'
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
+  const isTopic = post.frontmatter.topic === true
 
   if (!post.frontmatter.title.trim()) {
     errors.title = '请填写标题。'
@@ -121,7 +122,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     return errors
   }
 
-  if (isKnowledge && post.frontmatter.knowledge_kind === 'topic' && !(post.frontmatter.node_key || '').trim()) {
+  if ((isTopic || (isKnowledge && post.frontmatter.knowledge_kind === 'topic')) && !(post.frontmatter.node_key || '').trim()) {
     errors.node_key = '主题节点请填写节点 Key，例如 book/影响力。'
   }
 

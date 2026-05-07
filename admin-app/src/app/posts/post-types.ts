@@ -29,6 +29,7 @@ export type PostIndexItem = {
   sourcePath?: string | null
   sourceTitle?: string | null
   sourceUrl?: string | null
+  isTopic?: boolean | null
   knowledgeKind?: KnowledgeKind | null
   topicType?: TopicNodeType | null
   nodeKey?: string | null

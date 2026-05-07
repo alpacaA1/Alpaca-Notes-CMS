@@ -108,6 +108,7 @@ export default function SettingsPanel({
   const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
+  const isPost = contentType === 'post'
   const isKnowledge = contentType === 'knowledge'
   const showSummaryField = !isKnowledge && !isDiary
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
@@ -150,6 +151,9 @@ export default function SettingsPanel({
   const { frontmatter } = document
   const showInfoFields = !isReadLater || currentReadLaterTab === 'info'
   const knowledgeKind = frontmatter.knowledge_kind || 'note'
+  const isLegacyTopicKnowledge = isKnowledge && knowledgeKind === 'topic'
+  const isTopicPost = isPost && frontmatter.topic === true
+  const isTopicDocument = isTopicPost || isLegacyTopicKnowledge
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -223,21 +227,25 @@ export default function SettingsPanel({
     onCancelAnnotationEdit?.()
   }
 
-  const handleKnowledgeKindChange = (nextKind: 'note' | 'topic') => {
-    onFieldChange('knowledge_kind', nextKind === 'topic' ? 'topic' : undefined)
+  const ensureTopicDefaults = () => {
+    const nextTopicType = frontmatter.topic_type || 'theme'
+    if (!frontmatter.topic_type) {
+      onFieldChange('topic_type', nextTopicType)
+    }
 
-    if (nextKind === 'topic') {
-      const nextTopicType = frontmatter.topic_type || 'theme'
-      if (!frontmatter.topic_type) {
-        onFieldChange('topic_type', nextTopicType)
+    if (!(frontmatter.node_key || '').trim()) {
+      const nextNodeKey = buildDefaultNodeKey(nextTopicType, frontmatter.title)
+      if (nextNodeKey) {
+        onFieldChange('node_key', nextNodeKey)
       }
+    }
+  }
 
-      if (!(frontmatter.node_key || '').trim()) {
-        const nextNodeKey = buildDefaultNodeKey(nextTopicType, frontmatter.title)
-        if (nextNodeKey) {
-          onFieldChange('node_key', nextNodeKey)
-        }
-      }
+  const handlePostTopicChange = (nextIsTopic: boolean) => {
+    onFieldChange('topic', nextIsTopic ? true : undefined)
+
+    if (nextIsTopic) {
+      ensureTopicDefaults()
     }
   }
 
@@ -417,22 +425,24 @@ export default function SettingsPanel({
             />
           </div>
 
+          {isPost ? (
+            <label className="settings-panel__field">
+              <span>文章类型</span>
+              <select
+                aria-label="文章类型"
+                value={isTopicPost ? 'topic' : 'post'}
+                onChange={(event) => handlePostTopicChange(event.target.value === 'topic')}
+              >
+                <option value="post">普通文章</option>
+                <option value="topic">主题文章</option>
+              </select>
+              <p className="settings-panel__field-note">主题文章可以被日记、文章和知识点用 `[[node_key]]` 引用。</p>
+            </label>
+          ) : null}
+
           {isKnowledge ? (
             <>
-              <label className="settings-panel__field">
-                <span>知识点类型</span>
-                <select
-                  aria-label="知识点类型"
-                  value={knowledgeKind}
-                  onChange={(event) => handleKnowledgeKindChange(event.target.value === 'topic' ? 'topic' : 'note')}
-                >
-                  <option value="note">普通知识点</option>
-                  <option value="topic">主题节点</option>
-                </select>
-                <p className="settings-panel__field-note">主题节点可以被日记、文章和知识点用 `[[node_key]]` 引用。</p>
-              </label>
-
-              {knowledgeKind === 'topic' ? (
+              {isLegacyTopicKnowledge ? (
                 <>
                   <label className="settings-panel__field">
                     <span>主题类型</span>
@@ -470,6 +480,7 @@ export default function SettingsPanel({
                     />
                     <p className="settings-panel__field-note">一行一个，方便在正文里用显示名引用。</p>
                   </label>
+                  <p className="settings-panel__field-note">这是旧版知识点主题节点，后续建议改用文章里的“主题文章”。</p>
                 </>
               ) : null}
 
@@ -497,7 +508,7 @@ export default function SettingsPanel({
                 </div>
               </div>
 
-              {knowledgeKind === 'topic' ? (
+              {isLegacyTopicKnowledge ? (
                 <div className="settings-panel__field">
                   <span>反向引用</span>
                   {topicBacklinks.length > 0 ? (
@@ -522,6 +533,71 @@ export default function SettingsPanel({
                   )}
                 </div>
               ) : null}
+            </>
+          ) : null}
+
+          {isPost && isTopicDocument ? (
+            <>
+              <label className="settings-panel__field">
+                <span>主题类型</span>
+                <select
+                  aria-label="主题类型"
+                  value={frontmatter.topic_type || 'theme'}
+                  onChange={(event) => onFieldChange('topic_type', event.target.value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
+                >
+                  <option value="theme">主题</option>
+                  <option value="book">书</option>
+                  <option value="movie">电影</option>
+                  <option value="person">人物</option>
+                </select>
+              </label>
+
+              <label className="settings-panel__field">
+                <span>节点 Key</span>
+                <input
+                  aria-label="节点 Key"
+                  value={frontmatter.node_key || ''}
+                  placeholder="book/影响力"
+                  onChange={(event) => onFieldChange('node_key', event.target.value)}
+                />
+                <p className="settings-panel__field-note">建议保持稳定，例如 `book/影响力`、`person/稻盛和夫`。</p>
+                {validationErrors.node_key ? <span className="error-message">{validationErrors.node_key}</span> : null}
+              </label>
+
+              <label className="settings-panel__field">
+                <span>别名</span>
+                <textarea
+                  aria-label="别名"
+                  value={(frontmatter.aliases || []).join('\n')}
+                  placeholder={'《影响力》\nInfluence'}
+                  onChange={(event) => onFieldChange('aliases', parseAliasesInput(event.target.value))}
+                />
+                <p className="settings-panel__field-note">一行一个，方便在正文里用显示名引用。</p>
+              </label>
+
+              <div className="settings-panel__field">
+                <span>反向引用</span>
+                {topicBacklinks.length > 0 ? (
+                  <div className="settings-panel__linked-posts">
+                    {topicBacklinks.map((backlink) => (
+                      <button
+                        key={`${backlink.sourcePath}-${backlink.targetKey}`}
+                        type="button"
+                        className="settings-panel__linked-post"
+                        onClick={() => onOpenLinkedPost?.(backlink.sourcePost)}
+                      >
+                        <div className="settings-panel__linked-post-meta">
+                          <strong>{backlink.sourceTitle}</strong>
+                          <span>{getLinkedPostTypeLabel(backlink.sourceContentType)} · {backlink.sourceDate.slice(0, 10) || '无日期'}</span>
+                        </div>
+                        <p>{backlink.excerpt || '点击打开原文'}</p>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="settings-panel__field-note">这篇主题文章还没有被其它日记、文章或知识点提到。</p>
+                )}
+              </div>
             </>
           ) : null}
 

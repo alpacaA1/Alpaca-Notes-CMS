@@ -250,18 +250,18 @@ desc:
 系统能力来自稳定复用过的决策边界。`
 
 const topicNodePost = {
-  path: 'source/_knowledge/topic-yingxiangli.md',
+  path: 'source/_posts/influence-topic.md',
   sha: 'sha-topic-yingxiangli',
   title: '影响力',
   date: '2026-05-05 09:00:00',
   desc: '',
   published: false,
   hasExplicitPublished: true,
-  categories: [],
+  categories: ['读书'],
   tags: ['读书'],
-  permalink: null,
-  contentType: 'knowledge' as const,
-  knowledgeKind: 'topic' as const,
+  permalink: 'influence/',
+  contentType: 'post' as const,
+  isTopic: true,
   topicType: 'book' as const,
   nodeKey: 'book/影响力',
   aliases: ['《影响力》'],
@@ -283,20 +283,22 @@ desc: desc
 
 const topicNodeContent = `---
 title: 影响力
-knowledge: true
-knowledge_kind: topic
+permalink: influence/
+topic: true
 topic_type: book
 node_key: book/影响力
 aliases:
   - 《影响力》
 date: 2026-05-05 09:00:00
 published: false
+categories:
+  - 读书
 tags:
   - 读书
-desc:
+desc: 关于《影响力》的主题页
 ---
 
-这是一个主题节点。`
+这是一个主题文章。`
 
 const nestedOrderedListContent = `---
 title: Preview supported post
@@ -555,8 +557,8 @@ describe('App preview mode', () => {
 
   it('opens a topic node when a resolved wiki link is clicked in preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(indexPostsModule, 'buildKnowledgeIndex').mockResolvedValue([topicNodePost])
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost, topicNodePost])
+    vi.spyOn(indexPostsModule, 'buildKnowledgeIndex').mockResolvedValue([])
     vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
       if (path === supportedPost.path) {
         return {

@@ -203,4 +203,36 @@ desc:
     expect(parsed.frontmatter.node_key).toBe('book/影响力')
     expect(parsed.frontmatter.aliases).toEqual(['《影响力》', 'Influence'])
   })
+
+  it('parses topic article metadata for post items', () => {
+    const parsed = parsePost({
+      path: 'source/_posts/influence-topic.md',
+      sha: 'sha-topic-post',
+      content: `---
+title: 影响力
+permalink: influence/
+topic: true
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+  - Influence
+date: 2026-05-07 10:10:10
+published: false
+categories:
+  - 读书
+tags:
+  - 说服
+desc: 关于《影响力》的主题页
+---
+
+这是一个主题文章。`,
+    })
+
+    expect(parsed.contentType).toBe('post')
+    expect(parsed.frontmatter.topic).toBe(true)
+    expect(parsed.frontmatter.topic_type).toBe('book')
+    expect(parsed.frontmatter.node_key).toBe('book/影响力')
+    expect(parsed.frontmatter.aliases).toEqual(['《影响力》', 'Influence'])
+  })
 })

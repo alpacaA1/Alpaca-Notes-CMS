@@ -31,15 +31,16 @@ export function serializePost(post: ParsedPost): string {
       : [
           ...(isDiary ? ['diary: true'] : []),
           ...(isKnowledge ? ['knowledge: true'] : []),
+          ...(post.frontmatter.topic ? ['topic: true'] : []),
           ...((isKnowledge || post.frontmatter.nav_exclude) && post.frontmatter.nav_exclude ? ['nav_exclude: true'] : []),
           ...(isKnowledge && post.frontmatter.source_type ? [`source_type: ${post.frontmatter.source_type}`] : []),
           ...(isKnowledge && post.frontmatter.source_path ? [`source_path: ${post.frontmatter.source_path}`] : []),
           ...(isKnowledge && post.frontmatter.source_title ? [`source_title: ${post.frontmatter.source_title}`] : []),
           ...(isKnowledge && post.frontmatter.source_url ? [`source_url: ${post.frontmatter.source_url}`] : []),
           ...(isKnowledge && post.frontmatter.knowledge_kind ? [`knowledge_kind: ${post.frontmatter.knowledge_kind}`] : []),
-          ...(isKnowledge && post.frontmatter.topic_type ? [`topic_type: ${post.frontmatter.topic_type}`] : []),
-          ...(isKnowledge && post.frontmatter.node_key ? [`node_key: ${post.frontmatter.node_key}`] : []),
-          ...(isKnowledge && aliases.length > 0 ? [renderList('aliases', aliases)] : []),
+          ...((isKnowledge || post.frontmatter.topic) && post.frontmatter.topic_type ? [`topic_type: ${post.frontmatter.topic_type}`] : []),
+          ...((isKnowledge || post.frontmatter.topic) && post.frontmatter.node_key ? [`node_key: ${post.frontmatter.node_key}`] : []),
+          ...((isKnowledge || post.frontmatter.topic) && aliases.length > 0 ? [renderList('aliases', aliases)] : []),
           `published: ${
             isDiary || isKnowledge
               ? 'false'

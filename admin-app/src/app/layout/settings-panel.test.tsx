@@ -240,24 +240,25 @@ describe('settings panel', () => {
     expect(onFieldChange).toHaveBeenCalledWith('categories', ['随机展示'])
   })
 
-  it('renders topic-node settings and backlinks for knowledge items', () => {
+  it('renders topic article settings and backlinks for posts', () => {
     const onOpenLinkedPost = vi.fn()
 
     render(
       <SettingsPanel
         document={{
-          ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)),
+          ...createNewPost(new Date(2026, 4, 5, 1, 1, 1)),
           frontmatter: {
-            ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)).frontmatter,
+            ...createNewPost(new Date(2026, 4, 5, 1, 1, 1)).frontmatter,
             title: '影响力',
-            knowledge_kind: 'topic',
+            desc: '关于《影响力》的主题页',
+            topic: true,
             topic_type: 'book',
             node_key: 'book/影响力',
             aliases: ['《影响力》'],
           },
         }}
         validationErrors={{}}
-        contentType="knowledge"
+        contentType="post"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={vi.fn()}
@@ -289,7 +290,7 @@ describe('settings panel', () => {
       />,
     )
 
-    expect(screen.getByLabelText('知识点类型')).toBeTruthy()
+    expect(screen.getByLabelText('文章类型')).toBeTruthy()
     expect(screen.getByLabelText('主题类型')).toBeTruthy()
     expect((screen.getByLabelText('节点 Key') as HTMLInputElement).value).toBe('book/影响力')
     expect((screen.getByLabelText('别名') as HTMLTextAreaElement).value).toBe('《影响力》')

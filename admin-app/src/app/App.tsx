@@ -172,13 +172,18 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
           sourceName: document.frontmatter.source_name || null,
           readingStatus: document.frontmatter.reading_status || 'unread',
         }
-      : resolvedContentType === 'knowledge'
+      : resolvedContentType === 'knowledge' || resolvedContentType === 'post'
         ? {
-            sourceType: document.frontmatter.source_type || null,
-            sourcePath: document.frontmatter.source_path || null,
-            sourceTitle: document.frontmatter.source_title || null,
-            sourceUrl: document.frontmatter.source_url || null,
-            knowledgeKind: document.frontmatter.knowledge_kind || 'note',
+            ...(resolvedContentType === 'knowledge'
+              ? {
+                  sourceType: document.frontmatter.source_type || null,
+                  sourcePath: document.frontmatter.source_path || null,
+                  sourceTitle: document.frontmatter.source_title || null,
+                  sourceUrl: document.frontmatter.source_url || null,
+                  knowledgeKind: document.frontmatter.knowledge_kind || 'note',
+                }
+              : {}),
+            isTopic: document.frontmatter.topic === true,
             topicType: document.frontmatter.topic_type || null,
             nodeKey: document.frontmatter.node_key || null,
             aliases: document.frontmatter.aliases || [],
@@ -321,11 +326,17 @@ export default function App() {
     () => [...postsByType.post, ...postsByType.diary, ...postsByType.knowledge],
     [postsByType],
   )
-  const topicNodesByKey = useMemo(() => buildTopicNodeMap(postsByType.knowledge), [postsByType.knowledge])
+  const topicNodesByKey = useMemo(
+    () => buildTopicNodeMap([...postsByType.post, ...postsByType.knowledge]),
+    [postsByType.knowledge, postsByType.post],
+  )
   const topicBacklinksByKey = useMemo(() => buildTopicBacklinkMap(backlinkSourcePosts), [backlinkSourcePosts])
-  const activeTopicNodeKey = document?.contentType === 'knowledge' && document.frontmatter.knowledge_kind === 'topic'
-    ? document.frontmatter.node_key?.trim() || ''
-    : ''
+  const activeTopicNodeKey =
+    document?.contentType === 'post' && document.frontmatter.topic === true
+      ? document.frontmatter.node_key?.trim() || ''
+      : document?.contentType === 'knowledge' && document.frontmatter.knowledge_kind === 'topic'
+        ? document.frontmatter.node_key?.trim() || ''
+        : ''
   const activeTopicBacklinks = useMemo(() => {
     if (!activeTopicNodeKey || !document) {
       return []

@@ -114,4 +114,16 @@ describe('new post helpers', () => {
     knowledge.frontmatter.node_key = 'book/影响力'
     expect(validatePostForSave(knowledge).node_key).toBeUndefined()
   })
+
+  it('requires node key for topic article saves', () => {
+    const post = createNewPost(fixedDate)
+    post.frontmatter.title = '影响力'
+    post.frontmatter.desc = '关于《影响力》的主题页'
+    post.frontmatter.topic = true
+
+    expect(validatePostForSave(post).node_key).toBe('主题节点请填写节点 Key，例如 book/影响力。')
+
+    post.frontmatter.node_key = 'book/影响力'
+    expect(validatePostForSave(post).node_key).toBeUndefined()
+  })
 })

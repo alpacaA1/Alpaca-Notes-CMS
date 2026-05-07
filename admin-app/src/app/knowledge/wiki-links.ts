@@ -76,19 +76,11 @@ export function parseWikiLinks(markdown: string) {
   return links
 }
 
-export function getKnowledgeKind(post: Pick<PostIndexItem, 'contentType' | 'knowledgeKind'>) {
-  if (post.contentType !== 'knowledge') {
-    return null
-  }
-
-  return post.knowledgeKind === 'topic' ? 'topic' : 'note'
-}
-
 export function buildTopicNodeMap(posts: PostIndexItem[]) {
   const nodeMap = new Map<string, PostIndexItem>()
 
   posts.forEach((post) => {
-    if (getKnowledgeKind(post) !== 'topic') {
+    if (!isTopicNodePost(post)) {
       return
     }
 
@@ -147,4 +139,14 @@ export function isTopicKnowledgePost(
   post: Pick<PostIndexItem, 'contentType' | 'knowledgeKind' | 'nodeKey'> | null | undefined,
 ): post is Pick<PostIndexItem, 'contentType' | 'knowledgeKind' | 'nodeKey'> & { contentType: 'knowledge'; knowledgeKind: KnowledgeKind; nodeKey: string } {
   return Boolean(post && post.contentType === 'knowledge' && post.knowledgeKind === 'topic' && post.nodeKey?.trim())
+}
+
+export function isTopicNodePost(
+  post: Pick<PostIndexItem, 'contentType' | 'knowledgeKind' | 'nodeKey' | 'isTopic'> | null | undefined,
+): post is Pick<PostIndexItem, 'contentType' | 'knowledgeKind' | 'nodeKey' | 'isTopic'> & { nodeKey: string } {
+  if (!post?.nodeKey?.trim()) {
+    return false
+  }
+
+  return (post.contentType === 'knowledge' && post.knowledgeKind === 'topic') || (post.contentType === 'post' && post.isTopic === true)
 }
