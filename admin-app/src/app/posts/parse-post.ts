@@ -1,5 +1,5 @@
 import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
-import type { ContentType, KnowledgeSourceType } from './post-types'
+import type { ContentType, KnowledgeKind, KnowledgeSourceType, TopicNodeType } from './post-types'
 
 export type ReadingStatus = 'unread' | 'reading' | 'done'
 
@@ -40,6 +40,10 @@ export type PostFrontmatter = {
   source_path?: string
   source_title?: string
   source_url?: string
+  knowledge_kind?: KnowledgeKind
+  topic_type?: TopicNodeType
+  node_key?: string
+  aliases?: string[]
 }
 
 export type ParsedPost = {
@@ -102,6 +106,10 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const sourcePathRaw = readScalar(frontmatterBlock, 'source_path')
   const sourceTitleRaw = readScalar(frontmatterBlock, 'source_title')
   const sourceUrlRaw = readScalar(frontmatterBlock, 'source_url')
+  const knowledgeKindRaw = readScalar(frontmatterBlock, 'knowledge_kind')
+  const topicTypeRaw = readScalar(frontmatterBlock, 'topic_type')
+  const nodeKeyRaw = readScalar(frontmatterBlock, 'node_key')
+  const aliasesRaw = readList(frontmatterBlock, 'aliases')
   const contentType: ContentType =
     readLaterRaw === 'true'
       ? 'read-later'
@@ -146,6 +154,12 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(sourcePathRaw && sourcePathRaw.length > 0 ? { source_path: sourcePathRaw } : {}),
       ...(sourceTitleRaw && sourceTitleRaw.length > 0 ? { source_title: sourceTitleRaw } : {}),
       ...(sourceUrlRaw && sourceUrlRaw.length > 0 ? { source_url: sourceUrlRaw } : {}),
+      ...(knowledgeKindRaw === 'topic' ? { knowledge_kind: 'topic' as const } : {}),
+      ...(topicTypeRaw === 'book' || topicTypeRaw === 'movie' || topicTypeRaw === 'person' || topicTypeRaw === 'theme'
+        ? { topic_type: topicTypeRaw }
+        : {}),
+      ...(nodeKeyRaw && nodeKeyRaw.length > 0 ? { node_key: nodeKeyRaw } : {}),
+      ...(aliasesRaw.length > 0 ? { aliases: aliasesRaw } : {}),
     },
   }
 }

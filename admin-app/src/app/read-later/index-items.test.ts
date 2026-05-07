@@ -61,6 +61,7 @@ describe('read-later index helpers', () => {
       tags: ['设计'],
       permalink: 'read-later/first/',
       cover: null,
+      body: '\nBody with system design highlights.',
       searchText: 'first article 2026-04-03 12:00:00 first desc read-later/first/ https://example.com/first source a 设计 body with system design highlights.',
       contentType: 'read-later',
       externalUrl: 'https://example.com/first',

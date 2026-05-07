@@ -240,6 +240,65 @@ describe('settings panel', () => {
     expect(onFieldChange).toHaveBeenCalledWith('categories', ['随机展示'])
   })
 
+  it('renders topic-node settings and backlinks for knowledge items', () => {
+    const onOpenLinkedPost = vi.fn()
+
+    render(
+      <SettingsPanel
+        document={{
+          ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)),
+          frontmatter: {
+            ...createNewKnowledgeItem(new Date(2026, 4, 5, 1, 1, 1)).frontmatter,
+            title: '影响力',
+            knowledge_kind: 'topic',
+            topic_type: 'book',
+            node_key: 'book/影响力',
+            aliases: ['《影响力》'],
+          },
+        }}
+        validationErrors={{}}
+        contentType="knowledge"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+        topicBacklinks={[
+          {
+            targetKey: 'book/影响力',
+            sourcePath: 'source/diary/20260506090909.md',
+            sourceTitle: '2026-05-06-星期三',
+            sourceDate: '2026-05-06 09:09:09',
+            sourceContentType: 'diary',
+            excerpt: '今天又想到 《影响力》 里讲的互惠原则。',
+            sourcePost: {
+              path: 'source/diary/20260506090909.md',
+              sha: 'sha-diary',
+              title: '2026-05-06-星期三',
+              date: '2026-05-06 09:09:09',
+              desc: '',
+              published: false,
+              hasExplicitPublished: true,
+              categories: [],
+              tags: ['复盘'],
+              permalink: null,
+              cover: null,
+              contentType: 'diary',
+            },
+          },
+        ]}
+        onOpenLinkedPost={onOpenLinkedPost}
+      />,
+    )
+
+    expect(screen.getByLabelText('知识点类型')).toBeTruthy()
+    expect(screen.getByLabelText('主题类型')).toBeTruthy()
+    expect((screen.getByLabelText('节点 Key') as HTMLInputElement).value).toBe('book/影响力')
+    expect((screen.getByLabelText('别名') as HTMLTextAreaElement).value).toBe('《影响力》')
+    expect(screen.getByText('反向引用')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
+    expect(onOpenLinkedPost).toHaveBeenCalled()
+  })
+
   it('renders read-later settings and updates external metadata fields', () => {
     const onImportFromUrl = vi.fn()
     const { onFieldChange } = renderControlledSettingsPanel({

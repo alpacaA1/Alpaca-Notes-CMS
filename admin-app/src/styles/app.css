@@ -526,6 +526,16 @@ textarea {
   color: var(--admin-text);
 }
 
+.admin-shell--dark .settings-panel__linked-post {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .settings-panel__linked-post:hover {
+  border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .admin-shell--dark .settings-panel__document-note-editor {
   border-color: rgba(228, 163, 88, 0.26);
   box-shadow: 0 0 0 1px rgba(228, 163, 88, 0.16);
@@ -783,6 +793,23 @@ textarea {
   text-decoration-color: rgba(212, 165, 106, 0.3);
 }
 
+.admin-shell--dark .preview-content__wiki-link {
+  color: #efc28f;
+  background: rgba(228, 163, 88, 0.14);
+  border-color: rgba(228, 163, 88, 0.24);
+}
+
+.admin-shell--dark .preview-content__wiki-link:hover {
+  background: rgba(228, 163, 88, 0.2);
+  border-color: rgba(228, 163, 88, 0.36);
+}
+
+.admin-shell--dark .preview-content__wiki-link--missing {
+  color: #c5b7a7;
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
 .admin-shell--dark .preview-content pre {
   background: #16140f;
   border-color: rgba(255, 255, 255, 0.08);
@@ -876,6 +903,8 @@ textarea {
 .admin-shell--dark .settings-panel select:focus-visible,
 .admin-shell--dark .settings-panel__document-note-entry:focus-visible,
 .admin-shell--dark .settings-panel__document-note-action:focus-visible,
+.admin-shell--dark .settings-panel__linked-post:focus-visible,
+.admin-shell--dark .preview-content__wiki-link:focus-visible,
 .admin-shell--dark .top-bar__search input:focus-visible {
   box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.15);
 }
@@ -2181,7 +2210,9 @@ textarea {
 
 .settings-panel__document-note-entry:focus-visible,
 .settings-panel__document-note-action:focus-visible,
-.preview-content__annotation-delete:focus-visible {
+.settings-panel__linked-post:focus-visible,
+.preview-content__annotation-delete:focus-visible,
+.preview-content__wiki-link:focus-visible {
   outline: none;
   box-shadow: 0 0 0 4px rgba(141, 113, 77, 0.12);
 }
@@ -2423,6 +2454,57 @@ textarea {
   color: var(--admin-soft);
   font-size: 0.82rem;
   line-height: 1.6;
+}
+
+.settings-panel__linked-posts {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-panel__linked-post {
+  appearance: none;
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.68);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.settings-panel__linked-post:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-warm);
+  background: rgba(255, 250, 243, 0.96);
+  box-shadow: 0 12px 24px rgba(54, 42, 28, 0.06);
+}
+
+.settings-panel__linked-post p {
+  margin: 0;
+  color: var(--admin-muted);
+  line-height: 1.55;
+}
+
+.settings-panel__linked-post-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.settings-panel__linked-post-meta strong {
+  color: var(--admin-text);
+  font-size: 0.98rem;
+}
+
+.settings-panel__linked-post-meta span {
+  color: var(--admin-soft);
+  font-size: 0.8rem;
 }
 
 .settings-panel textarea {
@@ -3012,6 +3094,39 @@ textarea {
 
 .preview-content a:hover {
   text-decoration-color: rgba(74, 74, 74, 0.7);
+}
+
+.preview-content__wiki-link {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08em 0.46em;
+  margin: 0 0.08em;
+  border: 1px solid rgba(141, 113, 77, 0.22);
+  border-radius: 999px;
+  background: rgba(141, 113, 77, 0.1);
+  color: #6f5537;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.preview-content__wiki-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(141, 113, 77, 0.38);
+  background: rgba(141, 113, 77, 0.16);
+}
+
+.preview-content__wiki-link--missing {
+  cursor: default;
+  color: var(--admin-muted);
+  background: rgba(255, 255, 255, 0.6);
+  border-color: rgba(214, 200, 184, 0.72);
 }
 
 .preview-content img {

@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
@@ -249,6 +249,55 @@ desc:
 ## 知识点
 系统能力来自稳定复用过的决策边界。`
 
+const topicNodePost = {
+  path: 'source/_knowledge/topic-yingxiangli.md',
+  sha: 'sha-topic-yingxiangli',
+  title: '影响力',
+  date: '2026-05-05 09:00:00',
+  desc: '',
+  published: false,
+  hasExplicitPublished: true,
+  categories: [],
+  tags: ['读书'],
+  permalink: null,
+  contentType: 'knowledge' as const,
+  knowledgeKind: 'topic' as const,
+  topicType: 'book' as const,
+  nodeKey: 'book/影响力',
+  aliases: ['《影响力》'],
+}
+
+const wikiLinkContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。`
+
+const topicNodeContent = `---
+title: 影响力
+knowledge: true
+knowledge_kind: topic
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+date: 2026-05-05 09:00:00
+published: false
+tags:
+  - 读书
+desc:
+---
+
+这是一个主题节点。`
+
 const nestedOrderedListContent = `---
 title: Preview supported post
 permalink: preview-supported-post/
@@ -464,6 +513,11 @@ layout: read-later-item
 See https://example.com/plain-reader`
 
 describe('App preview mode', () => {
+  beforeEach(() => {
+    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([])
+    vi.spyOn(indexPostsModule, 'buildKnowledgeIndex').mockResolvedValue([])
+  })
+
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
@@ -497,6 +551,43 @@ describe('App preview mode', () => {
     expect(screen.getByRole('heading', { name: 'Preview Title' })).toBeTruthy()
     expect(screen.getByText(/Body with/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'link' })).toBeTruthy()
+  })
+
+  it('opens a topic node when a resolved wiki link is clicked in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(indexPostsModule, 'buildKnowledgeIndex').mockResolvedValue([topicNodePost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
+      if (path === supportedPost.path) {
+        return {
+          path: supportedPost.path,
+          sha: supportedPost.sha,
+          content: wikiLinkContent,
+        }
+      }
+
+      return {
+        path: topicNodePost.path,
+        sha: topicNodePost.sha,
+        content: topicNodeContent,
+      }
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+    fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
+    })
   })
 
   it('sanitizes unsafe markdown links before rendering preview anchors', async () => {

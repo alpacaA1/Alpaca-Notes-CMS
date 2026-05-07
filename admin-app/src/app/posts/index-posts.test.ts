@@ -182,6 +182,7 @@ desc: 关于系统复用的知识点
 
     expect(parsed.contentType).toBe('knowledge')
     expect(parsed.published).toBe(false)
+    expect(parsed.body).toBe('\n能力来自反复验证的抽象。')
     expect(parsed.sourceType).toBe('post')
     expect(parsed.sourcePath).toBe('source/_posts/example.md')
     expect(parsed.sourceTitle).toBe('关于系统设计的文章')
@@ -354,5 +355,34 @@ desc: 关于系统复用的知识点
     expect(indexed[0]?.contentType).toBe('knowledge')
     expect(indexed[0]?.sourceTitle).toBe('一篇关于系统设计的文章')
     expect(indexed[0]?.desc).toBe('能力来自反复验证的抽象。')
+  })
+
+  it('indexes topic-node metadata and aliases for search', () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_knowledge/topic.md',
+      sha: 'topic-sha',
+      content: `---
+title: 影响力
+knowledge: true
+knowledge_kind: topic
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+  - Influence
+date: 2026-05-07 10:10:10
+tags:
+  - 读书
+desc:
+---
+
+这是一个主题节点。`,
+    })
+
+    expect(parsed.knowledgeKind).toBe('topic')
+    expect(parsed.topicType).toBe('book')
+    expect(parsed.nodeKey).toBe('book/影响力')
+    expect(parsed.aliases).toEqual(['《影响力》', 'Influence'])
+    expect(filterPostIndex([parsed], { ...defaultView, query: 'Influence' })).toEqual([parsed])
   })
 })

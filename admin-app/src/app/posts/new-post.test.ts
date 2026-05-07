@@ -103,4 +103,15 @@ describe('new post helpers', () => {
 
     expect(validatePostForSave(knowledge, { isNewPost: true }).desc).toBeUndefined()
   })
+
+  it('requires node key for topic knowledge saves', () => {
+    const knowledge = createNewKnowledgeItem(fixedDate)
+    knowledge.frontmatter.title = '影响力'
+    knowledge.frontmatter.knowledge_kind = 'topic'
+
+    expect(validatePostForSave(knowledge).node_key).toBe('主题节点请填写节点 Key，例如 book/影响力。')
+
+    knowledge.frontmatter.node_key = 'book/影响力'
+    expect(validatePostForSave(knowledge).node_key).toBeUndefined()
+  })
 })

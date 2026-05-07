@@ -135,4 +135,37 @@ describe('serializePost', () => {
     expect(output).toContain('categories:\n  - 随机展示')
     expect(output).not.toContain('permalink:')
   })
+
+  it('serializes topic-node knowledge metadata when present', () => {
+    const topicNode: ParsedPost = {
+      path: 'source/_knowledge/topic.md',
+      sha: '',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      contentType: 'knowledge',
+      frontmatter: {
+        title: '影响力',
+        date: '2026-05-07 10:10:10',
+        desc: '',
+        published: false,
+        pinned: false,
+        categories: [],
+        tags: ['读书'],
+        knowledge: true,
+        nav_exclude: true,
+        knowledge_kind: 'topic',
+        topic_type: 'book',
+        node_key: 'book/影响力',
+        aliases: ['《影响力》', 'Influence'],
+      },
+      body: '这是一个主题节点。',
+    }
+
+    const output = serializePost(topicNode)
+
+    expect(output).toContain('knowledge_kind: topic')
+    expect(output).toContain('topic_type: book')
+    expect(output).toContain('node_key: book/影响力')
+    expect(output).toContain('aliases:\n  - 《影响力》\n  - Influence')
+  })
 })

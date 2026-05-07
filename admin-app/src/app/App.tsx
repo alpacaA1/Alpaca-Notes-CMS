@@ -16,6 +16,7 @@ import PreviewPane from './editor/preview-pane'
 import { useEditorDocument } from './editor/use-editor-document'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
+import { buildTopicBacklinkMap, buildTopicNodeMap } from './knowledge/wiki-links'
 import { resolveContentFormat } from './content-format'
 import { organizeDiaryMaterials, type DiaryAiEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
@@ -163,6 +164,7 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
     tags: document.frontmatter.tags,
     permalink: document.frontmatter.permalink || null,
     cover: document.frontmatter.cover || null,
+    body: document.body,
     contentType: resolvedContentType,
     ...(resolvedContentType === 'read-later'
       ? {
@@ -176,9 +178,29 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
             sourcePath: document.frontmatter.source_path || null,
             sourceTitle: document.frontmatter.source_title || null,
             sourceUrl: document.frontmatter.source_url || null,
+            knowledgeKind: document.frontmatter.knowledge_kind || 'note',
+            topicType: document.frontmatter.topic_type || null,
+            nodeKey: document.frontmatter.node_key || null,
+            aliases: document.frontmatter.aliases || [],
           }
       : {}),
   }
+}
+
+async function buildIndexByContentType(session: { token: string }, type: ContentType) {
+  if (type === 'read-later') {
+    return buildReadLaterIndex(session)
+  }
+
+  if (type === 'diary') {
+    return buildDiaryIndex(session)
+  }
+
+  if (type === 'knowledge') {
+    return buildKnowledgeIndex(session)
+  }
+
+  return buildPostIndex(session)
 }
 
 function EmptyState({ error }: { error: string | null }) {
@@ -222,6 +244,7 @@ export default function App() {
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
   const previewObjectUrlsRef = useRef<string[]>([])
+  const preloadAttemptedRef = useRef<Partial<Record<ContentType, boolean>>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
@@ -294,6 +317,22 @@ export default function App() {
     const resolvedContentType = getContentTypeFromPostLike(document)
     return postsByType[resolvedContentType].find((post) => post.path === document.path) || buildPostIndexItemFromDocument(document)
   }, [document, postsByType])
+  const backlinkSourcePosts = useMemo(
+    () => [...postsByType.post, ...postsByType.diary, ...postsByType.knowledge],
+    [postsByType],
+  )
+  const topicNodesByKey = useMemo(() => buildTopicNodeMap(postsByType.knowledge), [postsByType.knowledge])
+  const topicBacklinksByKey = useMemo(() => buildTopicBacklinkMap(backlinkSourcePosts), [backlinkSourcePosts])
+  const activeTopicNodeKey = document?.contentType === 'knowledge' && document.frontmatter.knowledge_kind === 'topic'
+    ? document.frontmatter.node_key?.trim() || ''
+    : ''
+  const activeTopicBacklinks = useMemo(() => {
+    if (!activeTopicNodeKey || !document) {
+      return []
+    }
+
+    return (topicBacklinksByKey.get(activeTopicNodeKey) || []).filter((item) => item.sourcePath !== document.path)
+  }, [activeTopicNodeKey, document, topicBacklinksByKey])
   const recoverableDrafts = useMemo(() => {
     const knownPaths = new Set(postsByType[contentType].map((post) => post.path))
 
@@ -402,6 +441,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session) {
+      preloadAttemptedRef.current = {}
       setPostsByType(createEmptyIndexedPostsByType())
       setIsIndexing(false)
       setIsOpeningPost(false)
@@ -415,16 +455,9 @@ export default function App() {
       setIsIndexing(true)
 
       try {
-        const indexedPosts =
-          indexedContentType === 'read-later'
-            ? await buildReadLaterIndex(session)
-            : indexedContentType === 'diary'
-              ? await buildDiaryIndex(session)
-              : indexedContentType === 'knowledge'
-                ? await buildKnowledgeIndex(session)
-              : await buildPostIndex(session)
+        const indexedPosts = await buildIndexByContentType(session, indexedContentType)
         if (!cancelled) {
-          updatePostsForType(indexedContentType, () => indexedPosts)
+          updatePostsForType(indexedContentType, () => indexedPosts as PostIndexItem[])
         }
       } catch (caughtError) {
         if (cancelled) {
@@ -450,6 +483,41 @@ export default function App() {
       cancelled = true
     }
   }, [contentType, session, sessionStore, updatePostsForType])
+
+  useEffect(() => {
+    if (!session) {
+      return
+    }
+
+    const preloadTypes = (['post', 'diary', 'knowledge'] as const).filter(
+      (type) => type !== contentType && postsByType[type].length === 0 && !preloadAttemptedRef.current[type],
+    )
+    if (preloadTypes.length === 0) {
+      return
+    }
+
+    let cancelled = false
+    preloadTypes.forEach((type) => {
+      preloadAttemptedRef.current[type] = true
+    })
+
+    void Promise.all(
+      preloadTypes.map(async (type) => {
+        try {
+          const indexedPosts = await buildIndexByContentType(session, type)
+          if (!cancelled) {
+            updatePostsForType(type, () => indexedPosts as PostIndexItem[])
+          }
+        } catch {
+          // Keep the focused editing flow responsive even if background preload fails.
+        }
+      }),
+    )
+
+    return () => {
+      cancelled = true
+    }
+  }, [contentType, postsByType.diary.length, postsByType.knowledge.length, postsByType.post.length, session, updatePostsForType])
 
   const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
     resetPreviewImageUrls()
@@ -561,8 +629,8 @@ export default function App() {
     setAdminView('editor')
   }
 
-  const handleOpenPost = async (post: PostIndexItem) => {
-    if (!session || !confirmNavigation()) {
+  const openIndexedPost = async (post: PostIndexItem, options?: { skipNavigationConfirm?: boolean }) => {
+    if (!session || (!options?.skipNavigationConfirm && !confirmNavigation())) {
       return
     }
 
@@ -570,6 +638,7 @@ export default function App() {
     const parseOpenedFile = (file: { path: string; sha: string; content: string }) =>
       targetContentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
 
+    setContentType(targetContentType)
     setAdminView('editor')
     setSuccessMessage(null)
     setError(null)
@@ -606,6 +675,21 @@ export default function App() {
     } finally {
       setIsOpeningPost(false)
     }
+  }
+
+  const handleOpenPost = async (post: PostIndexItem) => {
+    await openIndexedPost(post)
+  }
+
+  const handleOpenTopicNode = (targetKey: string) => {
+    const topicPost = topicNodesByKey.get(targetKey)
+    if (!topicPost) {
+      setSuccessMessage(null)
+      setError(`未找到主题节点 ${targetKey}。`)
+      return
+    }
+
+    void openIndexedPost(topicPost)
   }
 
   const handleBackToDashboard = () => {
@@ -1452,15 +1536,8 @@ export default function App() {
 
       // Refresh post index to reflect the changes
       try {
-        const indexedPosts =
-          contentType === 'read-later'
-            ? await buildReadLaterIndex(session)
-            : contentType === 'diary'
-              ? await buildDiaryIndex(session)
-              : contentType === 'knowledge'
-                ? await buildKnowledgeIndex(session)
-              : await buildPostIndex(session)
-        updatePostsForType(contentType, () => indexedPosts)
+        const indexedPosts = await buildIndexByContentType(session, contentType)
+        updatePostsForType(contentType, () => indexedPosts as PostIndexItem[])
       } catch {
         // If re-indexing fails, the UI still reflects the old data but the operation succeeded
       }
@@ -1711,6 +1788,8 @@ export default function App() {
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}
                       onDeleteAnnotation={handleDeleteAnnotation}
+                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
+                      onOpenWikiLink={handleOpenTopicNode}
                     />
                   ) : (
                     <MarkdownEditor
@@ -1756,6 +1835,8 @@ export default function App() {
                 onEditAnnotation={handleOpenAnnotationNote}
                 onSaveAnnotationNote={handleSaveAnnotationNote}
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
+                topicBacklinks={activeTopicBacklinks}
+                onOpenLinkedPost={(post) => { void openIndexedPost(post) }}
               />
             ) : null}
           </section>

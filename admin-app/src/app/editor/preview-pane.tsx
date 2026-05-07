@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
@@ -68,6 +68,13 @@ type PreviewPaneProps = {
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
   onDeleteAnnotation?: (annotationId: string) => void
+  resolveWikiLinkTitle?: (targetKey: string) => string | null
+  onOpenWikiLink?: (targetKey: string) => void
+}
+
+type WikiLinkRenderOptions = {
+  resolveWikiLinkTitle?: (targetKey: string) => string | null
+  onOpenWikiLink?: (targetKey: string) => void
 }
 
 const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
@@ -599,14 +606,14 @@ function renderBareUrls(markdown: string, startIndex: number) {
   }
 }
 
-function renderTextInline(markdown: string): ReactNode[] {
+function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
   const nodes: ReactNode[] = []
-  const pattern = /(\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
+  const pattern = /(\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
   let lastIndex = 0
   let matchIndex = 0
 
   for (const match of markdown.matchAll(pattern)) {
-    const [fullMatch, , linkLabel, linkHref, boldText, italicText, codeText] = match
+    const [fullMatch, , wikiTargetKey, wikiLabel, linkLabel, linkHref, boldText, italicText, codeText] = match
     const start = match.index || 0
 
     if (start > lastIndex) {
@@ -615,7 +622,36 @@ function renderTextInline(markdown: string): ReactNode[] {
       matchIndex = renderedText.nextMatchIndex
     }
 
-    if (linkLabel && linkHref) {
+    if (wikiTargetKey) {
+      const normalizedTargetKey = wikiTargetKey.trim()
+      const resolvedTitle = wikiLinkOptions?.resolveWikiLinkTitle?.(normalizedTargetKey)?.trim() || ''
+      const displayLabel = wikiLabel?.trim() || resolvedTitle || normalizedTargetKey
+      const isResolved = Boolean(resolvedTitle)
+
+      nodes.push(
+        isResolved && wikiLinkOptions?.onOpenWikiLink ? (
+          <button
+            key={`inline-${matchIndex}`}
+            type="button"
+            className="preview-content__wiki-link"
+            onClick={(event) => {
+              event.preventDefault()
+              event.stopPropagation()
+              wikiLinkOptions.onOpenWikiLink?.(normalizedTargetKey)
+            }}
+          >
+            {displayLabel}
+          </button>
+        ) : (
+          <span
+            key={`inline-${matchIndex}`}
+            className={`preview-content__wiki-link${isResolved ? '' : ' preview-content__wiki-link--missing'}`}
+          >
+            {displayLabel}
+          </span>
+        ),
+      )
+    } else if (linkLabel && linkHref) {
       const sanitizedHref = sanitizeLinkHref(linkHref)
       nodes.push(
         sanitizedHref ? (
@@ -651,7 +687,7 @@ function renderPlainTextInline(text: string): ReactNode[] {
   return renderedText.nodes.length > 0 ? renderedText.nodes : [text]
 }
 
-function renderInline(markdown: string, previewImageUrls?: Record<string, string>): ReactNode[] {
+function renderInline(markdown: string, previewImageUrls?: Record<string, string>, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
   const nodes: ReactNode[] = []
   let lastIndex = 0
   let matchIndex = 0
@@ -661,7 +697,7 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
     const start = match.index || 0
 
     if (start > lastIndex) {
-      nodes.push(...renderTextInline(markdown.slice(lastIndex, start)))
+      nodes.push(...renderTextInline(markdown.slice(lastIndex, start), wikiLinkOptions))
     }
 
     const safeSrc = previewImageUrls?.[imageUrl] ?? sanitizeImageSrc(imageUrl)
@@ -674,7 +710,7 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
   }
 
   if (lastIndex < markdown.length) {
-    nodes.push(...renderTextInline(markdown.slice(lastIndex)))
+    nodes.push(...renderTextInline(markdown.slice(lastIndex), wikiLinkOptions))
   }
 
   return nodes.length > 0 ? nodes : [markdown]
@@ -791,6 +827,7 @@ function renderMarkdownListBlock(
   block: ParsedMarkdownListBlock,
   keyPrefix: string,
   previewImageUrls?: Record<string, string>,
+  wikiLinkOptions?: WikiLinkRenderOptions,
 ): ReactNode {
   const isTaskList = block.kind === 'unordered' && block.items.every((item) => Boolean(parseTaskListItem(item.content)))
   const ListTag = block.kind === 'ordered' ? 'ol' : 'ul'
@@ -805,13 +842,13 @@ function renderMarkdownListBlock(
             {task ? (
               <label className="preview-content__task-label">
                 <input type="checkbox" checked={task.checked} readOnly disabled />
-                <span>{renderInlineWithLineBreaks(task.label, previewImageUrls)}</span>
+                <span>{renderInlineWithLineBreaks(task.label, previewImageUrls, wikiLinkOptions)}</span>
               </label>
             ) : (
-              renderInlineWithLineBreaks(item.content, previewImageUrls)
+              renderInlineWithLineBreaks(item.content, previewImageUrls, wikiLinkOptions)
             )}
             {item.children.map((childBlock, childIndex) =>
-              renderMarkdownListBlock(childBlock, `${keyPrefix}-item-${itemIndex}-child-${childIndex}`, previewImageUrls),
+              renderMarkdownListBlock(childBlock, `${keyPrefix}-item-${itemIndex}-child-${childIndex}`, previewImageUrls, wikiLinkOptions),
             )}
           </li>
         )
@@ -836,8 +873,8 @@ function normalizeTableCells(cells: string[], columnCount: number) {
   return Array.from({ length: columnCount }, (_, index) => cells[index] ?? '')
 }
 
-function renderInlineWithLineBreaks(markdown: string, previewImageUrls?: Record<string, string>) {
-  const inlineNodes = renderInline(markdown, previewImageUrls)
+function renderInlineWithLineBreaks(markdown: string, previewImageUrls?: Record<string, string>, wikiLinkOptions?: WikiLinkRenderOptions) {
+  const inlineNodes = renderInline(markdown, previewImageUrls, wikiLinkOptions)
   const nodes: ReactNode[] = []
   let lineBreakIndex = 0
 
@@ -895,13 +932,14 @@ function flushParagraph(
   nodes: ReactNode[],
   keyPrefix: string,
   previewImageUrls?: Record<string, string>,
+  wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
   if (lines.length === 0) {
     return
   }
 
   nodes.push(
-    <p key={`${keyPrefix}-${nodes.length}`}>{renderInlineWithLineBreaks(lines.join('\n'), previewImageUrls)}</p>,
+    <p key={`${keyPrefix}-${nodes.length}`}>{renderInlineWithLineBreaks(lines.join('\n'), previewImageUrls, wikiLinkOptions)}</p>,
   )
   lines.length = 0
 }
@@ -917,7 +955,12 @@ function flushPlainTextParagraph(lines: string[], nodes: ReactNode[], keyPrefix:
   lines.length = 0
 }
 
-function renderBlocks(markdown: string, previewImageUrls?: Record<string, string>, headingIdPrefix?: string) {
+function renderBlocks(
+  markdown: string,
+  previewImageUrls?: Record<string, string>,
+  headingIdPrefix?: string,
+  wikiLinkOptions?: WikiLinkRenderOptions,
+) {
   const lines = markdown.split('\n')
   const nodes: ReactNode[] = []
   const paragraph: string[] = []
@@ -929,20 +972,20 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
     const trimmed = line.trim()
 
     if (!trimmed) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       continue
     }
 
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
     if (headingMatch) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       const level = headingMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6
       const HeadingTag = `h${level}` as const
       const headingId = headingIds[headingIndex]?.id
       headingIndex += 1
       nodes.push(
         <HeadingTag id={headingId} key={`heading-${nodes.length}`}>
-          {renderInline(headingMatch[2], previewImageUrls)}
+          {renderInline(headingMatch[2], previewImageUrls, wikiLinkOptions)}
         </HeadingTag>,
       )
       continue
@@ -953,7 +996,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       index + 1 < lines.length &&
       isTableDivider(lines[index + 1])
     ) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       const headers = splitTableCells(line)
       const columnCount = headers.length
       const rows: string[][] = []
@@ -969,8 +1012,8 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
         <table key={`table-${nodes.length}`}>
           <thead>
             <tr>
-              {headers.map((header, headerIndex) => (
-                <th key={`table-head-${headerIndex}`}>{renderInline(header, previewImageUrls)}</th>
+                {headers.map((header, headerIndex) => (
+                <th key={`table-head-${headerIndex}`}>{renderInline(header, previewImageUrls, wikiLinkOptions)}</th>
               ))}
             </tr>
           </thead>
@@ -978,7 +1021,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
             {rows.map((row, rowIndex) => (
               <tr key={`table-row-${rowIndex}`}>
                 {row.map((cell, cellIndex) => (
-                  <td key={`table-cell-${rowIndex}-${cellIndex}`}>{renderInline(cell, previewImageUrls)}</td>
+                  <td key={`table-cell-${rowIndex}-${cellIndex}`}>{renderInline(cell, previewImageUrls, wikiLinkOptions)}</td>
                 ))}
               </tr>
             ))}
@@ -989,7 +1032,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
     }
 
     if (/^(```)/.test(trimmed)) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       const codeLines: string[] = []
       index += 1
       while (index < lines.length && !/^```/.test(lines[index].trim())) {
@@ -1005,13 +1048,13 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
     }
 
     if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       nodes.push(<hr key={`hr-${nodes.length}`} />)
       continue
     }
 
     if (/^>\s?/.test(trimmed)) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
       const quoteLines = [trimmed.replace(/^>\s?/, '')]
       while (index + 1 < lines.length && /^>\s?/.test(lines[index + 1].trim())) {
         index += 1
@@ -1019,7 +1062,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
       }
       nodes.push(
         <blockquote key={`quote-${nodes.length}`}>
-          <p>{renderInlineWithLineBreaks(quoteLines.join('\n'), previewImageUrls)}</p>
+          <p>{renderInlineWithLineBreaks(quoteLines.join('\n'), previewImageUrls, wikiLinkOptions)}</p>
         </blockquote>,
       )
       continue
@@ -1027,8 +1070,8 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
 
     const listBlock = matchMarkdownListItem(line) ? parseMarkdownListBlock(lines, index) : null
     if (listBlock) {
-      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
-      nodes.push(renderMarkdownListBlock(listBlock.block, `list-${nodes.length}`, previewImageUrls))
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      nodes.push(renderMarkdownListBlock(listBlock.block, `list-${nodes.length}`, previewImageUrls, wikiLinkOptions))
       index = listBlock.nextIndex - 1
       continue
     }
@@ -1036,7 +1079,7 @@ function renderBlocks(markdown: string, previewImageUrls?: Record<string, string
     paragraph.push(trimmed)
   }
 
-  flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls)
+  flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
 
   return nodes
 }
@@ -1065,10 +1108,11 @@ export function renderContentBlocks(
   contentFormat: ResolvedContentFormat,
   previewImageUrls?: Record<string, string>,
   headingIdPrefix?: string,
+  wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
   return contentFormat === 'plaintext'
     ? renderPlainTextBlocks(text)
-    : renderBlocks(text, previewImageUrls, headingIdPrefix)
+    : renderBlocks(text, previewImageUrls, headingIdPrefix, wikiLinkOptions)
 }
 
 function getReadingStatusLabel(status?: ReadingStatus) {
@@ -1086,6 +1130,7 @@ function renderReadLaterSection(
   previewImageUrls: Record<string, string> | undefined,
   anchorId: string,
   sectionKey: ReadLaterSectionKey,
+  wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
   if (!content.trim()) {
     return null
@@ -1094,7 +1139,7 @@ function renderReadLaterSection(
   return (
     <section key={title} id={anchorId} className="preview-content__section" data-read-later-section-key={sectionKey}>
       <h2>{title}</h2>
-      <div className="preview-content__section-body">{renderContentBlocks(content, contentFormat, previewImageUrls, anchorId)}</div>
+      <div className="preview-content__section-body">{renderContentBlocks(content, contentFormat, previewImageUrls, anchorId, wikiLinkOptions)}</div>
     </section>
   )
 }
@@ -1103,10 +1148,11 @@ function renderPlainReadLaterContent(
   markdown: string,
   contentFormat: ResolvedContentFormat,
   previewImageUrls: Record<string, string> | undefined,
+  wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
   return (
     <section className="preview-content__section preview-content__section--plain" data-read-later-section-key="articleExcerpt">
-      <div className="preview-content__section-body">{renderContentBlocks(markdown, contentFormat, previewImageUrls, 'read-later-content')}</div>
+      <div className="preview-content__section-body">{renderContentBlocks(markdown, contentFormat, previewImageUrls, 'read-later-content', wikiLinkOptions)}</div>
     </section>
   )
 }
@@ -1180,6 +1226,8 @@ export default function PreviewPane({
   onSelectAnnotation,
   onClearActiveAnnotation,
   onDeleteAnnotation,
+  resolveWikiLinkTitle,
+  onOpenWikiLink,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
@@ -1204,6 +1252,10 @@ export default function PreviewPane({
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
   const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
+  const wikiLinkOptions = useMemo(
+    () => ({ resolveWikiLinkTitle, onOpenWikiLink }),
+    [onOpenWikiLink, resolveWikiLinkTitle],
+  )
 
   useEffect(() => {
     setSelectionToolbar(null)
@@ -1550,6 +1602,7 @@ export default function PreviewPane({
               previewImageUrls,
               getReadLaterSectionAnchorId('articleExcerpt'),
               'articleExcerpt',
+              wikiLinkOptions,
             )}
             {renderReadLaterSection(
               '我的总结',
@@ -1558,6 +1611,7 @@ export default function PreviewPane({
               previewImageUrls,
               getReadLaterSectionAnchorId('summary'),
               'summary',
+              wikiLinkOptions,
             )}
             {renderReadLaterSection(
               '我的评论',
@@ -1566,32 +1620,33 @@ export default function PreviewPane({
               previewImageUrls,
               getReadLaterSectionAnchorId('commentary'),
               'commentary',
+              wikiLinkOptions,
             )}
           </div>
         ) : isReadLater ? (
-          renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls)
+          renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls, wikiLinkOptions)
         ) : structuredSections && structuredSections.sections.length > 0 ? (
           <>
             {structuredSections.lead ? (
               <section className="preview-content__section preview-content__section--lead">
                 <div className="preview-content__section-body">
-                  {renderContentBlocks(structuredSections.lead, contentFormat, previewImageUrls)}
+                  {renderContentBlocks(structuredSections.lead, contentFormat, previewImageUrls, undefined, wikiLinkOptions)}
                 </div>
               </section>
             ) : null}
             <div className="preview-content__sections">
               {structuredSections.sections.map((section) => (
                 <section key={section.id} id={section.id} className="preview-content__section">
-                  <h2>{renderInline(section.title, previewImageUrls)}</h2>
+                  <h2>{renderInline(section.title, previewImageUrls, wikiLinkOptions)}</h2>
                   <div className="preview-content__section-body">
-                    {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id)}
+                    {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id, wikiLinkOptions)}
                   </div>
                 </section>
               ))}
             </div>
           </>
         ) : (
-          renderContentBlocks(markdown, contentFormat, previewImageUrls)
+          renderContentBlocks(markdown, contentFormat, previewImageUrls, undefined, wikiLinkOptions)
         )}
       </article>
     </section>

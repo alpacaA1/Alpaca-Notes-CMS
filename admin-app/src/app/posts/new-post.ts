@@ -121,6 +121,10 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     return errors
   }
 
+  if (isKnowledge && post.frontmatter.knowledge_kind === 'topic' && !(post.frontmatter.node_key || '').trim()) {
+    errors.node_key = '主题节点请填写节点 Key，例如 book/影响力。'
+  }
+
   if (isDiary || isKnowledge) {
     return errors
   }

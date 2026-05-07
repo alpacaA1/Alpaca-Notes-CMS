@@ -105,6 +105,10 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const sourcePath = readScalar(frontmatter, 'source_path')
   const sourceTitle = readScalar(frontmatter, 'source_title')
   const sourceUrl = readScalar(frontmatter, 'source_url')
+  const knowledgeKind = readScalar(frontmatter, 'knowledge_kind')
+  const topicType = readScalar(frontmatter, 'topic_type')
+  const nodeKey = readScalar(frontmatter, 'node_key')
+  const aliases = readList(frontmatter, 'aliases')
   const categories = readList(frontmatter, 'categories')
   const tags = readList(frontmatter, 'tags')
   const body = stripFrontmatter(input.content)
@@ -117,6 +121,8 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     sourcePath || '',
     sourceTitle || '',
     sourceUrl || '',
+    nodeKey || '',
+    ...aliases,
     ...categories,
     ...tags,
     body,
@@ -135,12 +141,19 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     tags,
     permalink: permalink ? permalink : null,
     cover: cover ? cover : null,
+    body,
     searchText,
     contentType,
     ...(sourceType === 'post' || sourceType === 'read-later' || sourceType === 'diary' ? { sourceType } : {}),
     ...(sourcePath ? { sourcePath } : {}),
     ...(sourceTitle ? { sourceTitle } : {}),
     ...(sourceUrl ? { sourceUrl } : {}),
+    ...(knowledgeKind === 'topic' ? { knowledgeKind: 'topic' as const } : {}),
+    ...(topicType === 'book' || topicType === 'movie' || topicType === 'person' || topicType === 'theme'
+      ? { topicType }
+      : {}),
+    ...(nodeKey ? { nodeKey } : {}),
+    ...(aliases.length > 0 ? { aliases } : {}),
   }
 }
 

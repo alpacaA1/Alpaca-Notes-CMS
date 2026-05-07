@@ -17,6 +17,7 @@ function clonePost(post: EditableDocument): EditableDocument {
       ...post.frontmatter,
       categories: [...post.frontmatter.categories],
       tags: [...post.frontmatter.tags],
+      ...(post.frontmatter.aliases ? { aliases: [...post.frontmatter.aliases] } : {}),
       ...(post.frontmatter.reader_annotations ? { reader_annotations: [...post.frontmatter.reader_annotations] } : {}),
     },
   }
@@ -86,8 +87,12 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.source_path === right.frontmatter.source_path &&
     left.frontmatter.source_title === right.frontmatter.source_title &&
     left.frontmatter.source_url === right.frontmatter.source_url &&
+    left.frontmatter.knowledge_kind === right.frontmatter.knowledge_kind &&
+    left.frontmatter.topic_type === right.frontmatter.topic_type &&
+    left.frontmatter.node_key === right.frontmatter.node_key &&
     sameStringArray(left.frontmatter.categories, right.frontmatter.categories) &&
     sameStringArray(left.frontmatter.tags, right.frontmatter.tags) &&
+    sameStringArray(left.frontmatter.aliases || [], right.frontmatter.aliases || []) &&
     sameStringArray(left.frontmatter.reader_annotations || [], right.frontmatter.reader_annotations || []) &&
     sameAnnotations(left.annotations, right.annotations)
   )

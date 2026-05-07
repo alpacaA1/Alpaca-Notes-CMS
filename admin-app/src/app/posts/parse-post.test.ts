@@ -175,4 +175,32 @@ desc: 从日记沉淀的知识点
     expect(parsed.frontmatter.source_path).toBe('source/diary/20260506090909.md')
     expect(parsed.frontmatter.source_title).toBe('2026-05-06-星期三')
   })
+
+  it('preserves topic-node metadata for knowledge items', () => {
+    const parsed = parsePost({
+      path: 'source/_knowledge/topic.md',
+      sha: 'sha-topic',
+      content: `---
+title: 影响力
+knowledge: true
+knowledge_kind: topic
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+  - Influence
+date: 2026-05-07 10:10:10
+tags:
+  - 读书
+desc:
+---
+
+这是一个主题节点。`,
+    })
+
+    expect(parsed.frontmatter.knowledge_kind).toBe('topic')
+    expect(parsed.frontmatter.topic_type).toBe('book')
+    expect(parsed.frontmatter.node_key).toBe('book/影响力')
+    expect(parsed.frontmatter.aliases).toEqual(['《影响力》', 'Influence'])
+  })
 })

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { TopicBacklinkItem } from '../knowledge/wiki-links'
 import type { ParsedPost } from '../posts/parse-post'
-import type { ContentType } from '../posts/post-types'
+import type { ContentType, PostIndexItem } from '../posts/post-types'
 import { fromPostDateTimeInputValue, toPostDateTimeInputValue } from '../posts/new-post'
 import type { PostValidationErrors } from '../posts/post-types'
 import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-types'
@@ -38,6 +39,8 @@ type SettingsPanelProps = {
   onEditAnnotation?: (annotationId: string) => void
   onSaveAnnotationNote?: (annotationId: string, note: string) => void
   onCancelAnnotationEdit?: () => void
+  topicBacklinks?: TopicBacklinkItem[]
+  onOpenLinkedPost?: (post: PostIndexItem) => void
 }
 
 function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
@@ -46,6 +49,30 @@ function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
 
 function getAnnotationNotePreview(annotation: ReadLaterAnnotation) {
   return annotation.note.trim()
+}
+
+function parseAliasesInput(value: string) {
+  return value
+    .split('\n')
+    .map((item) => item.trim())
+    .filter((item, index, items) => item.length > 0 && items.indexOf(item) === index)
+}
+
+function buildDefaultNodeKey(topicType: NonNullable<ParsedPost['frontmatter']['topic_type']>, title: string) {
+  const trimmedTitle = title.trim()
+  return trimmedTitle ? `${topicType}/${trimmedTitle}` : ''
+}
+
+function getLinkedPostTypeLabel(contentType: ContentType | undefined) {
+  if (contentType === 'diary') {
+    return '日记'
+  }
+
+  if (contentType === 'knowledge') {
+    return '知识点'
+  }
+
+  return '文章'
 }
 
 export default function SettingsPanel({
@@ -72,6 +99,8 @@ export default function SettingsPanel({
   onEditAnnotation,
   onSaveAnnotationNote,
   onCancelAnnotationEdit,
+  topicBacklinks = [],
+  onOpenLinkedPost,
 }: SettingsPanelProps) {
   const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('info')
   const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
@@ -120,6 +149,7 @@ export default function SettingsPanel({
 
   const { frontmatter } = document
   const showInfoFields = !isReadLater || currentReadLaterTab === 'info'
+  const knowledgeKind = frontmatter.knowledge_kind || 'note'
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -191,6 +221,24 @@ export default function SettingsPanel({
   const handleCancelAnnotation = () => {
     setAnnotationNoteDraft(activeAnnotation?.note || '')
     onCancelAnnotationEdit?.()
+  }
+
+  const handleKnowledgeKindChange = (nextKind: 'note' | 'topic') => {
+    onFieldChange('knowledge_kind', nextKind === 'topic' ? 'topic' : undefined)
+
+    if (nextKind === 'topic') {
+      const nextTopicType = frontmatter.topic_type || 'theme'
+      if (!frontmatter.topic_type) {
+        onFieldChange('topic_type', nextTopicType)
+      }
+
+      if (!(frontmatter.node_key || '').trim()) {
+        const nextNodeKey = buildDefaultNodeKey(nextTopicType, frontmatter.title)
+        if (nextNodeKey) {
+          onFieldChange('node_key', nextNodeKey)
+        }
+      }
+    }
   }
 
   return (
@@ -370,29 +418,111 @@ export default function SettingsPanel({
           </div>
 
           {isKnowledge ? (
-            <div className="settings-panel__field">
-              <span>来源</span>
-              <div className="settings-panel__document-note-entry" style={{ cursor: 'default' }}>
-                <strong>{frontmatter.source_title?.trim() || '手动新增知识点'}</strong>
-                <div style={{ marginTop: '8px', display: 'grid', gap: '4px' }}>
-                  <span>
-                    {frontmatter.source_type === 'read-later'
-                      ? '来源类型：待读'
-                      : frontmatter.source_type === 'post'
-                        ? '来源类型：文章'
-                        : frontmatter.source_type === 'diary'
-                          ? '来源类型：日记'
-                          : '来源类型：手动整理'}
-                  </span>
-                  {frontmatter.source_path ? <span>{`来源路径：${frontmatter.source_path}`}</span> : null}
-                  {frontmatter.source_url ? (
-                    <a href={frontmatter.source_url} target="_blank" rel="noreferrer" style={{ width: 'fit-content' }}>
-                      打开原链接
-                    </a>
-                  ) : null}
+            <>
+              <label className="settings-panel__field">
+                <span>知识点类型</span>
+                <select
+                  aria-label="知识点类型"
+                  value={knowledgeKind}
+                  onChange={(event) => handleKnowledgeKindChange(event.target.value === 'topic' ? 'topic' : 'note')}
+                >
+                  <option value="note">普通知识点</option>
+                  <option value="topic">主题节点</option>
+                </select>
+                <p className="settings-panel__field-note">主题节点可以被日记、文章和知识点用 `[[node_key]]` 引用。</p>
+              </label>
+
+              {knowledgeKind === 'topic' ? (
+                <>
+                  <label className="settings-panel__field">
+                    <span>主题类型</span>
+                    <select
+                      aria-label="主题类型"
+                      value={frontmatter.topic_type || 'theme'}
+                      onChange={(event) => onFieldChange('topic_type', event.target.value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
+                    >
+                      <option value="theme">主题</option>
+                      <option value="book">书</option>
+                      <option value="movie">电影</option>
+                      <option value="person">人物</option>
+                    </select>
+                  </label>
+
+                  <label className="settings-panel__field">
+                    <span>节点 Key</span>
+                    <input
+                      aria-label="节点 Key"
+                      value={frontmatter.node_key || ''}
+                      placeholder="book/影响力"
+                      onChange={(event) => onFieldChange('node_key', event.target.value)}
+                    />
+                    <p className="settings-panel__field-note">建议保持稳定，例如 `book/影响力`、`person/稻盛和夫`。</p>
+                    {validationErrors.node_key ? <span className="error-message">{validationErrors.node_key}</span> : null}
+                  </label>
+
+                  <label className="settings-panel__field">
+                    <span>别名</span>
+                    <textarea
+                      aria-label="别名"
+                      value={(frontmatter.aliases || []).join('\n')}
+                      placeholder={'《影响力》\nInfluence'}
+                      onChange={(event) => onFieldChange('aliases', parseAliasesInput(event.target.value))}
+                    />
+                    <p className="settings-panel__field-note">一行一个，方便在正文里用显示名引用。</p>
+                  </label>
+                </>
+              ) : null}
+
+              <div className="settings-panel__field">
+                <span>来源</span>
+                <div className="settings-panel__document-note-entry" style={{ cursor: 'default' }}>
+                  <strong>{frontmatter.source_title?.trim() || '手动新增知识点'}</strong>
+                  <div style={{ marginTop: '8px', display: 'grid', gap: '4px' }}>
+                    <span>
+                      {frontmatter.source_type === 'read-later'
+                        ? '来源类型：待读'
+                        : frontmatter.source_type === 'post'
+                          ? '来源类型：文章'
+                          : frontmatter.source_type === 'diary'
+                            ? '来源类型：日记'
+                            : '来源类型：手动整理'}
+                    </span>
+                    {frontmatter.source_path ? <span>{`来源路径：${frontmatter.source_path}`}</span> : null}
+                    {frontmatter.source_url ? (
+                      <a href={frontmatter.source_url} target="_blank" rel="noreferrer" style={{ width: 'fit-content' }}>
+                        打开原链接
+                      </a>
+                    ) : null}
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {knowledgeKind === 'topic' ? (
+                <div className="settings-panel__field">
+                  <span>反向引用</span>
+                  {topicBacklinks.length > 0 ? (
+                    <div className="settings-panel__linked-posts">
+                      {topicBacklinks.map((backlink) => (
+                        <button
+                          key={`${backlink.sourcePath}-${backlink.targetKey}`}
+                          type="button"
+                          className="settings-panel__linked-post"
+                          onClick={() => onOpenLinkedPost?.(backlink.sourcePost)}
+                        >
+                          <div className="settings-panel__linked-post-meta">
+                            <strong>{backlink.sourceTitle}</strong>
+                            <span>{getLinkedPostTypeLabel(backlink.sourceContentType)} · {backlink.sourceDate.slice(0, 10) || '无日期'}</span>
+                          </div>
+                          <p>{backlink.excerpt || '点击打开原文'}</p>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="settings-panel__field-note">这个主题节点还没有被其它日记、文章或知识点提到。</p>
+                  )}
+                </div>
+              ) : null}
+            </>
           ) : null}
 
           {!isDiary && !isKnowledge ? (

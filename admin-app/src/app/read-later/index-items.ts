@@ -79,6 +79,7 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
     tags,
     permalink: permalink ? permalink : null,
     cover: cover ? cover : null,
+    body,
     searchText,
     contentType: 'read-later',
     externalUrl: externalUrl ? externalUrl : null,

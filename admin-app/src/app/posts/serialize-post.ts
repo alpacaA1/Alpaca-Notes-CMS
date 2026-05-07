@@ -11,6 +11,7 @@ function renderList(name: string, values: string[]) {
 export function serializePost(post: ParsedPost): string {
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
+  const aliases = post.frontmatter.aliases || []
   const lines = [
     '---',
     `title: ${post.frontmatter.title}`,
@@ -35,6 +36,10 @@ export function serializePost(post: ParsedPost): string {
           ...(isKnowledge && post.frontmatter.source_path ? [`source_path: ${post.frontmatter.source_path}`] : []),
           ...(isKnowledge && post.frontmatter.source_title ? [`source_title: ${post.frontmatter.source_title}`] : []),
           ...(isKnowledge && post.frontmatter.source_url ? [`source_url: ${post.frontmatter.source_url}`] : []),
+          ...(isKnowledge && post.frontmatter.knowledge_kind ? [`knowledge_kind: ${post.frontmatter.knowledge_kind}`] : []),
+          ...(isKnowledge && post.frontmatter.topic_type ? [`topic_type: ${post.frontmatter.topic_type}`] : []),
+          ...(isKnowledge && post.frontmatter.node_key ? [`node_key: ${post.frontmatter.node_key}`] : []),
+          ...(isKnowledge && aliases.length > 0 ? [renderList('aliases', aliases)] : []),
           `published: ${
             isDiary || isKnowledge
               ? 'false'
