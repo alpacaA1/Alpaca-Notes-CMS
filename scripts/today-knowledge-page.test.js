@@ -163,26 +163,30 @@ test('desktop with a single knowledge card still uses the card stage without loc
   deck.destroy();
 });
 
-test('renderCard only keeps date and body content', () => {
+test('renderCard renders compact preview with expandable detail sections', () => {
   const html = renderCard(
     {
-      title: '不会显示的标题',
-      desc: '不会显示的摘要',
+      title: '会显示的标题',
+      desc: '会显示的摘要',
       date: '2026-05-06 12:00:00',
-      quote: '不会单独显示的原文摘录',
-      note: '不会单独显示的我的理解',
+      quote: '这里是原文摘录',
+      note: '这里是我的理解',
       body: '真正展示的正文',
     },
     0,
   );
 
+  assert.match(html, /today-knowledge__title/);
+  assert.match(html, /会显示的标题/);
+  assert.match(html, /today-knowledge__preview/);
+  assert.match(html, /会显示的摘要/);
+  assert.match(html, /today-knowledge__details-summary/);
+  assert.match(html, /原文摘录/);
+  assert.match(html, /我的理解/);
+  assert.match(html, /这里是原文摘录/);
+  assert.match(html, /这里是我的理解/);
   assert.match(html, /today-knowledge__date/);
-  assert.match(html, /today-knowledge__body/);
-  assert.doesNotMatch(html, /today-knowledge__title/);
   assert.doesNotMatch(html, /today-knowledge__desc/);
-  assert.doesNotMatch(html, /原文摘录/);
-  assert.doesNotMatch(html, /我的理解/);
-  assert.match(html, /真正展示的正文/);
 });
 
 test('buildKnowledgeItem flattens quote-based knowledge into a single body field', () => {

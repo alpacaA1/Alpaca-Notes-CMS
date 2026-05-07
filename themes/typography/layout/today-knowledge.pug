@@ -11,6 +11,10 @@ block content
     .autopagerize_page_element
         .content
             style.
+                #main-container {
+                    overflow: visible;
+                }
+
                 .today-knowledge {
                     --tk-bg: #f5efe7;
                     --tk-paper: rgba(255, 252, 247, 0.94);
@@ -27,6 +31,59 @@ block content
                     margin: 0 auto;
                     padding: 28px 0 56px;
                     color: var(--tk-text);
+                }
+
+                .today-knowledge__hero {
+                    display: grid;
+                    gap: 10px;
+                    margin-bottom: 18px;
+                    padding: 24px 22px;
+                    border: 1px solid var(--tk-line);
+                    border-radius: 24px;
+                    background: linear-gradient(145deg, rgba(255, 251, 245, 0.96), rgba(246, 236, 221, 0.88));
+                    box-shadow: var(--tk-shadow);
+                }
+
+                .today-knowledge__hero-eyebrow {
+                    margin: 0;
+                    color: var(--tk-accent);
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.14em;
+                    text-transform: uppercase;
+                }
+
+                .today-knowledge__hero-title {
+                    margin: 0;
+                    font-size: clamp(28px, 4vw, 40px);
+                    line-height: 1.1;
+                }
+
+                .today-knowledge__hero-desc {
+                    margin: 0;
+                    max-width: 34em;
+                    color: var(--tk-muted);
+                    line-height: 1.8;
+                }
+
+                .today-knowledge__hero-meta {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 10px;
+                    align-items: center;
+                }
+
+                .today-knowledge__hero-chip {
+                    display: inline-flex;
+                    align-items: center;
+                    padding: 7px 12px;
+                    border: 1px solid rgba(90, 67, 45, 0.12);
+                    border-radius: 999px;
+                    background: rgba(255, 252, 247, 0.74);
+                    color: var(--tk-soft);
+                    font-size: 12px;
+                    font-weight: 600;
+                    letter-spacing: 0.05em;
                 }
 
                 .today-knowledge__state {
@@ -55,11 +112,111 @@ block content
                     box-shadow: var(--tk-shadow);
                 }
 
+                .today-knowledge__card-top {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    margin-bottom: 14px;
+                }
+
+                .today-knowledge__order {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    min-width: 38px;
+                    height: 38px;
+                    padding: 0 11px;
+                    border-radius: 999px;
+                    background: var(--tk-accent-soft);
+                    color: var(--tk-accent);
+                    font-size: 14px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                }
+
                 .today-knowledge__date {
-                    margin: 0 0 16px;
+                    margin: 0;
                     color: var(--tk-soft);
                     font-size: 13px;
                     letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                }
+
+                .today-knowledge__title {
+                    margin: 0;
+                    font-size: clamp(24px, 3vw, 32px);
+                    line-height: 1.35;
+                }
+
+                .today-knowledge__preview {
+                    margin: 12px 0 0;
+                    color: var(--tk-muted);
+                    line-height: 1.85;
+                    font-size: clamp(16px, 2vw, 18px);
+                    display: -webkit-box;
+                    -webkit-line-clamp: 4;
+                    -webkit-box-orient: vertical;
+                    overflow: hidden;
+                }
+
+                .today-knowledge__details {
+                    margin-top: 18px;
+                    padding-top: 18px;
+                    border-top: 1px solid rgba(90, 67, 45, 0.09);
+                }
+
+                .today-knowledge__details-summary {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 8px;
+                    color: var(--tk-accent);
+                    font-size: 13px;
+                    font-weight: 700;
+                    letter-spacing: 0.08em;
+                    text-transform: uppercase;
+                    cursor: pointer;
+                    list-style: none;
+                }
+
+                .today-knowledge__details-summary::-webkit-details-marker {
+                    display: none;
+                }
+
+                .today-knowledge__details-summary::after {
+                    content: '+';
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: rgba(166, 107, 44, 0.1);
+                    font-size: 14px;
+                    line-height: 1;
+                }
+
+                .today-knowledge__details[open] .today-knowledge__details-summary::after {
+                    content: '−';
+                }
+
+                .today-knowledge__details-body {
+                    display: grid;
+                    gap: 14px;
+                    margin-top: 16px;
+                }
+
+                .today-knowledge__section {
+                    display: grid;
+                    gap: 8px;
+                }
+
+                .today-knowledge__section-label {
+                    margin: 0;
+                    color: var(--tk-accent);
+                    font-size: 12px;
+                    font-weight: 700;
+                    letter-spacing: 0.1em;
                     text-transform: uppercase;
                 }
 
@@ -67,8 +224,16 @@ block content
                     margin: 0;
                     white-space: pre-wrap;
                     word-break: break-word;
-                    line-height: 1.95;
-                    font-size: clamp(17px, 2.1vw, 20px);
+                    line-height: 1.9;
+                    font-size: clamp(16px, 1.95vw, 18px);
+                    color: var(--tk-text);
+                }
+
+                .today-knowledge__body--quote {
+                    padding: 14px 16px;
+                    border-left: 3px solid rgba(166, 107, 44, 0.42);
+                    border-radius: 0 16px 16px 0;
+                    background: rgba(166, 107, 44, 0.06);
                 }
 
                 .today-knowledge__card--active {
@@ -167,6 +332,7 @@ block content
                         inset: 0;
                         margin: 0;
                         padding: 28px 26px 30px;
+                        overflow: auto;
                         opacity: 0;
                         transform: translate3d(0, 44px, 0) scale(0.985);
                         transition: opacity 220ms ease, transform 260ms ease;
@@ -186,8 +352,28 @@ block content
                 }
 
                 @media (max-width: 767px) {
+                    #side-bar {
+                        padding: 20px 22px 0;
+                    }
+
+                    #site-nav {
+                        display: none;
+                    }
+
+                    #main-container {
+                        padding: 8px 22px 40px;
+                    }
+
+                    .site-bottom-footer {
+                        display: none !important;
+                    }
+
                     .today-knowledge {
-                        padding: 14px 0 40px;
+                        padding: 0 0 40px;
+                    }
+
+                    .today-knowledge__hero {
+                        padding: 20px 18px;
                     }
 
                     .today-knowledge__card {
@@ -195,12 +381,17 @@ block content
                         border-radius: 20px;
                     }
 
+                    .today-knowledge__title {
+                        font-size: 24px;
+                    }
+
                     .today-knowledge__list--mobile-deck {
                         display: block;
                     }
 
+                    .today-knowledge__preview,
                     .today-knowledge__body {
-                        font-size: 18px;
+                        font-size: 16px;
                         line-height: 1.9;
                     }
 
@@ -209,6 +400,13 @@ block content
                     }
                 }
             .today-knowledge#today-knowledge-app(data-data-path=url_for('today-knowledge/data.json') data-timezone=(config.timezone || 'Asia/Shanghai'))
+                header.today-knowledge__hero
+                    p.today-knowledge__hero-eyebrow Daily Notes
+                    h1.today-knowledge__hero-title 今日知识点
+                    p.today-knowledge__hero-desc 每天从知识库里固定随机抽 15 条，先快速过一遍，再按需要展开细看。
+                    .today-knowledge__hero-meta
+                        span.today-knowledge__hero-chip#today-knowledge-hero-date 今日加载中
+                        span.today-knowledge__hero-chip#today-knowledge-hero-count 0 / 15
                 .today-knowledge__state#today-knowledge-state 正在加载知识点…
                 .today-knowledge__deck-status#today-knowledge-deck-status(hidden)
                 .today-knowledge__list#today-knowledge-list(hidden)

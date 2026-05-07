@@ -110,6 +110,20 @@
       .trim();
   }
 
+  function buildPreviewText(value, maxLength) {
+    const normalized = normalizeBlock(value).replace(/\s+/g, ' ').trim();
+
+    if (!normalized) {
+      return '';
+    }
+
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd() + '…';
+  }
+
   function buildCardBody(item) {
     if (!item) {
       return '';
@@ -118,13 +132,61 @@
     return normalizeBlock(item.body) || joinContentBlocks([item.quote, item.note]) || normalizeBlock(item.content);
   }
 
+  function renderSection(label, className, value) {
+    const content = normalizeBlock(value);
+
+    if (!content) {
+      return '';
+    }
+
+    return (
+      '<section class="today-knowledge__section">' +
+        '<p class="today-knowledge__section-label">' + label + '</p>' +
+        '<p class="' + className + '">' + escapeHtml(content) + '</p>' +
+      '</section>'
+    );
+  }
+
+  function renderDetails(item, bodyText) {
+    const quoteSection = renderSection('原文摘录', 'today-knowledge__body today-knowledge__body--quote', item.quote);
+    const noteSection = renderSection('我的理解', 'today-knowledge__body', item.note);
+    const plainSection =
+      quoteSection || noteSection
+        ? ''
+        : renderSection('完整内容', 'today-knowledge__body', bodyText || item.content || '暂无内容');
+
+    if (!quoteSection && !noteSection && !plainSection) {
+      return '';
+    }
+
+    return (
+      '<details class="today-knowledge__details">' +
+        '<summary class="today-knowledge__details-summary">展开完整内容</summary>' +
+        '<div class="today-knowledge__details-body">' +
+          quoteSection +
+          noteSection +
+          plainSection +
+        '</div>' +
+      '</details>'
+    );
+  }
+
   function renderCard(item, index) {
-    const body = escapeHtml(buildCardBody(item) || '暂无内容');
+    const title = escapeHtml(item.title || '未命名知识点');
+    const bodyText = buildCardBody(item) || '暂无内容';
+    const previewSource = normalizeBlock(item.desc) || bodyText;
+    const preview = escapeHtml(buildPreviewText(previewSource, 120) || '暂无内容');
+    const details = renderDetails(item, bodyText);
 
     return (
       '<article class="today-knowledge__card" data-card-index="' + String(index) + '">' +
-        '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
-        '<p class="today-knowledge__body">' + body + '</p>' +
+        '<div class="today-knowledge__card-top">' +
+          '<span class="today-knowledge__order">' + pad(index + 1) + '</span>' +
+          '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
+        '</div>' +
+        '<h2 class="today-knowledge__title">' + title + '</h2>' +
+        '<p class="today-knowledge__preview">' + preview + '</p>' +
+        details +
       '</article>'
     );
   }
@@ -442,6 +504,8 @@
     const stateNode = doc.getElementById('today-knowledge-state');
     const listNode = doc.getElementById('today-knowledge-list');
     const statusNode = doc.getElementById('today-knowledge-deck-status');
+    const heroDateNode = doc.getElementById('today-knowledge-hero-date');
+    const heroCountNode = doc.getElementById('today-knowledge-hero-count');
     const dataPath = app.dataset.dataPath;
     const timeZone = app.dataset.timezone || 'Asia/Shanghai';
     const envWindow = (options && options.window) || doc.defaultView || null;
@@ -465,6 +529,12 @@
         statusNode.hidden = true;
         statusNode.textContent = '';
       }
+      if (heroDateNode) {
+        heroDateNode.textContent = '今日 ' + getDateKey(new Date(), timeZone);
+      }
+      if (heroCountNode) {
+        heroCountNode.textContent = '0 / 15';
+      }
       if (stateNode) {
         stateNode.textContent = message;
         stateNode.hidden = false;
@@ -481,6 +551,12 @@
       }
 
       resetDeck();
+      if (heroDateNode) {
+        heroDateNode.textContent = '今日 ' + getDateKey(new Date(), timeZone);
+      }
+      if (heroCountNode) {
+        heroCountNode.textContent = String(items.length) + ' / 15';
+      }
       listNode.innerHTML = items.map(renderCard).join('');
       listNode.hidden = false;
       if (stateNode) {
