@@ -46,19 +46,138 @@ function truncateSnippet(value: string, maxLength = SNIPPET_MAX_LENGTH) {
   return `${value.slice(0, Math.max(1, maxLength - 1)).trim()}…`
 }
 
-function buildExcerpt(body: string, startIndex: number) {
-  const lineStart = body.lastIndexOf('\n', startIndex)
-  const lineEnd = body.indexOf('\n', startIndex)
-  const rawLine = body.slice(lineStart < 0 ? 0 : lineStart + 1, lineEnd < 0 ? body.length : lineEnd)
-  const normalizedLine = normalizeInlineLabel(rawLine)
+type BlockquoteExcerptRange = {
+  start: number
+  end: number
+  excerpt: string
+}
 
-  if (normalizedLine) {
-    return truncateSnippet(normalizedLine)
+type ParagraphExcerptRange = {
+  start: number
+  end: number
+  excerpt: string
+}
+
+function isBlockquoteLine(line: string) {
+  return /^\s*(?:>\s?)+/.test(line)
+}
+
+function normalizeBlockquoteLine(line: string) {
+  return normalizeInlineLabel(line.replace(/^\s*(?:>\s?)+/, ''))
+}
+
+function collectBlockquoteExcerptRanges(body: string) {
+  const ranges: BlockquoteExcerptRange[] = []
+  const normalizedBody = String(body || '')
+  let index = 0
+  let currentStart = -1
+  let currentEnd = -1
+  let currentLines: string[] = []
+
+  const flushCurrentRange = () => {
+    if (currentStart < 0) {
+      return
+    }
+
+    const excerpt = truncateSnippet(currentLines.join('\n').trim(), SNIPPET_MAX_LENGTH * 2)
+    if (excerpt) {
+      ranges.push({
+        start: currentStart,
+        end: currentEnd,
+        excerpt,
+      })
+    }
+
+    currentStart = -1
+    currentEnd = -1
+    currentLines = []
   }
 
-  const paragraphStart = Math.max(0, startIndex - 48)
-  const paragraphEnd = Math.min(body.length, startIndex + 52)
-  return truncateSnippet(normalizeInlineLabel(body.slice(paragraphStart, paragraphEnd)))
+  while (index <= normalizedBody.length) {
+    const nextLineBreak = normalizedBody.indexOf('\n', index)
+    const lineEnd = nextLineBreak < 0 ? normalizedBody.length : nextLineBreak
+    const rawLine = normalizedBody.slice(index, lineEnd).replace(/\r$/, '')
+
+    if (isBlockquoteLine(rawLine)) {
+      if (currentStart < 0) {
+        currentStart = index
+      }
+
+      currentEnd = lineEnd
+      currentLines.push(normalizeBlockquoteLine(rawLine))
+    } else {
+      flushCurrentRange()
+    }
+
+    if (nextLineBreak < 0) {
+      break
+    }
+
+    index = nextLineBreak + 1
+  }
+
+  flushCurrentRange()
+
+  return ranges
+}
+
+function collectParagraphExcerptRanges(body: string) {
+  const ranges: ParagraphExcerptRange[] = []
+  const normalizedBody = String(body || '')
+  let index = 0
+  let currentStart = -1
+  let currentEnd = -1
+  let currentLines: string[] = []
+
+  const flushCurrentRange = () => {
+    if (currentStart < 0) {
+      return
+    }
+
+    const excerpt = truncateSnippet(currentLines.join('\n').trim(), SNIPPET_MAX_LENGTH * 2)
+    if (excerpt) {
+      ranges.push({
+        start: currentStart,
+        end: currentEnd,
+        excerpt,
+      })
+    }
+
+    currentStart = -1
+    currentEnd = -1
+    currentLines = []
+  }
+
+  while (index <= normalizedBody.length) {
+    const nextLineBreak = normalizedBody.indexOf('\n', index)
+    const lineEnd = nextLineBreak < 0 ? normalizedBody.length : nextLineBreak
+    const rawLine = normalizedBody.slice(index, lineEnd).replace(/\r$/, '')
+    const trimmedLine = rawLine.trim()
+
+    if (!trimmedLine || isBlockquoteLine(rawLine)) {
+      flushCurrentRange()
+    } else {
+      const normalizedLine = normalizeInlineLabel(rawLine)
+      if (normalizedLine) {
+        if (currentStart < 0) {
+          currentStart = index
+        }
+
+        currentEnd = lineEnd
+        currentLines.push(normalizedLine)
+      }
+    }
+
+    if (nextLineBreak < 0) {
+      break
+    }
+
+    index = nextLineBreak + 1
+  }
+
+  flushCurrentRange()
+
+  return ranges
 }
 
 function getTopicBacklinkTypeLabel(contentType: ContentType) {
@@ -202,6 +321,11 @@ export function buildTopicNodeMap(posts: PostIndexItem[]) {
 
     nodeMap.set(nodeKey, post)
 
+    const title = post.title.trim()
+    if (title && title !== nodeKey && !nodeMap.has(title)) {
+      aliasEntries.push([title, post])
+    }
+
     ;(post.aliases || []).forEach((alias) => {
       const normalizedAlias = alias.trim()
       if (!normalizedAlias || normalizedAlias === nodeKey || nodeMap.has(normalizedAlias)) {
@@ -230,7 +354,22 @@ export function buildTopicBacklinkMap(posts: PostIndexItem[]) {
       return
     }
 
-    parseWikiLinks(stripGeneratedTopicBacklinks(post.body)).forEach((link) => {
+    const normalizedBody = stripGeneratedTopicBacklinks(post.body)
+    const blockquoteRanges = collectBlockquoteExcerptRanges(normalizedBody)
+    const excerptRanges = post.contentType === 'diary'
+      ? [...blockquoteRanges, ...collectParagraphExcerptRanges(normalizedBody)]
+      : blockquoteRanges
+
+    if (excerptRanges.length === 0) {
+      return
+    }
+
+    parseWikiLinks(normalizedBody).forEach((link) => {
+      const excerptRange = excerptRanges.find((range) => link.start >= range.start && link.start <= range.end)
+      if (!excerptRange?.excerpt) {
+        return
+      }
+
       const resolvedTargetKey = resolveWikiLinkTargetKey(link.targetKey, topicNodeMap)
       const backlinks = backlinkMap.get(resolvedTargetKey) || []
       backlinks.push({
@@ -240,7 +379,7 @@ export function buildTopicBacklinkMap(posts: PostIndexItem[]) {
         sourceTitle: post.title,
         sourceDate: post.date,
         sourceContentType: post.contentType || 'post',
-        excerpt: buildExcerpt(post.body || '', link.start),
+        excerpt: excerptRange.excerpt,
       })
       backlinkMap.set(resolvedTargetKey, backlinks)
     })

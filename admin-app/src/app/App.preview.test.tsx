@@ -648,7 +648,7 @@ describe('App preview mode', () => {
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([
       {
         ...supportedPost,
-        body: '今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。',
+        body: '> 今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。\n> 第二行继续解释这个判断。',
       },
       topicNodePost,
     ])
@@ -683,7 +683,13 @@ describe('App preview mode', () => {
     expect(await screen.findByRole('heading', { name: '相关双链摘录' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Preview supported post' })).toBeTruthy()
     expect(screen.getByText('文章 · 2026-04-03')).toBeTruthy()
-    expect(screen.getByText('今天又想到 《影响力》 里讲的互惠原则。')).toBeTruthy()
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === 'BLOCKQUOTE' &&
+          element.textContent === '今天又想到 《影响力》 里讲的互惠原则。第二行继续解释这个判断。',
+      ),
+    ).toBeTruthy()
   })
 
   it('sanitizes unsafe markdown links before rendering preview anchors', async () => {

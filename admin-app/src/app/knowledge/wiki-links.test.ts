@@ -55,8 +55,9 @@ describe('wiki link helpers', () => {
       },
     ])
 
-    expect(Array.from(nodeMap.keys())).toEqual(['book/影响力', '《影响力》'])
+    expect(Array.from(nodeMap.keys())).toEqual(['book/影响力', '影响力', '《影响力》'])
     expect(nodeMap.get('book/影响力')?.title).toBe('影响力')
+    expect(nodeMap.get('影响力')?.title).toBe('影响力')
     expect(nodeMap.get('《影响力》')?.title).toBe('影响力')
   })
 
@@ -76,7 +77,7 @@ describe('wiki link helpers', () => {
         permalink: null,
         cover: null,
         contentType: 'diary',
-        body: '今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。',
+        body: '> 今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。\n> 第二行继续解释这个判断。',
       },
       {
         path: 'source/_posts/article.md',
@@ -106,21 +107,82 @@ describe('wiki link helpers', () => {
         permalink: 'alias-link/',
         cover: null,
         contentType: 'post',
-        body: '这次直接写 [[《影响力》]]，预览也应该能识别。',
+        body: '> 这次直接写 [[《影响力》]]，预览也应该能识别。',
       },
     ])
 
     expect(backlinkMap.get('book/影响力')?.map((item) => item.sourceTitle)).toEqual([
       '2026-05-06-星期三',
-      '重读说服机制',
       '别名写法',
     ])
-    expect(backlinkMap.get('book/影响力')?.[0]?.excerpt).toBe('今天又想到 《影响力》 里讲的互惠原则。')
+    expect(backlinkMap.get('book/影响力')?.[0]?.excerpt).toBe('今天又想到 《影响力》 里讲的互惠原则。\n第二行继续解释这个判断。')
     expect(backlinkMap.get('book/影响力')?.[1]?.sourceContentType).toBe('post')
     expect(backlinkMap.has('《影响力》')).toBe(false)
   })
 
-  it('appends a generated topic backlink section without duplicating repeated excerpts', () => {
+  it('ignores wiki links outside blockquotes when collecting backlink excerpts', () => {
+    const backlinkMap = buildTopicBacklinkMap([
+      topicPost,
+      {
+        path: 'source/_posts/article.md',
+        sha: 'sha-article',
+        title: '普通正文',
+        date: '2026-05-04 08:00:00',
+        desc: '文章摘要',
+        published: true,
+        hasExplicitPublished: true,
+        categories: ['专业'],
+        tags: ['产品'],
+        permalink: 'body-link/',
+        cover: null,
+        contentType: 'post',
+        body: '最近重看 [[book/影响力]]，发现很多判断都和增长场景有关。',
+      },
+    ])
+
+    expect(backlinkMap.get('book/影响力')).toBeUndefined()
+  })
+
+  it('collects diary paragraph excerpts for title-based wiki links', () => {
+    const backlinkMap = buildTopicBacklinkMap([
+      {
+        ...topicPost,
+        path: 'source/_posts/portrait.md',
+        sha: 'sha-portrait-topic',
+        title: '人像摄影',
+        desc: '关于人像摄影的主题页',
+        contentType: 'post',
+        body: '这是一个主题文章。',
+        knowledgeKind: undefined,
+        isTopic: true,
+        topicType: 'theme',
+        nodeKey: 'theme/人像摄影',
+        aliases: [],
+      },
+      {
+        path: 'source/diary/20260507090000.md',
+        sha: 'sha-diary-portrait',
+        title: '2026-05-07-星期四',
+        date: '2026-05-07 09:00:00',
+        desc: '',
+        published: false,
+        hasExplicitPublished: true,
+        categories: [],
+        tags: ['摄影'],
+        permalink: null,
+        cover: null,
+        contentType: 'diary',
+        body: '## 人像摄影\n最近重新想明白了 [[人像摄影]] 不是器材问题，而是人与光的关系。\n下一步要继续练习和真人沟通。',
+      },
+    ])
+
+    expect(backlinkMap.get('theme/人像摄影')?.map((item) => item.sourceTitle)).toEqual(['2026-05-07-星期四'])
+    expect(backlinkMap.get('theme/人像摄影')?.[0]?.excerpt).toBe(
+      '人像摄影\n最近重新想明白了 人像摄影 不是器材问题，而是人与光的关系。\n下一步要继续练习和真人沟通。',
+    )
+  })
+
+  it('appends a generated topic backlink section without duplicating repeated blockquote excerpts', () => {
     const backlinks = buildTopicBacklinkMap([
       topicPost,
       {
@@ -136,7 +198,7 @@ describe('wiki link helpers', () => {
         permalink: null,
         cover: null,
         contentType: 'diary',
-        body: '今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。\n今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。',
+        body: '> 今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。\n> 今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。',
       },
       {
         path: 'source/_posts/article.md',
@@ -151,7 +213,7 @@ describe('wiki link helpers', () => {
         permalink: 'persuasion/',
         cover: null,
         contentType: 'post',
-        body: '最近重看 [[book/影响力]]，发现很多判断都和增长场景有关。',
+        body: '> 最近重看 [[book/影响力]]，发现很多判断都和增长场景有关。',
       },
     ]).get('book/影响力') || []
 

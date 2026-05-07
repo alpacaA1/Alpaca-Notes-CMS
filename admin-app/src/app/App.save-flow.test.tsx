@@ -90,7 +90,8 @@ tags:
 desc: desc
 ---
 
-今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。`
+> 今天又想到 [[book/影响力|《影响力》]] 里讲的互惠原则。
+> 第二行继续解释这个判断。`
 
 const topicContent = `---
 title: 影响力
@@ -377,6 +378,7 @@ describe('App save flow', () => {
       expect(file.content).toContain('## 相关双链摘录')
       expect(file.content).toContain('### Updated source title')
       expect(file.content).toContain('今天又想到 《影响力》 里讲的互惠原则。')
+      expect(file.content).toContain('第二行继续解释这个判断。')
 
       return {
         path: file.path,
