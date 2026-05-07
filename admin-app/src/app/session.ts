@@ -7,9 +7,14 @@ const AUTH_ERROR_PREFIX = 'authorization:github:error:'
 const DEFAULT_POPUP_TIMEOUT_MS = 60_000
 const POPUP_POLL_INTERVAL_MS = 250
 const POPUP_FEATURES = 'popup=yes,width=640,height=760,resizable=yes,scrollbars=yes'
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
 export type SessionState = {
   token: string
+}
+
+type PersistedSessionState = SessionState & {
+  expiresAt?: number
 }
 
 export class AuthError extends Error {
@@ -44,32 +49,106 @@ export function getSessionStorageKey() {
   return SESSION_STORAGE_KEY
 }
 
-export function readStoredSession(storage: Pick<Storage, 'getItem'> = window.sessionStorage): SessionState | null {
+function resolveStoredSession(storage: Pick<Storage, 'getItem'>):
+  | { status: 'missing' }
+  | { status: 'invalid' }
+  | { status: 'expired' }
+  | { status: 'valid'; session: PersistedSessionState } {
   const raw = storage.getItem(SESSION_STORAGE_KEY)
   if (!raw) {
-    return null
+    return { status: 'missing' }
   }
 
   try {
-    const parsed = JSON.parse(raw) as Partial<SessionState>
+    const parsed = JSON.parse(raw) as Partial<PersistedSessionState>
     if (typeof parsed.token !== 'string' || parsed.token.length === 0) {
-      return null
+      return { status: 'invalid' }
     }
-    return { token: parsed.token }
+
+    if (
+      parsed.expiresAt !== undefined
+      && (!Number.isFinite(parsed.expiresAt) || parsed.expiresAt <= Date.now())
+    ) {
+      return { status: 'expired' }
+    }
+
+    return {
+      status: 'valid',
+      session: {
+        token: parsed.token,
+        ...(typeof parsed.expiresAt === 'number' ? { expiresAt: parsed.expiresAt } : {}),
+      },
+    }
   } catch {
-    return null
+    return { status: 'invalid' }
   }
+}
+
+function clearStoredSessionFrom(storage: Pick<Storage, 'removeItem'>) {
+  storage.removeItem(SESSION_STORAGE_KEY)
+}
+
+function writeSessionToStorage(session: SessionState, storage: Pick<Storage, 'setItem'>) {
+  storage.setItem(
+    SESSION_STORAGE_KEY,
+    JSON.stringify({
+      ...session,
+      expiresAt: Date.now() + SESSION_TTL_MS,
+    } satisfies PersistedSessionState),
+  )
+}
+
+export function readStoredSession(storage?: Pick<Storage, 'getItem'>): SessionState | null {
+  if (storage) {
+    const resolved = resolveStoredSession(storage)
+    return resolved.status === 'valid' ? { token: resolved.session.token } : null
+  }
+
+  const localSession = resolveStoredSession(window.localStorage)
+  if (localSession.status === 'valid') {
+    if (localSession.session.expiresAt === undefined) {
+      writeSessionToStorage({ token: localSession.session.token }, window.localStorage)
+    }
+    return { token: localSession.session.token }
+  }
+  if (localSession.status === 'invalid' || localSession.status === 'expired') {
+    clearStoredSessionFrom(window.localStorage)
+  }
+
+  const sessionSession = resolveStoredSession(window.sessionStorage)
+  if (sessionSession.status === 'valid') {
+    persistSession({ token: sessionSession.session.token })
+    clearStoredSessionFrom(window.sessionStorage)
+    return { token: sessionSession.session.token }
+  }
+  if (sessionSession.status === 'invalid' || sessionSession.status === 'expired') {
+    clearStoredSessionFrom(window.sessionStorage)
+  }
+
+  return null
 }
 
 export function persistSession(
   session: SessionState,
-  storage: Pick<Storage, 'setItem'> = window.sessionStorage,
+  storage?: Pick<Storage, 'setItem'>,
 ) {
-  storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session))
+  if (storage) {
+    writeSessionToStorage(session, storage)
+    return
+  }
+
+  writeSessionToStorage(session, window.localStorage)
+  clearStoredSessionFrom(window.sessionStorage)
 }
 
-export function clearStoredSession(storage: Pick<Storage, 'removeItem'> = window.sessionStorage) {
-  storage.removeItem(SESSION_STORAGE_KEY)
+export function clearStoredSession(storage?: Pick<Storage, 'removeItem'>) {
+  if (storage) {
+    clearStoredSessionFrom(storage)
+    return
+  }
+
+  clearStoredSessionFrom(window.localStorage)
+  clearStoredSessionFrom(window.sessionStorage)
 }
 
 export function createSessionStore(initialSession: SessionState | null = null) {

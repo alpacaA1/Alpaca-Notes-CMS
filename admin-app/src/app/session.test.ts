@@ -21,6 +21,7 @@ import {
 describe('session config and popup flow', () => {
   afterEach(() => {
     vi.restoreAllMocks()
+    vi.useRealTimers()
     window.sessionStorage.clear()
     window.localStorage.clear()
   })
@@ -36,15 +37,77 @@ describe('session config and popup flow', () => {
     expect(SITE_ROOT_PATH).toBe('/Alpaca-Notes-CMS')
   })
 
-  it('stores and clears the session in sessionStorage', () => {
+  it('stores and clears the session in localStorage with expiry', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-07T00:00:00.000Z'))
+
     persistSession({ token: 'test-token' })
-    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBe(JSON.stringify({ token: 'test-token' }))
-    expect(window.localStorage.getItem(getSessionStorageKey())).toBeNull()
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
+      JSON.stringify({
+        token: 'test-token',
+        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+      }),
+    )
+    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBeNull()
     expect(readStoredSession()).toEqual({ token: 'test-token' })
 
     clearStoredSession()
-    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBeNull()
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBeNull()
     expect(readStoredSession()).toBeNull()
+  })
+
+  it('upgrades legacy localStorage sessions without expiry', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-07T00:00:00.000Z'))
+
+    window.localStorage.setItem(getSessionStorageKey(), JSON.stringify({ token: 'legacy-token' }))
+
+    expect(readStoredSession()).toEqual({ token: 'legacy-token' })
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
+      JSON.stringify({
+        token: 'legacy-token',
+        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+      }),
+    )
+  })
+
+  it('migrates current sessionStorage sessions into localStorage', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-07T00:00:00.000Z'))
+
+    window.sessionStorage.setItem(getSessionStorageKey(), JSON.stringify({ token: 'session-token' }))
+
+    expect(readStoredSession()).toEqual({ token: 'session-token' })
+    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBeNull()
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
+      JSON.stringify({
+        token: 'session-token',
+        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+      }),
+    )
+  })
+
+  it('clears expired local sessions and falls back to the current sessionStorage session', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-07T00:00:00.000Z'))
+
+    window.localStorage.setItem(
+      getSessionStorageKey(),
+      JSON.stringify({
+        token: 'expired-token',
+        expiresAt: Date.parse('2026-05-06T23:59:59.000Z'),
+      }),
+    )
+    window.sessionStorage.setItem(getSessionStorageKey(), JSON.stringify({ token: 'fresh-token' }))
+
+    expect(readStoredSession()).toEqual({ token: 'fresh-token' })
+    expect(window.sessionStorage.getItem(getSessionStorageKey())).toBeNull()
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
+      JSON.stringify({
+        token: 'fresh-token',
+        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+      }),
+    )
   })
 
   it('rejects login when the popup is blocked', async () => {
