@@ -154,7 +154,7 @@
     const plainSection =
       quoteSection || noteSection
         ? ''
-        : renderSection('完整内容', 'today-knowledge__body', bodyText || item.content || '暂无内容');
+        : '<p class="today-knowledge__body">' + escapeHtml(bodyText || item.content || '暂无内容') + '</p>';
 
     if (!quoteSection && !noteSection && !plainSection) {
       return '';
@@ -162,7 +162,7 @@
 
     return (
       '<details class="today-knowledge__details" id="' + detailsId + '">' +
-        '<summary class="today-knowledge__details-summary">展开完整内容</summary>' +
+        '<summary class="today-knowledge__details-summary">展开正文</summary>' +
         '<div class="today-knowledge__details-body">' +
           quoteSection +
           noteSection +
@@ -189,7 +189,7 @@
             '<span class="today-knowledge__order">' + pad(index + 1) + '</span>' +
             '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
           '</div>' +
-          '<button class="today-knowledge__card-action" type="button" data-role="card-details-toggle" aria-label="展开或收起完整内容" aria-controls="' + detailsId + '" aria-expanded="false">···</button>' +
+          '<button class="today-knowledge__card-action" type="button" data-role="card-details-toggle" aria-label="展开或收起正文" aria-controls="' + detailsId + '" aria-expanded="false">···</button>' +
         '</div>' +
         '<h2 class="today-knowledge__title">' + title + '</h2>' +
         '<p class="today-knowledge__preview">' + preview + '</p>' +

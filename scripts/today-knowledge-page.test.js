@@ -233,6 +233,22 @@ test('renderCard renders compact preview with expandable detail sections', () =>
   assert.doesNotMatch(html, /today-knowledge__desc/);
 });
 
+test('renderCard plain content omits the complete-content section label', () => {
+  const html = renderCard(
+    {
+      title: '纯正文知识点',
+      date: '2026-05-06 12:00:00',
+      body: '这里只有正文内容',
+    },
+    0,
+    [{ title: '纯正文知识点' }],
+  );
+
+  assert.match(html, /这里只有正文内容/);
+  assert.doesNotMatch(html, /完整内容/);
+  assert.doesNotMatch(html, /today-knowledge__section-label/);
+});
+
 test('buildKnowledgeItem flattens quote-based knowledge into a single body field', () => {
   const item = buildKnowledgeItem(
     '20260506110230.md',
