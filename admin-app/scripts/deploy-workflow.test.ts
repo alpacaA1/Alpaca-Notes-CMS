@@ -20,4 +20,13 @@ describe('deploy workflow', () => {
     expect(testCommandIndex).toBeLessThan(buildCommandIndex)
     expect(privateContentTestCommandIndex).toBeLessThan(buildCommandIndex)
   })
+
+  it('checks out all public content source directories from the private content repo', () => {
+    const workflow = readFileSync(deployWorkflowPath, 'utf8')
+
+    expect(workflow).toContain('source/_posts')
+    expect(workflow).toContain('source/read-later-items')
+    expect(workflow).toContain('source/_knowledge')
+    expect(workflow).toContain('source/images')
+  })
 })

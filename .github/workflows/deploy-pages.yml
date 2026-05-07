@@ -30,6 +30,8 @@ jobs:
           path: private-content
           sparse-checkout: |
             source/_posts
+            source/read-later-items
+            source/_knowledge
             source/images
 
       - name: Setup Node.js

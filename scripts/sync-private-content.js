@@ -80,20 +80,40 @@ function copyDirectory(sourceDir, destinationDir) {
   }
 }
 
-function collectPublishedImagePaths(postsDir, siteRootPath) {
-  if (!fs.existsSync(postsDir)) {
+function countMarkdownFiles(dirPath) {
+  if (!fs.existsSync(dirPath)) {
+    return 0;
+  }
+
+  return fs.readdirSync(dirPath).filter((fileName) => /\.(md|txt|plaintxt)$/i.test(fileName)).length;
+}
+
+function syncOptionalContentDirectory(sourceDir, destinationDir) {
+  fs.rmSync(destinationDir, { recursive: true, force: true });
+
+  if (!fs.existsSync(sourceDir)) {
+    return 0;
+  }
+
+  copyDirectory(sourceDir, destinationDir);
+  return countMarkdownFiles(destinationDir);
+}
+
+function collectDirectoryImagePaths(contentDir, siteRootPath, options = {}) {
+  if (!fs.existsSync(contentDir)) {
     return new Set();
   }
 
   const imagePaths = new Set();
+  const publishedOnly = options.publishedOnly === true;
 
-  for (const fileName of fs.readdirSync(postsDir)) {
+  for (const fileName of fs.readdirSync(contentDir)) {
     if (!/\.(md|txt|plaintxt)$/i.test(fileName)) {
       continue;
     }
 
-    const content = fs.readFileSync(path.join(postsDir, fileName), 'utf8');
-    if (!isPublishedPost(content)) {
+    const content = fs.readFileSync(path.join(contentDir, fileName), 'utf8');
+    if (publishedOnly && !isPublishedPost(content)) {
       continue;
     }
 
@@ -105,13 +125,17 @@ function collectPublishedImagePaths(postsDir, siteRootPath) {
   return imagePaths;
 }
 
+function collectPublishedImagePaths(postsDir, siteRootPath) {
+  return collectDirectoryImagePaths(postsDir, siteRootPath, { publishedOnly: true });
+}
+
 function copyReferencedImages(contentImagesDir, publicImagesDir, imagePaths) {
   for (const imagePath of imagePaths) {
     const relativeImagePath = imagePath.replace(/^images\//, '');
     const sourcePath = path.join(contentImagesDir, relativeImagePath);
 
     if (!fs.existsSync(sourcePath)) {
-      throw new Error(`私有内容仓库缺少已发布文章引用的图片：${imagePath}`);
+      throw new Error(`私有内容仓库缺少公开内容引用的图片：${imagePath}`);
     }
 
     const destinationPath = path.join(publicImagesDir, relativeImagePath);
@@ -129,8 +153,12 @@ function syncPrivateContent(options = {}) {
   const contentSourceDir = path.join(contentRoot, 'source');
   const contentPostsDir = path.join(contentSourceDir, '_posts');
   const contentImagesDir = path.join(contentSourceDir, 'images');
+  const contentReadLaterDir = path.join(contentSourceDir, 'read-later-items');
+  const contentKnowledgeDir = path.join(contentSourceDir, '_knowledge');
   const publicPostsDir = path.join(publicSourceDir, '_posts');
   const publicImagesDir = path.join(publicSourceDir, 'images');
+  const publicReadLaterDir = path.join(publicSourceDir, 'read-later-items');
+  const publicKnowledgeDir = path.join(publicSourceDir, '_knowledge');
 
   if (!fs.existsSync(contentSourceDir)) {
     throw new Error(`未找到私有内容目录：${contentSourceDir}`);
@@ -143,13 +171,17 @@ function syncPrivateContent(options = {}) {
   resetDirectory(publicPostsDir);
   resetDirectory(publicImagesDir);
 
-  for (const privateOnlyDir of ['diary', 'read-later-items', '_knowledge']) {
-    fs.rmSync(path.join(publicSourceDir, privateOnlyDir), { recursive: true, force: true });
-  }
+  fs.rmSync(path.join(publicSourceDir, 'diary'), { recursive: true, force: true });
 
   copyDirectory(contentPostsDir, publicPostsDir);
+  const copiedReadLater = syncOptionalContentDirectory(contentReadLaterDir, publicReadLaterDir);
+  const copiedKnowledge = syncOptionalContentDirectory(contentKnowledgeDir, publicKnowledgeDir);
 
-  const publishedImagePaths = collectPublishedImagePaths(contentPostsDir, siteRootPath);
+  const publishedImagePaths = new Set([
+    ...collectPublishedImagePaths(contentPostsDir, siteRootPath),
+    ...collectDirectoryImagePaths(contentReadLaterDir, siteRootPath),
+    ...collectDirectoryImagePaths(contentKnowledgeDir, siteRootPath),
+  ]);
   if (publishedImagePaths.size > 0) {
     if (!fs.existsSync(contentImagesDir)) {
       throw new Error(`私有内容仓库缺少图片目录：${contentImagesDir}`);
@@ -159,7 +191,9 @@ function syncPrivateContent(options = {}) {
 
   return {
     contentRoot,
-    copiedPosts: fs.readdirSync(publicPostsDir).filter((fileName) => /\.(md|txt|plaintxt)$/i.test(fileName)).length,
+    copiedPosts: countMarkdownFiles(publicPostsDir),
+    copiedReadLater,
+    copiedKnowledge,
     copiedImages: publishedImagePaths.size,
   };
 }

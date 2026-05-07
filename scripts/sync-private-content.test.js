@@ -33,7 +33,7 @@ cover: /Alpaca-Notes-CMS/images/2026/04/cover.png
   ]);
 });
 
-test('syncPrivateContent copies posts, strips private-only directories, and only publishes images used by published posts', () => {
+test('syncPrivateContent copies public content directories and only publishes referenced images', () => {
   const workspaceRoot = createTempWorkspace();
   const publicSourceDir = path.join(workspaceRoot, 'source');
   const contentRoot = path.join(workspaceRoot, 'private-content');
@@ -62,11 +62,30 @@ published: false
 ---
 
 ![draft](/Alpaca-Notes-CMS/images/2026/04/draft.png)`);
+  writeFile(path.join(contentRoot, 'source', 'read-later-items', 'saved.md'), `---
+title: Saved
+permalink: read-later/saved/
+layout: read-later-item
+read_later: true
+cover: /Alpaca-Notes-CMS/images/2026/04/read-later-cover.png
+---
+
+![reader](/images/2026/04/read-later-body.png)`);
+  writeFile(path.join(contentRoot, 'source', '_knowledge', 'fact.md'), `---
+title: Fact
+knowledge: true
+published: false
+---
+
+![knowledge](/Alpaca-Notes-CMS/images/2026/04/knowledge.png)`);
 
   writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'cover.png'), 'cover');
   writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'published.png'), 'published');
   writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'html.png'), 'html');
   writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'draft.png'), 'draft');
+  writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'read-later-cover.png'), 'read-later-cover');
+  writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'read-later-body.png'), 'read-later-body');
+  writeFile(path.join(contentRoot, 'source', 'images', '2026', '04', 'knowledge.png'), 'knowledge');
 
   const summary = syncPrivateContent({
     workspaceRoot,
@@ -76,17 +95,22 @@ published: false
   });
 
   assert.equal(summary.copiedPosts, 3);
-  assert.equal(summary.copiedImages, 3);
+  assert.equal(summary.copiedReadLater, 1);
+  assert.equal(summary.copiedKnowledge, 1);
+  assert.equal(summary.copiedImages, 6);
   assert.equal(fs.existsSync(path.join(publicSourceDir, '_posts', 'published.md')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, '_posts', 'draft.md')), true);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, 'read-later-items', 'saved.md')), true);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, '_knowledge', 'fact.md')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'published.png')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'cover.png')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'html.png')), true);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'read-later-cover.png')), true);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'read-later-body.png')), true);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'knowledge.png')), true);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'draft.png')), false);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'stale.png')), false);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'diary')), false);
-  assert.equal(fs.existsSync(path.join(publicSourceDir, 'read-later-items')), false);
-  assert.equal(fs.existsSync(path.join(publicSourceDir, '_knowledge')), false);
 });
 
 test('syncPrivateContent fails when a published post references a missing image', () => {
@@ -110,6 +134,6 @@ published: true
         publicSourceDir,
         siteRootPath: '/Alpaca-Notes-CMS',
       }),
-    /私有内容仓库缺少已发布文章引用的图片：images\/2026\/04\/missing\.png/,
+    /私有内容仓库缺少公开内容引用的图片：images\/2026\/04\/missing\.png/,
   );
 });
