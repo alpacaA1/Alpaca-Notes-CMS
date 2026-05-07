@@ -23,6 +23,7 @@
   const DESKTOP_QUERY = '(min-width: 768px)';
   const WHEEL_THRESHOLD = 40;
   const SWIPE_THRESHOLD = 46;
+  const SWIPE_INTENT_THRESHOLD = 12;
   const WHEEL_RESET_DELAY = 160;
   const TRANSITION_LOCK_DELAY = 260;
 
@@ -147,7 +148,7 @@
     );
   }
 
-  function renderDetails(item, bodyText) {
+  function renderDetails(item, bodyText, detailsId) {
     const quoteSection = renderSection('原文摘录', 'today-knowledge__body today-knowledge__body--quote', item.quote);
     const noteSection = renderSection('我的理解', 'today-knowledge__body', item.note);
     const plainSection =
@@ -160,7 +161,7 @@
     }
 
     return (
-      '<details class="today-knowledge__details">' +
+      '<details class="today-knowledge__details" id="' + detailsId + '">' +
         '<summary class="today-knowledge__details-summary">展开完整内容</summary>' +
         '<div class="today-knowledge__details-body">' +
           quoteSection +
@@ -171,22 +172,32 @@
     );
   }
 
-  function renderCard(item, index) {
+  function renderCard(item, index, items) {
     const title = escapeHtml(item.title || '未命名知识点');
     const bodyText = buildCardBody(item) || '暂无内容';
     const previewSource = normalizeBlock(item.desc) || bodyText;
     const preview = escapeHtml(buildPreviewText(previewSource, 120) || '暂无内容');
-    const details = renderDetails(item, bodyText);
+    const total = Array.isArray(items) ? items.length : index + 1;
+    const detailsId = 'today-knowledge-details-' + String(index);
+    const details = renderDetails(item, bodyText, detailsId);
+    const nextLabel = index >= total - 1 ? '回到第一条' : '下一条';
 
     return (
       '<article class="today-knowledge__card" data-card-index="' + String(index) + '">' +
         '<div class="today-knowledge__card-top">' +
-          '<span class="today-knowledge__order">' + pad(index + 1) + '</span>' +
-          '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
+          '<div class="today-knowledge__card-top-meta">' +
+            '<span class="today-knowledge__order">' + pad(index + 1) + '</span>' +
+            '<p class="today-knowledge__date">' + escapeHtml((item.date || '').slice(0, 10) || '无日期') + '</p>' +
+          '</div>' +
+          '<button class="today-knowledge__card-action" type="button" data-role="card-details-toggle" aria-label="展开或收起完整内容" aria-controls="' + detailsId + '" aria-expanded="false">···</button>' +
         '</div>' +
         '<h2 class="today-knowledge__title">' + title + '</h2>' +
         '<p class="today-knowledge__preview">' + preview + '</p>' +
         details +
+        '<footer class="today-knowledge__card-footer">' +
+          '<span class="today-knowledge__card-count">' + String(index + 1) + '/' + String(total) + '条笔记</span>' +
+          '<button class="today-knowledge__card-next" type="button" data-role="card-next">' + nextLabel + '</button>' +
+        '</footer>' +
       '</article>'
     );
   }
@@ -273,7 +284,7 @@
         return;
       }
 
-      pagerNode.hidden = false;
+      pagerNode.hidden = true;
       pagerCurrentNode.textContent = String(activeIndex + 1) + '/' + String(cards.length);
 
       if (pagerPrevButton) {
@@ -291,6 +302,12 @@
           card.classList.remove('today-knowledge__card--active');
           card.hidden = false;
           card.removeAttribute('aria-hidden');
+          const detailsNode = card.querySelector('.today-knowledge__details');
+          const detailsToggle = card.querySelector('[data-role="card-details-toggle"]');
+
+          if (detailsToggle && detailsNode) {
+            detailsToggle.setAttribute('aria-expanded', detailsNode.open ? 'true' : 'false');
+          }
         });
         listNode.removeAttribute('data-active-index');
         updateStatus();
@@ -300,9 +317,22 @@
 
       cards.forEach(function (card, index) {
         const isActive = index === activeIndex;
+        const detailsNode = card.querySelector('.today-knowledge__details');
+        const detailsToggle = card.querySelector('[data-role="card-details-toggle"]');
+
         card.classList.toggle('today-knowledge__card--active', isActive);
         card.hidden = pagerEnabled ? !isActive : false;
         card.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+
+        if (detailsNode) {
+          if (pagerEnabled) {
+            detailsNode.open = isActive;
+          }
+
+          if (detailsToggle) {
+            detailsToggle.setAttribute('aria-expanded', detailsNode.open ? 'true' : 'false');
+          }
+        }
       });
       listNode.setAttribute('data-active-index', String(activeIndex));
       updateStatus();
@@ -383,10 +413,10 @@
 
     function moveByOffset(offset) {
       if (!pagerEnabled || cards.length < 2) {
-        return;
+        return false;
       }
 
-      setActiveIndex(activeIndex + offset, false);
+      return setActiveIndex(activeIndex + offset, false);
     }
 
     function handlePagerPrev() {
@@ -406,7 +436,31 @@
       touchStartPoint = {
         x: event.touches[0].clientX,
         y: event.touches[0].clientY,
+        axisResolved: false,
+        isHorizontal: false,
       };
+    }
+
+    function handleTouchMove(event) {
+      if (!pagerEnabled || !touchStartPoint || !event.touches || event.touches.length !== 1) {
+        return;
+      }
+
+      const deltaX = event.touches[0].clientX - touchStartPoint.x;
+      const deltaY = event.touches[0].clientY - touchStartPoint.y;
+
+      if (!touchStartPoint.axisResolved) {
+        if (Math.abs(deltaX) < SWIPE_INTENT_THRESHOLD && Math.abs(deltaY) < SWIPE_INTENT_THRESHOLD) {
+          return;
+        }
+
+        touchStartPoint.axisResolved = true;
+        touchStartPoint.isHorizontal = Math.abs(deltaX) > Math.abs(deltaY);
+      }
+
+      if (touchStartPoint.isHorizontal && event.cancelable) {
+        event.preventDefault();
+      }
     }
 
     function handleTouchEnd(event) {
@@ -426,9 +480,51 @@
       moveByOffset(deltaX < 0 ? 1 : -1);
     }
 
+    function handleTouchCancel() {
+      touchStartPoint = null;
+    }
+
+    function handleCardClick(event) {
+      const target = event.target;
+
+      if (!target || typeof target.closest !== 'function') {
+        return;
+      }
+
+      const nextButton = target.closest('[data-role="card-next"]');
+
+      if (nextButton) {
+        if (pagerEnabled && cards.length > 1) {
+          if (!moveByOffset(1)) {
+            setActiveIndex(0, true);
+          }
+        }
+        return;
+      }
+
+      const detailsToggle = target.closest('[data-role="card-details-toggle"]');
+
+      if (!detailsToggle) {
+        return;
+      }
+
+      const parentCard = detailsToggle.closest('.today-knowledge__card');
+      const detailsNode = parentCard ? parentCard.querySelector('.today-knowledge__details') : null;
+
+      if (!detailsNode) {
+        return;
+      }
+
+      detailsNode.open = !detailsNode.open;
+      detailsToggle.setAttribute('aria-expanded', detailsNode.open ? 'true' : 'false');
+    }
+
     listNode.addEventListener('wheel', handleWheel, { passive: false });
     listNode.addEventListener('touchstart', handleTouchStart, { passive: true });
+    listNode.addEventListener('touchmove', handleTouchMove, { passive: false });
     listNode.addEventListener('touchend', handleTouchEnd, { passive: true });
+    listNode.addEventListener('touchcancel', handleTouchCancel, { passive: true });
+    listNode.addEventListener('click', handleCardClick);
 
     if (pagerPrevButton) {
       pagerPrevButton.addEventListener('click', handlePagerPrev);
@@ -453,7 +549,10 @@
         touchStartPoint = null;
         listNode.removeEventListener('wheel', handleWheel);
         listNode.removeEventListener('touchstart', handleTouchStart);
+        listNode.removeEventListener('touchmove', handleTouchMove);
         listNode.removeEventListener('touchend', handleTouchEnd);
+        listNode.removeEventListener('touchcancel', handleTouchCancel);
+        listNode.removeEventListener('click', handleCardClick);
 
         if (pagerPrevButton) {
           pagerPrevButton.removeEventListener('click', handlePagerPrev);
@@ -506,6 +605,10 @@
     const statusNode = doc.getElementById('today-knowledge-deck-status');
     const heroDateNode = doc.getElementById('today-knowledge-hero-date');
     const heroCountNode = doc.getElementById('today-knowledge-hero-count');
+    const closeLink = doc.getElementById('today-knowledge-close');
+    const menuButton = doc.getElementById('today-knowledge-menu-button');
+    const menuNode = doc.getElementById('today-knowledge-menu');
+    const menuTopButton = doc.getElementById('today-knowledge-menu-top');
     const dataPath = app.dataset.dataPath;
     const timeZone = app.dataset.timezone || 'Asia/Shanghai';
     const envWindow = (options && options.window) || doc.defaultView || null;
@@ -513,6 +616,80 @@
       (options && options.fetch) ||
       (envWindow && typeof envWindow.fetch === 'function' ? envWindow.fetch.bind(envWindow) : null);
     let deckController = null;
+
+    function setMenuOpen(nextOpen) {
+      if (!menuNode || !menuButton) {
+        return;
+      }
+
+      menuNode.hidden = !nextOpen;
+      menuButton.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+    }
+
+    function handleMenuButtonClick(event) {
+      if (!menuNode || !menuButton) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setMenuOpen(menuNode.hidden);
+    }
+
+    function handleDocumentClick(event) {
+      if (!menuNode || !menuButton || menuNode.hidden) {
+        return;
+      }
+
+      const target = event.target;
+
+      if (menuNode.contains(target) || menuButton.contains(target)) {
+        return;
+      }
+
+      setMenuOpen(false);
+    }
+
+    function handleMenuTopClick(event) {
+      event.preventDefault();
+      setMenuOpen(false);
+
+      if (envWindow && typeof envWindow.scrollTo === 'function') {
+        envWindow.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function handleCloseClick(event) {
+      if (!envWindow || !doc.referrer || envWindow.history.length <= 1) {
+        return;
+      }
+
+      try {
+        const referrerUrl = new URL(doc.referrer, envWindow.location.href);
+
+        if (referrerUrl.origin !== envWindow.location.origin) {
+          return;
+        }
+
+        event.preventDefault();
+        envWindow.history.back();
+      } catch (_error) {
+        return;
+      }
+    }
+
+    if (menuButton) {
+      menuButton.addEventListener('click', handleMenuButtonClick);
+      doc.addEventListener('click', handleDocumentClick);
+    }
+
+    if (menuTopButton) {
+      menuTopButton.addEventListener('click', handleMenuTopClick);
+    }
+
+    if (closeLink) {
+      closeLink.addEventListener('click', handleCloseClick);
+    }
 
     function resetDeck() {
       if (!deckController) {
@@ -529,6 +706,7 @@
         statusNode.hidden = true;
         statusNode.textContent = '';
       }
+      setMenuOpen(false);
       if (heroDateNode) {
         heroDateNode.textContent = '今日 ' + getDateKey(new Date(), timeZone);
       }
@@ -551,6 +729,7 @@
       }
 
       resetDeck();
+      setMenuOpen(false);
       if (heroDateNode) {
         heroDateNode.textContent = '今日 ' + getDateKey(new Date(), timeZone);
       }

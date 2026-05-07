@@ -33,11 +33,12 @@ function createDeckDom() {
 
   const { document } = dom.window;
   const listNode = document.getElementById('today-knowledge-list');
+  const items = [
+    { title: '知识点 A', date: '2026-05-06 09:00:00', body: '第一条' },
+    { title: '知识点 B', date: '2026-05-06 10:00:00', body: '第二条' },
+  ];
 
-  listNode.innerHTML = [
-    renderCard({ title: '知识点 A', date: '2026-05-06 09:00:00', body: '第一条' }, 0),
-    renderCard({ title: '知识点 B', date: '2026-05-06 10:00:00', body: '第二条' }, 1),
-  ].join('');
+  listNode.innerHTML = items.map(renderCard).join('');
 
   return dom;
 }
@@ -73,7 +74,7 @@ test('desktop wheel deck activates and switches cards', () => {
   deck.destroy();
 });
 
-test('mobile viewport uses a single-card pager instead of a stacked list', () => {
+test('mobile viewport uses a single-card reader with footer action instead of a stacked list', () => {
   const dom = createDeckDom();
   const { window } = dom;
   window.matchMedia = createMatchMedia(false);
@@ -91,7 +92,7 @@ test('mobile viewport uses a single-card pager instead of a stacked list', () =>
   assert.equal(deck.isDeckEnabled(), false);
   assert.equal(deck.isPagerEnabled(), true);
   assert.equal(statusNode.hidden, true);
-  assert.equal(pagerNode.hidden, false);
+  assert.equal(pagerNode.hidden, true);
   assert.equal(pagerCurrentNode.textContent, '1/2');
   assert.equal(pagerPrevButton.disabled, true);
   assert.equal(pagerNextButton.disabled, false);
@@ -100,6 +101,8 @@ test('mobile viewport uses a single-card pager instead of a stacked list', () =>
   const cards = listNode.querySelectorAll('.today-knowledge__card');
   assert.equal(cards[0].hidden, false);
   assert.equal(cards[1].hidden, true);
+  assert.equal(cards[0].querySelector('.today-knowledge__details').open, true);
+  assert.equal(cards[0].querySelector('.today-knowledge__card-count').textContent, '1/2条笔记');
 
   const event = new window.WheelEvent('wheel', {
     deltaY: 120,
@@ -111,7 +114,7 @@ test('mobile viewport uses a single-card pager instead of a stacked list', () =>
   assert.equal(dispatchResult, true);
   assert.equal(deck.getActiveIndex(), 0);
 
-  pagerNextButton.click();
+  cards[0].querySelector('[data-role="card-next"]').click();
 
   assert.equal(deck.getActiveIndex(), 1);
   assert.equal(pagerCurrentNode.textContent, '2/2');
@@ -119,6 +122,43 @@ test('mobile viewport uses a single-card pager instead of a stacked list', () =>
   assert.equal(pagerNextButton.disabled, true);
   assert.equal(cards[0].hidden, true);
   assert.equal(cards[1].hidden, false);
+  assert.equal(cards[1].querySelector('.today-knowledge__details').open, true);
+
+  deck.destroy();
+});
+
+test('mobile horizontal swipe prevents default browser gesture and switches cards', () => {
+  const dom = createDeckDom();
+  const { window } = dom;
+  window.matchMedia = createMatchMedia(false);
+
+  const document = window.document;
+  const app = document.getElementById('today-knowledge-app');
+  const listNode = document.getElementById('today-knowledge-list');
+  const statusNode = document.getElementById('today-knowledge-deck-status');
+  const deck = createWheelDeck(app, listNode, statusNode, { window });
+
+  const touchStartEvent = new window.Event('touchstart', { bubbles: true, cancelable: true });
+  Object.defineProperty(touchStartEvent, 'touches', {
+    value: [{ clientX: 180, clientY: 120 }],
+  });
+  listNode.dispatchEvent(touchStartEvent);
+
+  const touchMoveEvent = new window.Event('touchmove', { bubbles: true, cancelable: true });
+  Object.defineProperty(touchMoveEvent, 'touches', {
+    value: [{ clientX: 104, clientY: 126 }],
+  });
+  const moveDispatchResult = listNode.dispatchEvent(touchMoveEvent);
+
+  assert.equal(moveDispatchResult, false);
+
+  const touchEndEvent = new window.Event('touchend', { bubbles: true, cancelable: true });
+  Object.defineProperty(touchEndEvent, 'changedTouches', {
+    value: [{ clientX: 104, clientY: 126 }],
+  });
+  listNode.dispatchEvent(touchEndEvent);
+
+  assert.equal(deck.getActiveIndex(), 1);
 
   deck.destroy();
 });
@@ -126,9 +166,9 @@ test('mobile viewport uses a single-card pager instead of a stacked list', () =>
 test('desktop with a single knowledge card still uses the card stage without locking the wheel', () => {
   const dom = new JSDOM(
     `<!doctype html>
-    <div id="today-knowledge-app">
+      <div id="today-knowledge-app">
       <div id="today-knowledge-deck-status" hidden></div>
-      <div id="today-knowledge-list">${renderCard({ title: '唯一知识点', body: '内容' }, 0)}</div>
+      <div id="today-knowledge-list">${renderCard({ title: '唯一知识点', body: '内容' }, 0, [{ title: '唯一知识点', body: '内容' }])}</div>
       <div id="today-knowledge-pager" hidden>
         <button id="today-knowledge-pager-prev" type="button"></button>
         <span id="today-knowledge-pager-current"></span>
@@ -174,6 +214,7 @@ test('renderCard renders compact preview with expandable detail sections', () =>
       body: '真正展示的正文',
     },
     0,
+    [{ title: '会显示的标题' }, { title: '别的知识点' }],
   );
 
   assert.match(html, /today-knowledge__title/);
@@ -186,6 +227,9 @@ test('renderCard renders compact preview with expandable detail sections', () =>
   assert.match(html, /这里是原文摘录/);
   assert.match(html, /这里是我的理解/);
   assert.match(html, /today-knowledge__date/);
+  assert.match(html, /today-knowledge__card-action/);
+  assert.match(html, /1\/2条笔记/);
+  assert.match(html, /下一条/);
   assert.doesNotMatch(html, /today-knowledge__desc/);
 });
 
