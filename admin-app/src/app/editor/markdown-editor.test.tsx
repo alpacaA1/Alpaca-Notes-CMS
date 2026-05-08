@@ -337,6 +337,18 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(0)
   })
 
+  it('outdents ordered list items one level when pressing Backspace from the middle of leading indentation', () => {
+    const editor = renderControlledEditor('    1. item')
+
+    editor.focus()
+    editor.setSelectionRange(2, 2)
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+
+    expect(editor.value).toBe('1. item')
+    expect(editor.selectionStart).toBe(0)
+    expect(editor.selectionEnd).toBe(0)
+  })
+
   it('outdents empty list items when pressing Backspace at the end', () => {
     const editor = renderControlledEditor('  - ')
 

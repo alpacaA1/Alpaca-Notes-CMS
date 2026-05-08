@@ -681,11 +681,14 @@ export default function MarkdownEditor({
       const lineEnd = getLineEnd(value, selectionStart)
       const lineIndex = getLineIndex(value, lineStart)
       const currentLine = value.slice(lineStart, lineEnd)
+      const isListLine = Boolean(getOrderedLineMatch(currentLine) || isBulletListLine(currentLine))
+      const insideCodeFence = isInsideCodeFence(value, selectionStart)
       const emptyListPrefix = getListPrefixToRemove(currentLine)
       const indentOnlyPrefix = currentLine.match(/^(\s+)/)?.[0] || ''
       const cursorOffset = selectionStart - lineStart
 
       if (
+        !insideCodeFence &&
         emptyListPrefix &&
         selectionStart === lineEnd &&
         (currentLine.startsWith(INDENT) || currentLine.startsWith('\t'))
@@ -700,7 +703,7 @@ export default function MarkdownEditor({
       }
 
       if (cursorOffset > 0 && cursorOffset <= indentOnlyPrefix.length) {
-        if (cursorOffset === indentOnlyPrefix.length && (getOrderedLineMatch(currentLine) || isBulletListLine(currentLine))) {
+        if (!insideCodeFence && isListLine) {
           const lines = value.split('\n')
           const nextLine = outdentLineInContext(lines, lineIndex)
           if (nextLine !== currentLine) {
