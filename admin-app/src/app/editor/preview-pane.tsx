@@ -1237,11 +1237,11 @@ function renderCollapsibleHeadingSection(
 ): ReactNode {
   return (
     <details key={key} className={`preview-heading-group preview-heading-group--level-${section.level}`} open>
-      <summary id={section.id} className="preview-heading-group__summary">
+      <summary className="preview-heading-group__summary">
         <span className="preview-heading-group__icon" aria-hidden="true">
           ▸
         </span>
-        <span className="preview-heading-group__summary-heading" role="heading" aria-level={section.level}>
+        <span id={section.id} className="preview-heading-group__summary-heading" role="heading" aria-level={section.level}>
           {renderInline(section.title, previewImageUrls, wikiLinkOptions)}
         </span>
       </summary>
@@ -1426,11 +1426,11 @@ function renderStructuredMarkdownSection(
 ) {
   return (
     <details key={section.id} className="preview-content__section preview-content__section--collapsible" open>
-      <summary id={section.id} className="preview-content__section-summary preview-heading-group__summary">
+      <summary className="preview-content__section-summary preview-heading-group__summary">
         <span className="preview-heading-group__icon" aria-hidden="true">
           ▸
         </span>
-        <span className="preview-content__section-summary-heading" role="heading" aria-level={2}>
+        <span id={section.id} className="preview-content__section-summary-heading" role="heading" aria-level={2}>
           {renderInline(section.title, previewImageUrls, wikiLinkOptions)}
         </span>
       </summary>
