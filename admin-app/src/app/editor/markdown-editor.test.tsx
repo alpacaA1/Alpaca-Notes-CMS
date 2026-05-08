@@ -371,6 +371,12 @@ describe('markdown editor', () => {
     expect(appStyles).toMatch(/\.admin-layout\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;/s)
   })
 
+  it('keeps preview article width capped when topic backlinks drawer is visible', () => {
+    expect(appStyles).toMatch(
+      /\.preview-pane__canvas--with-topic-backlinks\s+\.preview-content\s*\{[^}]*width:\s*min\(100%,\s*860px\);[^}]*max-width:\s*860px;/s,
+    )
+  })
+
   it('wraps selected text in bold markers with mod+b', () => {
     const editor = renderControlledEditor('hello')
 

@@ -2978,9 +2978,11 @@ textarea {
 }
 
 .preview-pane__canvas--with-topic-backlinks .preview-content {
-  width: 100%;
-  max-width: none;
+  width: min(100%, 860px);
+  max-width: 860px;
   margin: 0;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .editor-layout--reader .preview-pane--reading-canvas {
