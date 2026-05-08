@@ -683,13 +683,34 @@ describe('App preview mode', () => {
     expect(await screen.findByRole('heading', { name: '反向引用' })).toBeTruthy()
     expect(screen.queryByRole('heading', { name: '相关双链摘录' })).toBeNull()
     expect(container.querySelector('.preview-topic-backlinks-drawer__summary')?.textContent).toBe('共 1 条')
-    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__title')?.textContent).toBe('Preview supported post')
-    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__meta')?.textContent).toBe('文章 · 2026-04-03')
+    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__title')).toBeNull()
+    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__meta')?.textContent).toBe(
+      'Preview supported post · 文章 · 2026-04-03',
+    )
+    expect(
+      container
+        .querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__excerpt-preview')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim(),
+    ).toBe('今天又想到 《影响力》 里讲的互惠原则。 第二行继续解释这个判断。')
+    expect(
+      container
+        .querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__summary')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim(),
+    ).toContain('今天又想到 《影响力》 里讲的互惠原则。 第二行继续解释这个判断。')
+    expect(
+      container
+        .querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__summary')
+        ?.textContent?.replace(/\s+/g, ' ')
+        .trim(),
+    )
+      .toContain('展开引用')
     expect((container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card') as HTMLDetailsElement | null)?.open).toBe(false)
 
     fireEvent.click(screen.getByRole('button', { name: '折叠反向引用抽屉' }))
-    expect(container.querySelector('.preview-topic-backlinks-drawer__panel')).toBeNull()
-    expect(screen.queryByText('反向引用')).toBeNull()
+    expect(container.querySelector('.preview-topic-backlinks-drawer__panel')).toBeTruthy()
+    expect(container.querySelector('.preview-topic-backlinks-drawer__list')).toBeNull()
     expect(screen.getByRole('button', { name: '展开反向引用抽屉' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '展开反向引用抽屉' }))

@@ -1209,6 +1209,10 @@ function renderTopicBacklinkDetailsBlock(
       <summary className="topic-backlink-card__summary">
         <span className="topic-backlink-card__title">{block.title}</span>
         <span className="topic-backlink-card__meta">{block.meta}</span>
+        <span className="topic-backlink-card__summary-action" aria-hidden="true">
+          <span className="topic-backlink-card__summary-action-label topic-backlink-card__summary-action-label--closed">展开引用</span>
+          <span className="topic-backlink-card__summary-action-label topic-backlink-card__summary-action-label--open">收起引用</span>
+        </span>
       </summary>
       <div className="topic-backlink-card__body">
         {renderBlocks(block.body, previewImageUrls, undefined, wikiLinkOptions)}
@@ -1220,14 +1224,19 @@ function renderTopicBacklinkDetailsBlock(
 function renderTopicBacklinkDrawerCard(backlink: TopicBacklinkItem, key: string) {
   const sourceTitle = backlink.sourceTitle.trim() || '未命名内容'
   const sourceDate = backlink.sourceDate.slice(0, 10) || '无日期'
-  const sourceMeta = `${getTopicBacklinkTypeLabel(backlink.sourceContentType)} · ${sourceDate}`
+  const sourceLabel = sourceDate !== '无日期' && sourceTitle.includes(sourceDate) ? '' : sourceTitle
+  const sourceMeta = [sourceLabel, getTopicBacklinkTypeLabel(backlink.sourceContentType), sourceDate].filter(Boolean).join(' · ')
   const excerpt = backlink.excerpt.trim() || '暂无可展示摘录。'
 
   return (
     <details key={key} className="topic-backlink-card">
       <summary className="topic-backlink-card__summary">
-        <span className="topic-backlink-card__title">{sourceTitle}</span>
         <span className="topic-backlink-card__meta">{sourceMeta}</span>
+        <span className="topic-backlink-card__excerpt-preview">{excerpt}</span>
+        <span className="topic-backlink-card__summary-action" aria-hidden="true">
+          <span className="topic-backlink-card__summary-action-label topic-backlink-card__summary-action-label--closed">展开引用</span>
+          <span className="topic-backlink-card__summary-action-label topic-backlink-card__summary-action-label--open">收起引用</span>
+        </span>
       </summary>
       <div className="topic-backlink-card__body">
         <blockquote>
@@ -1649,7 +1658,9 @@ export default function PreviewPane({
           删除高亮
         </button>
       ) : null}
-      <div className={`preview-pane__canvas${shouldShowTopicBacklinksDrawer ? ' preview-pane__canvas--with-topic-backlinks' : ''}`}>
+      <div
+        className={`preview-pane__canvas${shouldShowTopicBacklinksDrawer ? ' preview-pane__canvas--with-topic-backlinks' : ''}${shouldShowTopicBacklinksDrawer && !isTopicBacklinksDrawerOpen ? ' preview-pane__canvas--with-topic-backlinks-collapsed' : ''}`}
+      >
         <article
           ref={articleRef}
           className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
@@ -1774,41 +1785,45 @@ export default function PreviewPane({
             className={`preview-topic-backlinks-drawer${isTopicBacklinksDrawerOpen ? '' : ' preview-topic-backlinks-drawer--collapsed'}`}
             aria-label="反向引用抽屉"
           >
-            <button
-              type="button"
-              className="preview-topic-backlinks-drawer__toggle"
-              aria-label={isTopicBacklinksDrawerOpen ? '折叠反向引用抽屉' : '展开反向引用抽屉'}
-              aria-expanded={isTopicBacklinksDrawerOpen}
-              aria-controls="preview-topic-backlinks-drawer-panel"
-              onClick={() => setIsTopicBacklinksDrawerOpen((current) => !current)}
-            >
-              <span className="preview-topic-backlinks-drawer__toggle-icon" aria-hidden="true">
-                {isTopicBacklinksDrawerOpen ? '→' : '←'}
-              </span>
-            </button>
-            {isTopicBacklinksDrawerOpen ? (
-              <div className="preview-topic-backlinks-drawer__panel" id="preview-topic-backlinks-drawer-panel">
-                <div className="preview-topic-backlinks-drawer__header">
+            <div className="preview-topic-backlinks-drawer__panel" id="preview-topic-backlinks-drawer-panel">
+              <div className="preview-topic-backlinks-drawer__header">
+                <div className="preview-topic-backlinks-drawer__header-main">
                   <p className="preview-topic-backlinks-drawer__eyebrow">主题预览</p>
                   <h2>反向引用</h2>
                   <p className="preview-topic-backlinks-drawer__summary">
                     {topicBacklinks.length > 0 ? `共 ${topicBacklinks.length} 条` : '还没有其它内容引用这篇主题文章。'}
                   </p>
                 </div>
-                {topicBacklinks.length > 0 ? (
-                  <div className="preview-topic-backlinks-drawer__list">
-                    {topicBacklinks.map((backlink, index) =>
-                      renderTopicBacklinkDrawerCard(
-                        backlink,
-                        `${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`,
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <p className="preview-topic-backlinks-drawer__empty">还没有其它内容引用这篇主题文章。</p>
-                )}
+                <button
+                  type="button"
+                  className="preview-topic-backlinks-drawer__toggle"
+                  aria-label={isTopicBacklinksDrawerOpen ? '折叠反向引用抽屉' : '展开反向引用抽屉'}
+                  aria-expanded={isTopicBacklinksDrawerOpen}
+                  aria-controls="preview-topic-backlinks-drawer-panel"
+                  onClick={() => setIsTopicBacklinksDrawerOpen((current) => !current)}
+                >
+                  <span className="preview-topic-backlinks-drawer__toggle-icon" aria-hidden="true">
+                    {isTopicBacklinksDrawerOpen ? '→' : '←'}
+                  </span>
+                </button>
               </div>
-            ) : null}
+              {isTopicBacklinksDrawerOpen ? (
+                <>
+                  {topicBacklinks.length > 0 ? (
+                    <div className="preview-topic-backlinks-drawer__list">
+                      {topicBacklinks.map((backlink, index) =>
+                        renderTopicBacklinkDrawerCard(
+                          backlink,
+                          `${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`,
+                        ),
+                      )}
+                    </div>
+                  ) : (
+                    <p className="preview-topic-backlinks-drawer__empty">还没有其它内容引用这篇主题文章。</p>
+                  )}
+                </>
+              ) : null}
+            </div>
           </aside>
         ) : null}
       </div>
