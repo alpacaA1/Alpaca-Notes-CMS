@@ -376,7 +376,7 @@ describe('App save flow', () => {
       }
 
       expect(file.content).toContain('## 相关双链摘录')
-      expect(file.content).toContain('### Updated source title')
+      expect(file.content).toContain('<span class="topic-backlink-card__title">Updated source title</span>')
       expect(file.content).toContain('今天又想到 《影响力》 里讲的互惠原则。')
       expect(file.content).toContain('第二行继续解释这个判断。')
 

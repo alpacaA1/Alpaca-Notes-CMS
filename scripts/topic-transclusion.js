@@ -4,7 +4,6 @@ const path = require('path');
 const GENERATED_TOPIC_BACKLINKS_START = '<!-- topic-backlinks:start -->';
 const GENERATED_TOPIC_BACKLINKS_END = '<!-- topic-backlinks:end -->';
 const WIKI_LINK_PATTERN = /\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]/g;
-const SNIPPET_MAX_LENGTH = 100;
 const SCANNED_SOURCE_DIRS = ['_posts', '_knowledge'];
 
 function trimQuotes(value) {
@@ -49,27 +48,29 @@ function normalizeInlineLabel(value) {
     .trim();
 }
 
-function truncateSnippet(value, maxLength = SNIPPET_MAX_LENGTH) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, Math.max(1, maxLength - 1)).trim()}...`;
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function buildExcerpt(body, startIndex) {
-  const lineStart = body.lastIndexOf('\n', startIndex);
-  const lineEnd = body.indexOf('\n', startIndex);
-  const rawLine = body.slice(lineStart < 0 ? 0 : lineStart + 1, lineEnd < 0 ? body.length : lineEnd);
+  const normalizedBody = String(body || '');
+  const lineStart = normalizedBody.lastIndexOf('\n', startIndex);
+  const lineEnd = normalizedBody.indexOf('\n', startIndex);
+  const rawLine = normalizedBody.slice(lineStart < 0 ? 0 : lineStart + 1, lineEnd < 0 ? normalizedBody.length : lineEnd);
   const normalizedLine = normalizeInlineLabel(rawLine);
 
   if (normalizedLine) {
-    return truncateSnippet(normalizedLine);
+    return normalizedLine;
   }
 
   const paragraphStart = Math.max(0, startIndex - 48);
-  const paragraphEnd = Math.min(body.length, startIndex + 52);
-  return truncateSnippet(normalizeInlineLabel(body.slice(paragraphStart, paragraphEnd)));
+  const paragraphEnd = Math.min(normalizedBody.length, startIndex + 52);
+  return normalizeInlineLabel(normalizedBody.slice(paragraphStart, paragraphEnd));
 }
 
 function parseWikiLinks(markdown) {
@@ -170,9 +171,14 @@ function buildTopicBacklinkMap(posts) {
       return;
     }
 
-    parseWikiLinks(post.body).forEach((link) => {
+    const normalizedBody = stripGeneratedTopicBacklinks(post.body);
+    parseWikiLinks(normalizedBody).forEach((link) => {
       const resolvedTargetKey = topicNodeMap.get(link.targetKey)?.nodeKey || link.targetKey;
       const backlinks = backlinkMap.get(resolvedTargetKey) || [];
+      const excerpt = buildExcerpt(normalizedBody, link.start);
+      if (!excerpt) {
+        return;
+      }
 
       backlinks.push({
         targetKey: resolvedTargetKey,
@@ -180,7 +186,7 @@ function buildTopicBacklinkMap(posts) {
         sourceTitle: post.title,
         sourceDate: post.date,
         sourceContentType: post.contentType,
-        excerpt: buildExcerpt(post.body, link.start),
+        excerpt,
       });
 
       backlinkMap.set(resolvedTargetKey, backlinks);
@@ -228,6 +234,18 @@ function renderBlockquote(value) {
     .join('\n');
 }
 
+function getTopicBacklinkTypeLabel(contentType) {
+  if (contentType === 'diary') {
+    return '日记';
+  }
+
+  if (contentType === 'knowledge') {
+    return '知识点';
+  }
+
+  return '文章';
+}
+
 function dedupeTopicBacklinks(backlinks) {
   const seen = new Set();
 
@@ -248,11 +266,17 @@ function buildTopicBacklinksMarkdown(backlinks) {
     return '';
   }
 
-  const sections = normalizedBacklinks.flatMap((backlink) => [
-    `### ${backlink.sourceTitle.trim() || '未命名内容'}`,
-    `文章 · ${backlink.sourceDate.slice(0, 10) || '无日期'}`,
+  const sections = normalizedBacklinks.map((backlink) => [
+    '<details class="topic-backlink-card">',
+    '<summary class="topic-backlink-card__summary">',
+    `<span class="topic-backlink-card__title">${escapeHtml(backlink.sourceTitle.trim() || '未命名内容')}</span>`,
+    `<span class="topic-backlink-card__meta">${escapeHtml(`${getTopicBacklinkTypeLabel(backlink.sourceContentType)} · ${backlink.sourceDate.slice(0, 10) || '无日期'}`)}</span>`,
+    '</summary>',
+    '',
     renderBlockquote(backlink.excerpt),
-  ]);
+    '',
+    '</details>',
+  ].join('\n'));
 
   return [
     GENERATED_TOPIC_BACKLINKS_START,

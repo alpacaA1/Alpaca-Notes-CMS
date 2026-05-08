@@ -97,6 +97,42 @@ desc:
   assert.equal(backlinks[0].excerpt, '今天又想到 《影响力》 里讲的互惠原则。');
 });
 
+test('buildTopicTransclusionIndex keeps long published excerpts complete', () => {
+  const workspaceRoot = createTempWorkspace();
+  const sourceDir = path.join(workspaceRoot, 'source');
+
+  writeFile(
+    path.join(sourceDir, '_posts', 'topic.md'),
+    `---
+title: 影响力
+topic: true
+topic_type: book
+node_key: book/影响力
+date: 2026-05-05 09:00:00
+published: true
+---
+
+这是一个主题文章。`,
+  );
+  writeFile(
+    path.join(sourceDir, '_posts', 'published.md'),
+    `---
+title: 长摘录测试
+date: 2026-05-04 08:00:00
+published: true
+---
+
+这一段很长，用来确认 [[book/影响力]] 的摘录不会再被截断，而且后半段仍然保留完整上下文，最终收尾标记是：完整保留到这里。`,
+  );
+
+  const { backlinkMap } = buildTopicTransclusionIndex(sourceDir);
+  const backlinks = backlinkMap.get('book/影响力') || [];
+
+  assert.equal(backlinks.length, 1);
+  assert.match(backlinks[0].excerpt, /完整保留到这里。/);
+  assert.doesNotMatch(backlinks[0].excerpt, /\.\.\.$/);
+});
+
 test('applyTopicTransclusion appends and clears generated topic backlink sections', () => {
   const backlinkMap = new Map([
     [
@@ -125,7 +161,9 @@ test('applyTopicTransclusion appends and clears generated topic backlink section
   );
 
   assert.match(rendered.content, /## 相关双链摘录/);
-  assert.match(rendered.content, /### 重读说服机制/);
+  assert.match(rendered.content, /<details class="topic-backlink-card">/);
+  assert.match(rendered.content, /topic-backlink-card__title">重读说服机制/);
+  assert.match(rendered.content, /topic-backlink-card__meta">文章 · 2026-05-04/);
   assert.match(rendered.content, /> 今天又想到 《影响力》 里讲的互惠原则。/);
   assert.equal(stripGeneratedTopicBacklinks(rendered.content), '这是一个主题文章。');
 });

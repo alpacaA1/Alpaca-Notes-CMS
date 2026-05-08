@@ -19,7 +19,6 @@ export type TopicBacklinkItem = {
 }
 
 const WIKI_LINK_PATTERN = /\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]/g
-const SNIPPET_MAX_LENGTH = 100
 const GENERATED_TOPIC_BACKLINKS_START = '<!-- topic-backlinks:start -->'
 const GENERATED_TOPIC_BACKLINKS_END = '<!-- topic-backlinks:end -->'
 
@@ -36,14 +35,6 @@ function normalizeInlineLabel(value: string) {
     .replace(/^\d+\.\s+/, '')
     .replace(/\s+/g, ' ')
     .trim()
-}
-
-function truncateSnippet(value: string, maxLength = SNIPPET_MAX_LENGTH) {
-  if (value.length <= maxLength) {
-    return value
-  }
-
-  return `${value.slice(0, Math.max(1, maxLength - 1)).trim()}…`
 }
 
 type BlockquoteExcerptRange = {
@@ -79,7 +70,7 @@ function collectBlockquoteExcerptRanges(body: string) {
       return
     }
 
-    const excerpt = truncateSnippet(currentLines.join('\n').trim(), SNIPPET_MAX_LENGTH * 2)
+    const excerpt = currentLines.join('\n').trim()
     if (excerpt) {
       ranges.push({
         start: currentStart,
@@ -134,7 +125,7 @@ function collectParagraphExcerptRanges(body: string) {
       return
     }
 
-    const excerpt = truncateSnippet(currentLines.join('\n').trim(), SNIPPET_MAX_LENGTH * 2)
+    const excerpt = currentLines.join('\n').trim()
     if (excerpt) {
       ranges.push({
         start: currentStart,
@@ -200,6 +191,33 @@ function renderBlockquote(value: string) {
     .join('\n')
 }
 
+function escapeHtml(value: string) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function renderTopicBacklinkCard(backlink: TopicBacklinkItem) {
+  const sourceTitle = backlink.sourceTitle.trim() || '未命名内容'
+  const sourceDate = backlink.sourceDate.slice(0, 10) || '无日期'
+  const sourceMeta = `${getTopicBacklinkTypeLabel(backlink.sourceContentType)} · ${sourceDate}`
+
+  return [
+    '<details class="topic-backlink-card">',
+    '<summary class="topic-backlink-card__summary">',
+    `<span class="topic-backlink-card__title">${escapeHtml(sourceTitle)}</span>`,
+    `<span class="topic-backlink-card__meta">${escapeHtml(sourceMeta)}</span>`,
+    '</summary>',
+    '',
+    renderBlockquote(backlink.excerpt),
+    '',
+    '</details>',
+  ].join('\n')
+}
+
 function dedupeTopicBacklinks(backlinks: TopicBacklinkItem[]) {
   const seen = new Set<string>()
 
@@ -232,17 +250,7 @@ export function buildTopicBacklinksMarkdown(backlinks: TopicBacklinkItem[]) {
     return ''
   }
 
-  const sections = normalizedBacklinks.flatMap((backlink) => {
-    const sourceTitle = backlink.sourceTitle.trim() || '未命名内容'
-    const sourceDate = backlink.sourceDate.slice(0, 10) || '无日期'
-    const sourceMeta = `${getTopicBacklinkTypeLabel(backlink.sourceContentType)} · ${sourceDate}`
-
-    return [
-      `### ${sourceTitle}`,
-      sourceMeta,
-      renderBlockquote(backlink.excerpt),
-    ]
-  })
+  const sections = normalizedBacklinks.map((backlink) => renderTopicBacklinkCard(backlink))
 
   return [
     GENERATED_TOPIC_BACKLINKS_START,

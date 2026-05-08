@@ -120,6 +120,30 @@ describe('wiki link helpers', () => {
     expect(backlinkMap.has('《影响力》')).toBe(false)
   })
 
+  it('keeps long excerpts complete instead of truncating them', () => {
+    const backlinkMap = buildTopicBacklinkMap([
+      topicPost,
+      {
+        path: 'source/diary/20260506101010.md',
+        sha: 'sha-diary-long',
+        title: '2026-05-06-星期三',
+        date: '2026-05-06 10:10:10',
+        desc: '',
+        published: false,
+        hasExplicitPublished: true,
+        categories: [],
+        tags: ['复盘'],
+        permalink: null,
+        cover: null,
+        contentType: 'diary',
+        body: `> 这一段很长，用来确认 [[book/影响力]] 的摘录不会再被截断，而且后半段仍然保留完整上下文。\n> 我希望在展开引用时，依然可以看到中间的判断、例子、提醒，以及最后这个明确的收尾标记：完整保留到这里。`,
+      },
+    ])
+
+    expect(backlinkMap.get('book/影响力')?.[0]?.excerpt).toContain('完整保留到这里。')
+    expect(backlinkMap.get('book/影响力')?.[0]?.excerpt).not.toContain('…')
+  })
+
   it('ignores wiki links outside blockquotes when collecting backlink excerpts', () => {
     const backlinkMap = buildTopicBacklinkMap([
       topicPost,
@@ -220,11 +244,12 @@ describe('wiki link helpers', () => {
     const markdown = appendTopicBacklinksToMarkdown('这是一个主题文章。', backlinks)
 
     expect(markdown).toContain('## 相关双链摘录')
-    expect(markdown).toContain('### 2026-05-06-星期三')
-    expect(markdown).toContain('日记 · 2026-05-06')
+    expect(markdown).toContain('<details class="topic-backlink-card">')
+    expect(markdown).toContain('<span class="topic-backlink-card__title">2026-05-06-星期三</span>')
+    expect(markdown).toContain('<span class="topic-backlink-card__meta">日记 · 2026-05-06</span>')
     expect(markdown).toContain('> 今天又想到 《影响力》 里讲的互惠原则。')
-    expect(markdown).toContain('### 重读说服机制')
-    expect(markdown.match(/### 2026-05-06-星期三/g)).toHaveLength(1)
+    expect(markdown).toContain('<span class="topic-backlink-card__title">重读说服机制</span>')
+    expect(markdown.match(/topic-backlink-card__title\">2026-05-06-星期三/g)).toHaveLength(1)
     expect(stripGeneratedTopicBacklinks(markdown)).toBe('这是一个主题文章。')
   })
 })

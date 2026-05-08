@@ -837,6 +837,20 @@ textarea {
   color: var(--admin-muted);
 }
 
+.admin-shell--dark .preview-content .topic-backlink-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .preview-content .topic-backlink-card__title {
+  color: #ede6dc;
+}
+
+.admin-shell--dark .preview-content .topic-backlink-card__meta,
+.admin-shell--dark .preview-content .topic-backlink-card__summary::after {
+  color: #a09585;
+}
+
 .admin-shell--dark .preview-content table {
   border-color: rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
@@ -3179,6 +3193,63 @@ textarea {
   padding: 0 0 0 1.2em;
   border-left: #4a4a4a 0.28em solid;
   color: #555555;
+}
+
+.preview-content .topic-backlink-card {
+  margin-top: 1rem;
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+}
+
+.preview-content .topic-backlink-card__summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.preview-content .topic-backlink-card__summary::-webkit-details-marker {
+  display: none;
+}
+
+.preview-content .topic-backlink-card__summary::after {
+  content: '展开引用';
+  margin-top: 2px;
+  font-size: 0.74rem;
+  color: #8a7d6d;
+}
+
+.preview-content .topic-backlink-card[open] .topic-backlink-card__summary::after {
+  content: '收起引用';
+}
+
+.preview-content .topic-backlink-card__title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #4d463f;
+}
+
+.preview-content .topic-backlink-card__meta {
+  font-size: 0.75rem;
+  color: #8a7d6d;
+}
+
+.preview-content .topic-backlink-card__body {
+  padding: 0 16px 14px;
+}
+
+.preview-content .topic-backlink-card__body > :first-child {
+  margin-top: 0.75rem;
+}
+
+.preview-content .topic-backlink-card__body blockquote {
+  margin: 0.8rem 0 0;
+  padding-left: 1rem;
+  border-left-width: 0.24em;
 }
 
 .admin-shell .error-message,

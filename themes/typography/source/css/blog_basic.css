@@ -259,6 +259,46 @@ dl dt {
         padding: 0 0 0 1.6em;
         border-left: #4a4a4a 0.4em solid; }
 
+        details.topic-backlink-card {
+          margin: 1.2em 0;
+          border: 1px solid rgba(127, 127, 127, 0.18);
+          border-radius: 18px;
+          background: rgba(255, 255, 255, 0.04);
+          overflow: hidden; }
+
+          details.topic-backlink-card summary {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2em;
+            padding: 0.95em 1.1em;
+            cursor: pointer;
+            list-style: none; }
+
+            details.topic-backlink-card summary::-webkit-details-marker {
+              display: none; }
+
+            details.topic-backlink-card summary:after {
+              content: '展开引用';
+              margin-top: 0.2em;
+              font-size: 0.72em;
+              color: rgba(127, 127, 127, 0.88); }
+
+            details.topic-backlink-card[open] summary:after {
+              content: '收起引用'; }
+
+            details.topic-backlink-card .topic-backlink-card__title {
+              font-size: 0.9em;
+              font-weight: 600; }
+
+            details.topic-backlink-card .topic-backlink-card__meta {
+              font-size: 0.72em;
+              color: rgba(127, 127, 127, 0.92); }
+
+            details.topic-backlink-card blockquote {
+              margin: 0.8em 1.1em 1.1em;
+              padding-left: 1em;
+              border-left-width: 0.3em; }
+
         blockquote p {
           margin: 0.8em 0; }
 

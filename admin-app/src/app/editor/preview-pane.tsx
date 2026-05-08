@@ -42,6 +42,12 @@ type ParsedMarkdownListBlock = {
   items: ParsedMarkdownListItem[]
 }
 
+type TopicBacklinkDetailsBlock = {
+  title: string
+  meta: string
+  body: string
+}
+
 type PreviewPaneProps = {
   title: string
   date: string
@@ -113,6 +119,13 @@ const BALANCED_BARE_URL_PAIRS = [
 ] as const
 const ANNOTATION_CONTEXT_LENGTH = 48
 const ACTIVE_OUTLINE_OFFSET = 120
+const HTML_ENTITY_MAP: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': '\'',
+}
 
 function isReadLaterSectionKey(value: string | undefined): value is ReadLaterSectionKey {
   return value === 'articleExcerpt' || value === 'summary' || value === 'commentary'
@@ -1069,6 +1082,28 @@ function renderBlocks(
       continue
     }
 
+    if (/^<details\b/.test(trimmed) && /topic-backlink-card/.test(trimmed)) {
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      const detailLines = [line]
+      while (index + 1 < lines.length && !/<\/details>\s*$/.test(lines[index].trim())) {
+        index += 1
+        detailLines.push(lines[index])
+      }
+
+      const detailBlock = parseTopicBacklinkDetailsBlock(detailLines.join('\n'))
+      if (detailBlock) {
+        nodes.push(
+          renderTopicBacklinkDetailsBlock(
+            detailBlock,
+            `topic-backlink-${nodes.length}`,
+            previewImageUrls,
+            wikiLinkOptions,
+          ),
+        )
+        continue
+      }
+    }
+
     const listBlock = matchMarkdownListItem(line) ? parseMarkdownListBlock(lines, index) : null
     if (listBlock) {
       flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
@@ -1122,6 +1157,49 @@ function getReadingStatusLabel(status?: ReadingStatus) {
 
 function getReadingStatusTone(status?: ReadingStatus) {
   return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
+}
+
+function decodeHtmlEntities(value: string) {
+  return value.replace(/&(amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITY_MAP[entity] || entity)
+}
+
+function parseTopicBacklinkDetailsBlock(markdown: string): TopicBacklinkDetailsBlock | null {
+  const summaryMatch = markdown.match(
+    /<summary[^>]*>\s*<span class="topic-backlink-card__title">([\s\S]*?)<\/span>\s*<span class="topic-backlink-card__meta">([\s\S]*?)<\/span>\s*<\/summary>/,
+  )
+  if (!summaryMatch) {
+    return null
+  }
+
+  const body = markdown
+    .replace(/^[\s\S]*?<\/summary>\s*/, '')
+    .replace(/\s*<\/details>\s*$/, '')
+    .trim()
+
+  return {
+    title: decodeHtmlEntities(summaryMatch[1]?.trim() || ''),
+    meta: decodeHtmlEntities(summaryMatch[2]?.trim() || ''),
+    body,
+  }
+}
+
+function renderTopicBacklinkDetailsBlock(
+  block: TopicBacklinkDetailsBlock,
+  key: string,
+  previewImageUrls?: Record<string, string>,
+  wikiLinkOptions?: WikiLinkRenderOptions,
+) {
+  return (
+    <details key={key} className="topic-backlink-card">
+      <summary className="topic-backlink-card__summary">
+        <span className="topic-backlink-card__title">{block.title}</span>
+        <span className="topic-backlink-card__meta">{block.meta}</span>
+      </summary>
+      <div className="topic-backlink-card__body">
+        {renderBlocks(block.body, previewImageUrls, undefined, wikiLinkOptions)}
+      </div>
+    </details>
+  )
 }
 
 function renderReadLaterSection(

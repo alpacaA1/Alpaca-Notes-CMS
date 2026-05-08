@@ -669,7 +669,7 @@ describe('App preview mode', () => {
       }
     })
 
-    render(<App />)
+    const { container } = render(<App />)
 
     await waitFor(() => {
       expect(screen.getByText('Preview supported post')).toBeTruthy()
@@ -681,8 +681,9 @@ describe('App preview mode', () => {
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
     expect(await screen.findByRole('heading', { name: '相关双链摘录' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'Preview supported post' })).toBeTruthy()
-    expect(screen.getByText('文章 · 2026-04-03')).toBeTruthy()
+    expect(container.querySelector('.topic-backlink-card__title')?.textContent).toBe('Preview supported post')
+    expect(container.querySelector('.topic-backlink-card__meta')?.textContent).toBe('文章 · 2026-04-03')
+    expect((container.querySelector('.topic-backlink-card') as HTMLDetailsElement | null)?.open).toBe(false)
     expect(
       screen.getByText(
         (_, element) =>
