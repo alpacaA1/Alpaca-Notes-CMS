@@ -64,10 +64,20 @@ function normalizeHeadingSlug(label: string) {
 
 export function extractMarkdownHeadings(markdown: string, idPrefix: string): ReadLaterOutlineItem[] {
   const slugCounts = new Map<string, number>()
+  let isInCodeFence = false
 
   return markdown
     .split('\n')
     .flatMap((line) => {
+      if (/^```/.test(line.trim())) {
+        isInCodeFence = !isInCodeFence
+        return []
+      }
+
+      if (isInCodeFence) {
+        return []
+      }
+
       const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
       if (!headingMatch) {
         return []

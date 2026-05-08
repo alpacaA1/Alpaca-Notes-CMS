@@ -49,6 +49,14 @@ type TopicBacklinkDetailsBlock = {
   body: string
 }
 
+type MarkdownHeadingSection = {
+  id?: string
+  level: 1 | 2 | 3 | 4 | 5 | 6
+  title: string
+  body: string
+  children: MarkdownHeadingSection[]
+}
+
 type PreviewPaneProps = {
   title: string
   date: string
@@ -1142,6 +1150,136 @@ function renderPlainTextBlocks(text: string) {
   return nodes
 }
 
+function parseMarkdownHeadingSections(
+  markdown: string,
+  headingIdPrefix?: string,
+): { lead: string; sections: MarkdownHeadingSection[] } {
+  const lines = markdown.split('\n')
+  const headingIds = headingIdPrefix ? extractMarkdownHeadings(markdown, headingIdPrefix) : []
+  const leadLines: string[] = []
+  const rootSections: MarkdownHeadingSection[] = []
+  const stack: Array<MarkdownHeadingSection & { bodyLines: string[] }> = []
+  let headingIndex = 0
+  let isInCodeFence = false
+
+  const appendLine = (line: string) => {
+    if (stack.length > 0) {
+      stack[stack.length - 1].bodyLines.push(line)
+      return
+    }
+
+    leadLines.push(line)
+  }
+
+  for (const line of lines) {
+    if (/^```/.test(line.trim())) {
+      appendLine(line)
+      isInCodeFence = !isInCodeFence
+      continue
+    }
+
+    if (!isInCodeFence) {
+      const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
+      if (headingMatch) {
+        const section = {
+          id: headingIds[headingIndex]?.id,
+          level: headingMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6,
+          title: headingMatch[2],
+          body: '',
+          bodyLines: [],
+          children: [],
+        }
+        headingIndex += 1
+
+        while (stack.length > 0 && stack[stack.length - 1].level >= section.level) {
+          const completedSection = stack.pop()
+          if (!completedSection) {
+            break
+          }
+
+          completedSection.body = completedSection.bodyLines.join('\n').trim()
+        }
+
+        if (stack.length > 0) {
+          stack[stack.length - 1].children.push(section)
+        } else {
+          rootSections.push(section)
+        }
+
+        stack.push(section)
+        continue
+      }
+    }
+
+    appendLine(line)
+  }
+
+  while (stack.length > 0) {
+    const completedSection = stack.pop()
+    if (!completedSection) {
+      break
+    }
+
+    completedSection.body = completedSection.bodyLines.join('\n').trim()
+  }
+
+  return {
+    lead: leadLines.join('\n').trim(),
+    sections: rootSections,
+  }
+}
+
+function renderCollapsibleHeadingSection(
+  section: MarkdownHeadingSection,
+  key: string,
+  previewImageUrls?: Record<string, string>,
+  wikiLinkOptions?: WikiLinkRenderOptions,
+): ReactNode {
+  return (
+    <details key={key} className={`preview-heading-group preview-heading-group--level-${section.level}`} open>
+      <summary id={section.id} className="preview-heading-group__summary">
+        <span className="preview-heading-group__icon" aria-hidden="true">
+          ▸
+        </span>
+        <span className="preview-heading-group__summary-heading" role="heading" aria-level={section.level}>
+          {renderInline(section.title, previewImageUrls, wikiLinkOptions)}
+        </span>
+      </summary>
+      <div className="preview-heading-group__body">
+        {section.body ? renderMarkdownContent(section.body, previewImageUrls, undefined, wikiLinkOptions) : null}
+        {section.children.map((childSection, index) =>
+          renderCollapsibleHeadingSection(
+            childSection,
+            `${key}-${childSection.id || `child-${index}`}`,
+            previewImageUrls,
+            wikiLinkOptions,
+          ),
+        )}
+      </div>
+    </details>
+  )
+}
+
+function renderMarkdownContent(
+  markdown: string,
+  previewImageUrls?: Record<string, string>,
+  headingIdPrefix?: string,
+  wikiLinkOptions?: WikiLinkRenderOptions,
+) {
+  const { lead, sections } = parseMarkdownHeadingSections(markdown, headingIdPrefix)
+
+  if (sections.length === 0) {
+    return renderBlocks(markdown, previewImageUrls, headingIdPrefix, wikiLinkOptions)
+  }
+
+  return [
+    ...(lead ? renderBlocks(lead, previewImageUrls, undefined, wikiLinkOptions) : []),
+    ...sections.map((section, index) =>
+      renderCollapsibleHeadingSection(section, section.id || `heading-section-${index}`, previewImageUrls, wikiLinkOptions),
+    ),
+  ]
+}
+
 export function renderContentBlocks(
   text: string,
   contentFormat: ResolvedContentFormat,
@@ -1151,7 +1289,7 @@ export function renderContentBlocks(
 ) {
   return contentFormat === 'plaintext'
     ? renderPlainTextBlocks(text)
-    : renderBlocks(text, previewImageUrls, headingIdPrefix, wikiLinkOptions)
+    : renderMarkdownContent(text, previewImageUrls, headingIdPrefix, wikiLinkOptions)
 }
 
 function getReadingStatusLabel(status?: ReadingStatus) {
@@ -1281,6 +1419,28 @@ function renderPlainReadLaterContent(
   )
 }
 
+function renderStructuredMarkdownSection(
+  section: StructuredMarkdownSection,
+  previewImageUrls: Record<string, string> | undefined,
+  wikiLinkOptions?: WikiLinkRenderOptions,
+) {
+  return (
+    <details key={section.id} className="preview-content__section preview-content__section--collapsible" open>
+      <summary id={section.id} className="preview-content__section-summary preview-heading-group__summary">
+        <span className="preview-heading-group__icon" aria-hidden="true">
+          ▸
+        </span>
+        <span className="preview-content__section-summary-heading" role="heading" aria-level={2}>
+          {renderInline(section.title, previewImageUrls, wikiLinkOptions)}
+        </span>
+      </summary>
+      <div className="preview-content__section-body">
+        {renderContentBlocks(section.body, 'markdown', previewImageUrls, section.id, wikiLinkOptions)}
+      </div>
+    </details>
+  )
+}
+
 function parseStructuredMarkdownSections(markdown: string): { lead: string; sections: StructuredMarkdownSection[] } {
   const lines = markdown.split('\n')
   const leadLines: string[] = []
@@ -1358,7 +1518,7 @@ export default function PreviewPane({
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
-  const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(true)
+  const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const handledAnnotationScrollRequestRef = useRef(0)
@@ -1406,6 +1566,14 @@ export default function PreviewPane({
   useEffect(() => {
     setAnnotationDeleteTargetId(null)
   }, [markdown])
+
+  useEffect(() => {
+    if (!shouldShowTopicBacklinksDrawer) {
+      return
+    }
+
+    setIsTopicBacklinksDrawerOpen(false)
+  }, [shouldShowTopicBacklinksDrawer, sourcePath])
 
   useEffect(() => {
     if (!isReadLater || !onActiveOutlineTargetChange) {
@@ -1766,14 +1934,9 @@ export default function PreviewPane({
                 </section>
               ) : null}
               <div className="preview-content__sections">
-                {structuredSections.sections.map((section) => (
-                  <section key={section.id} id={section.id} className="preview-content__section">
-                    <h2>{renderInline(section.title, previewImageUrls, wikiLinkOptions)}</h2>
-                    <div className="preview-content__section-body">
-                      {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id, wikiLinkOptions)}
-                    </div>
-                  </section>
-                ))}
+                {structuredSections.sections.map((section) =>
+                  renderStructuredMarkdownSection(section, previewImageUrls, wikiLinkOptions),
+                )}
               </div>
             </>
           ) : (
@@ -1787,13 +1950,15 @@ export default function PreviewPane({
           >
             <div className="preview-topic-backlinks-drawer__panel" id="preview-topic-backlinks-drawer-panel">
               <div className="preview-topic-backlinks-drawer__header">
-                <div className="preview-topic-backlinks-drawer__header-main">
-                  <p className="preview-topic-backlinks-drawer__eyebrow">主题预览</p>
-                  <h2>反向引用</h2>
-                  <p className="preview-topic-backlinks-drawer__summary">
-                    {topicBacklinks.length > 0 ? `共 ${topicBacklinks.length} 条` : '还没有其它内容引用这篇主题文章。'}
-                  </p>
-                </div>
+                {isTopicBacklinksDrawerOpen ? (
+                  <div className="preview-topic-backlinks-drawer__header-main">
+                    <p className="preview-topic-backlinks-drawer__eyebrow">主题预览</p>
+                    <h2>反向引用</h2>
+                    <p className="preview-topic-backlinks-drawer__summary">
+                      {topicBacklinks.length > 0 ? `共 ${topicBacklinks.length} 条` : '还没有其它内容引用这篇主题文章。'}
+                    </p>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="preview-topic-backlinks-drawer__toggle"

@@ -891,6 +891,19 @@ textarea {
   color: #ede6dc;
 }
 
+.admin-shell--dark .preview-heading-group__icon {
+  color: #a09585;
+}
+
+.admin-shell--dark .preview-heading-group__summary:hover .preview-heading-group__icon {
+  color: #efc28f;
+}
+
+.admin-shell--dark .preview-heading-group__summary-heading,
+.admin-shell--dark .preview-content__section-summary-heading {
+  color: #ede6dc;
+}
+
 .admin-shell--dark .preview-content table {
   border-color: rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
@@ -2867,7 +2880,7 @@ textarea {
 }
 
 .preview-pane__canvas--with-topic-backlinks-collapsed {
-  grid-template-columns: minmax(0, 1fr) minmax(120px, 144px);
+  grid-template-columns: minmax(0, 1fr) 56px;
 }
 
 .preview-topic-backlinks-drawer {
@@ -2960,8 +2973,11 @@ textarea {
 }
 
 .preview-topic-backlinks-drawer--collapsed .preview-topic-backlinks-drawer__panel {
-  gap: 10px;
-  padding: 14px 12px;
+  display: inline-flex;
+  gap: 0;
+  padding: 8px;
+  border-radius: 18px;
+  width: fit-content;
 }
 
 .preview-topic-backlinks-drawer--collapsed .preview-topic-backlinks-drawer__eyebrow,
@@ -2971,10 +2987,11 @@ textarea {
 
 .preview-topic-backlinks-drawer--collapsed .preview-topic-backlinks-drawer__header {
   align-items: center;
+  gap: 0;
 }
 
-.preview-topic-backlinks-drawer--collapsed .preview-topic-backlinks-drawer__header h2 {
-  font-size: 1rem;
+.preview-topic-backlinks-drawer--collapsed .preview-topic-backlinks-drawer__header-main {
+  display: none;
 }
 
 .preview-pane__canvas--with-topic-backlinks .preview-content {
@@ -3160,6 +3177,23 @@ textarea {
   font-size: 1.32rem;
 }
 
+.preview-content__section-summary {
+  margin: 0;
+}
+
+.preview-content__section-summary-heading {
+  display: block;
+  min-width: 0;
+  font-size: 1.32rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #3a342d;
+}
+
+.preview-content__section--collapsible > .preview-content__section-body {
+  margin-top: 0.9rem;
+}
+
 .preview-content__section-body > :first-child {
   margin-top: 0;
 }
@@ -3170,6 +3204,80 @@ textarea {
 
 .preview-content > * {
   margin: 0;
+}
+
+.preview-heading-group {
+  margin-top: 0.9rem;
+}
+
+.preview-heading-group__summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.72rem;
+  padding: 0.12rem 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.preview-heading-group__summary::-webkit-details-marker {
+  display: none;
+}
+
+.preview-heading-group__icon {
+  flex: 0 0 auto;
+  margin-top: 0.18rem;
+  color: #8a7d6d;
+  font-size: 0.92rem;
+  line-height: 1;
+  transition: transform 180ms ease, color 180ms ease;
+}
+
+.preview-heading-group[open] > .preview-heading-group__summary .preview-heading-group__icon {
+  transform: rotate(90deg);
+}
+
+.preview-heading-group__summary:hover .preview-heading-group__icon {
+  color: #6f5537;
+}
+
+.preview-heading-group__summary-heading {
+  display: block;
+  min-width: 0;
+  color: #3a342d;
+  font-weight: 650;
+  line-height: 1.3;
+}
+
+.preview-heading-group--level-1 > .preview-heading-group__summary .preview-heading-group__summary-heading {
+  font-size: 1.85rem;
+}
+
+.preview-heading-group--level-2 > .preview-heading-group__summary .preview-heading-group__summary-heading {
+  font-size: 1.55rem;
+}
+
+.preview-heading-group--level-3 > .preview-heading-group__summary .preview-heading-group__summary-heading {
+  font-size: 1.32rem;
+}
+
+.preview-heading-group--level-4 > .preview-heading-group__summary .preview-heading-group__summary-heading,
+.preview-heading-group--level-5 > .preview-heading-group__summary .preview-heading-group__summary-heading,
+.preview-heading-group--level-6 > .preview-heading-group__summary .preview-heading-group__summary-heading {
+  font-size: 1.14rem;
+}
+
+.preview-heading-group__body {
+  margin-left: 0.48rem;
+  padding: 0.28rem 0 0.16rem 1.26rem;
+  border-left: 1px solid rgba(214, 200, 184, 0.72);
+}
+
+.preview-heading-group__body > :first-child {
+  margin-top: 0.32rem;
+}
+
+.admin-shell--dark .preview-heading-group__body {
+  border-left-color: rgba(255, 255, 255, 0.08);
 }
 
 .preview-content h1 {
