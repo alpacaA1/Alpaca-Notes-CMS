@@ -45,6 +45,7 @@ type PostListPaneProps = {
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onBackToList?: () => void
+  backToListLabel?: string
   onNavigateOutline?: (targetId: string) => void
   isTopBarHidden?: boolean
   onToggleTopBar?: () => void
@@ -67,6 +68,7 @@ export default function PostListPane({
   onDeletePost,
   onTogglePinned,
   onBackToList,
+  backToListLabel = '← 返回归档',
   onNavigateOutline,
   isTopBarHidden = false,
   onToggleTopBar,
@@ -92,7 +94,7 @@ export default function PostListPane({
           <div className="post-pane__reader-actions">
             {onBackToList ? (
               <button type="button" className="post-pane__back-link" onClick={onBackToList}>
-                ← 返回归档
+                {backToListLabel}
               </button>
             ) : null}
             {onToggleTopBar ? (

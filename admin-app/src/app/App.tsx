@@ -13,7 +13,7 @@ import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-u
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
-import { useEditorDocument } from './editor/use-editor-document'
+import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
 import {
@@ -70,6 +70,18 @@ type PostDeleteConfirmAction = {
 type OpenDocumentOptions = {
   draftPost?: ParsedPost | null
   successMessage?: string | null
+  mode?: EditorMode
+}
+
+type EditorNavigationEntry = {
+  post: PostIndexItem
+  mode: EditorMode
+}
+
+type OpenIndexedPostOptions = {
+  skipNavigationConfirm?: boolean
+  restoreMode?: EditorMode
+  navigationBehavior?: 'reset' | 'push' | 'preserve'
 }
 
 const SAVE_SUCCESS_MESSAGE = '已保存。'
@@ -270,6 +282,7 @@ export default function App() {
   const posts = postsByType[contentType]
   const readLaterPosts = postsByType['read-later']
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
+  const [editorNavigationStack, setEditorNavigationStack] = useState<EditorNavigationEntry[]>([])
   const [search, setSearch] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
   const [adminView, setAdminView] = useState<AdminView>('dashboard')
@@ -419,6 +432,17 @@ export default function App() {
       ...currentPostsByType,
       [type]: updater(currentPostsByType[type]),
     }))
+  }, [])
+
+  const appendEditorNavigationEntry = useCallback((entry: EditorNavigationEntry) => {
+    setEditorNavigationStack((currentStack) => {
+      const lastEntry = currentStack[currentStack.length - 1]
+      if (lastEntry?.post.path === entry.post.path && lastEntry.mode === entry.mode) {
+        return currentStack
+      }
+
+      return [...currentStack, entry]
+    })
   }, [])
 
   useEffect(() => {
@@ -597,7 +621,7 @@ export default function App() {
   const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
     resetPreviewImageUrls()
     replaceDocument(nextPost, options?.draftPost ?? undefined)
-    setMode(nextPost.contentType === 'read-later' ? 'preview' : 'markdown')
+    setMode(options?.mode ?? (nextPost.contentType === 'read-later' ? 'preview' : 'markdown'))
     setActivePostPath(nextPost.path)
     setIsImmersive(false)
     setSuccessMessage(options?.successMessage || null)
@@ -640,6 +664,7 @@ export default function App() {
     setPostsByType(createEmptyIndexedPostsByType())
     setReadLaterAnnotationIndex([])
     setActivePostPath(null)
+    setEditorNavigationStack([])
     setIsOpeningPost(false)
     setIsQuickCollectingReadLater(false)
     setQuickReadLaterUrl('')
@@ -692,6 +717,7 @@ export default function App() {
       return
     }
 
+    setEditorNavigationStack([])
     openDocument(
       contentType === 'read-later'
         ? createNewReadLaterItem()
@@ -704,11 +730,15 @@ export default function App() {
     setAdminView('editor')
   }
 
-  const openIndexedPost = async (post: PostIndexItem, options?: { skipNavigationConfirm?: boolean }) => {
+  const openIndexedPost = async (post: PostIndexItem, options?: OpenIndexedPostOptions) => {
     if (!session || (!options?.skipNavigationConfirm && !confirmNavigation())) {
-      return
+      return false
     }
 
+    const returnEntry =
+      options?.navigationBehavior === 'push' && activeDocumentPost && activeDocumentPost.path !== post.path
+        ? { post: activeDocumentPost, mode }
+        : null
     const targetContentType = getContentTypeFromPostLike(post)
     const parseOpenedFile = (file: { path: string; sha: string; content: string }) =>
       targetContentType === 'read-later' ? parseReadLaterItem(file) : parsePost(file)
@@ -725,8 +755,14 @@ export default function App() {
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
+        mode: options?.restoreMode,
       })
-      return
+      if (options?.navigationBehavior === 'reset') {
+        setEditorNavigationStack([])
+      } else if (returnEntry) {
+        appendEditorNavigationEntry(returnEntry)
+      }
+      return true
     }
 
     setIsOpeningPost(true)
@@ -739,21 +775,29 @@ export default function App() {
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
+        mode: options?.restoreMode,
       })
+      if (options?.navigationBehavior === 'reset') {
+        setEditorNavigationStack([])
+      } else if (returnEntry) {
+        appendEditorNavigationEntry(returnEntry)
+      }
+      return true
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
-        return
+        return false
       }
 
       setError(caughtError instanceof Error ? caughtError.message : `打开${getContentTypeLabel(targetContentType)}失败。`)
+      return false
     } finally {
       setIsOpeningPost(false)
     }
   }
 
   const handleOpenPost = async (post: PostIndexItem) => {
-    await openIndexedPost(post)
+    await openIndexedPost(post, { navigationBehavior: 'reset' })
   }
 
   const handleOpenTopicNode = (targetKey: string) => {
@@ -764,7 +808,18 @@ export default function App() {
       return
     }
 
-    void openIndexedPost(topicPost)
+    void openIndexedPost(topicPost, { navigationBehavior: 'push' })
+  }
+
+  const returnToDashboard = () => {
+    resetPreviewImageUrls()
+    setActivePostPath(null)
+    setEditorNavigationStack([])
+    replaceDocument(null)
+    setIsImmersive(false)
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('dashboard')
   }
 
   const handleBackToDashboard = () => {
@@ -772,13 +827,33 @@ export default function App() {
       return
     }
 
-    resetPreviewImageUrls()
-    setActivePostPath(null)
-    replaceDocument(null)
-    setIsImmersive(false)
-    setSuccessMessage(null)
-    setError(null)
-    setAdminView('dashboard')
+    returnToDashboard()
+  }
+
+  const handleBackNavigation = async () => {
+    const previousEntry = editorNavigationStack[editorNavigationStack.length - 1]
+    if (!previousEntry) {
+      handleBackToDashboard()
+      return
+    }
+
+    if (!confirmNavigation()) {
+      return
+    }
+
+    const didOpen = await openIndexedPost(previousEntry.post, {
+      skipNavigationConfirm: true,
+      restoreMode: previousEntry.mode,
+      navigationBehavior: 'preserve',
+    })
+
+    if (!didOpen) {
+      returnToDashboard()
+      setError('未能返回上一篇内容，已退回列表。')
+      return
+    }
+
+    setEditorNavigationStack((currentStack) => currentStack.slice(0, -1))
   }
 
   const handleOpenAnnotations = () => {
@@ -819,6 +894,7 @@ export default function App() {
         sha: post.sha,
       })
       removeLocalDraft(post.path)
+      setEditorNavigationStack((currentStack) => currentStack.filter((entry) => entry.post.path !== post.path))
 
       const deletedContentType = getContentTypeFromPostLike(post)
       updatePostsForType(deletedContentType, (currentPosts) =>
@@ -828,6 +904,7 @@ export default function App() {
       if (activePostPath === post.path) {
         resetPreviewImageUrls()
         setActivePostPath(null)
+        setEditorNavigationStack([])
         replaceDocument(null)
         setIsOpeningPost(false)
         setIsImmersive(false)
@@ -1046,6 +1123,7 @@ export default function App() {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
       })
+      setEditorNavigationStack([])
       setReadLaterTab('commentary')
       setActiveAnnotationId(annotation.annotationId)
       setEditingAnnotationId(null)
@@ -1538,6 +1616,7 @@ export default function App() {
           ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。`
           : null,
       })
+      setEditorNavigationStack([])
       setQuickReadLaterUrl('')
       setAdminView('editor')
     } catch (caughtError) {
@@ -1611,6 +1690,7 @@ export default function App() {
 
     const nextContentType = getContentTypeFromPostLike(storedDraft.draftDocument)
     setContentType(nextContentType)
+    setEditorNavigationStack([])
     openDocument(storedDraft.savedDocument || storedDraft.draftDocument, {
       draftPost: storedDraft.draftDocument,
       successMessage: '已恢复本地草稿。',
@@ -1819,6 +1899,9 @@ export default function App() {
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
+  const canReturnToPreviousDocument = editorNavigationStack.length > 0
+  const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
+  const readerBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回归档'
 
   return (
     <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}${hideTopBar ? ' admin-shell--reader-top-bar-hidden' : ''}`}>
@@ -1843,7 +1926,8 @@ export default function App() {
           onLogout={handleLogout}
           onToggleColorMode={toggleColorMode}
           adminView={adminView}
-          onBackToDashboard={handleBackToDashboard}
+          onBackToDashboard={() => { void handleBackNavigation() }}
+          backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
           onContentTypeChange={(value) => {
             if (value === contentType) {
@@ -1862,6 +1946,7 @@ export default function App() {
             setSearch('')
             setQuickReadLaterUrl('')
             setDiaryMaterialResult(null)
+            setEditorNavigationStack([])
             setContentType(value)
             setAdminView('dashboard')
           }}
@@ -1941,7 +2026,8 @@ export default function App() {
             onOpenPost={handleOpenPost}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
-            onBackToList={handleBackToDashboard}
+            onBackToList={() => { void handleBackNavigation() }}
+            backToListLabel={readerBackButtonLabel}
             onNavigateOutline={handleNavigateOutline}
             isTopBarHidden={hideTopBar}
             onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
@@ -2045,7 +2131,7 @@ export default function App() {
                 onSaveAnnotationNote={handleSaveAnnotationNote}
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                 topicBacklinks={activeTopicBacklinks}
-                onOpenLinkedPost={(post) => { void openIndexedPost(post) }}
+                onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
               />
             ) : null}
           </section>

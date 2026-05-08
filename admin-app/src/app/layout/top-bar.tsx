@@ -29,6 +29,7 @@ type TopBarProps = {
   onLogout: () => void
   onToggleColorMode: () => void
   onBackToDashboard?: () => void
+  backButtonLabel?: string
   onOpenAnnotations?: () => void
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
@@ -67,6 +68,7 @@ export default function TopBar({
   onLogout,
   onToggleColorMode,
   onBackToDashboard,
+  backButtonLabel = '← 返回列表',
   onOpenAnnotations,
   onContentTypeChange,
   contentType,
@@ -182,7 +184,7 @@ export default function TopBar({
               type="button"
               onClick={onBackToDashboard}
             >
-              ← 返回列表
+              {backButtonLabel}
             </button>
           ) : null}
           <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
