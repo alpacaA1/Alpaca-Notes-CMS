@@ -22,6 +22,7 @@ import {
   buildTopicNodeMap,
   collectResolvedWikiLinkTargetKeys,
   isTopicNodePost,
+  stripGeneratedTopicBacklinks,
 } from './knowledge/wiki-links'
 import { resolveContentFormat } from './content-format'
 import { organizeDiaryMaterials, type DiaryAiEntry } from './diary/diary-ai-client'
@@ -395,6 +396,10 @@ export default function App() {
   const previewMarkdown = useMemo(() => {
     if (!document) {
       return ''
+    }
+
+    if (document.contentType === 'post' && document.frontmatter.topic === true) {
+      return stripGeneratedTopicBacklinks(document.body)
     }
 
     if (!activeTopicNodeKey) {
@@ -1992,6 +1997,8 @@ export default function App() {
                       onDeleteAnnotation={handleDeleteAnnotation}
                       resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
                       onOpenWikiLink={handleOpenTopicNode}
+                      topicBacklinks={activeTopicBacklinks}
+                      showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                     />
                   ) : (
                     <MarkdownEditor

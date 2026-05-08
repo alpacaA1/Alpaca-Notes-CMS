@@ -851,6 +851,42 @@ textarea {
   color: #a09585;
 }
 
+.admin-shell--dark .preview-topic-backlinks-drawer__toggle,
+.admin-shell--dark .preview-topic-backlinks-drawer__panel {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.98), rgba(22, 19, 16, 0.98));
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.24);
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer__toggle {
+  color: #efc28f;
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer__toggle:hover {
+  border-color: rgba(228, 163, 88, 0.32);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer__eyebrow,
+.admin-shell--dark .preview-topic-backlinks-drawer__summary,
+.admin-shell--dark .preview-topic-backlinks-drawer__empty {
+  color: #a09585;
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer .topic-backlink-card {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer .topic-backlink-card__title {
+  color: #ede6dc;
+}
+
+.admin-shell--dark .preview-topic-backlinks-drawer .topic-backlink-card__meta,
+.admin-shell--dark .preview-topic-backlinks-drawer .topic-backlink-card__summary::after {
+  color: #a09585;
+}
+
 .admin-shell--dark .preview-content table {
   border-color: rgba(255, 255, 255, 0.06);
   background: rgba(255, 255, 255, 0.02);
@@ -2813,6 +2849,106 @@ textarea {
   box-shadow: none;
 }
 
+.preview-pane__canvas {
+  width: 100%;
+}
+
+.preview-pane__canvas--with-topic-backlinks {
+  display: grid;
+  grid-template-columns: minmax(0, 860px) auto;
+  justify-content: center;
+  align-items: start;
+  gap: 18px;
+}
+
+.preview-topic-backlinks-drawer {
+  position: sticky;
+  top: 12px;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 320px);
+  gap: 12px;
+  align-items: start;
+  z-index: 2;
+}
+
+.preview-topic-backlinks-drawer--collapsed {
+  grid-template-columns: 44px;
+}
+
+.preview-topic-backlinks-drawer__toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 252, 247, 0.96);
+  color: #6f5537;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(56, 43, 30, 0.12);
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    transform 180ms ease;
+}
+
+.preview-topic-backlinks-drawer__toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(141, 113, 77, 0.38);
+  background: rgba(255, 249, 242, 0.98);
+}
+
+.preview-topic-backlinks-drawer__toggle-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.preview-topic-backlinks-drawer__panel {
+  overflow: hidden auto;
+  max-height: calc(100vh - 152px);
+  padding: 16px;
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(252, 248, 242, 0.98));
+  box-shadow: 0 24px 48px rgba(56, 43, 30, 0.12);
+}
+
+.preview-topic-backlinks-drawer__header {
+  display: grid;
+  gap: 6px;
+}
+
+.preview-topic-backlinks-drawer__eyebrow,
+.preview-topic-backlinks-drawer__summary,
+.preview-topic-backlinks-drawer__empty {
+  margin: 0;
+  color: #8a7d6d;
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.preview-topic-backlinks-drawer__eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+}
+
+.preview-topic-backlinks-drawer__header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.preview-topic-backlinks-drawer__list {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
 .editor-layout--reader .preview-pane--reading-canvas {
   flex: 1 1 auto;
   min-height: 0;
@@ -3195,7 +3331,8 @@ textarea {
   color: #555555;
 }
 
-.preview-content .topic-backlink-card {
+.preview-content .topic-backlink-card,
+.preview-topic-backlinks-drawer .topic-backlink-card {
   margin-top: 1rem;
   border: 1px solid rgba(214, 200, 184, 0.72);
   border-radius: 18px;
@@ -3203,7 +3340,8 @@ textarea {
   overflow: hidden;
 }
 
-.preview-content .topic-backlink-card__summary {
+.preview-content .topic-backlink-card__summary,
+.preview-topic-backlinks-drawer .topic-backlink-card__summary {
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3212,41 +3350,49 @@ textarea {
   list-style: none;
 }
 
-.preview-content .topic-backlink-card__summary::-webkit-details-marker {
+.preview-content .topic-backlink-card__summary::-webkit-details-marker,
+.preview-topic-backlinks-drawer .topic-backlink-card__summary::-webkit-details-marker {
   display: none;
 }
 
-.preview-content .topic-backlink-card__summary::after {
+.preview-content .topic-backlink-card__summary::after,
+.preview-topic-backlinks-drawer .topic-backlink-card__summary::after {
   content: '展开引用';
   margin-top: 2px;
   font-size: 0.74rem;
   color: #8a7d6d;
 }
 
-.preview-content .topic-backlink-card[open] .topic-backlink-card__summary::after {
+.preview-content .topic-backlink-card[open] .topic-backlink-card__summary::after,
+.preview-topic-backlinks-drawer .topic-backlink-card[open] .topic-backlink-card__summary::after {
   content: '收起引用';
 }
 
-.preview-content .topic-backlink-card__title {
+.preview-content .topic-backlink-card__title,
+.preview-topic-backlinks-drawer .topic-backlink-card__title {
   font-size: 0.92rem;
   font-weight: 600;
   color: #4d463f;
 }
 
-.preview-content .topic-backlink-card__meta {
+.preview-content .topic-backlink-card__meta,
+.preview-topic-backlinks-drawer .topic-backlink-card__meta {
   font-size: 0.75rem;
   color: #8a7d6d;
 }
 
-.preview-content .topic-backlink-card__body {
+.preview-content .topic-backlink-card__body,
+.preview-topic-backlinks-drawer .topic-backlink-card__body {
   padding: 0 16px 14px;
 }
 
-.preview-content .topic-backlink-card__body > :first-child {
+.preview-content .topic-backlink-card__body > :first-child,
+.preview-topic-backlinks-drawer .topic-backlink-card__body > :first-child {
   margin-top: 0.75rem;
 }
 
-.preview-content .topic-backlink-card__body blockquote {
+.preview-content .topic-backlink-card__body blockquote,
+.preview-topic-backlinks-drawer .topic-backlink-card__body blockquote {
   margin: 0.8rem 0 0;
   padding-left: 1rem;
   border-left-width: 0.24em;
@@ -3446,6 +3592,19 @@ textarea {
 
   .preview-content blockquote {
     margin-left: 0;
+  }
+
+  .preview-pane__canvas--with-topic-backlinks {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .preview-topic-backlinks-drawer {
+    position: static;
+    margin-left: auto;
+  }
+
+  .preview-topic-backlinks-drawer__panel {
+    max-height: none;
   }
 }
 

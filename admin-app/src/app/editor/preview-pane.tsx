@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
+import type { TopicBacklinkItem } from '../knowledge/wiki-links'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
@@ -76,6 +77,8 @@ type PreviewPaneProps = {
   onDeleteAnnotation?: (annotationId: string) => void
   resolveWikiLinkTitle?: (targetKey: string) => string | null
   onOpenWikiLink?: (targetKey: string) => void
+  topicBacklinks?: TopicBacklinkItem[]
+  showTopicBacklinksDrawer?: boolean
 }
 
 type WikiLinkRenderOptions = {
@@ -1159,6 +1162,18 @@ function getReadingStatusTone(status?: ReadingStatus) {
   return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
 }
 
+function getTopicBacklinkTypeLabel(contentType: ContentType) {
+  if (contentType === 'diary') {
+    return '日记'
+  }
+
+  if (contentType === 'knowledge') {
+    return '知识点'
+  }
+
+  return '文章'
+}
+
 function decodeHtmlEntities(value: string) {
   return value.replace(/&(amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITY_MAP[entity] || entity)
 }
@@ -1197,6 +1212,27 @@ function renderTopicBacklinkDetailsBlock(
       </summary>
       <div className="topic-backlink-card__body">
         {renderBlocks(block.body, previewImageUrls, undefined, wikiLinkOptions)}
+      </div>
+    </details>
+  )
+}
+
+function renderTopicBacklinkDrawerCard(backlink: TopicBacklinkItem, key: string) {
+  const sourceTitle = backlink.sourceTitle.trim() || '未命名内容'
+  const sourceDate = backlink.sourceDate.slice(0, 10) || '无日期'
+  const sourceMeta = `${getTopicBacklinkTypeLabel(backlink.sourceContentType)} · ${sourceDate}`
+  const excerpt = backlink.excerpt.trim() || '暂无可展示摘录。'
+
+  return (
+    <details key={key} className="topic-backlink-card">
+      <summary className="topic-backlink-card__summary">
+        <span className="topic-backlink-card__title">{sourceTitle}</span>
+        <span className="topic-backlink-card__meta">{sourceMeta}</span>
+      </summary>
+      <div className="topic-backlink-card__body">
+        <blockquote>
+          <p>{renderPlainTextWithLineBreaks(excerpt)}</p>
+        </blockquote>
       </div>
     </details>
   )
@@ -1307,10 +1343,13 @@ export default function PreviewPane({
   onDeleteAnnotation,
   resolveWikiLinkTitle,
   onOpenWikiLink,
+  topicBacklinks = [],
+  showTopicBacklinksDrawer = false,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
+  const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(true)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const handledAnnotationScrollRequestRef = useRef(0)
@@ -1331,6 +1370,7 @@ export default function PreviewPane({
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
   const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
+  const shouldShowTopicBacklinksDrawer = showTopicBacklinksDrawer
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink }),
     [onOpenWikiLink, resolveWikiLinkTitle],
@@ -1609,125 +1649,169 @@ export default function PreviewPane({
           删除高亮
         </button>
       ) : null}
-      <article
-        ref={articleRef}
-        className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
-        id="read-later-content"
-        onClick={handleArticleClick}
-        onMouseUp={handleSelectionChange}
-        onKeyUp={handleSelectionChange}
-      >
-        <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
-          <h1>{title.trim() || '未命名草稿'}</h1>
-          <p className="preview-content__date">{date}</p>
-          {isReadLater ? (
-            <div className="preview-content__read-later-meta">
-              {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
-              <div className="preview-content__meta-grid">
-                {sourceName?.trim() ? (
-                  <span className="preview-content__meta-chip">
-                    <strong>来源</strong>
-                    <span>{sourceName.trim()}</span>
+      <div className={`preview-pane__canvas${shouldShowTopicBacklinksDrawer ? ' preview-pane__canvas--with-topic-backlinks' : ''}`}>
+        <article
+          ref={articleRef}
+          className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
+          id="read-later-content"
+          onClick={handleArticleClick}
+          onMouseUp={handleSelectionChange}
+          onKeyUp={handleSelectionChange}
+        >
+          <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
+            <h1>{title.trim() || '未命名草稿'}</h1>
+            <p className="preview-content__date">{date}</p>
+            {isReadLater ? (
+              <div className="preview-content__read-later-meta">
+                {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
+                <div className="preview-content__meta-grid">
+                  {sourceName?.trim() ? (
+                    <span className="preview-content__meta-chip">
+                      <strong>来源</strong>
+                      <span>{sourceName.trim()}</span>
+                    </span>
+                  ) : null}
+                  <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
+                    <strong>状态</strong>
+                    <span>{getReadingStatusLabel(readingStatus)}</span>
                   </span>
-                ) : null}
-                <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
-                  <strong>状态</strong>
-                  <span>{getReadingStatusLabel(readingStatus)}</span>
-                </span>
-                {safeExternalUrl ? (
-                  <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
-                    <strong>原文</strong>
-                    <span>阅读原文</span>
-                  </a>
-                ) : null}
-              </div>
-              {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
-            </div>
-          ) : isKnowledge ? (
-            <div className="preview-content__read-later-meta">
-              <div className="preview-content__meta-grid">
-                <span className="preview-content__meta-chip">
-                  <strong>来源类型</strong>
-                  <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : sourceType === 'diary' ? '日记' : '手动整理'}</span>
-                </span>
-                {sourceTitle?.trim() ? (
-                  <span className="preview-content__meta-chip">
-                    <strong>来源内容</strong>
-                    <span>{sourceTitle.trim()}</span>
-                  </span>
-                ) : null}
-                {safeSourceUrl ? (
-                  <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeSourceUrl} rel="noreferrer" target="_blank">
-                    <strong>原链接</strong>
-                    <span>打开原文</span>
-                  </a>
-                ) : null}
-                {sourcePath?.trim() ? (
-                  <span className="preview-content__meta-chip">
-                    <strong>来源路径</strong>
-                    <span>{sourcePath.trim()}</span>
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-        </header>
-        {isReadLater && hasStructuredReadLaterSections ? (
-          <div className="preview-content__sections">
-            {renderReadLaterSection(
-              '原文摘录',
-              readLaterSections?.articleExcerpt || '',
-              contentFormat,
-              previewImageUrls,
-              getReadLaterSectionAnchorId('articleExcerpt'),
-              'articleExcerpt',
-              wikiLinkOptions,
-            )}
-            {renderReadLaterSection(
-              '我的总结',
-              readLaterSections?.summary || '',
-              contentFormat,
-              previewImageUrls,
-              getReadLaterSectionAnchorId('summary'),
-              'summary',
-              wikiLinkOptions,
-            )}
-            {renderReadLaterSection(
-              '我的评论',
-              readLaterSections?.commentary || '',
-              contentFormat,
-              previewImageUrls,
-              getReadLaterSectionAnchorId('commentary'),
-              'commentary',
-              wikiLinkOptions,
-            )}
-          </div>
-        ) : isReadLater ? (
-          renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls, wikiLinkOptions)
-        ) : structuredSections && structuredSections.sections.length > 0 ? (
-          <>
-            {structuredSections.lead ? (
-              <section className="preview-content__section preview-content__section--lead">
-                <div className="preview-content__section-body">
-                  {renderContentBlocks(structuredSections.lead, contentFormat, previewImageUrls, undefined, wikiLinkOptions)}
+                  {safeExternalUrl ? (
+                    <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
+                      <strong>原文</strong>
+                      <span>阅读原文</span>
+                    </a>
+                  ) : null}
                 </div>
-              </section>
+                {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
+              </div>
+            ) : isKnowledge ? (
+              <div className="preview-content__read-later-meta">
+                <div className="preview-content__meta-grid">
+                  <span className="preview-content__meta-chip">
+                    <strong>来源类型</strong>
+                    <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : sourceType === 'diary' ? '日记' : '手动整理'}</span>
+                  </span>
+                  {sourceTitle?.trim() ? (
+                    <span className="preview-content__meta-chip">
+                      <strong>来源内容</strong>
+                      <span>{sourceTitle.trim()}</span>
+                    </span>
+                  ) : null}
+                  {safeSourceUrl ? (
+                    <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeSourceUrl} rel="noreferrer" target="_blank">
+                      <strong>原链接</strong>
+                      <span>打开原文</span>
+                    </a>
+                  ) : null}
+                  {sourcePath?.trim() ? (
+                    <span className="preview-content__meta-chip">
+                      <strong>来源路径</strong>
+                      <span>{sourcePath.trim()}</span>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             ) : null}
+          </header>
+          {isReadLater && hasStructuredReadLaterSections ? (
             <div className="preview-content__sections">
-              {structuredSections.sections.map((section) => (
-                <section key={section.id} id={section.id} className="preview-content__section">
-                  <h2>{renderInline(section.title, previewImageUrls, wikiLinkOptions)}</h2>
+              {renderReadLaterSection(
+                '原文摘录',
+                readLaterSections?.articleExcerpt || '',
+                contentFormat,
+                previewImageUrls,
+                getReadLaterSectionAnchorId('articleExcerpt'),
+                'articleExcerpt',
+                wikiLinkOptions,
+              )}
+              {renderReadLaterSection(
+                '我的总结',
+                readLaterSections?.summary || '',
+                contentFormat,
+                previewImageUrls,
+                getReadLaterSectionAnchorId('summary'),
+                'summary',
+                wikiLinkOptions,
+              )}
+              {renderReadLaterSection(
+                '我的评论',
+                readLaterSections?.commentary || '',
+                contentFormat,
+                previewImageUrls,
+                getReadLaterSectionAnchorId('commentary'),
+                'commentary',
+                wikiLinkOptions,
+              )}
+            </div>
+          ) : isReadLater ? (
+            renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls, wikiLinkOptions)
+          ) : structuredSections && structuredSections.sections.length > 0 ? (
+            <>
+              {structuredSections.lead ? (
+                <section className="preview-content__section preview-content__section--lead">
                   <div className="preview-content__section-body">
-                    {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id, wikiLinkOptions)}
+                    {renderContentBlocks(structuredSections.lead, contentFormat, previewImageUrls, undefined, wikiLinkOptions)}
                   </div>
                 </section>
-              ))}
-            </div>
-          </>
-        ) : (
-          renderContentBlocks(markdown, contentFormat, previewImageUrls, undefined, wikiLinkOptions)
-        )}
-      </article>
+              ) : null}
+              <div className="preview-content__sections">
+                {structuredSections.sections.map((section) => (
+                  <section key={section.id} id={section.id} className="preview-content__section">
+                    <h2>{renderInline(section.title, previewImageUrls, wikiLinkOptions)}</h2>
+                    <div className="preview-content__section-body">
+                      {renderContentBlocks(section.body, contentFormat, previewImageUrls, section.id, wikiLinkOptions)}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </>
+          ) : (
+            renderContentBlocks(markdown, contentFormat, previewImageUrls, undefined, wikiLinkOptions)
+          )}
+        </article>
+        {shouldShowTopicBacklinksDrawer ? (
+          <aside
+            className={`preview-topic-backlinks-drawer${isTopicBacklinksDrawerOpen ? '' : ' preview-topic-backlinks-drawer--collapsed'}`}
+            aria-label="反向引用抽屉"
+          >
+            <button
+              type="button"
+              className="preview-topic-backlinks-drawer__toggle"
+              aria-label={isTopicBacklinksDrawerOpen ? '折叠反向引用抽屉' : '展开反向引用抽屉'}
+              aria-expanded={isTopicBacklinksDrawerOpen}
+              aria-controls="preview-topic-backlinks-drawer-panel"
+              onClick={() => setIsTopicBacklinksDrawerOpen((current) => !current)}
+            >
+              <span className="preview-topic-backlinks-drawer__toggle-icon" aria-hidden="true">
+                {isTopicBacklinksDrawerOpen ? '→' : '←'}
+              </span>
+            </button>
+            {isTopicBacklinksDrawerOpen ? (
+              <div className="preview-topic-backlinks-drawer__panel" id="preview-topic-backlinks-drawer-panel">
+                <div className="preview-topic-backlinks-drawer__header">
+                  <p className="preview-topic-backlinks-drawer__eyebrow">主题预览</p>
+                  <h2>反向引用</h2>
+                  <p className="preview-topic-backlinks-drawer__summary">
+                    {topicBacklinks.length > 0 ? `共 ${topicBacklinks.length} 条` : '还没有其它内容引用这篇主题文章。'}
+                  </p>
+                </div>
+                {topicBacklinks.length > 0 ? (
+                  <div className="preview-topic-backlinks-drawer__list">
+                    {topicBacklinks.map((backlink, index) =>
+                      renderTopicBacklinkDrawerCard(
+                        backlink,
+                        `${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`,
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <p className="preview-topic-backlinks-drawer__empty">还没有其它内容引用这篇主题文章。</p>
+                )}
+              </div>
+            ) : null}
+          </aside>
+        ) : null}
+      </div>
     </section>
   )
 }

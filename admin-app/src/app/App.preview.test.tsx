@@ -643,7 +643,7 @@ describe('App preview mode', () => {
     })
   })
 
-  it('appends backlink excerpts when previewing a topic node document', async () => {
+  it('shows topic backlinks in a collapsible right drawer when previewing a topic article', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([
       {
@@ -680,10 +680,20 @@ describe('App preview mode', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
-    expect(await screen.findByRole('heading', { name: '相关双链摘录' })).toBeTruthy()
-    expect(container.querySelector('.topic-backlink-card__title')?.textContent).toBe('Preview supported post')
-    expect(container.querySelector('.topic-backlink-card__meta')?.textContent).toBe('文章 · 2026-04-03')
-    expect((container.querySelector('.topic-backlink-card') as HTMLDetailsElement | null)?.open).toBe(false)
+    expect(await screen.findByRole('heading', { name: '反向引用' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: '相关双链摘录' })).toBeNull()
+    expect(container.querySelector('.preview-topic-backlinks-drawer__summary')?.textContent).toBe('共 1 条')
+    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__title')?.textContent).toBe('Preview supported post')
+    expect(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__meta')?.textContent).toBe('文章 · 2026-04-03')
+    expect((container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card') as HTMLDetailsElement | null)?.open).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: '折叠反向引用抽屉' }))
+    expect(container.querySelector('.preview-topic-backlinks-drawer__panel')).toBeNull()
+    expect(screen.queryByText('反向引用')).toBeNull()
+    expect(screen.getByRole('button', { name: '展开反向引用抽屉' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '展开反向引用抽屉' }))
+    fireEvent.click(container.querySelector('.preview-topic-backlinks-drawer .topic-backlink-card__summary') as HTMLElement)
     expect(
       screen.getByText(
         (_, element) =>
