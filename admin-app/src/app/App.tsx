@@ -29,6 +29,7 @@ import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, typ
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
+import MaterialOrganizerDialog from './layout/material-organizer-dialog'
 import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
@@ -325,6 +326,8 @@ export default function App() {
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
   const [isQuickCollectingReadLater, setIsQuickCollectingReadLater] = useState(false)
   const [isOrganizingMaterials, setIsOrganizingMaterials] = useState(false)
+  const [isMaterialOrganizerOpen, setIsMaterialOrganizerOpen] = useState(false)
+  const [isMaterialOrganizerLoadingSources, setIsMaterialOrganizerLoadingSources] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [materialResult, setMaterialResult] = useState<string | null>(null)
@@ -429,6 +432,12 @@ export default function App() {
       }
     })
   }, [postsByType.diary, postsByType['read-later']])
+
+  useEffect(() => {
+    if (adminView !== 'dashboard' || (contentType !== 'diary' && contentType !== 'read-later')) {
+      setIsMaterialOrganizerOpen(false)
+    }
+  }, [adminView, contentType])
 
   const readLaterAnnotations = useMemo(
     () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
@@ -1653,6 +1662,50 @@ export default function App() {
     setSelectedMaterialPaths(createEmptyMaterialSelectionState())
   }
 
+  const handleOpenMaterialOrganizer = async () => {
+    setIsMaterialOrganizerOpen(true)
+
+    if (!session || isMaterialOrganizerLoadingSources) {
+      return
+    }
+
+    const missingTypes: MaterialSourceType[] = []
+    if (contentType !== 'diary' && postsByType.diary.length === 0) {
+      missingTypes.push('diary')
+    }
+    if (contentType !== 'read-later' && postsByType['read-later'].length === 0) {
+      missingTypes.push('read-later')
+    }
+
+    if (missingTypes.length === 0) {
+      return
+    }
+
+    setIsMaterialOrganizerLoadingSources(true)
+
+    try {
+      const results = await Promise.all(
+        missingTypes.map(async (type) => ({
+          type,
+          posts: await buildIndexByContentType(session, type),
+        })),
+      )
+
+      results.forEach(({ type, posts }) => {
+        updatePostsForType(type, () => posts as PostIndexItem[])
+      })
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '加载素材列表失败。')
+    } finally {
+      setIsMaterialOrganizerLoadingSources(false)
+    }
+  }
+
   const handleQuickCollectReadLater = async () => {
     if (!session || isQuickCollectingReadLater) {
       return
@@ -1721,13 +1774,13 @@ export default function App() {
 
   const handleOrganizeWritingMaterials = async () => {
     if (!session || isOrganizingMaterials) {
-      return
+      return false
     }
 
     if (selectedDiaryPosts.length === 0 && selectedReadLaterPosts.length === 0) {
       setSuccessMessage(null)
       setError('请先勾选要整理的日记或待读。')
-      return
+      return false
     }
 
     setIsOrganizingMaterials(true)
@@ -1789,15 +1842,24 @@ export default function App() {
           'read-later': readLaterEntries.map((entry) => entry.path),
         })}。`,
       )
+      return true
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
-        return
+        return false
       }
 
       setError(caughtError instanceof Error ? caughtError.message : '素材整理失败。')
+      return false
     } finally {
       setIsOrganizingMaterials(false)
+    }
+  }
+
+  const handleConfirmOrganizeMaterials = async () => {
+    const didOrganize = await handleOrganizeWritingMaterials()
+    if (didOrganize) {
+      setIsMaterialOrganizerOpen(false)
     }
   }
 
@@ -2037,6 +2099,7 @@ export default function App() {
           search={search}
           onSearchChange={setSearch}
           onNewPost={handleNewPost}
+          onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
           onSave={() => {
             void handleSave()
           }}
@@ -2130,7 +2193,7 @@ export default function App() {
               }
             }}
             onClearSelectedMaterials={clearSelectedMaterials}
-            onOrganizeMaterials={() => { void handleOrganizeWritingMaterials() }}
+            onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
             onSearchFocus={() => searchInputRef.current?.focus()}
           />
         </section>
@@ -2275,6 +2338,19 @@ export default function App() {
           </section>
         </div>
       )}
+      {isMaterialOrganizerOpen ? (
+        <MaterialOrganizerDialog
+          diaryPosts={postsByType.diary}
+          readLaterPosts={postsByType['read-later']}
+          selectedMaterialPaths={selectedMaterialPaths}
+          isLoadingReadLater={isMaterialOrganizerLoadingSources && contentType !== 'read-later'}
+          isProcessing={isOrganizingMaterials}
+          onSelectedMaterialPathsChange={handleSelectedMaterialPathsChange}
+          onClearSelectedMaterials={clearSelectedMaterials}
+          onConfirm={() => { void handleConfirmOrganizeMaterials() }}
+          onCancel={() => setIsMaterialOrganizerOpen(false)}
+        />
+      ) : null}
       {taxonomyConfirm ? (
         <ConfirmDialog
           title={

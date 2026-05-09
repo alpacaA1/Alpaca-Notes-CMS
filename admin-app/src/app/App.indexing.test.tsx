@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import type { PostIndexItem } from './posts/post-types'
 import * as githubClientModule from './github-client'
 import { GitHubAuthError } from './github-client'
+import * as diaryAiModule from './diary/diary-ai-client'
 import * as postsModule from './posts/index-posts'
 import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
@@ -73,6 +74,30 @@ const diaryIndexedPosts: PostIndexItem[] = [
     contentType: 'diary',
   },
 ]
+
+const diaryMaterialContent = `---
+title: 五月第一则日记
+date: 2026-05-05 01:01:01
+---
+
+今天继续整理素材。`
+
+const readLaterMaterialContent = `---
+title: 待读里的文章
+date: 2026-04-02 09:00:00
+source_name: Example
+external_url: https://example.com/article
+reading_status: unread
+---
+
+## 原文摘录
+原文
+
+## 我的总结
+这里是我的总结。
+
+## 我的评论
+这里是我的评论。`
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void
@@ -193,6 +218,83 @@ describe('App indexing flow', () => {
 
     await waitFor(() => {
       expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    })
+  })
+
+  it('opens the top-level material organizer from diary dashboard and summarizes selected diary and read-later entries', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(postsModule, 'buildDiaryIndex').mockResolvedValue(diaryIndexedPosts)
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue(readLaterIndexedPosts)
+    const organizeWritingMaterials = vi.spyOn(diaryAiModule, 'organizeWritingMaterials').mockResolvedValue({
+      materialMarkdown: '# 月报素材整理\n\n- 本周继续推进博客后台',
+    })
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
+      if (path === diaryIndexedPosts[0].path) {
+        return {
+          path,
+          sha: diaryIndexedPosts[0].sha,
+          content: diaryMaterialContent,
+        }
+      }
+
+      if (path === readLaterIndexedPosts[0].path) {
+        return {
+          path,
+          sha: readLaterIndexedPosts[0].sha,
+          content: readLaterMaterialContent,
+        }
+      }
+
+      throw new Error(`unexpected path: ${path}`)
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    })
+
+    const materialButtons = screen.getAllByRole('button', { name: '整理素材' }) as HTMLButtonElement[]
+    fireEvent.click(materialButtons.find((button) => !button.disabled) as HTMLButtonElement)
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog', { name: '整理素材' })).toBeTruthy()
+      expect(screen.getByText('待读里的文章')).toBeTruthy()
+    })
+
+    const dialog = screen.getByRole('dialog', { name: '整理素材' })
+    fireEvent.click(within(dialog).getByLabelText('选择日记 五月第一则日记'))
+    fireEvent.click(within(dialog).getByLabelText('选择待读 待读里的文章'))
+    fireEvent.click(within(dialog).getByRole('button', { name: '开始总结' }))
+
+    await waitFor(() => {
+      expect(organizeWritingMaterials).toHaveBeenCalledTimes(1)
+    })
+
+    expect(organizeWritingMaterials.mock.calls[0]?.[1]).toMatchObject([
+      {
+        sourceType: 'diary',
+        path: diaryIndexedPosts[0].path,
+      },
+      {
+        sourceType: 'read-later',
+        path: readLaterIndexedPosts[0].path,
+        summary: '这里是我的总结。',
+        commentary: '这里是我的评论。',
+      },
+    ])
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: '整理素材' })).toBeNull()
+      expect(screen.getByText('整理结果')).toBeTruthy()
+      expect(screen.getByText(/本周继续推进博客后台/)).toBeTruthy()
     })
   })
 

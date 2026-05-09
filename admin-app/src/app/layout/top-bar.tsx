@@ -24,6 +24,7 @@ type TopBarProps = {
   search: string
   onSearchChange: (value: string) => void
   onNewPost: () => void
+  onOrganizeMaterials?: () => void
   onSave: () => void
   onTogglePreview: () => void
   onLogout: () => void
@@ -63,6 +64,7 @@ export default function TopBar({
   search,
   onSearchChange,
   onNewPost,
+  onOrganizeMaterials,
   onSave,
   onTogglePreview,
   onLogout,
@@ -102,6 +104,7 @@ export default function TopBar({
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
   const showContentTypeSwitcher = isDashboardLike
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
+  const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = isAnnotationsView
     ? '搜索摘录、批注、来源文章、来源或标签'
     : contentType === 'read-later'
@@ -185,6 +188,15 @@ export default function TopBar({
               onClick={onBackToDashboard}
             >
               {backButtonLabel}
+            </button>
+          ) : null}
+          {showMaterialOrganizer ? (
+            <button
+              className="top-bar__button top-bar__button--quiet"
+              type="button"
+              onClick={onOrganizeMaterials}
+            >
+              整理素材
             </button>
           ) : null}
           <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
