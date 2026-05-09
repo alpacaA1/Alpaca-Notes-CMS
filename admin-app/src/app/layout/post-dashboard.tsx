@@ -684,7 +684,6 @@ export default function PostDashboard({
           <div className="post-dashboard__diary-ai-header">
             <div>
               <p className="post-dashboard__filter-label">素材整理助手</p>
-              <strong>勾选日记后整理为可复用素材，不生成月报文章</strong>
             </div>
             <div className="post-dashboard__diary-ai-actions">
               <span className="post-dashboard__diary-ai-count">已选 {selectedDiaryPosts.length} 篇</span>
@@ -886,7 +885,6 @@ export default function PostDashboard({
             <div className="post-dashboard__diary-month-nav-header">
               <div>
                 <p className="post-dashboard__filter-label">月份视图</p>
-                <strong>默认展示全部月份，点击后只看对应月份的日记</strong>
               </div>
             </div>
             <div className="post-dashboard__diary-month-pills">
@@ -937,10 +935,8 @@ export default function PostDashboard({
               </label>
               <span>
                 {selectedDiaryPosts.length > 0
-                  ? `已选择 ${selectedDiaryPosts.length} 篇，当前显示 ${activeDiaryMonthLabel}。`
-                  : activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY
-                    ? '默认展示全部月份，点击月份后再批量整理素材。'
-                    : `当前只显示 ${activeDiaryMonthLabel}，可直接全选本月。`}
+                  ? `已选择 ${selectedDiaryPosts.length} 篇 · ${activeDiaryMonthLabel}`
+                  : `当前显示 ${activeDiaryMonthLabel}`}
               </span>
             </div>
             {visibleDiaryMonthGroups.map((group) => {

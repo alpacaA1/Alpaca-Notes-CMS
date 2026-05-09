@@ -369,7 +369,7 @@ describe('post dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
     expect(screen.queryByText('五月第一则日记')).toBeNull()
     expect(screen.getByText('四月最后一则日记')).toBeTruthy()
-    expect(screen.getByText('当前只显示 2026 年 04 月，可直接全选本月。')).toBeTruthy()
+    expect(screen.getByText('当前显示 2026 年 04 月')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '查看全部月份' }))
     expect(screen.getByText('五月第一则日记')).toBeTruthy()
