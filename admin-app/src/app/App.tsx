@@ -25,7 +25,7 @@ import {
   stripGeneratedTopicBacklinks,
 } from './knowledge/wiki-links'
 import { resolveContentFormat } from './content-format'
-import { organizeDiaryMaterials, type DiaryAiEntry } from './diary/diary-ai-client'
+import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, type WritingMaterialEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
@@ -40,7 +40,7 @@ import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
 import { importReadLaterFromUrl } from './read-later/import-client'
-import { parseReadLaterItem } from './read-later/parse-item'
+import { parseReadLaterItem, parseReadLaterSections } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
 import { createNewDiaryEntry, createNewPost } from './posts/new-post'
@@ -84,11 +84,18 @@ type OpenIndexedPostOptions = {
   navigationBehavior?: 'reset' | 'push' | 'preserve'
 }
 
+type MaterialSourceType = Extract<ContentType, 'diary' | 'read-later'>
+type MaterialSelectionState = Record<MaterialSourceType, string[]>
+
 const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function createEmptyIndexedPostsByType(): IndexedPostsByType {
   return { post: [], diary: [], 'read-later': [], knowledge: [] }
+}
+
+function createEmptyMaterialSelectionState(): MaterialSelectionState {
+  return { diary: [], 'read-later': [] }
 }
 
 function createReadLaterAnnotationId() {
@@ -137,6 +144,30 @@ function getDeleteContentTypeLabel(contentType: ContentType) {
 
 function getContentCountUnit(contentType: ContentType) {
   return contentType === 'read-later' || contentType === 'knowledge' ? '条' : '篇'
+}
+
+function getReadLaterAnnotationSectionLabel(sectionKey: ReadLaterAnnotation['sectionKey']) {
+  if (sectionKey === 'summary') {
+    return '我的总结'
+  }
+
+  if (sectionKey === 'commentary') {
+    return '我的评论'
+  }
+
+  return '原文摘录'
+}
+
+function formatSelectedMaterialSummary(selection: MaterialSelectionState) {
+  const parts: string[] = []
+  if (selection.diary.length > 0) {
+    parts.push(`${selection.diary.length} 篇日记`)
+  }
+  if (selection['read-later'].length > 0) {
+    parts.push(`${selection['read-later'].length} 条待读`)
+  }
+
+  return parts.join(' · ') || '0 条素材'
 }
 
 function normalizeUrlForComparison(value: string) {
@@ -293,10 +324,11 @@ export default function App() {
   const [isSaving, setIsSaving] = useState(false)
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
   const [isQuickCollectingReadLater, setIsQuickCollectingReadLater] = useState(false)
-  const [isOrganizingDiaryMaterials, setIsOrganizingDiaryMaterials] = useState(false)
+  const [isOrganizingMaterials, setIsOrganizingMaterials] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [diaryMaterialResult, setDiaryMaterialResult] = useState<string | null>(null)
+  const [materialResult, setMaterialResult] = useState<string | null>(null)
+  const [selectedMaterialPaths, setSelectedMaterialPaths] = useState<MaterialSelectionState>(createEmptyMaterialSelectionState)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
@@ -358,6 +390,46 @@ export default function App() {
       ),
     }
   }, [contentType, posts])
+  const selectedMaterialCounts = useMemo(
+    () => ({
+      diary: selectedMaterialPaths.diary.length,
+      'read-later': selectedMaterialPaths['read-later'].length,
+    }),
+    [selectedMaterialPaths],
+  )
+  const selectedDiaryPosts = useMemo(() => {
+    const selectedPathSet = new Set(selectedMaterialPaths.diary)
+    return postsByType.diary.filter((post) => selectedPathSet.has(post.path))
+  }, [postsByType.diary, selectedMaterialPaths.diary])
+  const selectedReadLaterPosts = useMemo(() => {
+    const selectedPathSet = new Set(selectedMaterialPaths['read-later'])
+    return postsByType['read-later'].filter((post) => selectedPathSet.has(post.path))
+  }, [postsByType['read-later'], selectedMaterialPaths['read-later']])
+
+  useEffect(() => {
+    const availablePathsByType: Record<MaterialSourceType, Set<string>> = {
+      diary: new Set(postsByType.diary.map((post) => post.path)),
+      'read-later': new Set(postsByType['read-later'].map((post) => post.path)),
+    }
+
+    setSelectedMaterialPaths((current) => {
+      const nextDiaryPaths = current.diary.filter((path) => availablePathsByType.diary.has(path))
+      const nextReadLaterPaths = current['read-later'].filter((path) => availablePathsByType['read-later'].has(path))
+
+      if (
+        nextDiaryPaths.length === current.diary.length &&
+        nextReadLaterPaths.length === current['read-later'].length
+      ) {
+        return current
+      }
+
+      return {
+        diary: nextDiaryPaths,
+        'read-later': nextReadLaterPaths,
+      }
+    })
+  }, [postsByType.diary, postsByType['read-later']])
+
   const readLaterAnnotations = useMemo(
     () => (document?.contentType === 'read-later' ? (document.annotations || []) : []),
     [document],
@@ -451,13 +523,6 @@ export default function App() {
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
-
-  useEffect(() => {
-    if (contentType !== 'diary') {
-      setDiaryMaterialResult(null)
-      setIsOrganizingDiaryMaterials(false)
-    }
-  }, [contentType])
 
   useEffect(() => {
     if (!session || contentType !== 'read-later' || adminView !== 'annotations') {
@@ -1565,6 +1630,29 @@ export default function App() {
     }) || null
   }
 
+  const handleSelectedMaterialPathsChange = (type: MaterialSourceType, nextPaths: string[]) => {
+    setSelectedMaterialPaths((current) => {
+      const deduplicatedPaths = Array.from(new Set(nextPaths))
+      const currentPaths = current[type]
+
+      if (
+        deduplicatedPaths.length === currentPaths.length &&
+        deduplicatedPaths.every((path, index) => path === currentPaths[index])
+      ) {
+        return current
+      }
+
+      return {
+        ...current,
+        [type]: deduplicatedPaths,
+      }
+    })
+  }
+
+  const clearSelectedMaterials = () => {
+    setSelectedMaterialPaths(createEmptyMaterialSelectionState())
+  }
+
   const handleQuickCollectReadLater = async () => {
     if (!session || isQuickCollectingReadLater) {
       return
@@ -1631,48 +1719,85 @@ export default function App() {
     }
   }
 
-  const handleOrganizeDiaryMaterials = async (selectedPosts: PostIndexItem[]) => {
-    if (!session || isOrganizingDiaryMaterials) {
+  const handleOrganizeWritingMaterials = async () => {
+    if (!session || isOrganizingMaterials) {
       return
     }
 
-    if (selectedPosts.length === 0) {
+    if (selectedDiaryPosts.length === 0 && selectedReadLaterPosts.length === 0) {
       setSuccessMessage(null)
-      setError('请先勾选要整理的日记。')
+      setError('请先勾选要整理的日记或待读。')
       return
     }
 
-    setIsOrganizingDiaryMaterials(true)
-    setDiaryMaterialResult(null)
+    setIsOrganizingMaterials(true)
+    setMaterialResult(null)
     setSuccessMessage(null)
     setError(null)
 
     try {
-      const entries: DiaryAiEntry[] = await Promise.all(
-        selectedPosts.map(async (post) => {
+      const diaryEntries: DiaryAiEntry[] = await Promise.all(
+        selectedDiaryPosts.map(async (post) => {
           const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
           const diary = parsePost(file)
 
           return {
+            sourceType: 'diary',
             path: diary.path,
             title: diary.frontmatter.title || post.title,
             date: diary.frontmatter.date || post.date,
+            tags: diary.frontmatter.tags,
             body: diary.body,
           }
         }),
       )
-      const result = await organizeDiaryMaterials(session, entries)
-      setDiaryMaterialResult(result.materialMarkdown)
-      setSuccessMessage(`已整理 ${entries.length} 篇日记素材。`)
+      const readLaterEntries: ReadLaterAiEntry[] = await Promise.all(
+        selectedReadLaterPosts.map(async (post) => {
+          const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
+          const item = parseReadLaterItem(file)
+          const sections = parseReadLaterSections(item.body)
+
+          return {
+            sourceType: 'read-later',
+            path: item.path,
+            title: item.frontmatter.title || post.title,
+            date: item.frontmatter.date || post.date,
+            tags: item.frontmatter.tags,
+            sourceName: item.frontmatter.source_name || post.sourceName || '',
+            externalUrl: item.frontmatter.external_url || post.externalUrl || '',
+            readingStatus: item.frontmatter.reading_status || post.readingStatus || 'unread',
+            summary: sections.summary,
+            commentary: sections.commentary,
+            annotationNotes: item.annotations
+              .filter((annotation) => annotation.note.trim().length > 0)
+              .map((annotation) => ({
+                sectionLabel: getReadLaterAnnotationSectionLabel(annotation.sectionKey),
+                quote: annotation.quote.trim(),
+                note: annotation.note.trim(),
+                updatedAt: annotation.updatedAt,
+              })),
+          }
+        }),
+      )
+
+      const entries: WritingMaterialEntry[] = [...diaryEntries, ...readLaterEntries]
+      const result = await organizeWritingMaterials(session, entries)
+      setMaterialResult(result.materialMarkdown)
+      setSuccessMessage(
+        `已整理 ${formatSelectedMaterialSummary({
+          diary: diaryEntries.map((entry) => entry.path),
+          'read-later': readLaterEntries.map((entry) => entry.path),
+        })}。`,
+      )
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
         return
       }
 
-      setError(caughtError instanceof Error ? caughtError.message : '日记素材整理失败。')
+      setError(caughtError instanceof Error ? caughtError.message : '素材整理失败。')
     } finally {
-      setIsOrganizingDiaryMaterials(false)
+      setIsOrganizingMaterials(false)
     }
   }
 
@@ -1858,8 +1983,8 @@ export default function App() {
   const showIndexLoading = isIndexing && posts.length === 0
 
   const status = adminView === 'dashboard'
-    ? isOrganizingDiaryMaterials
-      ? '正在整理日记素材…'
+    ? isOrganizingMaterials
+      ? '正在整理月报素材…'
       : isIndexing
       ? posts.length > 0
         ? `正在刷新${indexedLabel}… · 共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
@@ -1869,8 +1994,8 @@ export default function App() {
       ? isAnnotationIndexing
         ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
         : `共 ${readLaterAnnotationIndex.length} 条批注`
-      : isOrganizingDiaryMaterials
-        ? '正在整理日记素材…'
+      : isOrganizingMaterials
+        ? '正在整理月报素材…'
       : isSaving && document
         ? `正在保存 ${document.path}`
         : isTogglingPinned && togglingPinnedPostPath
@@ -1945,7 +2070,6 @@ export default function App() {
             setSuccessMessage(null)
             setSearch('')
             setQuickReadLaterUrl('')
-            setDiaryMaterialResult(null)
             setEditorNavigationStack([])
             setContentType(value)
             setAdminView('dashboard')
@@ -1983,8 +2107,16 @@ export default function App() {
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
             togglingPinnedPostPath={togglingPinnedPostPath}
-            isOrganizingDiaryMaterials={isOrganizingDiaryMaterials}
-            diaryMaterialResult={diaryMaterialResult}
+            selectedMaterialPaths={
+              contentType === 'diary'
+                ? selectedMaterialPaths.diary
+                : contentType === 'read-later'
+                  ? selectedMaterialPaths['read-later']
+                  : []
+            }
+            selectedMaterialCounts={selectedMaterialCounts}
+            isOrganizingMaterials={isOrganizingMaterials}
+            materialResult={materialResult}
             onOpenPost={handleOpenPost}
             onOpenRecoveredDraft={handleOpenRecoveredDraft}
             onNewPost={handleNewPost}
@@ -1992,7 +2124,13 @@ export default function App() {
             onQuickCapture={handleQuickCollectReadLater}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
-            onOrganizeDiaryMaterials={(selectedPosts) => { void handleOrganizeDiaryMaterials(selectedPosts) }}
+            onSelectedMaterialPathsChange={(nextPaths) => {
+              if (contentType === 'diary' || contentType === 'read-later') {
+                handleSelectedMaterialPathsChange(contentType, nextPaths)
+              }
+            }}
+            onClearSelectedMaterials={clearSelectedMaterials}
+            onOrganizeMaterials={() => { void handleOrganizeWritingMaterials() }}
             onSearchFocus={() => searchInputRef.current?.focus()}
           />
         </section>

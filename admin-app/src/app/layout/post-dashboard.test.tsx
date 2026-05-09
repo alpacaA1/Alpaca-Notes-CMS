@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PostDashboard from './post-dashboard'
@@ -109,6 +110,63 @@ const diaryPosts: PostIndexItem[] = [
     contentType: 'diary',
   },
 ]
+
+function ControlledDiaryDashboard({
+  onOrganizeMaterials = vi.fn(),
+  materialResult = null,
+}: {
+  onOrganizeMaterials?: () => void
+  materialResult?: string | null
+}) {
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([])
+
+  return (
+    <PostDashboard
+      posts={diaryPosts}
+      search=""
+      isIndexing={false}
+      contentType="diary"
+      selectedMaterialPaths={selectedPaths}
+      selectedMaterialCounts={{ diary: selectedPaths.length, 'read-later': 0 }}
+      materialResult={materialResult}
+      onOpenPost={vi.fn()}
+      onNewPost={vi.fn()}
+      onDeletePost={vi.fn()}
+      onTogglePinned={vi.fn()}
+      onSelectedMaterialPathsChange={setSelectedPaths}
+      onOrganizeMaterials={onOrganizeMaterials}
+      onClearSelectedMaterials={() => setSelectedPaths([])}
+    />
+  )
+}
+
+function ControlledReadLaterDashboard({
+  onOrganizeMaterials = vi.fn(),
+  selectedDiaryCount = 0,
+}: {
+  onOrganizeMaterials?: () => void
+  selectedDiaryCount?: number
+}) {
+  const [selectedPaths, setSelectedPaths] = useState<string[]>([])
+
+  return (
+    <PostDashboard
+      posts={readLaterPosts}
+      search=""
+      isIndexing={false}
+      contentType="read-later"
+      selectedMaterialPaths={selectedPaths}
+      selectedMaterialCounts={{ diary: selectedDiaryCount, 'read-later': selectedPaths.length }}
+      onOpenPost={vi.fn()}
+      onNewPost={vi.fn()}
+      onDeletePost={vi.fn()}
+      onTogglePinned={vi.fn()}
+      onSelectedMaterialPathsChange={setSelectedPaths}
+      onOrganizeMaterials={onOrganizeMaterials}
+      onClearSelectedMaterials={() => setSelectedPaths([])}
+    />
+  )
+}
 
 describe('post dashboard', () => {
   afterEach(() => {
@@ -377,29 +435,39 @@ describe('post dashboard', () => {
   })
 
   it('selects all visible diary entries after filtering to a month and renders the material result', () => {
-    const onOrganizeDiaryMaterials = vi.fn()
+    const onOrganizeMaterials = vi.fn()
 
     render(
-      <PostDashboard
-        posts={diaryPosts}
-        search=""
-        isIndexing={false}
-        contentType="diary"
-        diaryMaterialResult="# 日记素材整理\n\n## 高频主题\n- 博客开发"
-        onOpenPost={vi.fn()}
-        onNewPost={vi.fn()}
-        onDeletePost={vi.fn()}
-        onTogglePinned={vi.fn()}
-        onOrganizeDiaryMaterials={onOrganizeDiaryMaterials}
+      <ControlledDiaryDashboard
+        materialResult="# 月报素材整理\n\n## 本月推进 / 发生了什么\n- 博客开发"
+        onOrganizeMaterials={onOrganizeMaterials}
       />,
     )
 
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
     fireEvent.click(screen.getByLabelText('选择全部可见日记'))
-    fireEvent.click(screen.getByRole('button', { name: '整理选中日记' }))
+    expect(screen.getByText('已选择 1 篇 · 2026 年 04 月')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '整理已选素材' }))
 
-    expect(onOrganizeDiaryMaterials).toHaveBeenCalledWith([diaryPosts[1]])
+    expect(onOrganizeMaterials).toHaveBeenCalled()
     expect(screen.getByText('整理结果')).toBeTruthy()
     expect(screen.getByText(/博客开发/)).toBeTruthy()
+  })
+
+  it('supports selecting read-later items and surfaces mixed material counts', () => {
+    const onOrganizeMaterials = vi.fn()
+
+    render(
+      <ControlledReadLaterDashboard
+        onOrganizeMaterials={onOrganizeMaterials}
+        selectedDiaryCount={2}
+      />,
+    )
+
+    expect(screen.getByText('当前已选 2 篇日记')).toBeTruthy()
+    fireEvent.click(screen.getByLabelText(`选择待读 ${readLaterPosts[0].title}`))
+    expect(screen.getByText('当前已选 2 篇日记 · 1 条待读')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '整理已选素材' }))
+    expect(onOrganizeMaterials).toHaveBeenCalled()
   })
 })

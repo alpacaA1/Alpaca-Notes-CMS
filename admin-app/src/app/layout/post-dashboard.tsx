@@ -23,6 +23,11 @@ type RecoverableDraft = {
   hasSavedBaseline: boolean
 }
 
+type SelectedMaterialCounts = {
+  diary: number
+  'read-later': number
+}
+
 type PostDashboardProps = {
   posts: PostIndexItem[]
   search: string
@@ -35,8 +40,10 @@ type PostDashboardProps = {
   deletingPostPath?: string | null
   isTogglingPinned?: boolean
   togglingPinnedPostPath?: string | null
-  isOrganizingDiaryMaterials?: boolean
-  diaryMaterialResult?: string | null
+  selectedMaterialPaths?: string[]
+  selectedMaterialCounts?: SelectedMaterialCounts
+  isOrganizingMaterials?: boolean
+  materialResult?: string | null
   onOpenPost: (post: PostIndexItem) => void
   onOpenRecoveredDraft?: (path: string) => void
   onNewPost: () => void
@@ -44,7 +51,9 @@ type PostDashboardProps = {
   onQuickCapture?: () => void
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
-  onOrganizeDiaryMaterials?: (posts: PostIndexItem[]) => void
+  onSelectedMaterialPathsChange?: (paths: string[]) => void
+  onClearSelectedMaterials?: () => void
+  onOrganizeMaterials?: () => void
   onSearchFocus?: () => void
 }
 
@@ -219,6 +228,18 @@ function formatKnowledgeCardDate(value: string) {
   return value ? value.slice(0, 10) : '无日期'
 }
 
+function formatSelectedMaterialSummary(counts: SelectedMaterialCounts) {
+  const parts: string[] = []
+  if (counts.diary > 0) {
+    parts.push(`${counts.diary} 篇日记`)
+  }
+  if (counts['read-later'] > 0) {
+    parts.push(`${counts['read-later']} 条待读`)
+  }
+
+  return parts.join(' · ') || '0 条素材'
+}
+
 function getDiaryMonthKey(post: PostIndexItem) {
   const dateMatch = post.date.match(/^(\d{4})-(\d{2})/)
   if (dateMatch) {
@@ -324,8 +345,10 @@ export default function PostDashboard({
   deletingPostPath = null,
   isTogglingPinned = false,
   togglingPinnedPostPath = null,
-  isOrganizingDiaryMaterials = false,
-  diaryMaterialResult = null,
+  selectedMaterialPaths = [],
+  selectedMaterialCounts = { diary: 0, 'read-later': 0 },
+  isOrganizingMaterials = false,
+  materialResult = null,
   onOpenPost,
   onOpenRecoveredDraft,
   onNewPost,
@@ -333,7 +356,9 @@ export default function PostDashboard({
   onQuickCapture,
   onDeletePost,
   onTogglePinned,
-  onOrganizeDiaryMaterials,
+  onSelectedMaterialPathsChange,
+  onClearSelectedMaterials,
+  onOrganizeMaterials,
   onSearchFocus,
 }: PostDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>('all')
@@ -342,12 +367,12 @@ export default function PostDashboard({
   const [sort, setSort] = useState<PostSort>('date-desc')
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
-  const [selectedDiaryPaths, setSelectedDiaryPaths] = useState<Set<string>>(() => new Set())
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
+  const isMaterialSelectable = isDiary || isReadLater
   const showQuickActions = true
 
   const { categories, tags: availableTags } = useMemo(() => {
@@ -369,7 +394,6 @@ export default function PostDashboard({
     setSelectedCategory(null)
     setSelectedTag(null)
     setSort('date-desc')
-    setSelectedDiaryPaths(new Set())
     setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
   }, [contentType])
 
@@ -409,9 +433,9 @@ export default function PostDashboard({
     () => visibleDiaryMonthGroups.flatMap((group) => group.posts),
     [visibleDiaryMonthGroups],
   )
-  const selectedDiaryPosts = useMemo(
-    () => filteredPosts.filter((post) => selectedDiaryPaths.has(post.path)),
-    [filteredPosts, selectedDiaryPaths],
+  const selectedMaterialPathSet = useMemo(
+    () => new Set(selectedMaterialPaths),
+    [selectedMaterialPaths],
   )
   const activeDiaryMonthLabel = useMemo(() => {
     if (activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
@@ -420,26 +444,18 @@ export default function PostDashboard({
 
     return diaryMonthGroups.find((group) => group.monthKey === activeDiaryMonthKey)?.label || '全部月份'
   }, [activeDiaryMonthKey, diaryMonthGroups])
-  const filteredDiaryPaths = useMemo(
-    () => new Set(filteredPosts.map((post) => post.path)),
-    [filteredPosts],
+  const visibleSelectablePosts = useMemo(
+    () => (isDiary ? visibleDiaryPosts : isReadLater ? filteredPosts : []),
+    [filteredPosts, isDiary, isReadLater, visibleDiaryPosts],
   )
-  const visibleDiaryPaths = useMemo(
-    () => new Set(visibleDiaryPosts.map((post) => post.path)),
-    [visibleDiaryPosts],
+  const selectedVisiblePosts = useMemo(
+    () => visibleSelectablePosts.filter((post) => selectedMaterialPathSet.has(post.path)),
+    [selectedMaterialPathSet, visibleSelectablePosts],
   )
-  const areAllVisibleDiaryPostsSelected = isDiary && visibleDiaryPosts.length > 0 && visibleDiaryPosts.every((post) => selectedDiaryPaths.has(post.path))
-
-  useEffect(() => {
-    if (!isDiary) {
-      return
-    }
-
-    setSelectedDiaryPaths((current) => {
-      const next = new Set(Array.from(current).filter((path) => filteredDiaryPaths.has(path)))
-      return next.size === current.size ? current : next
-    })
-  }, [filteredDiaryPaths, isDiary])
+  const areAllVisibleMaterialsSelected =
+    isMaterialSelectable &&
+    visibleSelectablePosts.length > 0 &&
+    visibleSelectablePosts.every((post) => selectedMaterialPathSet.has(post.path))
 
   useEffect(() => {
     if (!isDiary || activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
@@ -593,35 +609,31 @@ export default function PostDashboard({
     setSelectedTag(null)
   }
 
-  const setDiarySelection = (paths: string[], shouldSelect: boolean) => {
-    setSelectedDiaryPaths((current) => {
-      const next = new Set(current)
-      paths.forEach((path) => {
-        if (shouldSelect) {
-          next.add(path)
-          return
-        }
+  const setMaterialSelection = (paths: string[], shouldSelect: boolean) => {
+    const next = new Set(selectedMaterialPathSet)
+    paths.forEach((path) => {
+      if (shouldSelect) {
+        next.add(path)
+        return
+      }
 
-        next.delete(path)
-      })
-      return next
+      next.delete(path)
     })
+    onSelectedMaterialPathsChange?.(Array.from(next))
   }
 
-  const toggleDiaryPostSelection = (post: PostIndexItem) => {
-    setDiarySelection([post.path], !selectedDiaryPaths.has(post.path))
+  const toggleMaterialSelection = (post: PostIndexItem) => {
+    setMaterialSelection([post.path], !selectedMaterialPathSet.has(post.path))
   }
 
-  const clearDiarySelection = () => {
-    setSelectedDiaryPaths(new Set())
-  }
-
-  const toggleAllVisibleDiarySelection = () => {
-    setDiarySelection(
-      visibleDiaryPosts.map((post) => post.path),
-      !areAllVisibleDiaryPostsSelected,
+  const toggleAllVisibleMaterialSelection = () => {
+    setMaterialSelection(
+      visibleSelectablePosts.map((post) => post.path),
+      !areAllVisibleMaterialsSelected,
     )
   }
+
+  const helperSelectionSummary = formatSelectedMaterialSummary(selectedMaterialCounts)
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>
@@ -683,38 +695,46 @@ export default function PostDashboard({
         </section>
       ) : null}
 
-      {isDiary ? (
-        <section className="post-dashboard__diary-ai" aria-label="日记素材整理助手">
+      {isDiary || isReadLater ? (
+        <section className="post-dashboard__diary-ai" aria-label="月报素材整理助手">
           <div className="post-dashboard__diary-ai-header">
             <div>
-              <p className="post-dashboard__filter-label">素材整理助手</p>
+              <p className="post-dashboard__filter-label">月报素材</p>
+              <strong>可同时整理日记与待读笔记</strong>
+              <span className="post-dashboard__diary-ai-count">
+                当前已选 {helperSelectionSummary}
+              </span>
+              {isReadLater ? (
+                <span className="post-dashboard__diary-ai-count">
+                  待读会提取我的总结、我的评论和有评论的批注。
+                </span>
+              ) : null}
             </div>
             <div className="post-dashboard__diary-ai-actions">
-              <span className="post-dashboard__diary-ai-count">已选 {selectedDiaryPosts.length} 篇</span>
               <button
                 type="button"
                 className="post-dashboard__diary-ai-secondary-btn"
-                onClick={clearDiarySelection}
-                disabled={selectedDiaryPosts.length === 0 || isOrganizingDiaryMaterials}
+                onClick={onClearSelectedMaterials}
+                disabled={(selectedMaterialCounts.diary === 0 && selectedMaterialCounts['read-later'] === 0) || isOrganizingMaterials}
               >
-                清空选择
+                清空已选
               </button>
               <button
                 type="button"
                 className="post-dashboard__diary-ai-primary-btn"
-                onClick={() => onOrganizeDiaryMaterials?.(selectedDiaryPosts)}
-                disabled={selectedDiaryPosts.length === 0 || isOrganizingDiaryMaterials}
+                onClick={onOrganizeMaterials}
+                disabled={(selectedMaterialCounts.diary === 0 && selectedMaterialCounts['read-later'] === 0) || isOrganizingMaterials}
               >
-                {isOrganizingDiaryMaterials ? '整理中…' : '整理选中日记'}
+                {isOrganizingMaterials ? '整理中…' : '整理已选素材'}
               </button>
             </div>
           </div>
-          {diaryMaterialResult ? (
+          {materialResult ? (
             <div className="post-dashboard__diary-ai-result">
               <div className="post-dashboard__diary-ai-result-header">
                 <span>整理结果</span>
               </div>
-              <pre>{diaryMaterialResult}</pre>
+              <pre>{materialResult}</pre>
             </div>
           ) : null}
         </section>
@@ -847,6 +867,25 @@ export default function PostDashboard({
         </div>
       </div>
 
+      {isReadLater && filteredPosts.length > 0 ? (
+        <div className="post-dashboard__diary-selection-bar post-dashboard__diary-selection-bar--reader">
+          <label className="post-dashboard__diary-check">
+            <input
+              type="checkbox"
+              aria-label="选择全部可见待读"
+              checked={areAllVisibleMaterialsSelected}
+              onChange={toggleAllVisibleMaterialSelection}
+            />
+            <span>选择全部当前结果</span>
+          </label>
+          <span>
+            {selectedVisiblePosts.length > 0
+              ? `当前页已选 ${selectedVisiblePosts.length} 条待读`
+              : `当前显示 ${filteredPosts.length} 条待读`}
+          </span>
+        </div>
+      ) : null}
+
       {isIndexing ? (
         <div className="post-dashboard__loading">
           <div className="post-dashboard__skeleton-grid">
@@ -904,7 +943,7 @@ export default function PostDashboard({
                 </span>
               </button>
               {diaryMonthGroups.map((group) => {
-                const selectedInMonth = group.posts.filter((post) => selectedDiaryPaths.has(post.path)).length
+                const selectedInMonth = group.posts.filter((post) => selectedMaterialPathSet.has(post.path)).length
 
                 return (
                   <button
@@ -926,25 +965,25 @@ export default function PostDashboard({
               })}
             </div>
           </section>
-          <div className="post-dashboard__diary-main-column">
-            <div className="post-dashboard__diary-selection-bar">
-              <label className="post-dashboard__diary-check">
-                <input
-                  type="checkbox"
-                  aria-label="选择全部可见日记"
-                  checked={areAllVisibleDiaryPostsSelected}
-                  onChange={toggleAllVisibleDiarySelection}
-                />
-                <span>选择全部可见日记</span>
-              </label>
-              <span>
-                {selectedDiaryPosts.length > 0
-                  ? `已选择 ${selectedDiaryPosts.length} 篇 · ${activeDiaryMonthLabel}`
+            <div className="post-dashboard__diary-main-column">
+              <div className="post-dashboard__diary-selection-bar">
+                <label className="post-dashboard__diary-check">
+                  <input
+                    type="checkbox"
+                    aria-label="选择全部可见日记"
+                    checked={areAllVisibleMaterialsSelected}
+                    onChange={toggleAllVisibleMaterialSelection}
+                  />
+                  <span>选择全部可见日记</span>
+                </label>
+                <span>
+                {selectedVisiblePosts.length > 0
+                  ? `已选择 ${selectedVisiblePosts.length} 篇 · ${activeDiaryMonthLabel}`
                   : `当前显示 ${activeDiaryMonthLabel}`}
-              </span>
-            </div>
+                </span>
+              </div>
             {visibleDiaryMonthGroups.map((group) => {
-              const selectedInMonth = group.posts.filter((post) => selectedDiaryPaths.has(post.path)).length
+              const selectedInMonth = group.posts.filter((post) => selectedMaterialPathSet.has(post.path)).length
 
               return (
                 <section key={group.monthKey} className="post-dashboard__diary-month">
@@ -957,7 +996,7 @@ export default function PostDashboard({
                   <div className="post-dashboard__diary-month-content">
                     <div className="post-dashboard__diary-list">
                       {group.posts.map((post) => {
-                        const isSelected = selectedDiaryPaths.has(post.path)
+                        const isSelected = selectedMaterialPathSet.has(post.path)
                         const isDeletingThisPost = deletingPostPath === post.path
                         const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
                         const isPinnedToggleDisabled = isDeleting || isTogglingPinned
@@ -972,7 +1011,7 @@ export default function PostDashboard({
                                 type="checkbox"
                                 aria-label={`选择日记 ${post.title}`}
                                 checked={isSelected}
-                                onChange={() => toggleDiaryPostSelection(post)}
+                                onChange={() => toggleMaterialSelection(post)}
                               />
                             </label>
                             <button
@@ -1068,6 +1107,7 @@ export default function PostDashboard({
             {filteredPosts.map((post) => {
               const statusTone = getStatusTone(post, contentType)
               const statusLabel = getStatusLabel(post, contentType)
+              const isSelected = selectedMaterialPathSet.has(post.path)
               const primaryMeta = isReadLater
                 ? post.sourceName || '未填写来源'
                 : isDiary
@@ -1083,13 +1123,8 @@ export default function PostDashboard({
                     ? post.sourceUrl || post.sourcePath || '内部知识库'
                     : post.permalink || '—'
 
-              return (
-                <button
-                  key={post.path}
-                  type="button"
-                  className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
-                  onClick={() => onOpenPost(post)}
-                >
+              const cardContent = (
+                <>
                   {post.cover ? (
                     <div className="post-dashboard__card-cover" style={{ backgroundImage: `url(${post.cover})` }} />
                   ) : null}
@@ -1116,6 +1151,42 @@ export default function PostDashboard({
                     <span className="post-dashboard__card-category">{primaryMeta}</span>
                     <span className="post-dashboard__card-link">{secondaryMeta}</span>
                   </div>
+                </>
+              )
+
+              if (isReadLater) {
+                return (
+                  <article
+                    key={post.path}
+                    className={`post-dashboard__card-shell${isSelected ? ' is-selected' : ''}`}
+                  >
+                    <label className="post-dashboard__card-check">
+                      <input
+                        type="checkbox"
+                        aria-label={`选择待读 ${post.title}`}
+                        checked={isSelected}
+                        onChange={() => toggleMaterialSelection(post)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}${isSelected ? ' is-selected' : ''}`}
+                      onClick={() => onOpenPost(post)}
+                    >
+                      {cardContent}
+                    </button>
+                  </article>
+                )
+              }
+
+              return (
+                <button
+                  key={post.path}
+                  type="button"
+                  className={`post-dashboard__card${post.pinned ? ' post-dashboard__card--pinned' : ''}`}
+                  onClick={() => onOpenPost(post)}
+                >
+                  {cardContent}
                 </button>
               )
             })}
@@ -1123,7 +1194,8 @@ export default function PostDashboard({
         )
       ) : (
         <div className="post-dashboard__list">
-          <div className={`post-dashboard__list-header${showQuickActions ? ' post-dashboard__list-header--with-actions' : ''}`}>
+          <div className={`post-dashboard__list-header${showQuickActions ? ' post-dashboard__list-header--with-actions' : ''}${isReadLater ? ' post-dashboard__list-header--selectable' : ''}`}>
+            {isReadLater ? <span className="post-dashboard__list-col post-dashboard__list-col--check" aria-hidden="true" /> : null}
             <div className="post-dashboard__list-header-main">
               <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
@@ -1137,6 +1209,7 @@ export default function PostDashboard({
           {filteredPosts.map((post) => {
             const statusTone = getStatusTone(post, contentType)
             const statusLabel = getStatusLabel(post, contentType)
+            const isSelected = selectedMaterialPathSet.has(post.path)
             const isDeletingThisPost = deletingPostPath === post.path
             const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
             const isPinnedToggleDisabled = isDeleting || isTogglingPinned
@@ -1144,8 +1217,18 @@ export default function PostDashboard({
             return (
               <div
                 key={post.path}
-                className={`post-dashboard__list-row${showQuickActions ? ' post-dashboard__list-row--with-actions' : ''}${post.pinned ? ' post-dashboard__list-row--pinned' : ''}`}
+                className={`post-dashboard__list-row${showQuickActions ? ' post-dashboard__list-row--with-actions' : ''}${isReadLater ? ' post-dashboard__list-row--selectable' : ''}${post.pinned ? ' post-dashboard__list-row--pinned' : ''}${isReadLater && isSelected ? ' is-selected' : ''}`}
               >
+                {isReadLater ? (
+                  <label className="post-dashboard__diary-row-check post-dashboard__list-row-check">
+                    <input
+                      type="checkbox"
+                      aria-label={`选择待读 ${post.title}`}
+                      checked={isSelected}
+                      onChange={() => toggleMaterialSelection(post)}
+                    />
+                  </label>
+                ) : null}
                 <button
                   type="button"
                   className="post-dashboard__list-main"

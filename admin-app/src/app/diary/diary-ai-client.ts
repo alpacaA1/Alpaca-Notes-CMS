@@ -1,20 +1,45 @@
 import { DIARY_AI_URL } from '../config'
 import { GitHubAuthError } from '../github-client'
+import type { ReadingStatus } from '../posts/parse-post'
 import type { SessionState } from '../session'
 
-export type DiaryAiEntry = {
+export type MaterialAnnotationNote = {
+  sectionLabel: string
+  quote: string
+  note: string
+  updatedAt: string
+}
+
+type BaseWritingMaterialEntry = {
   path: string
   title: string
   date: string
+  tags: string[]
+}
+
+export type DiaryAiEntry = BaseWritingMaterialEntry & {
+  sourceType: 'diary'
   body: string
 }
 
-export type DiaryAiResult = {
+export type ReadLaterAiEntry = BaseWritingMaterialEntry & {
+  sourceType: 'read-later'
+  sourceName: string
+  externalUrl: string
+  readingStatus: ReadingStatus
+  summary: string
+  commentary: string
+  annotationNotes: MaterialAnnotationNote[]
+}
+
+export type WritingMaterialEntry = DiaryAiEntry | ReadLaterAiEntry
+
+export type WritingMaterialAiResult = {
   materialMarkdown: string
   model?: string
 }
 
-type DiaryAiResponse = Partial<DiaryAiResult> & {
+type WritingMaterialAiResponse = Partial<WritingMaterialAiResult> & {
   message?: string
 }
 
@@ -23,14 +48,14 @@ function readErrorMessage(payload: unknown) {
     return ''
   }
 
-  const message = (payload as DiaryAiResponse).message
+  const message = (payload as WritingMaterialAiResponse).message
   return typeof message === 'string' ? message : ''
 }
 
-export async function organizeDiaryMaterials(
+export async function organizeWritingMaterials(
   session: SessionState,
-  entries: DiaryAiEntry[],
-): Promise<DiaryAiResult> {
+  entries: WritingMaterialEntry[],
+): Promise<WritingMaterialAiResult> {
   const response = await fetch(DIARY_AI_URL, {
     method: 'POST',
     headers: {
@@ -41,9 +66,9 @@ export async function organizeDiaryMaterials(
     body: JSON.stringify({ entries }),
   })
 
-  let payload: DiaryAiResponse | null = null
+  let payload: WritingMaterialAiResponse | null = null
   try {
-    payload = (await response.json()) as DiaryAiResponse
+    payload = (await response.json()) as WritingMaterialAiResponse
   } catch {
     payload = null
   }

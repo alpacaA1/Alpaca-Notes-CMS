@@ -4,6 +4,7 @@ const MAX_ENTRIES = 30;
 const MAX_BODY_CHARS = 8000;
 const MAX_TOTAL_BODY_CHARS = 120000;
 const MAX_REQUEST_CHARS = 180000;
+const MAX_ANNOTATION_NOTES = 20;
 
 class DiaryAiRequestError extends Error {
   constructor(message, statusCode = 400) {
@@ -54,7 +55,7 @@ function readJsonBody(req) {
       raw += chunk;
       if (raw.length > MAX_REQUEST_CHARS) {
         settled = true;
-        reject(new DiaryAiRequestError('选中的日记内容过多，请减少后重试。', 413));
+        reject(new DiaryAiRequestError('选中的素材内容过多，请减少后重试。', 413));
       }
     });
 
@@ -82,74 +83,172 @@ function toStringValue(value) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function toStringList(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => toStringValue(item))
+    .filter(Boolean)
+    .slice(0, 12);
+}
+
+function normalizeAnnotationNotes(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((note) => ({
+      sectionLabel: toStringValue(note?.sectionLabel) || '批注',
+      quote: toStringValue(note?.quote).slice(0, 400),
+      note: toStringValue(note?.note).slice(0, 1000),
+      updatedAt: toStringValue(note?.updatedAt),
+    }))
+    .filter((note) => note.quote || note.note)
+    .slice(0, MAX_ANNOTATION_NOTES);
+}
+
 function normalizeEntries(payload) {
   const entries = Array.isArray(payload?.entries) ? payload.entries : [];
   if (entries.length === 0) {
-    throw new DiaryAiRequestError('请至少选择一篇日记。');
+    throw new DiaryAiRequestError('请至少选择一条素材。');
   }
 
   if (entries.length > MAX_ENTRIES) {
-    throw new DiaryAiRequestError(`一次最多整理 ${MAX_ENTRIES} 篇日记。`);
+    throw new DiaryAiRequestError(`一次最多整理 ${MAX_ENTRIES} 条素材。`);
   }
 
   let totalBodyChars = 0;
   const normalizedEntries = entries.map((entry) => {
+    const sourceType = entry?.sourceType === 'read-later' ? 'read-later' : 'diary';
+    const path = toStringValue(entry?.path);
+    const title = toStringValue(entry?.title) || (sourceType === 'read-later' ? '未命名待读' : '未命名日记');
+    const date = toStringValue(entry?.date);
+    const tags = toStringList(entry?.tags);
+
+    if (sourceType === 'read-later') {
+      const summary = toStringValue(entry?.summary).slice(0, MAX_BODY_CHARS);
+      const commentary = toStringValue(entry?.commentary).slice(0, MAX_BODY_CHARS);
+      const annotationNotes = normalizeAnnotationNotes(entry?.annotationNotes);
+      const annotationChars = annotationNotes.reduce((total, note) => total + note.quote.length + note.note.length, 0);
+      totalBodyChars += summary.length + commentary.length + annotationChars;
+
+      return {
+        sourceType,
+        path,
+        title,
+        date,
+        tags,
+        sourceName: toStringValue(entry?.sourceName),
+        externalUrl: toStringValue(entry?.externalUrl),
+        readingStatus: ['unread', 'reading', 'done'].includes(entry?.readingStatus) ? entry.readingStatus : 'unread',
+        summary,
+        commentary,
+        annotationNotes,
+      };
+    }
+
     const body = toStringValue(entry?.body).slice(0, MAX_BODY_CHARS);
     totalBodyChars += body.length;
 
     return {
-      path: toStringValue(entry?.path),
-      title: toStringValue(entry?.title) || '未命名日记',
-      date: toStringValue(entry?.date),
+      sourceType,
+      path,
+      title,
+      date,
+      tags,
       body,
     };
   });
 
   if (totalBodyChars === 0) {
-    throw new DiaryAiRequestError('选中的日记没有可整理的正文。');
+    throw new DiaryAiRequestError('选中的素材没有可整理的内容。');
   }
 
   if (totalBodyChars > MAX_TOTAL_BODY_CHARS) {
-    throw new DiaryAiRequestError('选中的日记内容过多，请减少后重试。', 413);
+    throw new DiaryAiRequestError('选中的素材内容过多，请减少后重试。', 413);
   }
 
   return normalizedEntries;
 }
 
+function buildDiaryMaterialBlock(entry, index) {
+  return [
+    `### 素材 ${index + 1} · 日记`,
+    `标题：${entry.title}`,
+    `日期：${entry.date || '未标日期'}`,
+    `路径：${entry.path || '未标路径'}`,
+    `标签：${entry.tags.length > 0 ? entry.tags.join('、') : '无'}`,
+    '',
+    entry.body,
+  ].join('\n');
+}
+
+function buildReadLaterMaterialBlock(entry, index) {
+  const noteBlock = entry.annotationNotes.length > 0
+    ? entry.annotationNotes.map((note, noteIndex) => [
+      `- 批注 ${noteIndex + 1} · ${note.sectionLabel}`,
+      `  摘录：${note.quote || '（无摘录）'}`,
+      `  评论：${note.note || '（无评论）'}`,
+      `  更新时间：${note.updatedAt || '未记录'}`,
+    ].join('\n')).join('\n')
+    : '- 无带评论的批注';
+
+  return [
+    `### 素材 ${index + 1} · 待读`,
+    `标题：${entry.title}`,
+    `收录日期：${entry.date || '未标日期'}`,
+    `路径：${entry.path || '未标路径'}`,
+    `来源：${entry.sourceName || '未填写来源'}`,
+    `原文链接：${entry.externalUrl || '未填写原文链接'}`,
+    `阅读状态：${entry.readingStatus === 'done' ? '已读' : entry.readingStatus === 'reading' ? '在读' : '未读'}`,
+    `标签：${entry.tags.length > 0 ? entry.tags.join('、') : '无'}`,
+    '',
+    '#### 我的总结',
+    entry.summary || '（空）',
+    '',
+    '#### 我的评论',
+    entry.commentary || '（空）',
+    '',
+    '#### 批注',
+    noteBlock,
+  ].join('\n');
+}
+
 function buildDiaryPrompt(entries) {
-  const diaryBlock = entries
-    .map((entry, index) => [
-      `### 日记 ${index + 1}`,
-      `标题：${entry.title}`,
-      `日期：${entry.date || '未标日期'}`,
-      `路径：${entry.path || '未标路径'}`,
-      '',
-      entry.body,
-    ].join('\n'))
+  const materialBlock = entries
+    .map((entry, index) => (
+      entry.sourceType === 'read-later'
+        ? buildReadLaterMaterialBlock(entry, index)
+        : buildDiaryMaterialBlock(entry, index)
+    ))
     .join('\n\n---\n\n');
 
-  return `请整理下面这些日记为后续写作可复用的素材。要求：
-- 只做素材整理，不要写月报、不要生成文章、不要替用户做结论包装。
-- 忠实于日记原文，不补充外部事实。
-- 按月或日期保留关键线索，尽量写成可直接复制进素材库的 Markdown。
-- 优先提炼事件、阶段性进展、情绪变化、问题/洞察、可引用原句。
+  return `请整理下面这些素材，供后续撰写月报或阶段总结使用。要求：
+- 只做素材整理，不要直接代写月报，不要生成成品文章。
+- 忠实于输入内容，不补充外部事实。
+- 日记更偏向事实、进展、情绪、问题；待读更偏向我的总结、我的评论、以及我标出的批注观点。
+- 对待读不要大段复述原文，优先提炼真正值得写进月报的判断、提醒和可引用句子。
+- 输出尽量低加工，保留时间线和引用线索，方便后续自行组织月报。
 
 输出格式：
-# 日记素材整理
-## 高频主题
-## 事件线索
-## 可复用素材
-## 可继续追问的问题
+# 月报素材整理
+## 本月推进 / 发生了什么
+## 值得写进月报的观点 / 判断
+## 可直接引用的句子
+## 可继续展开的线索
 
-日记如下：
+素材如下：
 
-${diaryBlock}`;
+${materialBlock}`;
 }
 
 async function callDiaryModel(entries) {
   const apiKey = process.env.DIARY_AI_API_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    throw new DiaryAiRequestError('未配置日记 AI 模型密钥。', 500);
+    throw new DiaryAiRequestError('未配置素材整理 AI 模型密钥。', 500);
   }
 
   const baseUrl = (process.env.DIARY_AI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
@@ -167,7 +266,7 @@ async function callDiaryModel(entries) {
       messages: [
         {
           role: 'system',
-          content: '你是一个中文个人写作素材整理助手，擅长从日记中提炼真实、可复用、低加工度的素材。你不会生成月报文章。',
+          content: '你是一个中文个人写作素材整理助手，擅长从日记、待读笔记与批注中提炼真实、可复用、低加工度的素材。你不会直接生成月报成文。',
         },
         {
           role: 'user',
@@ -179,7 +278,7 @@ async function callDiaryModel(entries) {
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = data?.error?.message || '日记素材整理模型请求失败。';
+    const message = data?.error?.message || '素材整理模型请求失败。';
     throw new DiaryAiRequestError(message, response.status >= 400 && response.status < 500 ? 502 : 500);
   }
 
@@ -188,7 +287,7 @@ async function callDiaryModel(entries) {
     : '';
 
   if (!materialMarkdown) {
-    throw new DiaryAiRequestError('日记素材整理结果为空。', 502);
+    throw new DiaryAiRequestError('素材整理结果为空。', 502);
   }
 
   return { materialMarkdown, model };
@@ -238,7 +337,7 @@ async function handler(req, res) {
       return;
     }
 
-    sendJson(req, res, 500, { message: error instanceof Error ? error.message : '日记素材整理失败。' });
+    sendJson(req, res, 500, { message: error instanceof Error ? error.message : '素材整理失败。' });
   }
 }
 
