@@ -435,48 +435,31 @@ describe('post dashboard', () => {
   })
 
   it('selects all visible diary entries after filtering to a month and renders the material result', () => {
-    const onOrganizeMaterials = vi.fn()
-
     render(
       <ControlledDiaryDashboard
         materialResult="# 月报素材整理\n\n## 本月推进 / 发生了什么\n- 博客开发"
-        onOrganizeMaterials={onOrganizeMaterials}
       />,
     )
 
-    const organizeButton = screen.getByRole('button', { name: '整理素材' })
-    const newPostButton = screen.getByRole('button', { name: '+ 新建日记' })
-    expect((organizeButton as HTMLButtonElement).disabled).toBe(true)
-    expect(organizeButton.compareDocumentPosition(newPostButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+    expect(screen.queryByRole('button', { name: '整理素材' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
     fireEvent.click(screen.getByLabelText('选择全部可见日记'))
     expect(screen.getByText('已选择 1 篇 · 2026 年 04 月')).toBeTruthy()
-    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
-    fireEvent.click(organizeButton)
-
-    expect(onOrganizeMaterials).toHaveBeenCalled()
     expect(screen.getByText('整理结果')).toBeTruthy()
     expect(screen.getByText(/博客开发/)).toBeTruthy()
   })
 
-  it('supports selecting read-later items and surfaces mixed material counts', () => {
-    const onOrganizeMaterials = vi.fn()
-
+  it('supports selecting read-later items without rendering the toolbar organizer module', () => {
     render(
       <ControlledReadLaterDashboard
-        onOrganizeMaterials={onOrganizeMaterials}
         selectedDiaryCount={2}
       />,
     )
 
-    expect(screen.getByText('当前已选 2 篇日记')).toBeTruthy()
-    const organizeButton = screen.getByRole('button', { name: '整理素材' })
-    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
+    expect(screen.queryByRole('button', { name: '整理素材' })).toBeNull()
+    expect(screen.getByText('当前显示 1 条待读')).toBeTruthy()
     fireEvent.click(screen.getByLabelText(`选择待读 ${readLaterPosts[0].title}`))
-    expect(screen.getByText('当前已选 2 篇日记 · 1 条待读')).toBeTruthy()
-    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
-    fireEvent.click(organizeButton)
-    expect(onOrganizeMaterials).toHaveBeenCalled()
+    expect(screen.getByText('当前页已选 1 条待读')).toBeTruthy()
   })
 })

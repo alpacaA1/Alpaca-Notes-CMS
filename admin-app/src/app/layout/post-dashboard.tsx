@@ -778,39 +778,6 @@ export default function PostDashboard({
         </div>
 
         <div className="post-dashboard__toolbar-right">
-          {isMaterialSelectable ? (
-            <div className="post-dashboard__material-helper" aria-label="素材整理状态">
-              <div className="post-dashboard__material-helper-copy">
-                <span className="post-dashboard__material-helper-summary">
-                  当前已选 {helperSelectionSummary}
-                </span>
-                {isReadLater ? (
-                  <span className="post-dashboard__material-helper-note">
-                    待读会提取我的总结、我的评论和有评论的批注。
-                  </span>
-                ) : null}
-              </div>
-              <div className="post-dashboard__material-helper-actions">
-                <button
-                  type="button"
-                  className="post-dashboard__toolbar-secondary-btn"
-                  onClick={onClearSelectedMaterials}
-                  disabled={!hasSelectedMaterials || isOrganizingMaterials}
-                >
-                  清空已选
-                </button>
-                <button
-                  type="button"
-                  className="post-dashboard__organize-btn"
-                  onClick={onOrganizeMaterials}
-                  disabled={!hasSelectedMaterials || isOrganizingMaterials}
-                  title="整理已选素材"
-                >
-                  {isOrganizingMaterials ? '整理中…' : '整理素材'}
-                </button>
-              </div>
-            </div>
-          ) : null}
           {!isKnowledge && !isDiary ? (
             <div className="post-dashboard__view-toggle">
               <button
