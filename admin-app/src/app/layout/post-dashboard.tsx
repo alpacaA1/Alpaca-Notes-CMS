@@ -4,6 +4,7 @@ import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
 import type { ContentType, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
+import FilterSelect from './filter-select'
 
 type DashboardViewMode = 'grid' | 'list'
 type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
@@ -410,6 +411,18 @@ export default function PostDashboard({
 
   const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : isDiary || isKnowledge ? [{ value: 'all' as const, label: '全部' }] : POST_STATUS_OPTIONS
   const sortOptions = isReadLater ? READ_LATER_SORT_OPTIONS : POST_SORT_OPTIONS
+  const categoryFilterOptions = useMemo(
+    () => [{ value: '', label: '全部分类' }, ...categories.map((category) => ({ value: category, label: category }))],
+    [categories],
+  )
+  const tagFilterOptions = useMemo(
+    () => [{ value: '', label: '全部标签' }, ...availableTags.map((tag) => ({ value: tag, label: tag }))],
+    [availableTags],
+  )
+  const sortFilterOptions = useMemo(
+    () => sortOptions.map((option) => ({ value: option.value, label: option.label })),
+    [sortOptions],
+  )
   const statCards = isReadLater
     ? [
         { value: 'all' as const, label: '全部', count: posts.length },
@@ -451,8 +464,18 @@ export default function PostDashboard({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return
+      }
+
       const target = event.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT') {
+      if (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.closest('.filter-select') ||
+        target.closest('.taxonomy-multi-select')
+      ) {
         return
       }
 
@@ -690,50 +713,35 @@ export default function PostDashboard({
         {!isReadLater && !isDiary ? (
           <div className="post-dashboard__filter-group">
             <span className="post-dashboard__filter-label">分类</span>
-            <select
-              className="post-dashboard__select"
+            <FilterSelect
+              label="分类"
               value={selectedCategory ?? ''}
-              onChange={(event) => setSelectedCategory(event.target.value || null)}
-            >
-              <option value="">全部分类</option>
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+              options={categoryFilterOptions}
+              searchable
+              onChange={(nextValue) => setSelectedCategory(nextValue || null)}
+            />
           </div>
         ) : null}
 
         <div className="post-dashboard__filter-group">
           <span className="post-dashboard__filter-label">标签</span>
-          <select
-            className="post-dashboard__select"
+          <FilterSelect
+            label="标签"
             value={selectedTag ?? ''}
-            onChange={(event) => setSelectedTag(event.target.value || null)}
-          >
-            <option value="">全部标签</option>
-            {availableTags.map((tag) => (
-              <option key={tag} value={tag}>
-                {tag}
-              </option>
-            ))}
-          </select>
+            options={tagFilterOptions}
+            searchable
+            onChange={(nextValue) => setSelectedTag(nextValue || null)}
+          />
         </div>
 
         <div className="post-dashboard__filter-group">
           <span className="post-dashboard__filter-label">排序</span>
-          <select
-            className="post-dashboard__select"
+          <FilterSelect
+            label="排序"
             value={sort}
-            onChange={(event) => setSort(event.target.value as PostSort)}
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            options={sortFilterOptions}
+            onChange={(nextValue) => setSort(nextValue as PostSort)}
+          />
         </div>
 
         <div className="post-dashboard__toolbar-right">

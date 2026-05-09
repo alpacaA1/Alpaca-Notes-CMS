@@ -198,7 +198,7 @@ describe('App read-later annotations view', () => {
     expect(screen.queryByText('跳回原文')).toBeNull()
     expect(screen.getByText('在读')).toBeTruthy()
     expect(screen.getByText('已读')).toBeTruthy()
-    expect(screen.getByRole('combobox', { name: '排序规则' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '筛选排序规则' })).toBeTruthy()
     expect(screen.queryByText('Product Weekly')).toBeNull()
     expect(screen.queryByText('Design Notes')).toBeNull()
     expect(screen.getByRole('button', { name: '打开原文：产品研究 A' })).toBeTruthy()
@@ -232,24 +232,20 @@ describe('App read-later annotations view', () => {
     fireEvent.click(screen.getByRole('button', { name: '展开文章栏' }))
     expect(screen.getByRole('button', { name: '收起文章栏' })).toBeTruthy()
 
-    fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
-      target: { value: readLaterPosts[0].path },
-    })
+    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
+    fireEvent.click(screen.getByRole('option', { name: '产品研究 A' }))
     expect(screen.getByText('要回看的句子')).toBeTruthy()
     expect(screen.queryByText('交互上的提醒')).toBeNull()
 
-    fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
-      target: { value: '__all_sources__' },
-    })
-    fireEvent.change(screen.getByRole('combobox', { name: '标签' }), {
-      target: { value: '设计' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
+    fireEvent.click(screen.getByRole('option', { name: '全部来源文章' }))
+    fireEvent.click(screen.getByRole('button', { name: '筛选标签' }))
+    fireEvent.click(screen.getByRole('option', { name: '设计' }))
     expect(screen.queryByText('要回看的句子')).toBeNull()
     expect(screen.getByText('交互上的提醒')).toBeTruthy()
 
-    fireEvent.change(screen.getByRole('combobox', { name: '标签' }), {
-      target: { value: '__all_tags__' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: '筛选标签' }))
+    fireEvent.click(screen.getByRole('option', { name: '全部标签' }))
     fireEvent.change(screen.getByRole('textbox', { name: '搜索' }), {
       target: { value: '写作切入点' },
     })
@@ -262,16 +258,14 @@ describe('App read-later annotations view', () => {
       expect(screen.getByText('交互上的提醒')).toBeTruthy()
     })
 
-    fireEvent.change(screen.getByRole('combobox', { name: '排序规则' }), {
-      target: { value: 'source-asc' },
-    })
+    fireEvent.click(screen.getByRole('button', { name: '筛选排序规则' }))
+    fireEvent.click(screen.getByRole('option', { name: '来源文章 A-Z' }))
     const sortedCards = screen.getAllByRole('article')
     expect(within(sortedCards[0]).getByText('产品研究 A')).toBeTruthy()
     expect(within(sortedCards[1]).getByText('设计研究 B')).toBeTruthy()
 
-    fireEvent.change(screen.getByRole('combobox', { name: '来源文章' }), {
-      target: { value: readLaterPosts[0].path },
-    })
+    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
+    fireEvent.click(screen.getByRole('option', { name: '产品研究 A' }))
     fireEvent.click(screen.getByText('要回看的句子'))
     fireEvent.click(within(screen.getByRole('dialog', { name: '批注详情' })).getByRole('button', { name: '打开原文' }))
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type WheelEvent } from 'react'
 import type { ReadLaterAnnotationIndexItem } from '../read-later/annotation-index'
+import FilterSelect from './filter-select'
 
 type ReadLaterAnnotationsViewProps = {
   annotations: ReadLaterAnnotationIndexItem[]
@@ -116,6 +117,25 @@ export default function ReadLaterAnnotationsView({
   const tagOptions = useMemo(
     () => Array.from(new Set(annotations.flatMap((annotation) => annotation.tags))).sort((left, right) => left.localeCompare(right, 'zh-Hans-CN')),
     [annotations],
+  )
+  const sourceFilterOptions = useMemo(
+    () => [
+      { value: ALL_SOURCES, label: '全部来源文章' },
+      ...sourceOptions.map((option) => ({
+        value: option.value,
+        label: option.label,
+        keywords: option.value,
+      })),
+    ],
+    [sourceOptions],
+  )
+  const tagFilterOptions = useMemo(
+    () => [{ value: ALL_TAGS, label: '全部标签' }, ...tagOptions.map((tag) => ({ value: tag, label: tag }))],
+    [tagOptions],
+  )
+  const sortFilterOptions = useMemo(
+    () => SORT_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
+    [],
   )
 
   useEffect(() => {
@@ -306,40 +326,37 @@ export default function ReadLaterAnnotationsView({
 
       <section className="annotation-dashboard__toolbar" aria-label="批注筛选工具栏">
         <div className="annotation-dashboard__toolbar-filters">
-          <label className="annotation-dashboard__filter">
+          <div className="annotation-dashboard__filter">
             <span>来源文章</span>
-            <select value={selectedSourcePath} onChange={(event) => setSelectedSourcePath(event.target.value)}>
-              <option value={ALL_SOURCES}>全部来源文章</option>
-              {sourceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <FilterSelect
+              label="来源文章"
+              value={selectedSourcePath}
+              options={sourceFilterOptions}
+              searchable
+              onChange={setSelectedSourcePath}
+            />
+          </div>
 
-          <label className="annotation-dashboard__filter">
+          <div className="annotation-dashboard__filter">
             <span>标签</span>
-            <select value={selectedTag} onChange={(event) => setSelectedTag(event.target.value)}>
-              <option value={ALL_TAGS}>全部标签</option>
-              {tagOptions.map((tag) => (
-                <option key={tag} value={tag}>
-                  {tag}
-                </option>
-              ))}
-            </select>
-          </label>
+            <FilterSelect
+              label="标签"
+              value={selectedTag}
+              options={tagFilterOptions}
+              searchable
+              onChange={setSelectedTag}
+            />
+          </div>
 
-          <label className="annotation-dashboard__filter">
+          <div className="annotation-dashboard__filter">
             <span>排序规则</span>
-            <select value={sortOrder} onChange={(event) => setSortOrder(event.target.value as AnnotationSortOrder)}>
-              {SORT_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </label>
+            <FilterSelect
+              label="排序规则"
+              value={sortOrder}
+              options={sortFilterOptions}
+              onChange={(nextValue) => setSortOrder(nextValue as AnnotationSortOrder)}
+            />
+          </div>
         </div>
 
         <div className="annotation-dashboard__toolbar-meta">

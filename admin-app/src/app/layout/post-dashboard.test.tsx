@@ -213,12 +213,53 @@ describe('post dashboard', () => {
     expect(screen.queryByLabelText('今日知识点')).toBeNull()
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '筛选分类' }))
     expect(screen.getByRole('option', { name: '随机展示' })).toBeTruthy()
     expect(screen.getByText('关于系统复用的知识点。')).toBeTruthy()
     expect(screen.getByText('2026-05-05')).toBeTruthy()
     expect(screen.queryByText('系统复用')).toBeNull()
     expect(screen.queryByText('一篇关于系统设计的文章')).toBeNull()
     expect(screen.getAllByRole('button', { name: '删除知识点' })).toHaveLength(2)
+  })
+
+  it('filters the post list through the custom category selector', () => {
+    const extraPost: PostIndexItem = {
+      path: 'source/_posts/second-post.md',
+      sha: 'sha-2',
+      title: '如何维护内容系统',
+      date: '2026-04-02 12:00:00',
+      desc: 'second desc',
+      published: false,
+      pinned: false,
+      hasExplicitPublished: true,
+      categories: ['产品'],
+      tags: ['开发'],
+      permalink: 'how-to-maintain-cms/',
+      cover: null,
+    }
+
+    render(
+      <PostDashboard
+        posts={[posts[0], extraPost]}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    expect(screen.getByText('如何维护内容系统')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '筛选分类' }))
+    fireEvent.click(screen.getByRole('option', { name: '思考' }))
+
+    expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    expect(screen.queryByText('如何维护内容系统')).toBeNull()
+    expect(screen.getByText('共 1 篇文章（全部 2 篇）')).toBeTruthy()
   })
 
   it('does not open the knowledge card when the delete icon is clicked', () => {
