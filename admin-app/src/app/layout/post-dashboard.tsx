@@ -9,6 +9,12 @@ import FilterSelect from './filter-select'
 type DashboardViewMode = 'grid' | 'list'
 type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
 type StatusTone = Exclude<DashboardStatusFilter, 'all'>
+type DashboardStatCard = {
+  value: DashboardStatusFilter
+  label: string
+  count: number
+  tone?: StatusTone
+}
 
 type RecoverableDraft = {
   path: string
@@ -475,7 +481,7 @@ export default function PostDashboard({
     () => sortOptions.map((option) => ({ value: option.value, label: option.label })),
     [sortOptions],
   )
-  const statCards = isReadLater
+  const statCards: DashboardStatCard[] = isReadLater
     ? [
         { value: 'all' as const, label: '全部', count: posts.length },
         { value: 'unread' as const, label: '未读', count: unreadCount, tone: 'unread' as const },
@@ -483,9 +489,7 @@ export default function PostDashboard({
         { value: 'done' as const, label: '已读', count: doneCount, tone: 'done' as const },
       ]
     : isDiary
-      ? [
-          { value: 'all' as const, label: '全部日记', count: posts.length },
-        ]
+      ? []
       : isKnowledge
         ? [
             { value: 'all' as const, label: '全部知识点', count: posts.length },

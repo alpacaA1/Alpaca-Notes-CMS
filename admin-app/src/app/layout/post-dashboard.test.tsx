@@ -363,6 +363,7 @@ describe('post dashboard', () => {
     expect(screen.getByRole('button', { name: '筛选 2026 年 04 月' })).toBeTruthy()
     expect(screen.getByText('五月第一则日记')).toBeTruthy()
     expect(screen.getByText('四月最后一则日记')).toBeTruthy()
+    expect(screen.queryByText('全部日记')).toBeNull()
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
 
