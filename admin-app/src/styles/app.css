@@ -5286,30 +5286,55 @@ textarea {
 
 .post-dashboard__diary-month {
   display: grid;
-  gap: 10px;
-}
-
-.post-dashboard__diary-month-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  align-items: start;
   gap: 16px;
-  padding: 14px 18px;
-  border-radius: 14px;
-  border: 1px solid var(--admin-line);
-  background: rgba(255, 255, 255, 0.42);
 }
 
-.post-dashboard__diary-month-header h3 {
+.post-dashboard__diary-month-rail {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  padding: 18px 18px 16px 22px;
+  border-radius: 16px;
+  border: 1px solid var(--admin-line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.42));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.post-dashboard__diary-month-rail::before {
+  content: '';
+  position: absolute;
+  left: 11px;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(228, 176, 114, 0.95), rgba(201, 145, 79, 0.72));
+}
+
+.post-dashboard__diary-month-meta h3 {
   margin: 0 0 4px;
   color: var(--admin-text);
   font-size: 1rem;
   line-height: 1.3;
 }
 
-.post-dashboard__diary-month-header span {
+.post-dashboard__diary-month-meta span {
   color: var(--admin-soft);
   font-size: 0.82rem;
+}
+
+.post-dashboard__diary-month-rail .post-dashboard__diary-check {
+  justify-content: space-between;
+  width: 100%;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(203, 167, 119, 0.32);
+}
+
+.post-dashboard__diary-month-content {
+  min-width: 0;
 }
 
 .post-dashboard__diary-list {
@@ -5398,6 +5423,23 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  .post-dashboard__diary-month {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .post-dashboard__diary-month-rail {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+    padding: 16px 16px 14px 20px;
+  }
+
+  .post-dashboard__diary-month-rail .post-dashboard__diary-check {
+    width: auto;
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .post-dashboard__diary-row {
     grid-template-columns: auto minmax(0, 1fr);
     align-items: flex-start;
@@ -5411,6 +5453,19 @@ textarea {
   .post-dashboard__diary-row .post-dashboard__list-actions {
     grid-column: 2;
     justify-content: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .post-dashboard__diary-month-rail {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .post-dashboard__diary-month-rail .post-dashboard__diary-check {
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(203, 167, 119, 0.32);
   }
 }
 
