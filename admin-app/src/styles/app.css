@@ -2946,11 +2946,35 @@ textarea {
   max-height: calc(100vh - 152px);
   overflow: hidden auto;
   padding: 14px 14px 16px;
-  border: 1px solid rgba(214, 200, 184, 0.48);
+  border: 1px solid rgba(214, 200, 184, 0.24);
   border-radius: 20px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(252, 248, 242, 0.88));
-  box-shadow: 0 12px 28px rgba(56, 43, 30, 0.08);
+  box-shadow: 0 10px 24px rgba(56, 43, 30, 0.05);
   backdrop-filter: blur(10px);
+  scrollbar-width: none;
+  scrollbar-color: rgba(141, 113, 77, 0.42) transparent;
+}
+
+.preview-post-outline__panel::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.preview-post-outline__panel.is-scrolling {
+  scrollbar-width: thin;
+}
+
+.preview-post-outline__panel.is-scrolling::-webkit-scrollbar {
+  width: 6px;
+}
+
+.preview-post-outline__panel.is-scrolling::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(141, 113, 77, 0.38);
+}
+
+.preview-post-outline__panel.is-scrolling::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .preview-post-outline__header {

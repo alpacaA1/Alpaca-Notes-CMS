@@ -24,6 +24,8 @@ type AnnotationActionPosition = {
   annotationId: string
 }
 
+type OutlineScrollContainer = Window | HTMLElement
+
 type StructuredMarkdownSection = {
   id: string
   title: string
@@ -164,6 +166,35 @@ function findElementById(root: ParentNode, targetId: string) {
   return Array.from(root.querySelectorAll<HTMLElement>('[id]')).find((element) => element.id === targetId) || null
 }
 
+function isWindowScrollContainer(container: OutlineScrollContainer): container is Window {
+  return 'document' in container
+}
+
+function isScrollableOverflow(value: string) {
+  return value === 'auto' || value === 'scroll' || value === 'overlay'
+}
+
+function findClosestScrollContainer(element: HTMLElement) {
+  const ownerDocument = element.ownerDocument
+  const defaultView = ownerDocument.defaultView ?? window
+  let current = element.parentElement
+
+  while (current) {
+    if (current === ownerDocument.body || current === ownerDocument.documentElement) {
+      break
+    }
+
+    const styles = defaultView.getComputedStyle(current)
+    if (isScrollableOverflow(styles.overflowY) || isScrollableOverflow(styles.overflow)) {
+      return current as OutlineScrollContainer
+    }
+
+    current = current.parentElement
+  }
+
+  return defaultView
+}
+
 function getReadLaterOutlineTargetIds(markdown: string, contentFormat: ResolvedContentFormat) {
   return [READ_LATER_ROOT_ID, ...getReadLaterOutline(markdown, contentFormat).map((item) => item.id)].filter(
     (targetId, index, ids) => ids.indexOf(targetId) === index,
@@ -187,8 +218,19 @@ function buildOutlineTargetIds(rootId: string, items: Array<{ id: string }>) {
   return [rootId, ...items.map((item) => item.id)].filter((targetId, index, ids) => ids.indexOf(targetId) === index)
 }
 
-function getActiveOutlineTargetId(pane: HTMLElement, article: HTMLElement, targetIds: string[], rootId: string) {
-  const paneTop = Math.max(pane.getBoundingClientRect().top, 0)
+function getActiveOutlineTargetId(
+  pane: HTMLElement,
+  article: HTMLElement,
+  targetIds: string[],
+  rootId: string,
+  scrollContainer: OutlineScrollContainer,
+) {
+  const paneTop = Math.max(
+    isWindowScrollContainer(scrollContainer)
+      ? pane.getBoundingClientRect().top
+      : scrollContainer.getBoundingClientRect().top,
+    0,
+  )
   const anchorLine = paneTop + ACTIVE_OUTLINE_OFFSET
   let activeTargetId = rootId
 
@@ -215,6 +257,7 @@ function scrollToOutlineTarget(
   targetId: string,
   rootId: string,
   usePaneScroll: boolean,
+  scrollContainer?: OutlineScrollContainer,
 ) {
   const target = targetId === rootId ? article : findElementById(article, targetId)
   if (!target) {
@@ -243,13 +286,28 @@ function scrollToOutlineTarget(
     return true
   }
 
-  const nextTop = window.scrollY + target.getBoundingClientRect().top - 108
-  if (typeof window.scrollTo === 'function') {
-    window.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+  const activeScrollContainer = scrollContainer ?? findClosestScrollContainer(pane)
+  if (isWindowScrollContainer(activeScrollContainer)) {
+    const nextTop = activeScrollContainer.scrollY + target.getBoundingClientRect().top - 108
+    if (typeof activeScrollContainer.scrollTo === 'function') {
+      activeScrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+      return true
+    }
+
+    target.scrollIntoView({ block: 'start', behavior: 'smooth' })
     return true
   }
 
-  target.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  const containerRect = activeScrollContainer.getBoundingClientRect()
+  const targetRect = target.getBoundingClientRect()
+  const nextTop = activeScrollContainer.scrollTop + targetRect.top - containerRect.top - 24
+
+  if (typeof activeScrollContainer.scrollTo === 'function') {
+    activeScrollContainer.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+    return true
+  }
+
+  activeScrollContainer.scrollTop = Math.max(0, nextTop)
   return true
 }
 
@@ -1710,9 +1768,11 @@ export default function PreviewPane({
   const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
+  const postOutlinePanelRef = useRef<HTMLDivElement | null>(null)
   const handledAnnotationScrollRequestRef = useRef(0)
   const suppressNextAnnotationScrollRef = useRef(false)
   const activeOutlineTargetRef = useRef<string | null>(null)
+  const postOutlineScrollTimeoutRef = useRef<number | null>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
@@ -1782,6 +1842,37 @@ export default function PreviewPane({
   }, [shouldShowTopicBacklinksDrawer, sourcePath])
 
   useEffect(() => {
+    const panel = postOutlinePanelRef.current
+    if (!shouldShowPostOutline || !panel) {
+      return
+    }
+
+    const clearScrollStateTimer = () => {
+      if (postOutlineScrollTimeoutRef.current !== null) {
+        window.clearTimeout(postOutlineScrollTimeoutRef.current)
+        postOutlineScrollTimeoutRef.current = null
+      }
+    }
+
+    const handleScroll = () => {
+      panel.classList.add('is-scrolling')
+      clearScrollStateTimer()
+      postOutlineScrollTimeoutRef.current = window.setTimeout(() => {
+        panel.classList.remove('is-scrolling')
+        postOutlineScrollTimeoutRef.current = null
+      }, 420)
+    }
+
+    panel.addEventListener('scroll', handleScroll, { passive: true })
+
+    return () => {
+      clearScrollStateTimer()
+      panel.classList.remove('is-scrolling')
+      panel.removeEventListener('scroll', handleScroll)
+    }
+  }, [shouldShowPostOutline])
+
+  useEffect(() => {
     const shouldSyncExternalOutline = isReadLater && Boolean(onActiveOutlineTargetChange)
     const shouldSyncInternalOutline = !isReadLater && shouldShowPostOutline
 
@@ -1799,8 +1890,10 @@ export default function PreviewPane({
       return
     }
 
+    const scrollContainer = isReadLater ? pane : findClosestScrollContainer(pane)
+
     const updateActiveOutlineTarget = () => {
-      const nextTargetId = getActiveOutlineTargetId(pane, article, outlineTargetIds, articleRootId)
+      const nextTargetId = getActiveOutlineTargetId(pane, article, outlineTargetIds, articleRootId, scrollContainer)
       if (activeOutlineTargetRef.current === nextTargetId) {
         return
       }
@@ -1815,13 +1908,11 @@ export default function PreviewPane({
     }
 
     updateActiveOutlineTarget()
-    pane.addEventListener('scroll', updateActiveOutlineTarget, { passive: true })
-    window.addEventListener('scroll', updateActiveOutlineTarget, { passive: true })
+    scrollContainer.addEventListener('scroll', updateActiveOutlineTarget, { passive: true })
     window.addEventListener('resize', updateActiveOutlineTarget)
 
     return () => {
-      pane.removeEventListener('scroll', updateActiveOutlineTarget)
-      window.removeEventListener('scroll', updateActiveOutlineTarget)
+      scrollContainer.removeEventListener('scroll', updateActiveOutlineTarget)
       window.removeEventListener('resize', updateActiveOutlineTarget)
     }
   }, [articleRootId, isReadLater, onActiveOutlineTargetChange, outlineTargetIds, shouldShowPostOutline])
@@ -1933,7 +2024,7 @@ export default function PreviewPane({
 
     activeOutlineTargetRef.current = targetId
     setActivePostOutlineTargetId(targetId)
-    scrollToOutlineTarget(pane, article, targetId, articleRootId, false)
+    scrollToOutlineTarget(pane, article, targetId, articleRootId, false, findClosestScrollContainer(pane))
   }
 
   const previewCanvasClassName = [
@@ -2049,7 +2140,7 @@ export default function PreviewPane({
       <div className={previewCanvasClassName}>
         {shouldShowPostOutline ? (
           <aside className="preview-post-outline" aria-label="文章目录">
-            <div className="preview-post-outline__panel">
+            <div ref={postOutlinePanelRef} className="preview-post-outline__panel">
               <div className="preview-post-outline__header">
                 <p className="preview-post-outline__eyebrow">文章预览</p>
                 <h2>当前目录</h2>

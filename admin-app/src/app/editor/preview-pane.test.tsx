@@ -102,10 +102,11 @@ describe('PreviewPane', () => {
 
   it('updates the active article outline item while preview scroll position changes', async () => {
     const { container } = render(
-      <PreviewPane
-        title="文章目录"
-        date="2026-05-09 10:00:00"
-        markdown={`导语内容。
+      <div data-testid="preview-scroll-shell" style={{ overflowY: 'auto', maxHeight: '640px' }}>
+        <PreviewPane
+          title="文章目录"
+          date="2026-05-09 10:00:00"
+          markdown={`导语内容。
 
 ## 需求背景
 平台需要在预览态快速折叠长文档。
@@ -113,21 +114,22 @@ describe('PreviewPane', () => {
 ### 业务流程
 1. 平台发起刷新。
 2. 设备执行任务。`}
-      />,
+        />
+      </div>,
     )
 
-    const previewPane = container.querySelector('.preview-pane--reading-canvas') as HTMLElement | null
+    const scrollShell = screen.getByTestId('preview-scroll-shell') as HTMLElement
     const article = container.querySelector('#post-preview-content') as HTMLElement | null
     const backgroundHeading = screen.getByRole('heading', { name: '需求背景' })
     const flowHeading = screen.getByRole('heading', { name: '业务流程' })
     let backgroundTop = 176
     let flowTop = 468
 
-    if (!previewPane || !article) {
+    if (!article) {
       throw new Error('Missing article preview container for active outline test.')
     }
 
-    Object.defineProperty(previewPane, 'getBoundingClientRect', {
+    Object.defineProperty(scrollShell, 'getBoundingClientRect', {
       configurable: true,
       value: () => ({ top: 100, left: 0, right: 1200, bottom: 900, width: 1200, height: 800, x: 0, y: 100, toJSON: () => ({}) }),
     })
@@ -144,7 +146,7 @@ describe('PreviewPane', () => {
       value: () => ({ top: flowTop, left: 0, right: 640, bottom: flowTop + 40, width: 640, height: 40, x: 0, y: flowTop, toJSON: () => ({}) }),
     })
 
-    fireEvent.scroll(previewPane)
+    fireEvent.scroll(scrollShell)
 
     await waitFor(() => {
       expect(screen.getByRole('link', { name: '需求背景' }).className).toContain('is-active')
@@ -152,13 +154,66 @@ describe('PreviewPane', () => {
 
     backgroundTop = -96
     flowTop = 188
-    fireEvent.scroll(previewPane)
+    fireEvent.scroll(scrollShell)
 
     await waitFor(() => {
       expect(screen.getByRole('link', { name: '业务流程' }).className).toContain('is-active')
     })
 
     expect(screen.getByRole('link', { name: '需求背景' }).className).not.toContain('is-active')
+  })
+
+  it('scrolls the enclosing layout instead of the window when article preview lives in an internal scroller', () => {
+    const { container } = render(
+      <div data-testid="preview-scroll-shell" style={{ overflowY: 'auto', maxHeight: '640px' }}>
+        <PreviewPane
+          title="文章目录"
+          date="2026-05-09 10:00:00"
+          markdown={`导语内容。
+
+## 需求背景
+平台需要在预览态快速折叠长文档。
+
+### 业务流程
+1. 平台发起刷新。
+2. 设备执行任务。`}
+        />
+      </div>,
+    )
+
+    const scrollShell = screen.getByTestId('preview-scroll-shell') as HTMLElement
+    const backgroundHeading = screen.getByRole('heading', { name: '需求背景' })
+    const backgroundLink = screen.getByRole('link', { name: '需求背景' })
+    const layoutScrollTo = vi.fn()
+    const windowScrollTo = vi.fn()
+
+    Object.defineProperty(scrollShell, 'scrollTo', {
+      configurable: true,
+      value: layoutScrollTo,
+    })
+    Object.defineProperty(scrollShell, 'scrollTop', {
+      configurable: true,
+      value: 180,
+      writable: true,
+    })
+    Object.defineProperty(scrollShell, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 84, left: 0, right: 1200, bottom: 724, width: 1200, height: 640, x: 0, y: 84, toJSON: () => ({}) }),
+    })
+    Object.defineProperty(backgroundHeading, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({ top: 340, left: 0, right: 640, bottom: 380, width: 640, height: 40, x: 0, y: 340, toJSON: () => ({}) }),
+    })
+    Object.defineProperty(window, 'scrollTo', {
+      configurable: true,
+      value: windowScrollTo,
+    })
+
+    fireEvent.click(backgroundLink)
+
+    expect(layoutScrollTo).toHaveBeenCalledWith({ top: 412, behavior: 'smooth' })
+    expect(windowScrollTo).not.toHaveBeenCalled()
+    expect(container.querySelector('.preview-post-outline__panel')?.className).toContain('preview-post-outline__panel')
   })
 
   it('renders markdown images whose URLs contain parentheses', () => {
