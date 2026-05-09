@@ -103,8 +103,9 @@ describe('filter select', () => {
 
   it('uses a floating overlay panel instead of expanding the document flow', () => {
     expect(appStyles).toMatch(/\.filter-select\s*\{[^}]*position:\s*relative;/s)
-    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100%\s*\+\s*10px\);[^}]*left:\s*0;[^}]*right:\s*0;/s)
-    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*z-index:\s*20;/s)
-    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*box-shadow:\s*0 20px 48px rgba\(36, 24, 10, 0\.18\);/s)
+    expect(appStyles).toMatch(/\.filter-select\.is-open\s*\{[^}]*z-index:\s*12;/s)
+    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100%\s*\+\s*8px\);[^}]*left:\s*0;[^}]*right:\s*0;/s)
+    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*z-index:\s*60;/s)
+    expect(appStyles).toMatch(/\.filter-select__panel\s*\{[^}]*box-shadow:[^;]*0 18px 36px rgba\(36, 24, 10, 0\.14\)/s)
   })
 })

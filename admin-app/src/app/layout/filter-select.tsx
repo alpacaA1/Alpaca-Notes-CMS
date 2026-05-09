@@ -119,7 +119,7 @@ export default function FilterSelect({
   }
 
   return (
-    <div className="filter-select" ref={containerRef}>
+    <div className={`filter-select${isOpen ? ' is-open' : ''}`} ref={containerRef}>
       <button
         type="button"
         className="filter-select__trigger"
