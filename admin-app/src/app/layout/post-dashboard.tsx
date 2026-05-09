@@ -931,6 +931,8 @@ export default function PostDashboard({
             <div className="post-dashboard__diary-month-nav-header">
               <div>
                 <p className="post-dashboard__filter-label">月份视图</p>
+                <strong>{activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY ? '按月浏览全部日记' : activeDiaryMonthLabel}</strong>
+                <span className="post-dashboard__diary-month-nav-note">共 {diaryMonthGroups.length} 个归档月份</span>
               </div>
             </div>
             <div className="post-dashboard__diary-month-pills">
@@ -1022,12 +1024,27 @@ export default function PostDashboard({
                               className="post-dashboard__diary-main"
                               onClick={() => onOpenPost(post)}
                             >
-                              <span className="post-dashboard__diary-date">{post.date ? post.date.slice(0, 10) : '无日期'}</span>
-                              <span className="post-dashboard__diary-title">
-                                <strong>{post.title}</strong>
-                                {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
+                              <span className="post-dashboard__diary-content">
+                                <span className="post-dashboard__diary-title">
+                                  <strong>{post.title}</strong>
+                                  {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
+                                </span>
+                                <span className="post-dashboard__diary-desc">{post.desc || '打开这篇日记，继续补全当天的记录。'}</span>
                               </span>
-                              <span className="post-dashboard__diary-file">{post.path.replace(/^source\/diary\//, '')}</span>
+                              <span className="post-dashboard__diary-meta">
+                                <span className="post-dashboard__diary-date">{post.date ? post.date.slice(0, 10) : '无日期'}</span>
+                                <span className="post-dashboard__diary-tags">
+                                  {post.tags.length > 0 ? (
+                                    <>
+                                      <span className="post-dashboard__card-category">{post.tags[0]}</span>
+                                      {post.tags.length > 1 ? <span className="post-dashboard__tag-more">+{post.tags.length - 1}</span> : null}
+                                    </>
+                                  ) : (
+                                    <span className="post-dashboard__diary-fallback">内部记录</span>
+                                  )}
+                                </span>
+                                <span className="post-dashboard__diary-file">{post.path.replace(/^source\/diary\//, '')}</span>
+                              </span>
                             </button>
                             <div className="post-dashboard__list-actions">
                               <button

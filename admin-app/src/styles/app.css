@@ -5534,39 +5534,51 @@ textarea {
 
 .post-dashboard__diary-months {
   display: grid;
-  grid-template-columns: minmax(180px, 220px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 248px) minmax(0, 1fr);
   align-items: start;
-  gap: 16px;
+  gap: 18px;
 }
 
 .post-dashboard__diary-main-column {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  min-width: 0;
 }
 
 .post-dashboard__diary-month-nav {
   display: grid;
-  gap: 10px;
-  padding: 14px 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(203, 167, 119, 0.24);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.5));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  gap: 12px;
+  padding: 16px 14px;
+  border-radius: 22px;
+  border: 1px solid var(--admin-line);
+  background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(252, 247, 241, 0.92));
+  box-shadow:
+    0 10px 24px rgba(56, 41, 19, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
   position: sticky;
   top: 16px;
 }
 
 .post-dashboard__diary-month-nav-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: grid;
+  gap: 6px;
 }
 
 .post-dashboard__diary-month-nav-header strong {
+  display: block;
   color: var(--admin-text);
-  font-size: 0.88rem;
+  font-size: 1rem;
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  letter-spacing: -0.02em;
   line-height: 1.35;
+}
+
+.post-dashboard__diary-month-nav-note {
+  display: block;
+  margin-top: 2px;
+  color: var(--admin-muted);
+  font-size: 0.8rem;
+  line-height: 1.5;
 }
 
 .post-dashboard__diary-month-pills {
@@ -5581,10 +5593,10 @@ textarea {
   justify-content: space-between;
   gap: 10px;
   width: 100%;
-  padding: 9px 10px;
-  border-radius: 14px;
-  border: 1px solid rgba(203, 167, 119, 0.26);
-  background: rgba(255, 255, 255, 0.72);
+  padding: 11px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(203, 167, 119, 0.2);
+  background: rgba(255, 255, 255, 0.62);
   color: var(--admin-soft);
   font: inherit;
   font-size: 0.82rem;
@@ -5600,10 +5612,12 @@ textarea {
 }
 
 .post-dashboard__diary-month-chip.is-active {
-  border-color: rgba(201, 145, 79, 0.45);
-  background: rgba(229, 199, 150, 0.18);
+  border-color: rgba(201, 145, 79, 0.38);
+  background: rgba(229, 199, 150, 0.22);
   color: var(--admin-text);
-  box-shadow: 0 10px 24px rgba(149, 112, 54, 0.08);
+  box-shadow:
+    0 10px 24px rgba(149, 112, 54, 0.08),
+    inset 0 0 0 1px rgba(201, 145, 79, 0.08);
 }
 
 .post-dashboard__diary-month-chip-label {
@@ -5653,7 +5667,11 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 2px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-line);
+  background: linear-gradient(180deg, rgba(255, 254, 251, 0.94), rgba(251, 247, 242, 0.9));
+  box-shadow: 0 8px 20px rgba(56, 41, 19, 0.04);
   color: var(--admin-muted);
   font-size: 0.86rem;
 }
@@ -5683,13 +5701,14 @@ textarea {
 
 .post-dashboard__diary-month {
   display: grid;
-  gap: 12px;
-  padding: 14px 16px 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(203, 167, 119, 0.2);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(255, 255, 255, 0.42));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid var(--admin-line);
+  background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(252, 247, 241, 0.9));
+  box-shadow:
+    0 10px 24px rgba(56, 41, 19, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .post-dashboard__diary-month-header {
@@ -5723,7 +5742,7 @@ textarea {
 
 .post-dashboard__diary-list {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .post-dashboard__diary-row {
@@ -5732,11 +5751,11 @@ textarea {
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
-  padding: 13px 18px;
-  border-radius: 12px;
+  padding: 15px 18px;
+  border-radius: 18px;
   border: 1px solid var(--admin-line);
-  background: var(--admin-surface);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  background: rgba(255, 255, 255, 0.58);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
   transition: background 160ms ease, border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
 
@@ -5765,9 +5784,9 @@ textarea {
 .post-dashboard__diary-main {
   appearance: none;
   display: grid;
-  grid-template-columns: 96px minmax(160px, 1.4fr) minmax(120px, 1fr) minmax(120px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
   width: 100%;
   padding: 0;
@@ -5778,19 +5797,17 @@ textarea {
   cursor: pointer;
 }
 
-.post-dashboard__diary-date,
-.post-dashboard__diary-file,
-.post-dashboard__diary-desc {
-  overflow: hidden;
-  color: var(--admin-soft);
-  font-size: 0.82rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.post-dashboard__diary-content {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
 }
 
 .post-dashboard__diary-title {
   display: flex;
   align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 8px;
   min-width: 0;
 }
@@ -5802,6 +5819,69 @@ textarea {
   font-size: 0.96rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.post-dashboard__diary-desc {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.post-dashboard__diary-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.post-dashboard__diary-date {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(141, 113, 77, 0.09);
+  color: var(--admin-warm);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.post-dashboard__diary-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.post-dashboard__diary-fallback {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-soft);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
+.post-dashboard__diary-file {
+  overflow: hidden;
+  max-width: 196px;
+  color: var(--admin-soft);
+  font-size: 0.76rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -5833,7 +5913,11 @@ textarea {
 
   .post-dashboard__diary-main {
     grid-template-columns: 1fr;
-    gap: 5px;
+    gap: 10px;
+  }
+
+  .post-dashboard__diary-meta {
+    justify-content: flex-start;
   }
 
   .post-dashboard__diary-row .post-dashboard__list-actions {
@@ -5855,6 +5939,14 @@ textarea {
   .post-dashboard__diary-month-header {
     grid-template-columns: 1fr;
     display: grid;
+  }
+
+  .post-dashboard__diary-selection-bar {
+    padding: 12px 14px;
+  }
+
+  .post-dashboard__diary-file {
+    max-width: 100%;
   }
 }
 
@@ -7537,6 +7629,81 @@ textarea {
 .admin-shell--dark .post-dashboard__list-row.is-selected {
   border-color: rgba(212, 165, 106, 0.34);
   background: rgba(212, 165, 106, 0.08);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-nav,
+.admin-shell--dark .post-dashboard__diary-selection-bar,
+.admin-shell--dark .post-dashboard__diary-month {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-chip {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-chip:hover {
+  border-color: rgba(212, 165, 106, 0.28);
+  background: rgba(212, 165, 106, 0.08);
+  color: var(--admin-text);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-chip.is-active {
+  border-color: rgba(212, 165, 106, 0.34);
+  background: rgba(212, 165, 106, 0.12);
+  color: var(--admin-text);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(212, 165, 106, 0.08);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-chip-count {
+  background: rgba(212, 165, 106, 0.12);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-chip-selected {
+  background: rgba(212, 165, 106, 0.16);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .post-dashboard__diary-row {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
+}
+
+.admin-shell--dark .post-dashboard__diary-row:hover,
+.admin-shell--dark .post-dashboard__diary-row.is-selected {
+  border-color: rgba(212, 165, 106, 0.34);
+  background: rgba(212, 165, 106, 0.08);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.18),
+    inset 0 0 0 1px rgba(212, 165, 106, 0.06);
+}
+
+.admin-shell--dark .post-dashboard__diary-desc,
+.admin-shell--dark .post-dashboard__diary-file,
+.admin-shell--dark .post-dashboard__diary-month-nav-note,
+.admin-shell--dark .post-dashboard__diary-month-meta span,
+.admin-shell--dark .post-dashboard__diary-selection-bar,
+.admin-shell--dark .post-dashboard__diary-check,
+.admin-shell--dark .post-dashboard__diary-row-check {
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .post-dashboard__diary-date {
+  background: rgba(212, 165, 106, 0.12);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .post-dashboard__diary-fallback {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--admin-muted);
 }
 
 .admin-shell--dark .post-status-dot--published {
