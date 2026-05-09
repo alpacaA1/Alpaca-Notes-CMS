@@ -94,8 +94,22 @@ type WikiLinkRenderOptions = {
   onOpenWikiLink?: (targetKey: string) => void
 }
 
+type MarkdownDestinationMatch = {
+  value: string
+  end: number
+}
+
+type MarkdownImageMatch = {
+  altText: string
+  imageUrl: string
+  start: number
+  end: number
+}
+
+const READ_LATER_ROOT_ID = 'read-later-content'
+const POST_PREVIEW_ROOT_ID = 'post-preview-content'
+const POST_PREVIEW_HEADING_PREFIX = 'post-preview-heading'
 const SAFE_LINK_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
-const IMAGE_MARKDOWN_PATTERN = /!\[([^\]]*)\]\(([^)]+)\)/g
 const BARE_URL_SCHEME_PATTERN = /https?:\/\//gi
 const BARE_URL_TERMINATOR_PATTERN = /[\s<>]/
 const MID_URL_BARE_URL_TERMINATOR_CHARS = new Set(['，', '。', '！', '？', '；', '：', '“', '”', '‘', '’'])
@@ -151,18 +165,35 @@ function findElementById(root: ParentNode, targetId: string) {
 }
 
 function getReadLaterOutlineTargetIds(markdown: string, contentFormat: ResolvedContentFormat) {
-  return ['read-later-content', ...getReadLaterOutline(markdown, contentFormat).map((item) => item.id)].filter(
+  return [READ_LATER_ROOT_ID, ...getReadLaterOutline(markdown, contentFormat).map((item) => item.id)].filter(
     (targetId, index, ids) => ids.indexOf(targetId) === index,
   )
 }
 
-function getActiveOutlineTargetId(pane: HTMLElement, article: HTMLElement, targetIds: string[]) {
+function normalizeOutlineLevels<T extends { level: number }>(items: T[]) {
+  if (items.length === 0) {
+    return items
+  }
+
+  const minLevel = Math.min(...items.map((item) => item.level))
+
+  return items.map((item) => ({
+    ...item,
+    level: Math.max(1, item.level - minLevel + 1),
+  }))
+}
+
+function buildOutlineTargetIds(rootId: string, items: Array<{ id: string }>) {
+  return [rootId, ...items.map((item) => item.id)].filter((targetId, index, ids) => ids.indexOf(targetId) === index)
+}
+
+function getActiveOutlineTargetId(pane: HTMLElement, article: HTMLElement, targetIds: string[], rootId: string) {
   const paneTop = Math.max(pane.getBoundingClientRect().top, 0)
   const anchorLine = paneTop + ACTIVE_OUTLINE_OFFSET
-  let activeTargetId = 'read-later-content'
+  let activeTargetId = rootId
 
   for (const targetId of targetIds) {
-    const target = targetId === 'read-later-content' ? article : findElementById(article, targetId)
+    const target = targetId === rootId ? article : findElementById(article, targetId)
     if (!target) {
       continue
     }
@@ -176,6 +207,50 @@ function getActiveOutlineTargetId(pane: HTMLElement, article: HTMLElement, targe
   }
 
   return activeTargetId
+}
+
+function scrollToOutlineTarget(
+  pane: HTMLElement,
+  article: HTMLElement,
+  targetId: string,
+  rootId: string,
+  usePaneScroll: boolean,
+) {
+  const target = targetId === rootId ? article : findElementById(article, targetId)
+  if (!target) {
+    return false
+  }
+
+  if (usePaneScroll) {
+    const scrollPaneTo = (top: number) => {
+      if (typeof pane.scrollTo === 'function') {
+        pane.scrollTo({ top, behavior: 'smooth' })
+        return
+      }
+
+      pane.scrollTop = top
+    }
+
+    if (targetId === rootId) {
+      scrollPaneTo(0)
+      return true
+    }
+
+    const paneRect = pane.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    const nextTop = pane.scrollTop + targetRect.top - paneRect.top - 24
+    scrollPaneTo(Math.max(0, nextTop))
+    return true
+  }
+
+  const nextTop = window.scrollY + target.getBoundingClientRect().top - 108
+  if (typeof window.scrollTo === 'function') {
+    window.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' })
+    return true
+  }
+
+  target.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  return true
 }
 
 function unwrapHighlight(mark: HTMLElement) {
@@ -471,6 +546,109 @@ function sanitizeImageSrc(imageSrc: string) {
   return /^https?:|^(#|\/(?!\/)|\.\.?\/|\?)/.test(sanitizedHref) ? sanitizedHref : null
 }
 
+function parseMarkdownDestination(markdown: string, openParenIndex: number): MarkdownDestinationMatch | null {
+  if (markdown[openParenIndex] !== '(') {
+    return null
+  }
+
+  let index = openParenIndex + 1
+  if (markdown[index] === '<') {
+    index += 1
+    const destinationStart = index
+
+    while (index < markdown.length) {
+      const character = markdown[index]
+      if (character === '\\') {
+        index += 2
+        continue
+      }
+
+      if (character === '>') {
+        const value = markdown.slice(destinationStart, index).trim()
+        index += 1
+
+        while (index < markdown.length && /\s/.test(markdown[index])) {
+          index += 1
+        }
+
+        return markdown[index] === ')' ? { value, end: index + 1 } : null
+      }
+
+      index += 1
+    }
+
+    return null
+  }
+
+  const destinationStart = index
+  let depth = 1
+
+  while (index < markdown.length) {
+    const character = markdown[index]
+    if (character === '\\') {
+      index += 2
+      continue
+    }
+
+    if (character === '(') {
+      depth += 1
+      index += 1
+      continue
+    }
+
+    if (character === ')') {
+      depth -= 1
+      if (depth === 0) {
+        return {
+          value: markdown.slice(destinationStart, index).trim(),
+          end: index + 1,
+        }
+      }
+    }
+
+    index += 1
+  }
+
+  return null
+}
+
+function parseMarkdownImage(markdown: string, startIndex: number): MarkdownImageMatch | null {
+  if (!markdown.startsWith('![', startIndex)) {
+    return null
+  }
+
+  let altTextEnd = startIndex + 2
+  while (altTextEnd < markdown.length) {
+    const character = markdown[altTextEnd]
+    if (character === '\\') {
+      altTextEnd += 2
+      continue
+    }
+
+    if (character === ']') {
+      break
+    }
+
+    altTextEnd += 1
+  }
+
+  if (altTextEnd >= markdown.length || markdown[altTextEnd] !== ']' || markdown[altTextEnd + 1] !== '(') {
+    return null
+  }
+
+  const destination = parseMarkdownDestination(markdown, altTextEnd + 1)
+  if (!destination) {
+    return null
+  }
+
+  return {
+    altText: markdown.slice(startIndex + 2, altTextEnd),
+    imageUrl: destination.value,
+    start: startIndex,
+    end: destination.end,
+  }
+}
+
 function hasUnmatchedBareUrlClosingCharacter(url: string, closingCharacter: string) {
   const balancedPair = BALANCED_BARE_URL_PAIRS.find(([, closing]) => closing === closingCharacter)
   if (!balancedPair) {
@@ -716,21 +894,31 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
   const nodes: ReactNode[] = []
   let lastIndex = 0
   let matchIndex = 0
+  let searchIndex = 0
 
-  for (const match of markdown.matchAll(IMAGE_MARKDOWN_PATTERN)) {
-    const [fullMatch, altText, imageUrl] = match
-    const start = match.index || 0
-
-    if (start > lastIndex) {
-      nodes.push(...renderTextInline(markdown.slice(lastIndex, start), wikiLinkOptions))
+  while (searchIndex < markdown.length) {
+    const imageStart = markdown.indexOf('![', searchIndex)
+    if (imageStart === -1) {
+      break
     }
 
-    const safeSrc = previewImageUrls?.[imageUrl] ?? sanitizeImageSrc(imageUrl)
+    const imageMatch = parseMarkdownImage(markdown, imageStart)
+    if (!imageMatch) {
+      searchIndex = imageStart + 2
+      continue
+    }
+
+    if (imageMatch.start > lastIndex) {
+      nodes.push(...renderTextInline(markdown.slice(lastIndex, imageMatch.start), wikiLinkOptions))
+    }
+
+    const safeSrc = previewImageUrls?.[imageMatch.imageUrl] ?? sanitizeImageSrc(imageMatch.imageUrl)
     if (safeSrc) {
-      nodes.push(<img key={`image-${matchIndex}`} src={safeSrc} alt={altText} referrerPolicy="no-referrer" />)
+      nodes.push(<img key={`image-${matchIndex}`} src={safeSrc} alt={imageMatch.altText} referrerPolicy="no-referrer" />)
     }
 
-    lastIndex = start + fullMatch.length
+    lastIndex = imageMatch.end
+    searchIndex = imageMatch.end
     matchIndex += 1
   }
 
@@ -1518,6 +1706,7 @@ export default function PreviewPane({
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
+  const [activePostOutlineTargetId, setActivePostOutlineTargetId] = useState<string | null>(null)
   const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
@@ -1527,12 +1716,29 @@ export default function PreviewPane({
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
+  const isPreviewPost = contentType === 'post'
   const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later' || contentType === 'diary') && Boolean(onCreateKnowledge)
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const structuredSections = !isReadLater && contentFormat === 'markdown' && (isDiary || isKnowledge)
     ? parseStructuredMarkdownSections(markdown)
     : null
+  const articleRootId = isReadLater ? READ_LATER_ROOT_ID : POST_PREVIEW_ROOT_ID
+  const postHeadingIdPrefix = isPreviewPost && contentFormat === 'markdown' ? POST_PREVIEW_HEADING_PREFIX : undefined
+  const postOutlineItems = useMemo(
+    () => (
+      postHeadingIdPrefix
+        ? normalizeOutlineLevels(extractMarkdownHeadings(markdown, postHeadingIdPrefix))
+        : []
+    ),
+    [markdown, postHeadingIdPrefix],
+  )
+  const shouldShowPostOutline = isPreviewPost && postOutlineItems.length > 0
   const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
+  const outlineTargetIds = isReadLater
+    ? readLaterOutlineTargetIds
+    : shouldShowPostOutline
+      ? buildOutlineTargetIds(articleRootId, postOutlineItems)
+      : []
   const hasStructuredReadLaterSections = isReadLater
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
     : false
@@ -1576,8 +1782,14 @@ export default function PreviewPane({
   }, [shouldShowTopicBacklinksDrawer, sourcePath])
 
   useEffect(() => {
-    if (!isReadLater || !onActiveOutlineTargetChange) {
+    const shouldSyncExternalOutline = isReadLater && Boolean(onActiveOutlineTargetChange)
+    const shouldSyncInternalOutline = !isReadLater && shouldShowPostOutline
+
+    if (!shouldSyncExternalOutline && !shouldSyncInternalOutline) {
       activeOutlineTargetRef.current = null
+      if (!isReadLater) {
+        setActivePostOutlineTargetId(null)
+      }
       return
     }
 
@@ -1588,13 +1800,18 @@ export default function PreviewPane({
     }
 
     const updateActiveOutlineTarget = () => {
-      const nextTargetId = getActiveOutlineTargetId(pane, article, readLaterOutlineTargetIds)
+      const nextTargetId = getActiveOutlineTargetId(pane, article, outlineTargetIds, articleRootId)
       if (activeOutlineTargetRef.current === nextTargetId) {
         return
       }
 
       activeOutlineTargetRef.current = nextTargetId
-      onActiveOutlineTargetChange(nextTargetId)
+      if (isReadLater) {
+        onActiveOutlineTargetChange?.(nextTargetId)
+        return
+      }
+
+      setActivePostOutlineTargetId(nextTargetId)
     }
 
     updateActiveOutlineTarget()
@@ -1607,7 +1824,7 @@ export default function PreviewPane({
       window.removeEventListener('scroll', updateActiveOutlineTarget)
       window.removeEventListener('resize', updateActiveOutlineTarget)
     }
-  }, [isReadLater, onActiveOutlineTargetChange, readLaterOutlineTargetIds])
+  }, [articleRootId, isReadLater, onActiveOutlineTargetChange, outlineTargetIds, shouldShowPostOutline])
 
   useEffect(() => {
     const article = articleRef.current
@@ -1702,32 +1919,35 @@ export default function PreviewPane({
       return
     }
 
-    const scrollPaneTo = (top: number) => {
-      if (typeof pane.scrollTo === 'function') {
-        pane.scrollTo({ top, behavior: 'smooth' })
-        return
-      }
+    scrollToOutlineTarget(pane, article, navigationRequest.targetId, articleRootId, true)
+  }, [articleRootId, isReadLater, markdown, navigationRequest])
 
-      pane.scrollTop = top
-    }
+  const handlePostOutlineNavigation = (targetId: string) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault()
 
-    if (navigationRequest.targetId === 'read-later-content') {
-      scrollPaneTo(0)
+    const pane = paneRef.current
+    const article = articleRef.current
+    if (!pane || !article) {
       return
     }
 
-    const target = Array.from(article.querySelectorAll<HTMLElement>('[id]')).find(
-      (element) => element.id === navigationRequest.targetId,
-    )
-    if (!target) {
-      return
-    }
+    activeOutlineTargetRef.current = targetId
+    setActivePostOutlineTargetId(targetId)
+    scrollToOutlineTarget(pane, article, targetId, articleRootId, false)
+  }
 
-    const paneRect = pane.getBoundingClientRect()
-    const targetRect = target.getBoundingClientRect()
-    const nextTop = pane.scrollTop + targetRect.top - paneRect.top - 24
-    scrollPaneTo(Math.max(0, nextTop))
-  }, [isReadLater, markdown, navigationRequest])
+  const previewCanvasClassName = [
+    'preview-pane__canvas',
+    shouldShowPostOutline && shouldShowTopicBacklinksDrawer
+      ? (isTopicBacklinksDrawerOpen
+        ? 'preview-pane__canvas--with-post-outline-and-topic-backlinks'
+        : 'preview-pane__canvas--with-post-outline-and-topic-backlinks-collapsed')
+      : shouldShowPostOutline
+        ? 'preview-pane__canvas--with-post-outline'
+        : shouldShowTopicBacklinksDrawer
+          ? `preview-pane__canvas--with-topic-backlinks${!isTopicBacklinksDrawerOpen ? ' preview-pane__canvas--with-topic-backlinks-collapsed' : ''}`
+          : '',
+  ].filter(Boolean).join(' ')
 
   const handleSelectionChange = () => {
     const article = articleRef.current
@@ -1826,13 +2046,46 @@ export default function PreviewPane({
           删除高亮
         </button>
       ) : null}
-      <div
-        className={`preview-pane__canvas${shouldShowTopicBacklinksDrawer ? ' preview-pane__canvas--with-topic-backlinks' : ''}${shouldShowTopicBacklinksDrawer && !isTopicBacklinksDrawerOpen ? ' preview-pane__canvas--with-topic-backlinks-collapsed' : ''}`}
-      >
+      <div className={previewCanvasClassName}>
+        {shouldShowPostOutline ? (
+          <aside className="preview-post-outline" aria-label="文章目录">
+            <div className="preview-post-outline__panel">
+              <div className="preview-post-outline__header">
+                <p className="preview-post-outline__eyebrow">文章预览</p>
+                <h2>当前目录</h2>
+              </div>
+              <nav className="preview-post-outline__nav" aria-label="文章目录">
+                <a
+                  className={`preview-post-outline__item preview-post-outline__item--top${activePostOutlineTargetId === articleRootId ? ' is-active' : ''}`}
+                  href={`#${articleRootId}`}
+                  onClick={handlePostOutlineNavigation(articleRootId)}
+                  aria-current={activePostOutlineTargetId === articleRootId ? 'location' : undefined}
+                >
+                  回到顶部
+                </a>
+                {postOutlineItems.map((item) => {
+                  const isActive = activePostOutlineTargetId === item.id
+
+                  return (
+                    <a
+                      key={item.id}
+                      className={`preview-post-outline__item preview-post-outline__item--level-${Math.min(item.level, 4)}${isActive ? ' is-active' : ''}`}
+                      href={`#${item.id}`}
+                      onClick={handlePostOutlineNavigation(item.id)}
+                      aria-current={isActive ? 'location' : undefined}
+                    >
+                      {item.label}
+                    </a>
+                  )
+                })}
+              </nav>
+            </div>
+          </aside>
+        ) : null}
         <article
           ref={articleRef}
           className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
-          id="read-later-content"
+          id={articleRootId}
           onClick={handleArticleClick}
           onMouseUp={handleSelectionChange}
           onKeyUp={handleSelectionChange}
@@ -1940,7 +2193,7 @@ export default function PreviewPane({
               </div>
             </>
           ) : (
-            renderContentBlocks(markdown, contentFormat, previewImageUrls, undefined, wikiLinkOptions)
+            renderContentBlocks(markdown, contentFormat, previewImageUrls, postHeadingIdPrefix, wikiLinkOptions)
           )}
         </article>
         {shouldShowTopicBacklinksDrawer ? (
