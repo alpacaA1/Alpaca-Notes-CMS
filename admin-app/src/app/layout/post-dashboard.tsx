@@ -70,6 +70,7 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 ]
 
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
+const DIARY_ALL_MONTHS_KEY = 'all-months'
 
 function readStoredViewMode(): DashboardViewMode {
   try {
@@ -239,11 +240,23 @@ function groupDiaryPostsByMonth(posts: PostIndexItem[]) {
     grouped.set(monthKey, [...(grouped.get(monthKey) || []), post])
   })
 
-  return Array.from(grouped.entries()).map(([monthKey, monthPosts]) => ({
-    monthKey,
-    label: getDiaryMonthLabel(monthKey),
-    posts: monthPosts,
-  }))
+  return Array.from(grouped.entries())
+    .sort(([leftMonthKey], [rightMonthKey]) => {
+      if (leftMonthKey === 'undated') {
+        return 1
+      }
+
+      if (rightMonthKey === 'undated') {
+        return -1
+      }
+
+      return rightMonthKey.localeCompare(leftMonthKey, 'zh-CN')
+    })
+    .map(([monthKey, monthPosts]) => ({
+      monthKey,
+      label: getDiaryMonthLabel(monthKey),
+      posts: monthPosts,
+    }))
 }
 
 function getKnowledgeCardContent(post: PostIndexItem) {
@@ -324,6 +337,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [selectedDiaryPaths, setSelectedDiaryPaths] = useState<Set<string>>(() => new Set())
+  const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -350,6 +364,7 @@ export default function PostDashboard({
     setSelectedTag(null)
     setSort('date-desc')
     setSelectedDiaryPaths(new Set())
+    setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
   }, [contentType])
 
   const filteredPosts = useMemo(() => {
@@ -373,15 +388,41 @@ export default function PostDashboard({
     () => (isDiary ? groupDiaryPostsByMonth(filteredPosts) : []),
     [filteredPosts, isDiary],
   )
+  const visibleDiaryMonthGroups = useMemo(() => {
+    if (!isDiary) {
+      return []
+    }
+
+    if (activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
+      return diaryMonthGroups
+    }
+
+    return diaryMonthGroups.filter((group) => group.monthKey === activeDiaryMonthKey)
+  }, [activeDiaryMonthKey, diaryMonthGroups, isDiary])
+  const visibleDiaryPosts = useMemo(
+    () => visibleDiaryMonthGroups.flatMap((group) => group.posts),
+    [visibleDiaryMonthGroups],
+  )
   const selectedDiaryPosts = useMemo(
     () => filteredPosts.filter((post) => selectedDiaryPaths.has(post.path)),
     [filteredPosts, selectedDiaryPaths],
   )
-  const visibleDiaryPaths = useMemo(
+  const activeDiaryMonthLabel = useMemo(() => {
+    if (activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
+      return '全部月份'
+    }
+
+    return diaryMonthGroups.find((group) => group.monthKey === activeDiaryMonthKey)?.label || '全部月份'
+  }, [activeDiaryMonthKey, diaryMonthGroups])
+  const filteredDiaryPaths = useMemo(
     () => new Set(filteredPosts.map((post) => post.path)),
     [filteredPosts],
   )
-  const areAllVisibleDiaryPostsSelected = isDiary && filteredPosts.length > 0 && filteredPosts.every((post) => selectedDiaryPaths.has(post.path))
+  const visibleDiaryPaths = useMemo(
+    () => new Set(visibleDiaryPosts.map((post) => post.path)),
+    [visibleDiaryPosts],
+  )
+  const areAllVisibleDiaryPostsSelected = isDiary && visibleDiaryPosts.length > 0 && visibleDiaryPosts.every((post) => selectedDiaryPaths.has(post.path))
 
   useEffect(() => {
     if (!isDiary) {
@@ -389,10 +430,21 @@ export default function PostDashboard({
     }
 
     setSelectedDiaryPaths((current) => {
-      const next = new Set(Array.from(current).filter((path) => visibleDiaryPaths.has(path)))
+      const next = new Set(Array.from(current).filter((path) => filteredDiaryPaths.has(path)))
       return next.size === current.size ? current : next
     })
-  }, [isDiary, visibleDiaryPaths])
+  }, [filteredDiaryPaths, isDiary])
+
+  useEffect(() => {
+    if (!isDiary || activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
+      return
+    }
+
+    const hasActiveMonth = diaryMonthGroups.some((group) => group.monthKey === activeDiaryMonthKey)
+    if (!hasActiveMonth) {
+      setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
+    }
+  }, [activeDiaryMonthKey, diaryMonthGroups, isDiary])
 
   const publishedCount = useMemo(() => posts.filter((post) => post.published).length, [posts])
   const draftCount = useMemo(() => posts.filter((post) => !post.published).length, [posts])
@@ -562,7 +614,7 @@ export default function PostDashboard({
 
   const toggleAllVisibleDiarySelection = () => {
     setDiarySelection(
-      filteredPosts.map((post) => post.path),
+      visibleDiaryPosts.map((post) => post.path),
       !areAllVisibleDiaryPostsSelected,
     )
   }
@@ -830,6 +882,44 @@ export default function PostDashboard({
         </div>
       ) : isDiary ? (
         <div className="post-dashboard__diary-months">
+          <section className="post-dashboard__diary-month-nav" aria-label="日记月份筛选">
+            <div className="post-dashboard__diary-month-nav-header">
+              <div>
+                <p className="post-dashboard__filter-label">月份视图</p>
+                <strong>默认展示全部月份，点击后只看对应月份的日记</strong>
+              </div>
+            </div>
+            <div className="post-dashboard__diary-month-pills">
+              <button
+                type="button"
+                aria-label="查看全部月份"
+                className={`post-dashboard__diary-month-chip${activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY ? ' is-active' : ''}`}
+                onClick={() => setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)}
+              >
+                <span>全部月份</span>
+                <span className="post-dashboard__diary-month-chip-count">{filteredPosts.length}</span>
+              </button>
+              {diaryMonthGroups.map((group) => {
+                const selectedInMonth = group.posts.filter((post) => selectedDiaryPaths.has(post.path)).length
+
+                return (
+                  <button
+                    key={group.monthKey}
+                    type="button"
+                    aria-label={`筛选 ${group.label}`}
+                    className={`post-dashboard__diary-month-chip${activeDiaryMonthKey === group.monthKey ? ' is-active' : ''}`}
+                    onClick={() => setActiveDiaryMonthKey(group.monthKey)}
+                  >
+                    <span>{group.label}</span>
+                    <span className="post-dashboard__diary-month-chip-count">{group.posts.length}</span>
+                    {selectedInMonth > 0 ? (
+                      <span className="post-dashboard__diary-month-chip-selected">已选 {selectedInMonth}</span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          </section>
           <div className="post-dashboard__diary-selection-bar">
             <label className="post-dashboard__diary-check">
               <input
@@ -840,29 +930,24 @@ export default function PostDashboard({
               />
               <span>选择全部可见日记</span>
             </label>
-            <span>{selectedDiaryPosts.length > 0 ? `已选择 ${selectedDiaryPosts.length} 篇，可开始整理素材。` : '按月份勾选日记后再整理素材。'}</span>
+            <span>
+              {selectedDiaryPosts.length > 0
+                ? `已选择 ${selectedDiaryPosts.length} 篇，当前显示 ${activeDiaryMonthLabel}。`
+                : activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY
+                  ? '默认展示全部月份，点击月份后再批量整理素材。'
+                  : `当前只显示 ${activeDiaryMonthLabel}，可直接全选本月。`}
+            </span>
           </div>
-          {diaryMonthGroups.map((group) => {
-            const monthPaths = group.posts.map((post) => post.path)
-            const isMonthSelected = group.posts.every((post) => selectedDiaryPaths.has(post.path))
+          {visibleDiaryMonthGroups.map((group) => {
             const selectedInMonth = group.posts.filter((post) => selectedDiaryPaths.has(post.path)).length
 
             return (
               <section key={group.monthKey} className="post-dashboard__diary-month">
-                <div className="post-dashboard__diary-month-rail">
+                <div className="post-dashboard__diary-month-header">
                   <div className="post-dashboard__diary-month-meta">
                     <h3>{group.label}</h3>
                     <span>{group.posts.length} 篇日记{selectedInMonth > 0 ? ` · 已选 ${selectedInMonth} 篇` : ''}</span>
                   </div>
-                  <label className="post-dashboard__diary-check">
-                    <input
-                      type="checkbox"
-                      aria-label={`选择 ${group.label} 全部日记`}
-                      checked={isMonthSelected}
-                      onChange={() => setDiarySelection(monthPaths, !isMonthSelected)}
-                    />
-                    <span>本月全选</span>
-                  </label>
                 </div>
                 <div className="post-dashboard__diary-month-content">
                   <div className="post-dashboard__diary-list">

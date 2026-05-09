@@ -343,9 +343,8 @@ describe('post dashboard', () => {
     expect(container.querySelector('.post-dashboard__card--knowledge.is-active')?.textContent).toContain('关于抽象边界的知识点。')
   })
 
-  it('groups diary entries by month and supports selecting entries for material organization', () => {
+  it('renders all diary months by default and supports filtering by month', () => {
     window.localStorage.setItem('alpaca-dashboard-view-mode', 'grid')
-    const onOrganizeDiaryMaterials = vi.fn()
 
     render(
       <PostDashboard
@@ -357,25 +356,26 @@ describe('post dashboard', () => {
         onNewPost={vi.fn()}
         onDeletePost={vi.fn()}
         onTogglePinned={vi.fn()}
-        onOrganizeDiaryMaterials={onOrganizeDiaryMaterials}
       />,
     )
 
-    expect(screen.getByText('2026 年 05 月')).toBeTruthy()
-    expect(screen.getByText('2026 年 04 月')).toBeTruthy()
-    expect(screen.queryByText('写完四月月报')).toBeNull()
-    expect(screen.queryByText('继续开发后台')).toBeNull()
+    expect(screen.getByRole('button', { name: '筛选 2026 年 05 月' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '筛选 2026 年 04 月' })).toBeTruthy()
+    expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    expect(screen.getByText('四月最后一则日记')).toBeTruthy()
     expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
     expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
 
-    fireEvent.click(screen.getByLabelText('选择日记 五月第一则日记'))
-    expect(screen.getByText('已选 1 篇')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
+    expect(screen.queryByText('五月第一则日记')).toBeNull()
+    expect(screen.getByText('四月最后一则日记')).toBeTruthy()
+    expect(screen.getByText('当前只显示 2026 年 04 月，可直接全选本月。')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '整理选中日记' }))
-    expect(onOrganizeDiaryMaterials).toHaveBeenCalledWith([diaryPosts[0]])
+    fireEvent.click(screen.getByRole('button', { name: '查看全部月份' }))
+    expect(screen.getByText('五月第一则日记')).toBeTruthy()
   })
 
-  it('selects all diary entries in a month and renders the material result', () => {
+  it('selects all visible diary entries after filtering to a month and renders the material result', () => {
     const onOrganizeDiaryMaterials = vi.fn()
 
     render(
@@ -393,7 +393,8 @@ describe('post dashboard', () => {
       />,
     )
 
-    fireEvent.click(screen.getByLabelText('选择 2026 年 04 月 全部日记'))
+    fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
+    fireEvent.click(screen.getByLabelText('选择全部可见日记'))
     fireEvent.click(screen.getByRole('button', { name: '整理选中日记' }))
 
     expect(onOrganizeDiaryMaterials).toHaveBeenCalledWith([diaryPosts[1]])
