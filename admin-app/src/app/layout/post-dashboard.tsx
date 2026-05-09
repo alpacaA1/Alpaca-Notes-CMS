@@ -374,6 +374,9 @@ export default function PostDashboard({
   const isKnowledge = contentType === 'knowledge'
   const isMaterialSelectable = isDiary || isReadLater
   const showQuickActions = true
+  const hasSelectedMaterials = selectedMaterialCounts.diary > 0 || selectedMaterialCounts['read-later'] > 0
+  const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : '新建文章 (N)'
+  const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : '+ 新建文章'
 
   const { categories, tags: availableTags } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)
@@ -715,17 +718,9 @@ export default function PostDashboard({
                 type="button"
                 className="post-dashboard__diary-ai-secondary-btn"
                 onClick={onClearSelectedMaterials}
-                disabled={(selectedMaterialCounts.diary === 0 && selectedMaterialCounts['read-later'] === 0) || isOrganizingMaterials}
+                disabled={!hasSelectedMaterials || isOrganizingMaterials}
               >
                 清空已选
-              </button>
-              <button
-                type="button"
-                className="post-dashboard__diary-ai-primary-btn"
-                onClick={onOrganizeMaterials}
-                disabled={(selectedMaterialCounts.diary === 0 && selectedMaterialCounts['read-later'] === 0) || isOrganizingMaterials}
-              >
-                {isOrganizingMaterials ? '整理中…' : '整理已选素材'}
               </button>
             </div>
           </div>
@@ -856,13 +851,24 @@ export default function PostDashboard({
               </button>
             </div>
           ) : null}
+          {isMaterialSelectable ? (
+            <button
+              type="button"
+              className="post-dashboard__organize-btn"
+              onClick={onOrganizeMaterials}
+              disabled={!hasSelectedMaterials || isOrganizingMaterials}
+              title="整理已选素材"
+            >
+              {isOrganizingMaterials ? '整理中…' : '整理素材'}
+            </button>
+          ) : null}
           <button
             type="button"
             className="post-dashboard__new-btn"
             onClick={onNewPost}
-            title={isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : '新建文章 (N)'}
+            title={newPostTitle}
           >
-            {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : '+ 新建文章'}
+            {newPostLabel}
           </button>
         </div>
       </div>

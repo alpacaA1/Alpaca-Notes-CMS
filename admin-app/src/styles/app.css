@@ -4746,7 +4746,6 @@ textarea {
   font-size: 0.86rem;
 }
 
-.post-dashboard__diary-ai-primary-btn,
 .post-dashboard__diary-ai-secondary-btn {
   appearance: none;
   min-height: 40px;
@@ -4760,19 +4759,11 @@ textarea {
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-.post-dashboard__diary-ai-primary-btn {
-  border-color: var(--admin-new-post-line);
-  background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), var(--admin-new-post));
-  color: var(--admin-warm);
-}
-
-.post-dashboard__diary-ai-primary-btn:hover,
 .post-dashboard__diary-ai-secondary-btn:hover {
   transform: translateY(-1px);
   border-color: var(--admin-warm);
 }
 
-.post-dashboard__diary-ai-primary-btn:disabled,
 .post-dashboard__diary-ai-secondary-btn:disabled {
   cursor: not-allowed;
   opacity: 0.58;
@@ -5004,6 +4995,36 @@ textarea {
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(141, 113, 77, 0.1);
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.post-dashboard__organize-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease, color 180ms ease;
+}
+
+.post-dashboard__organize-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--admin-warm);
+  background: rgba(255, 250, 243, 0.98);
+  color: var(--admin-warm);
+}
+
+.post-dashboard__organize-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
 }
 
 .post-dashboard__new-btn:hover {
@@ -7345,6 +7366,18 @@ textarea {
   border-color: rgba(228, 163, 88, 0.25);
   color: var(--admin-warm);
   box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+}
+
+.admin-shell--dark .post-dashboard__organize-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .post-dashboard__organize-btn:hover {
+  background: rgba(212, 165, 106, 0.08);
+  border-color: var(--admin-warm);
+  color: var(--admin-text);
 }
 
 .admin-shell--dark .post-dashboard__new-btn:hover {

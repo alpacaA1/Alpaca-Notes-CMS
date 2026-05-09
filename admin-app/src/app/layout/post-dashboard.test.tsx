@@ -444,10 +444,16 @@ describe('post dashboard', () => {
       />,
     )
 
+    const organizeButton = screen.getByRole('button', { name: '整理素材' })
+    const newPostButton = screen.getByRole('button', { name: '+ 新建日记' })
+    expect((organizeButton as HTMLButtonElement).disabled).toBe(true)
+    expect(organizeButton.compareDocumentPosition(newPostButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0)
+
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
     fireEvent.click(screen.getByLabelText('选择全部可见日记'))
     expect(screen.getByText('已选择 1 篇 · 2026 年 04 月')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '整理已选素材' }))
+    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(organizeButton)
 
     expect(onOrganizeMaterials).toHaveBeenCalled()
     expect(screen.getByText('整理结果')).toBeTruthy()
@@ -465,9 +471,12 @@ describe('post dashboard', () => {
     )
 
     expect(screen.getByText('当前已选 2 篇日记')).toBeTruthy()
+    const organizeButton = screen.getByRole('button', { name: '整理素材' })
+    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
     fireEvent.click(screen.getByLabelText(`选择待读 ${readLaterPosts[0].title}`))
     expect(screen.getByText('当前已选 2 篇日记 · 1 条待读')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '整理已选素材' }))
+    expect((organizeButton as HTMLButtonElement).disabled).toBe(false)
+    fireEvent.click(organizeButton)
     expect(onOrganizeMaterials).toHaveBeenCalled()
   })
 })
