@@ -1,8 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
 
 type MaterialSourceType = 'diary' | 'read-later'
 type MaterialSelectionState = Record<MaterialSourceType, string[]>
+type MaterialDateFilter = {
+  year: string
+  month: string
+  day: string
+}
 
 type MaterialOrganizerDialogProps = {
   diaryPosts: PostIndexItem[]
@@ -32,12 +37,70 @@ function formatDateLabel(value: string) {
   return value?.slice(0, 10) || '未标日期'
 }
 
+function getDateParts(value: string): MaterialDateFilter | null {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    year: match[1],
+    month: match[2],
+    day: match[3],
+  }
+}
+
+function collectDateOptions(posts: PostIndexItem[], field: keyof MaterialDateFilter, filter: Partial<MaterialDateFilter> = {}) {
+  const values = new Set<string>()
+
+  posts.forEach((post) => {
+    const parts = getDateParts(post.date)
+    if (!parts) {
+      return
+    }
+    if (filter.year && parts.year !== filter.year) {
+      return
+    }
+    if (filter.month && parts.month !== filter.month) {
+      return
+    }
+
+    values.add(parts[field])
+  })
+
+  return Array.from(values).sort((left, right) => right.localeCompare(left, 'zh-CN'))
+}
+
+function matchesDateFilter(post: PostIndexItem, filter: MaterialDateFilter) {
+  if (!filter.year && !filter.month && !filter.day) {
+    return true
+  }
+
+  const parts = getDateParts(post.date)
+  if (!parts) {
+    return false
+  }
+
+  if (filter.year && parts.year !== filter.year) {
+    return false
+  }
+  if (filter.month && parts.month !== filter.month) {
+    return false
+  }
+  if (filter.day && parts.day !== filter.day) {
+    return false
+  }
+
+  return true
+}
+
 function MaterialSelectionSection({
   title,
   description,
   posts,
   type,
   selectedPaths,
+  hasActiveDateFilter = false,
   isLoading = false,
   isProcessing = false,
   onSelectedMaterialPathsChange,
@@ -47,12 +110,16 @@ function MaterialSelectionSection({
   posts: PostIndexItem[]
   type: MaterialSourceType
   selectedPaths: string[]
+  hasActiveDateFilter?: boolean
   isLoading?: boolean
   isProcessing?: boolean
   onSelectedMaterialPathsChange: (type: MaterialSourceType, paths: string[]) => void
 }) {
   const selectedPathSet = new Set(selectedPaths)
-  const hasSelected = selectedPaths.length > 0
+  const visiblePaths = posts.map((post) => post.path)
+  const visiblePathSet = new Set(visiblePaths)
+  const visibleSelectedCount = posts.filter((post) => selectedPathSet.has(post.path)).length
+  const hasVisibleSelected = visibleSelectedCount > 0
 
   const toggleItem = (path: string) => {
     const next = new Set(selectedPathSet)
@@ -62,6 +129,16 @@ function MaterialSelectionSection({
       next.add(path)
     }
     onSelectedMaterialPathsChange(type, Array.from(next))
+  }
+
+  const selectAllVisible = () => {
+    const next = new Set(selectedPaths)
+    visiblePaths.forEach((path) => next.add(path))
+    onSelectedMaterialPathsChange(type, Array.from(next))
+  }
+
+  const clearVisible = () => {
+    onSelectedMaterialPathsChange(type, selectedPaths.filter((path) => !visiblePathSet.has(path)))
   }
 
   return (
@@ -75,7 +152,7 @@ function MaterialSelectionSection({
           <button
             type="button"
             className="material-organizer-dialog__text-btn"
-            onClick={() => onSelectedMaterialPathsChange(type, posts.map((post) => post.path))}
+            onClick={selectAllVisible}
             disabled={posts.length === 0 || isLoading || isProcessing}
           >
             全选
@@ -83,8 +160,8 @@ function MaterialSelectionSection({
           <button
             type="button"
             className="material-organizer-dialog__text-btn"
-            onClick={() => onSelectedMaterialPathsChange(type, [])}
-            disabled={!hasSelected || isProcessing}
+            onClick={clearVisible}
+            disabled={!hasVisibleSelected || isProcessing}
           >
             清空
           </button>
@@ -93,14 +170,22 @@ function MaterialSelectionSection({
 
       <div className="material-organizer-dialog__section-meta">
         <span>{posts.length} 条可选</span>
-        <span>{selectedPaths.length} 条已选</span>
+        <span>
+          {selectedPaths.length !== visibleSelectedCount
+            ? `${visibleSelectedCount}/${selectedPaths.length} 条当前已显示`
+            : `${selectedPaths.length} 条已选`}
+        </span>
       </div>
 
       <div className="material-organizer-dialog__list">
         {isLoading ? (
           <p className="material-organizer-dialog__empty">正在加载待读列表…</p>
         ) : posts.length === 0 ? (
-          <p className="material-organizer-dialog__empty">{type === 'diary' ? '还没有可整理的日记。' : '还没有可整理的待读。'}</p>
+          <p className="material-organizer-dialog__empty">
+            {hasActiveDateFilter
+              ? (type === 'diary' ? '当前日期下还没有可整理的日记。' : '当前日期下还没有可整理的待读。')
+              : (type === 'diary' ? '还没有可整理的日记。' : '还没有可整理的待读。')}
+          </p>
         ) : (
           posts.map((post) => {
             const checked = selectedPathSet.has(post.path)
@@ -150,8 +235,24 @@ export default function MaterialOrganizerDialog({
   onConfirm,
   onCancel,
 }: MaterialOrganizerDialogProps) {
+  const [dateFilter, setDateFilter] = useState<MaterialDateFilter>({
+    year: '',
+    month: '',
+    day: '',
+  })
   const hasSelectedMaterials =
     selectedMaterialPaths.diary.length > 0 || selectedMaterialPaths['read-later'].length > 0
+  const allPosts = [...diaryPosts, ...readLaterPosts]
+  const yearOptions = collectDateOptions(allPosts, 'year')
+  const monthOptions = dateFilter.year
+    ? collectDateOptions(allPosts, 'month', { year: dateFilter.year })
+    : []
+  const dayOptions = dateFilter.year && dateFilter.month
+    ? collectDateOptions(allPosts, 'day', { year: dateFilter.year, month: dateFilter.month })
+    : []
+  const hasActiveDateFilter = Boolean(dateFilter.year || dateFilter.month || dateFilter.day)
+  const filteredDiaryPosts = diaryPosts.filter((post) => matchesDateFilter(post, dateFilter))
+  const filteredReadLaterPosts = readLaterPosts.filter((post) => matchesDateFilter(post, dateFilter))
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -163,6 +264,22 @@ export default function MaterialOrganizerDialog({
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isProcessing, onCancel])
+
+  useEffect(() => {
+    if (dateFilter.year && !yearOptions.includes(dateFilter.year)) {
+      setDateFilter({ year: '', month: '', day: '' })
+      return
+    }
+
+    if (dateFilter.month && !monthOptions.includes(dateFilter.month)) {
+      setDateFilter((current) => ({ ...current, month: '', day: '' }))
+      return
+    }
+
+    if (dateFilter.day && !dayOptions.includes(dateFilter.day)) {
+      setDateFilter((current) => ({ ...current, day: '' }))
+    }
+  }, [dateFilter.day, dateFilter.month, dateFilter.year, dayOptions, monthOptions, yearOptions])
 
   return (
     <div className="confirm-dialog__overlay material-organizer-dialog__overlay" onClick={isProcessing ? undefined : onCancel}>
@@ -194,6 +311,92 @@ export default function MaterialOrganizerDialog({
           勾选要纳入本次总结的日记和待读。待读会自动带上我的总结、我的评论和有评论批注。
         </p>
 
+        <div className="material-organizer-dialog__filters" aria-label="日期筛选">
+          <div className="material-organizer-dialog__filter-block">
+            <span className="post-dashboard__filter-label">日期筛选</span>
+            <div className="material-organizer-dialog__filter-controls">
+              <label className="material-organizer-dialog__filter-field">
+                <span>年</span>
+                <select
+                  aria-label="筛选年份"
+                  value={dateFilter.year}
+                  disabled={isProcessing}
+                  onChange={(event) => {
+                    setDateFilter({
+                      year: event.target.value,
+                      month: '',
+                      day: '',
+                    })
+                  }}
+                >
+                  <option value="">全部年份</option>
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year} 年
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="material-organizer-dialog__filter-field">
+                <span>月</span>
+                <select
+                  aria-label="筛选月份"
+                  value={dateFilter.month}
+                  disabled={!dateFilter.year || isProcessing}
+                  onChange={(event) => {
+                    setDateFilter((current) => ({
+                      ...current,
+                      month: event.target.value,
+                      day: '',
+                    }))
+                  }}
+                >
+                  <option value="">全部月份</option>
+                  {monthOptions.map((month) => (
+                    <option key={month} value={month}>
+                      {month} 月
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="material-organizer-dialog__filter-field">
+                <span>日</span>
+                <select
+                  aria-label="筛选日期"
+                  value={dateFilter.day}
+                  disabled={!dateFilter.year || !dateFilter.month || isProcessing}
+                  onChange={(event) => {
+                    setDateFilter((current) => ({
+                      ...current,
+                      day: event.target.value,
+                    }))
+                  }}
+                >
+                  <option value="">全部日期</option>
+                  {dayOptions.map((day) => (
+                    <option key={day} value={day}>
+                      {day} 日
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+          <div className="material-organizer-dialog__filter-summary">
+            <span>当前显示 {filteredDiaryPosts.length} 篇日记 · {filteredReadLaterPosts.length} 条待读</span>
+            {hasActiveDateFilter ? (
+              <button
+                type="button"
+                className="material-organizer-dialog__text-btn"
+                disabled={isProcessing}
+                onClick={() => setDateFilter({ year: '', month: '', day: '' })}
+              >
+                清空日期筛选
+              </button>
+            ) : null}
+          </div>
+        </div>
+
         <div className="material-organizer-dialog__summary-row">
           <span className="material-organizer-dialog__summary">
             当前已选 {formatSelectedMaterialSummary(selectedMaterialPaths)}
@@ -212,18 +415,20 @@ export default function MaterialOrganizerDialog({
           <MaterialSelectionSection
             title="日记"
             description="勾选本次需要归纳的日记正文。"
-            posts={diaryPosts}
+            posts={filteredDiaryPosts}
             type="diary"
             selectedPaths={selectedMaterialPaths.diary}
+            hasActiveDateFilter={hasActiveDateFilter}
             isProcessing={isProcessing}
             onSelectedMaterialPathsChange={onSelectedMaterialPathsChange}
           />
           <MaterialSelectionSection
             title="待读"
             description="每条会自动提取我的总结、我的评论和有评论批注。"
-            posts={readLaterPosts}
+            posts={filteredReadLaterPosts}
             type="read-later"
             selectedPaths={selectedMaterialPaths['read-later']}
+            hasActiveDateFilter={hasActiveDateFilter}
             isLoading={isLoadingReadLater}
             isProcessing={isProcessing}
             onSelectedMaterialPathsChange={onSelectedMaterialPathsChange}

@@ -1000,6 +1000,26 @@ textarea {
   border-color: rgba(212, 165, 106, 0.14);
 }
 
+.admin-shell--dark .material-organizer-dialog__filters {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .material-organizer-dialog__filter-summary {
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .material-organizer-dialog__filter-field select {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .material-organizer-dialog__filter-field select:disabled {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--admin-soft);
+}
+
 .admin-shell--dark .material-organizer-dialog__item {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.025);
@@ -4549,6 +4569,66 @@ textarea {
 
 .material-organizer-dialog__message {
   margin-top: 14px;
+}
+
+.material-organizer-dialog__filters {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(203, 167, 119, 0.22);
+  background: rgba(255, 252, 247, 0.72);
+}
+
+.material-organizer-dialog__filter-block {
+  display: grid;
+  gap: 10px;
+}
+
+.material-organizer-dialog__filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.material-organizer-dialog__filter-field {
+  display: grid;
+  gap: 6px;
+  min-width: 120px;
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+}
+
+.material-organizer-dialog__filter-field span {
+  font-weight: 600;
+}
+
+.material-organizer-dialog__filter-field select {
+  appearance: none;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--admin-text);
+  font: inherit;
+}
+
+.material-organizer-dialog__filter-field select:disabled {
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.54);
+  color: var(--admin-soft);
+}
+
+.material-organizer-dialog__filter-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--admin-muted);
+  font-size: 0.82rem;
 }
 
 .material-organizer-dialog__summary-row {
