@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
 
 type MaterialSourceType = 'diary' | 'read-later'
@@ -20,8 +20,10 @@ type MaterialOrganizerDialogProps = {
   onCancel: () => void
 }
 
-const MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT = 120
-const MATERIAL_ORGANIZER_RENDER_BATCH = 160
+const MATERIAL_ORGANIZER_LIST_MAX_HEIGHT = 360
+const MATERIAL_ORGANIZER_LIST_ITEM_GAP = 10
+const MATERIAL_ORGANIZER_LIST_OVERSCAN = 8
+const MATERIAL_ORGANIZER_LIST_ESTIMATED_ROW_SPAN = 92
 
 function formatSelectedMaterialSummary(selection: MaterialSelectionState) {
   const parts: string[] = []
@@ -98,7 +100,11 @@ function MaterialSelectionSection({
   isProcessing?: boolean
   onSelectedMaterialPathsChange: (type: MaterialSourceType, paths: string[]) => void
 }) {
-  const [renderedCount, setRenderedCount] = useState(() => Math.min(posts.length, MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT))
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const scrollFrameRef = useRef<number | null>(null)
+  const pendingScrollTopRef = useRef(0)
+  const [scrollTop, setScrollTop] = useState(0)
+  const [estimatedRowSpan, setEstimatedRowSpan] = useState(MATERIAL_ORGANIZER_LIST_ESTIMATED_ROW_SPAN)
   const selectedPathSet = useMemo(() => new Set(selectedPaths), [selectedPaths])
   const visiblePaths = useMemo(() => posts.map((post) => post.path), [posts])
   const visiblePathSet = useMemo(() => new Set(visiblePaths), [visiblePaths])
@@ -107,45 +113,63 @@ function MaterialSelectionSection({
     [posts, selectedPathSet],
   )
   const hasVisibleSelected = visibleSelectedCount > 0
-  const renderedPosts = posts.slice(0, renderedCount)
-  const isProgressivelyRendering = renderedCount < posts.length
+  const startIndex = Math.max(0, Math.floor(scrollTop / estimatedRowSpan) - MATERIAL_ORGANIZER_LIST_OVERSCAN)
+  const visibleItemCount =
+    Math.ceil(MATERIAL_ORGANIZER_LIST_MAX_HEIGHT / estimatedRowSpan) + MATERIAL_ORGANIZER_LIST_OVERSCAN * 2
+  const endIndex = Math.min(posts.length, startIndex + visibleItemCount)
+  const renderedPosts = useMemo(() => posts.slice(startIndex, endIndex), [endIndex, posts, startIndex])
+  const topSpacerHeight = startIndex * estimatedRowSpan
+  const bottomSpacerHeight = Math.max(0, (posts.length - endIndex) * estimatedRowSpan)
 
   useEffect(() => {
-    const initialCount = Math.min(posts.length, MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT)
-    setRenderedCount(initialCount)
+    if (scrollFrameRef.current !== null) {
+      window.cancelAnimationFrame(scrollFrameRef.current)
+      scrollFrameRef.current = null
+    }
 
-    if (posts.length <= initialCount) {
+    pendingScrollTopRef.current = 0
+    setScrollTop(0)
+    setEstimatedRowSpan(MATERIAL_ORGANIZER_LIST_ESTIMATED_ROW_SPAN)
+
+    if (listRef.current) {
+      listRef.current.scrollTop = 0
+    }
+  }, [posts])
+
+  useEffect(() => {
+    return () => {
+      if (scrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(scrollFrameRef.current)
+      }
+    }
+  }, [])
+
+  const handleScroll = (event: UIEvent<HTMLDivElement>) => {
+    pendingScrollTopRef.current = event.currentTarget.scrollTop
+
+    if (scrollFrameRef.current !== null) {
       return
     }
 
-    let cancelled = false
-    let timeoutId: number | null = null
-    let nextCount = initialCount
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = null
+      setScrollTop(pendingScrollTopRef.current)
+    })
+  }
 
-    const scheduleNextBatch = () => {
-      timeoutId = window.setTimeout(() => {
-        if (cancelled) {
-          return
-        }
-
-        nextCount = Math.min(posts.length, nextCount + MATERIAL_ORGANIZER_RENDER_BATCH)
-        setRenderedCount(nextCount)
-
-        if (nextCount < posts.length) {
-          scheduleNextBatch()
-        }
-      }, 0)
+  const handleMeasurementRef = (node: HTMLLabelElement | null) => {
+    if (!node) {
+      return
     }
 
-    scheduleNextBatch()
-
-    return () => {
-      cancelled = true
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
+    const measuredHeight = Math.round(node.getBoundingClientRect().height || node.offsetHeight)
+    if (measuredHeight <= 0) {
+      return
     }
-  }, [posts])
+
+    const nextRowSpan = measuredHeight + MATERIAL_ORGANIZER_LIST_ITEM_GAP
+    setEstimatedRowSpan((current) => (Math.abs(current - nextRowSpan) <= 2 ? current : nextRowSpan))
+  }
 
   const toggleItem = (path: string) => {
     const next = new Set(selectedPathSet)
@@ -201,10 +225,9 @@ function MaterialSelectionSection({
             ? `${visibleSelectedCount}/${selectedPaths.length} 条当前已显示`
             : `${selectedPaths.length} 条已选`}
         </span>
-        {isProgressivelyRendering ? <span>正在载入列表… {renderedCount}/{posts.length}</span> : null}
       </div>
 
-      <div className="material-organizer-dialog__list">
+      <div className="material-organizer-dialog__list" ref={listRef} onScroll={handleScroll}>
         {isLoading ? (
           <p className="material-organizer-dialog__empty">正在加载待读列表…</p>
         ) : posts.length === 0 ? (
@@ -214,37 +237,46 @@ function MaterialSelectionSection({
               : (type === 'diary' ? '还没有可整理的日记。' : '还没有可整理的待读。')}
           </p>
         ) : (
-          renderedPosts.map((post) => {
-            const checked = selectedPathSet.has(post.path)
+          <div
+            className="material-organizer-dialog__list-virtual"
+            style={{
+              paddingTop: topSpacerHeight > 0 ? `${topSpacerHeight}px` : undefined,
+              paddingBottom: bottomSpacerHeight > 0 ? `${bottomSpacerHeight}px` : undefined,
+            }}
+          >
+            {renderedPosts.map((post, index) => {
+              const checked = selectedPathSet.has(post.path)
 
-            return (
-              <label
-                key={post.path}
-                className={`material-organizer-dialog__item${checked ? ' is-active' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={isProcessing}
-                  aria-label={type === 'diary' ? `选择日记 ${post.title}` : `选择待读 ${post.title}`}
-                  onChange={() => toggleItem(post.path)}
-                />
-                <div className="material-organizer-dialog__item-copy">
-                  <div className="material-organizer-dialog__item-title-row">
-                    <strong>{post.title || '未命名素材'}</strong>
-                    <span>{formatDateLabel(post.date)}</span>
+              return (
+                <label
+                  key={post.path}
+                  ref={index === 0 ? handleMeasurementRef : undefined}
+                  className={`material-organizer-dialog__item${checked ? ' is-active' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={isProcessing}
+                    aria-label={type === 'diary' ? `选择日记 ${post.title}` : `选择待读 ${post.title}`}
+                    onChange={() => toggleItem(post.path)}
+                  />
+                  <div className="material-organizer-dialog__item-copy">
+                    <div className="material-organizer-dialog__item-title-row">
+                      <strong>{post.title || '未命名素材'}</strong>
+                      <span>{formatDateLabel(post.date)}</span>
+                    </div>
+                    <p>
+                      {type === 'diary'
+                        ? (post.desc?.trim() || '纳入这篇日记的正文内容。')
+                        : post.sourceName?.trim()
+                          ? `${post.sourceName.trim()} · 自动带上我的总结、我的评论和有评论批注`
+                          : '自动带上我的总结、我的评论和有评论批注'}
+                    </p>
                   </div>
-                  <p>
-                    {type === 'diary'
-                      ? (post.desc?.trim() || '纳入这篇日记的正文内容。')
-                      : post.sourceName?.trim()
-                        ? `${post.sourceName.trim()} · 自动带上我的总结、我的评论和有评论批注`
-                        : '自动带上我的总结、我的评论和有评论批注'}
-                  </p>
-                </div>
-              </label>
-            )
-          })
+                </label>
+              )
+            })}
+          </div>
         )}
       </div>
     </section>
@@ -269,8 +301,14 @@ export default function MaterialOrganizerDialog({
   const hasSelectedMaterials =
     selectedMaterialPaths.diary.length > 0 || selectedMaterialPaths['read-later'].length > 0
   const hasActiveDateFilter = Boolean(dateFilter.start || dateFilter.end)
-  const filteredDiaryPosts = diaryPosts.filter((post) => matchesDateFilter(post, dateFilter))
-  const filteredReadLaterPosts = readLaterPosts.filter((post) => matchesDateFilter(post, dateFilter))
+  const filteredDiaryPosts = useMemo(
+    () => diaryPosts.filter((post) => matchesDateFilter(post, dateFilter)),
+    [dateFilter.end, dateFilter.start, diaryPosts],
+  )
+  const filteredReadLaterPosts = useMemo(
+    () => readLaterPosts.filter((post) => matchesDateFilter(post, dateFilter)),
+    [dateFilter.end, dateFilter.start, readLaterPosts],
+  )
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

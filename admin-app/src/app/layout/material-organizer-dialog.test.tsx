@@ -153,4 +153,48 @@ describe('material organizer dialog', () => {
     expect(screen.getByText('当前已选 1 篇日记')).toBeTruthy()
     expect(within(diarySection).getByText('0/1 条当前已显示')).toBeTruthy()
   })
+
+  it('window-renders long lists while scrolling', () => {
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback: FrameRequestCallback) => {
+      callback(0)
+      return 1
+    })
+
+    const longDiaryPosts: PostIndexItem[] = Array.from({ length: 260 }, (_, index) => ({
+      path: `source/diary/202605${String(index + 1).padStart(2, '0')}.md`,
+      sha: `sha-diary-${index}`,
+      title: `长列表日记 ${index}`,
+      date: '2026-05-10 01:01:01',
+      desc: '滚动性能测试',
+      published: false,
+      hasExplicitPublished: true,
+      categories: [],
+      tags: [],
+      permalink: null,
+      cover: null,
+    }))
+
+    render(
+      <MaterialOrganizerDialog
+        diaryPosts={longDiaryPosts}
+        readLaterPosts={[]}
+        selectedMaterialPaths={{ diary: [], 'read-later': [] }}
+        onSelectedMaterialPathsChange={vi.fn()}
+        onClearSelectedMaterials={vi.fn()}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('长列表日记 0')).toBeTruthy()
+    expect(screen.queryByText('长列表日记 180')).toBeNull()
+
+    const diarySection = screen.getByRole('region', { name: '日记' })
+    const list = diarySection.querySelector('.material-organizer-dialog__list') as HTMLDivElement
+
+    fireEvent.scroll(list, { target: { scrollTop: 17000 } })
+
+    expect(screen.getByText('长列表日记 180')).toBeTruthy()
+    expect(screen.queryByText('长列表日记 0')).toBeNull()
+  })
 })
