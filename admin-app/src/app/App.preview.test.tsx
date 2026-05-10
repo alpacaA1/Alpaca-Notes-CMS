@@ -1277,6 +1277,7 @@ describe('App preview mode', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /read-later preview item/i }))
+    fireEvent.click(await screen.findByRole('tab', { name: '信息' }))
 
     expect((await screen.findByLabelText('摘要') as HTMLTextAreaElement).value).toBe('这是一条待读摘要。')
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
