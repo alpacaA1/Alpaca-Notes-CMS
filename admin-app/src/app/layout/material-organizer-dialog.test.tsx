@@ -116,12 +116,11 @@ describe('material organizer dialog', () => {
     vi.restoreAllMocks()
   })
 
-  it('filters diary and read-later materials by year, month, and day', () => {
+  it('filters diary and read-later materials by date range', () => {
     renderDialog()
 
-    fireEvent.change(screen.getByLabelText('筛选年份'), { target: { value: '2026' } })
-    fireEvent.change(screen.getByLabelText('筛选月份'), { target: { value: '05' } })
-    fireEvent.change(screen.getByLabelText('筛选日期'), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-05-10' } })
+    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-05-10' } })
 
     expect(screen.getByText('五月十日日记')).toBeTruthy()
     expect(screen.getByText('五月十日待读')).toBeTruthy()
@@ -132,9 +131,8 @@ describe('material organizer dialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '清空日期筛选' }))
 
-    expect((screen.getByLabelText('筛选年份') as HTMLSelectElement).value).toBe('')
-    expect((screen.getByLabelText('筛选月份') as HTMLSelectElement).value).toBe('')
-    expect((screen.getByLabelText('筛选日期') as HTMLSelectElement).value).toBe('')
+    expect((screen.getByLabelText('开始日期') as HTMLInputElement).value).toBe('')
+    expect((screen.getByLabelText('结束日期') as HTMLInputElement).value).toBe('')
     expect(screen.getByText('五月十一日日记')).toBeTruthy()
     expect(screen.getByText('四月末待读')).toBeTruthy()
   })
@@ -142,9 +140,8 @@ describe('material organizer dialog', () => {
   it('applies section full select and clear only to the currently visible diary items', () => {
     renderDialog([diaryPosts[2].path])
 
-    fireEvent.change(screen.getByLabelText('筛选年份'), { target: { value: '2026' } })
-    fireEvent.change(screen.getByLabelText('筛选月份'), { target: { value: '05' } })
-    fireEvent.change(screen.getByLabelText('筛选日期'), { target: { value: '10' } })
+    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-05-10' } })
+    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-05-10' } })
 
     const diarySection = screen.getByRole('region', { name: '日记' })
 

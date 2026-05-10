@@ -4,9 +4,8 @@ import type { PostIndexItem } from '../posts/post-types'
 type MaterialSourceType = 'diary' | 'read-later'
 type MaterialSelectionState = Record<MaterialSourceType, string[]>
 type MaterialDateFilter = {
-  year: string
-  month: string
-  day: string
+  start: string
+  end: string
 }
 
 type MaterialOrganizerDialogProps = {
@@ -40,57 +39,38 @@ function formatDateLabel(value: string) {
   return value?.slice(0, 10) || '未标日期'
 }
 
-function getDateParts(value: string): MaterialDateFilter | null {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/)
-  if (!match) {
-    return null
+function normalizeDateValue(value: string) {
+  const match = value.match(/^(\d{4}-\d{2}-\d{2})/)
+  return match ? match[1] : ''
+}
+
+function getResolvedDateRange(filter: MaterialDateFilter) {
+  if (!filter.start || !filter.end || filter.start <= filter.end) {
+    return filter
   }
 
   return {
-    year: match[1],
-    month: match[2],
-    day: match[3],
+    start: filter.end,
+    end: filter.start,
   }
-}
-
-function collectDateOptions(posts: PostIndexItem[], field: keyof MaterialDateFilter, filter: Partial<MaterialDateFilter> = {}) {
-  const values = new Set<string>()
-
-  posts.forEach((post) => {
-    const parts = getDateParts(post.date)
-    if (!parts) {
-      return
-    }
-    if (filter.year && parts.year !== filter.year) {
-      return
-    }
-    if (filter.month && parts.month !== filter.month) {
-      return
-    }
-
-    values.add(parts[field])
-  })
-
-  return Array.from(values).sort((left, right) => right.localeCompare(left, 'zh-CN'))
 }
 
 function matchesDateFilter(post: PostIndexItem, filter: MaterialDateFilter) {
-  if (!filter.year && !filter.month && !filter.day) {
+  if (!filter.start && !filter.end) {
     return true
   }
 
-  const parts = getDateParts(post.date)
-  if (!parts) {
+  const postDate = normalizeDateValue(post.date)
+  if (!postDate) {
     return false
   }
 
-  if (filter.year && parts.year !== filter.year) {
+  const resolvedFilter = getResolvedDateRange(filter)
+
+  if (resolvedFilter.start && postDate < resolvedFilter.start) {
     return false
   }
-  if (filter.month && parts.month !== filter.month) {
-    return false
-  }
-  if (filter.day && parts.day !== filter.day) {
+  if (resolvedFilter.end && postDate > resolvedFilter.end) {
     return false
   }
 
@@ -283,21 +263,12 @@ export default function MaterialOrganizerDialog({
   onCancel,
 }: MaterialOrganizerDialogProps) {
   const [dateFilter, setDateFilter] = useState<MaterialDateFilter>({
-    year: '',
-    month: '',
-    day: '',
+    start: '',
+    end: '',
   })
   const hasSelectedMaterials =
     selectedMaterialPaths.diary.length > 0 || selectedMaterialPaths['read-later'].length > 0
-  const allPosts = [...diaryPosts, ...readLaterPosts]
-  const yearOptions = collectDateOptions(allPosts, 'year')
-  const monthOptions = dateFilter.year
-    ? collectDateOptions(allPosts, 'month', { year: dateFilter.year })
-    : []
-  const dayOptions = dateFilter.year && dateFilter.month
-    ? collectDateOptions(allPosts, 'day', { year: dateFilter.year, month: dateFilter.month })
-    : []
-  const hasActiveDateFilter = Boolean(dateFilter.year || dateFilter.month || dateFilter.day)
+  const hasActiveDateFilter = Boolean(dateFilter.start || dateFilter.end)
   const filteredDiaryPosts = diaryPosts.filter((post) => matchesDateFilter(post, dateFilter))
   const filteredReadLaterPosts = readLaterPosts.filter((post) => matchesDateFilter(post, dateFilter))
 
@@ -312,22 +283,6 @@ export default function MaterialOrganizerDialog({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isProcessing, onCancel])
 
-  useEffect(() => {
-    if (dateFilter.year && !yearOptions.includes(dateFilter.year)) {
-      setDateFilter({ year: '', month: '', day: '' })
-      return
-    }
-
-    if (dateFilter.month && !monthOptions.includes(dateFilter.month)) {
-      setDateFilter((current) => ({ ...current, month: '', day: '' }))
-      return
-    }
-
-    if (dateFilter.day && !dayOptions.includes(dateFilter.day)) {
-      setDateFilter((current) => ({ ...current, day: '' }))
-    }
-  }, [dateFilter.day, dateFilter.month, dateFilter.year, dayOptions, monthOptions, yearOptions])
-
   return (
     <div className="confirm-dialog__overlay material-organizer-dialog__overlay" onClick={isProcessing ? undefined : onCancel}>
       <div
@@ -335,7 +290,6 @@ export default function MaterialOrganizerDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby="material-organizer-dialog-title"
-        aria-describedby="material-organizer-dialog-description"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="material-organizer-dialog__header">
@@ -354,89 +308,53 @@ export default function MaterialOrganizerDialog({
           </button>
         </div>
 
-        <p id="material-organizer-dialog-description" className="confirm-dialog__message material-organizer-dialog__message">
-          勾选要纳入本次总结的日记和待读。待读会自动带上我的总结、我的评论和有评论批注。
-        </p>
-
         <div className="material-organizer-dialog__filters" aria-label="日期筛选">
-          <div className="material-organizer-dialog__filter-block">
-            <span className="post-dashboard__filter-label">日期筛选</span>
-            <div className="material-organizer-dialog__filter-controls">
-              <label className="material-organizer-dialog__filter-field">
-                <span>年</span>
-                <select
-                  aria-label="筛选年份"
-                  value={dateFilter.year}
+          <div className="material-organizer-dialog__filter-bar">
+            <div className="material-organizer-dialog__date-range">
+              <span className="post-dashboard__filter-label">日期范围</span>
+              <label className="material-organizer-dialog__date-input">
+                <span className="sr-only">开始日期</span>
+                <input
+                  type="date"
+                  aria-label="开始日期"
+                  value={dateFilter.start}
                   disabled={isProcessing}
                   onChange={(event) => {
-                    setDateFilter({
-                      year: event.target.value,
-                      month: '',
-                      day: '',
-                    })
+                    setDateFilter((current) => ({
+                      ...current,
+                      start: event.target.value,
+                    }))
                   }}
-                >
-                  <option value="">全部年份</option>
-                  {yearOptions.map((year) => (
-                    <option key={year} value={year}>
-                      {year} 年
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
-              <label className="material-organizer-dialog__filter-field">
-                <span>月</span>
-                <select
-                  aria-label="筛选月份"
-                  value={dateFilter.month}
-                  disabled={!dateFilter.year || isProcessing}
+              <span className="material-organizer-dialog__date-separator" aria-hidden="true">
+                至
+              </span>
+              <label className="material-organizer-dialog__date-input">
+                <span className="sr-only">结束日期</span>
+                <input
+                  type="date"
+                  aria-label="结束日期"
+                  value={dateFilter.end}
+                  disabled={isProcessing}
                   onChange={(event) => {
                     setDateFilter((current) => ({
                       ...current,
-                      month: event.target.value,
-                      day: '',
+                      end: event.target.value,
                     }))
                   }}
-                >
-                  <option value="">全部月份</option>
-                  {monthOptions.map((month) => (
-                    <option key={month} value={month}>
-                      {month} 月
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="material-organizer-dialog__filter-field">
-                <span>日</span>
-                <select
-                  aria-label="筛选日期"
-                  value={dateFilter.day}
-                  disabled={!dateFilter.year || !dateFilter.month || isProcessing}
-                  onChange={(event) => {
-                    setDateFilter((current) => ({
-                      ...current,
-                      day: event.target.value,
-                    }))
-                  }}
-                >
-                  <option value="">全部日期</option>
-                  {dayOptions.map((day) => (
-                    <option key={day} value={day}>
-                      {day} 日
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
             </div>
-          </div>
-          <div className="material-organizer-dialog__filter-summary">
-            <span>当前显示 {filteredDiaryPosts.length} 篇日记 · {filteredReadLaterPosts.length} 条待读</span>
+            <div className="material-organizer-dialog__filter-summary">
+              <span>当前显示 {filteredDiaryPosts.length} 篇日记 · {filteredReadLaterPosts.length} 条待读</span>
+            </div>
             {hasActiveDateFilter ? (
               <button
                 type="button"
                 className="material-organizer-dialog__text-btn"
                 disabled={isProcessing}
-                onClick={() => setDateFilter({ year: '', month: '', day: '' })}
+                onClick={() => setDateFilter({ start: '', end: '' })}
               >
                 清空日期筛选
               </button>

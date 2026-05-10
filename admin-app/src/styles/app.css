@@ -1045,13 +1045,13 @@ textarea {
   color: var(--admin-muted);
 }
 
-.admin-shell--dark .material-organizer-dialog__filter-field select {
+.admin-shell--dark .material-organizer-dialog__date-input input {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.12);
   color: var(--admin-text);
 }
 
-.admin-shell--dark .material-organizer-dialog__filter-field select:disabled {
+.admin-shell--dark .material-organizer-dialog__date-input input:disabled {
   background: rgba(255, 255, 255, 0.03);
   color: var(--admin-soft);
 }
@@ -4749,42 +4749,36 @@ textarea {
 }
 
 .material-organizer-dialog__filters {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
-  padding: 14px;
+  margin-top: 12px;
+  padding: 10px 14px;
   border-radius: 14px;
   border: 1px solid rgba(203, 167, 119, 0.22);
   background: rgba(255, 252, 247, 0.72);
 }
 
-.material-organizer-dialog__filter-block {
-  display: grid;
-  gap: 10px;
-}
-
-.material-organizer-dialog__filter-controls {
+.material-organizer-dialog__filter-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
 }
 
-.material-organizer-dialog__filter-field {
-  display: grid;
-  gap: 6px;
-  min-width: 120px;
-  color: var(--admin-soft);
-  font-size: 0.78rem;
+.material-organizer-dialog__date-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.material-organizer-dialog__filter-field span {
-  font-weight: 600;
+.material-organizer-dialog__date-input {
+  display: flex;
 }
 
-.material-organizer-dialog__filter-field select {
-  appearance: none;
-  min-height: 38px;
-  padding: 0 12px;
+.material-organizer-dialog__date-input input {
+  min-width: 148px;
+  min-height: 36px;
+  padding: 0 10px;
   border-radius: 10px;
   border: 1px solid var(--admin-line);
   background: rgba(255, 255, 255, 0.8);
@@ -4792,17 +4786,20 @@ textarea {
   font: inherit;
 }
 
-.material-organizer-dialog__filter-field select:disabled {
+.material-organizer-dialog__date-input input:disabled {
   cursor: not-allowed;
   background: rgba(255, 255, 255, 0.54);
   color: var(--admin-soft);
 }
 
+.material-organizer-dialog__date-separator {
+  color: var(--admin-muted);
+  font-size: 0.82rem;
+}
+
 .material-organizer-dialog__filter-summary {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 10px;
   color: var(--admin-muted);
   font-size: 0.82rem;
@@ -7627,6 +7624,15 @@ textarea {
 }
 
 @media (max-width: 960px) {
+  .material-organizer-dialog__filter-bar {
+    align-items: flex-start;
+  }
+
+  .material-organizer-dialog__filter-summary {
+    width: 100%;
+    justify-content: space-between;
+  }
+
   .material-organizer-dialog__sections {
     grid-template-columns: 1fr;
   }
