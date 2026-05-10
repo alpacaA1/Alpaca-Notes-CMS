@@ -417,8 +417,10 @@ describe('settings panel', () => {
     expect(screen.queryByLabelText('我的评论')).toBeNull()
     expect(screen.getByText('Document note')).toBeTruthy()
     expect(screen.getByText('Add a document note...')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Document note' }).className).toContain('settings-panel__document-note-entry--borderless')
 
     fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    expect(screen.getByLabelText('Document note').closest('div')?.className).toContain('settings-panel__document-note-editor--bare')
     fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '补一条评论' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -484,6 +486,7 @@ describe('settings panel', () => {
     expect(screen.getByText(annotation.quote)).toBeTruthy()
     expect(screen.getByText(annotation.quote).className).toContain('settings-panel__annotation-quote')
     expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
+    expect(screen.getByLabelText('Highlight document note').closest('div')?.className).toContain('settings-panel__document-note-editor--bare')
 
     fireEvent.change(screen.getByLabelText('Highlight document note'), { target: { value: '新的高亮批注' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))

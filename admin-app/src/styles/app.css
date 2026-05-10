@@ -2427,6 +2427,10 @@ textarea {
   box-shadow: none;
 }
 
+.settings-panel__document-note-editor--bare {
+  background: transparent;
+}
+
 .settings-panel__document-note-editor textarea {
   display: block;
   width: 100%;
@@ -2623,6 +2627,11 @@ textarea {
   min-height: 44px;
   padding-top: 10px;
   padding-bottom: 10px;
+}
+
+.settings-panel__document-note-entry--commentary {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 .settings-panel__document-note-editor--annotation textarea {

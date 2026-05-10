@@ -168,7 +168,6 @@ export default function SettingsPanel({
   const isTopicDocument = isTopicPost || isLegacyTopicKnowledge
   const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
   const currentDocumentNote = readLaterSections?.commentary || ''
-  const isDocumentNoteEmpty = !currentDocumentNote.trim()
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -685,7 +684,7 @@ export default function SettingsPanel({
             </div>
 
             {isDocumentNoteEditing ? (
-              <div className="settings-panel__document-note-editor">
+              <div className="settings-panel__document-note-editor settings-panel__document-note-editor--bare">
                 <textarea
                   aria-label="Document note"
                   placeholder="Add a document note..."
@@ -705,7 +704,7 @@ export default function SettingsPanel({
               <button
                 type="button"
                 aria-label="Document note"
-                className={`settings-panel__document-note-entry${isDocumentNoteEmpty ? ' settings-panel__document-note-entry--borderless' : ''}`}
+                className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__document-note-entry--commentary"
                 onClick={handleOpenDocumentNoteEditor}
               >
                 {renderDocumentNoteValue(currentDocumentNote)}
@@ -757,7 +756,7 @@ export default function SettingsPanel({
                             <span className="settings-panel__annotation-note-label">Document note</span>
                           </div>
                           {isEditing ? (
-                            <div className="settings-panel__document-note-editor settings-panel__document-note-editor--annotation">
+                            <div className="settings-panel__document-note-editor settings-panel__document-note-editor--bare settings-panel__document-note-editor--annotation">
                               <textarea
                                 aria-label="Highlight document note"
                                 placeholder="Add a document note..."
@@ -784,7 +783,7 @@ export default function SettingsPanel({
                             <button
                               type="button"
                               aria-label="Highlight document note"
-                              className="settings-panel__document-note-entry settings-panel__annotation-note-entry"
+                              className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__annotation-note-entry"
                               onClick={() => onEditAnnotation?.(annotation.id)}
                             >
                               {renderDocumentNoteValue(annotation.note)}
