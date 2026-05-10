@@ -568,8 +568,8 @@ textarea {
 }
 
 .admin-shell--dark .settings-panel__document-note-editor {
-  border-color: rgba(228, 163, 88, 0.26);
-  box-shadow: 0 0 0 1px rgba(228, 163, 88, 0.16);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .admin-shell--dark .settings-panel__document-note-editor textarea,
@@ -2423,24 +2423,27 @@ textarea {
 
 .settings-panel__document-note-editor {
   padding: 10px;
-  border-color: rgba(87, 150, 255, 0.7);
-  box-shadow:
-    0 0 0 1px rgba(87, 150, 255, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .settings-panel__document-note-editor textarea {
+  display: block;
+  width: 100%;
   min-height: 112px;
   border: 0;
   padding: 0;
   background: transparent;
   box-shadow: none;
+  outline: none;
   resize: none;
 }
 
-.settings-panel__document-note-editor textarea:focus {
+.settings-panel__document-note-editor textarea:focus,
+.settings-panel__document-note-editor textarea:focus-visible {
   border: 0;
   box-shadow: none;
+  outline: none;
 }
 
 .settings-panel__filter-like-select {
