@@ -228,4 +228,22 @@ describe('PreviewPane', () => {
     const image = screen.getByRole('img', { name: '方案概览 Mockup' })
     expect(image.getAttribute('src')).toBe('https://example.com/mockup(v2).png')
   })
+
+  it('opens a lightbox when preview images are clicked', () => {
+    render(
+      <PreviewPane
+        title="图片预览"
+        date="2026-05-09 14:27:37"
+        markdown="![方案概览 Mockup](https://example.com/mockup(v2).png)"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('img', { name: '方案概览 Mockup' }))
+
+    expect(screen.getByRole('dialog', { name: '图片预览' })).toBeTruthy()
+    expect(screen.getByText('方案概览 Mockup')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭图片预览' }))
+    expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
+  })
 })

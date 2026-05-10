@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
 
 type MaterialSourceType = 'diary' | 'read-later'
@@ -20,6 +20,9 @@ type MaterialOrganizerDialogProps = {
   onConfirm: () => void
   onCancel: () => void
 }
+
+const MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT = 120
+const MATERIAL_ORGANIZER_RENDER_BATCH = 160
 
 function formatSelectedMaterialSummary(selection: MaterialSelectionState) {
   const parts: string[] = []
@@ -115,11 +118,54 @@ function MaterialSelectionSection({
   isProcessing?: boolean
   onSelectedMaterialPathsChange: (type: MaterialSourceType, paths: string[]) => void
 }) {
-  const selectedPathSet = new Set(selectedPaths)
-  const visiblePaths = posts.map((post) => post.path)
-  const visiblePathSet = new Set(visiblePaths)
-  const visibleSelectedCount = posts.filter((post) => selectedPathSet.has(post.path)).length
+  const [renderedCount, setRenderedCount] = useState(() => Math.min(posts.length, MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT))
+  const selectedPathSet = useMemo(() => new Set(selectedPaths), [selectedPaths])
+  const visiblePaths = useMemo(() => posts.map((post) => post.path), [posts])
+  const visiblePathSet = useMemo(() => new Set(visiblePaths), [visiblePaths])
+  const visibleSelectedCount = useMemo(
+    () => posts.reduce((count, post) => count + (selectedPathSet.has(post.path) ? 1 : 0), 0),
+    [posts, selectedPathSet],
+  )
   const hasVisibleSelected = visibleSelectedCount > 0
+  const renderedPosts = posts.slice(0, renderedCount)
+  const isProgressivelyRendering = renderedCount < posts.length
+
+  useEffect(() => {
+    const initialCount = Math.min(posts.length, MATERIAL_ORGANIZER_INITIAL_RENDER_COUNT)
+    setRenderedCount(initialCount)
+
+    if (posts.length <= initialCount) {
+      return
+    }
+
+    let cancelled = false
+    let timeoutId: number | null = null
+    let nextCount = initialCount
+
+    const scheduleNextBatch = () => {
+      timeoutId = window.setTimeout(() => {
+        if (cancelled) {
+          return
+        }
+
+        nextCount = Math.min(posts.length, nextCount + MATERIAL_ORGANIZER_RENDER_BATCH)
+        setRenderedCount(nextCount)
+
+        if (nextCount < posts.length) {
+          scheduleNextBatch()
+        }
+      }, 0)
+    }
+
+    scheduleNextBatch()
+
+    return () => {
+      cancelled = true
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [posts])
 
   const toggleItem = (path: string) => {
     const next = new Set(selectedPathSet)
@@ -175,6 +221,7 @@ function MaterialSelectionSection({
             ? `${visibleSelectedCount}/${selectedPaths.length} 条当前已显示`
             : `${selectedPaths.length} 条已选`}
         </span>
+        {isProgressivelyRendering ? <span>正在载入列表… {renderedCount}/{posts.length}</span> : null}
       </div>
 
       <div className="material-organizer-dialog__list">
@@ -187,7 +234,7 @@ function MaterialSelectionSection({
               : (type === 'diary' ? '还没有可整理的日记。' : '还没有可整理的待读。')}
           </p>
         ) : (
-          posts.map((post) => {
+          renderedPosts.map((post) => {
             const checked = selectedPathSet.has(post.path)
 
             return (

@@ -63,6 +63,14 @@ function buildDefaultNodeKey(topicType: NonNullable<ParsedPost['frontmatter']['t
   return trimmedTitle ? `${topicType}/${trimmedTitle}` : ''
 }
 
+function renderDocumentNoteValue(note: string, placeholder = 'Add a document note...') {
+  if (!note.trim()) {
+    return <span className="settings-panel__document-note-placeholder">{placeholder}</span>
+  }
+
+  return <span className="settings-panel__document-note-content">{note}</span>
+}
+
 function getLinkedPostTypeLabel(contentType: ContentType | undefined) {
   if (contentType === 'diary') {
     return '日记'
@@ -102,7 +110,7 @@ export default function SettingsPanel({
   topicBacklinks = [],
   onOpenLinkedPost,
 }: SettingsPanelProps) {
-  const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('info')
+  const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
   const [documentNoteDraft, setDocumentNoteDraft] = useState('')
   const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
@@ -122,7 +130,7 @@ export default function SettingsPanel({
   )
 
   useEffect(() => {
-    setInternalReadLaterTab('info')
+    setInternalReadLaterTab('commentary')
     setIsDocumentNoteEditing(false)
   }, [contentType, document?.path])
 
@@ -349,6 +357,7 @@ export default function SettingsPanel({
               <label>
                 <span>阅读状态</span>
                 <select
+                  className="settings-panel__filter-like-select"
                   aria-label="阅读状态"
                   value={frontmatter.reading_status || 'unread'}
                   onChange={(event) => onFieldChange('reading_status', event.target.value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
@@ -685,7 +694,7 @@ export default function SettingsPanel({
               </div>
             ) : (
               <button type="button" aria-label="Document note" className="settings-panel__document-note-entry" onClick={handleOpenDocumentNoteEditor}>
-                {readLaterSections?.commentary?.trim() || 'Add a document note...'}
+                {renderDocumentNoteValue(readLaterSections?.commentary || '')}
               </button>
             )}
           </section>
@@ -761,7 +770,7 @@ export default function SettingsPanel({
                               className="settings-panel__document-note-entry settings-panel__annotation-note-entry"
                               onClick={() => onEditAnnotation?.(annotation.id)}
                             >
-                              {annotation.note.trim() || 'Add a document note...'}
+                              {renderDocumentNoteValue(annotation.note)}
                             </button>
                           )}
                         </div>

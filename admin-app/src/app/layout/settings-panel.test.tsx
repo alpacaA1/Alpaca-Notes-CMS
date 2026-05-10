@@ -313,6 +313,7 @@ describe('settings panel', () => {
         document={createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{}}
         contentType="read-later"
+        readLaterTab="info"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={onFieldChange}
@@ -331,6 +332,7 @@ describe('settings panel', () => {
 
     const importButton = screen.getByRole('button', { name: '从链接导入正文' }) as HTMLButtonElement
     expect(importButton.disabled).toBe(true)
+    expect(screen.getByLabelText('阅读状态').className).toContain('settings-panel__filter-like-select')
 
     fireEvent.change(screen.getByLabelText('原文链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.change(screen.getByLabelText('来源'), { target: { value: 'Example Source' } })
@@ -356,6 +358,7 @@ describe('settings panel', () => {
         }}
         validationErrors={{}}
         contentType="read-later"
+        readLaterTab="info"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={vi.fn()}
@@ -379,6 +382,7 @@ describe('settings panel', () => {
         }}
         validationErrors={{}}
         contentType="read-later"
+        readLaterTab="info"
         availableCategories={[]}
         availableTags={[]}
         onFieldChange={vi.fn()}
@@ -427,6 +431,32 @@ describe('settings panel', () => {
     )
     expect(screen.getByRole('button', { name: 'Document note' })).toBeTruthy()
     expect(screen.getByText('补一条评论')).toBeTruthy()
+  })
+
+  it('preserves line breaks when rendering saved document notes', () => {
+    render(
+      <SettingsPanel
+        document={{
+          ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+          body: createReadLaterBody({
+            articleExcerpt: '正文',
+            summary: '总结',
+            commentary: '第一行\n\n第二行',
+          }),
+        }}
+        validationErrors={{}}
+        contentType="read-later"
+        readLaterTab="commentary"
+        availableCategories={[]}
+        availableTags={[]}
+        onFieldChange={vi.fn()}
+      />,
+    )
+
+    const renderedNote = screen.getByText((content, node) =>
+      node?.textContent === '第一行\n\n第二行' && content.includes('第一行'),
+    )
+    expect(renderedNote.className).toContain('settings-panel__document-note-content')
   })
 
   it('renders highlight cards and saves highlight notes in commentary tab', () => {

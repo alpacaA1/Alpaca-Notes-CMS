@@ -24,6 +24,11 @@ type AnnotationActionPosition = {
   annotationId: string
 }
 
+type PreviewImageState = {
+  src: string
+  alt: string
+}
+
 type OutlineScrollContainer = Window | HTMLElement
 
 type StructuredMarkdownSection = {
@@ -1766,6 +1771,7 @@ export default function PreviewPane({
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
   const [activePostOutlineTargetId, setActivePostOutlineTargetId] = useState<string | null>(null)
   const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
+  const [previewImage, setPreviewImage] = useState<PreviewImageState | null>(null)
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const postOutlinePanelRef = useRef<HTMLDivElement | null>(null)
@@ -1814,6 +1820,21 @@ export default function PreviewPane({
   useEffect(() => {
     setSelectionToolbar(null)
   }, [markdown, annotations, activeAnnotationId, contentType])
+
+  useEffect(() => {
+    if (!previewImage) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPreviewImage(null)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [previewImage])
 
   useEffect(() => {
     if (!annotationDeleteTargetId || annotations.some((annotation) => annotation.id === annotationDeleteTargetId)) {
@@ -2080,7 +2101,20 @@ export default function PreviewPane({
   }
 
   const handleArticleClick = (event: ReactMouseEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement).closest('mark[data-reader-annotation-id]')) {
+    const target = event.target as HTMLElement
+    const image = target.closest('img')
+    if (image instanceof HTMLImageElement) {
+      const nextSrc = image.currentSrc || image.getAttribute('src') || ''
+      if (nextSrc) {
+        setPreviewImage({
+          src: nextSrc,
+          alt: image.getAttribute('alt') || '预览图片',
+        })
+      }
+      return
+    }
+
+    if (target.closest('mark[data-reader-annotation-id]')) {
       return
     }
 
@@ -2136,6 +2170,28 @@ export default function PreviewPane({
         >
           删除高亮
         </button>
+      ) : null}
+      {previewImage ? (
+        <div className="confirm-dialog__overlay preview-image-viewer__overlay" onClick={() => setPreviewImage(null)}>
+          <div
+            className="preview-image-viewer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="图片预览"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="preview-image-viewer__close"
+              aria-label="关闭图片预览"
+              onClick={() => setPreviewImage(null)}
+            >
+              ×
+            </button>
+            <img src={previewImage.src} alt={previewImage.alt} referrerPolicy="no-referrer" />
+            {previewImage.alt.trim() ? <p className="preview-image-viewer__caption">{previewImage.alt.trim()}</p> : null}
+          </div>
+        </div>
       ) : null}
       <div className={previewCanvasClassName}>
         {shouldShowPostOutline ? (

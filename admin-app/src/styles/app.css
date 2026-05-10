@@ -543,6 +543,14 @@ textarea {
   color: var(--admin-muted);
 }
 
+.admin-shell--dark .settings-panel__document-note-content {
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .settings-panel__document-note-placeholder {
+  color: var(--admin-muted);
+}
+
 .admin-shell--dark .settings-panel__document-note-entry:hover {
   border-color: var(--admin-warm);
   background: rgba(255, 255, 255, 0.08);
@@ -570,6 +578,14 @@ textarea {
   background: transparent;
   border: 0;
   box-shadow: none;
+}
+
+.admin-shell--dark .settings-panel__filter-like-select {
+  background:
+    url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23a09585' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 12px center,
+    rgba(255, 255, 255, 0.05);
+  background-size: 10px 6px, auto;
 }
 
 .admin-shell--dark .settings-panel__document-note-action {
@@ -2336,12 +2352,31 @@ textarea {
 }
 
 .settings-panel__document-note-entry {
+  display: grid;
+  align-items: flex-start;
   width: 100%;
-  min-height: 38px;
-  padding: 0 12px;
+  min-height: 44px;
+  padding: 10px 12px;
   text-align: left;
   color: var(--admin-muted);
   cursor: text;
+}
+
+.settings-panel__document-note-content,
+.settings-panel__document-note-placeholder {
+  display: block;
+  width: 100%;
+  line-height: 1.75;
+}
+
+.settings-panel__document-note-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--admin-text);
+}
+
+.settings-panel__document-note-placeholder {
+  color: var(--admin-soft);
 }
 
 .settings-panel__document-note-entry:hover {
@@ -2379,6 +2414,21 @@ textarea {
 .settings-panel__document-note-editor textarea:focus {
   border: 0;
   box-shadow: none;
+}
+
+.settings-panel__filter-like-select {
+  appearance: none;
+  min-height: 36px;
+  padding: 0 38px 0 12px;
+  border-radius: 12px;
+  background:
+    url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23918577' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 12px center,
+    rgba(255, 255, 255, 0.78);
+  background-size: 10px 6px, auto;
+  font-size: 0.88rem;
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 .settings-panel__document-note-actions {
@@ -3670,6 +3720,63 @@ textarea {
   border-radius: 18px;
   border: 1px solid rgba(214, 200, 184, 0.72);
   background: rgba(255, 255, 255, 0.72);
+  cursor: zoom-in;
+}
+
+.preview-image-viewer__overlay {
+  z-index: 110;
+}
+
+.preview-image-viewer {
+  position: relative;
+  width: min(100%, 1100px);
+  max-height: min(100vh - 48px, 920px);
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  background: rgba(22, 17, 12, 0.94);
+  box-shadow: 0 32px 72px rgba(0, 0, 0, 0.32);
+}
+
+.preview-image-viewer img {
+  width: auto;
+  max-width: 100%;
+  max-height: min(100vh - 168px, 820px);
+  margin: 0 auto;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  cursor: default;
+}
+
+.preview-image-viewer__caption {
+  margin: 0;
+  text-align: center;
+  color: rgba(255, 247, 238, 0.78);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.preview-image-viewer__close {
+  appearance: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 247, 238, 0.92);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.preview-image-viewer__close:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .preview-content pre {

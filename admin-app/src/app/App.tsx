@@ -346,7 +346,7 @@ export default function App() {
   const [isTogglingPinned, setIsTogglingPinned] = useState(false)
   const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
-  const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('info')
+  const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
@@ -527,7 +527,7 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    setReadLaterTab('info')
+    setReadLaterTab('commentary')
     setActiveAnnotationId(null)
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)

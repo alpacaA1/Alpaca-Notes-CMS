@@ -96,6 +96,7 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('link', { name: '原文摘录' })).toBeTruthy()
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
 
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
     await waitFor(() => {
@@ -264,6 +265,7 @@ describe('App read-later import flow', () => {
     })
 
     expect(await screen.findByRole('heading', { name: '快速导入正文' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('快速收录标题')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('快速收录摘要')
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('快速来源')

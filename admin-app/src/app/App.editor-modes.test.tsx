@@ -277,6 +277,7 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
     expect(await screen.findByText('这里是原文摘录。')).toBeTruthy()
 
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
