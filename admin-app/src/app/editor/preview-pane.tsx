@@ -24,6 +24,13 @@ type AnnotationActionPosition = {
   annotationId: string
 }
 
+type AnnotationNotePosition = {
+  top: number
+  left: number
+  maxWidth: number
+  annotationId: string
+}
+
 type PreviewImageState = {
   src: string
   alt: string
@@ -82,6 +89,8 @@ type PreviewPaneProps = {
   previewImageUrls?: Record<string, string>
   annotations?: ReadLaterAnnotation[]
   activeAnnotationId?: string | null
+  editingAnnotationId?: string | null
+  annotationNoteDraft?: string
   annotationScrollRequest?: number
   navigationRequest?: { targetId: string; requestId: number } | null
   onActiveOutlineTargetChange?: (targetId: string) => void
@@ -89,6 +98,10 @@ type PreviewPaneProps = {
   onCreateKnowledge?: (quote: string) => void
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
+  onAnnotationNoteDraftChange?: (note: string) => void
+  onEditAnnotation?: (annotationId: string) => void
+  onSaveAnnotationNote?: (annotationId: string, note: string) => void
+  onCancelAnnotationEdit?: () => void
   onDeleteAnnotation?: (annotationId: string) => void
   resolveWikiLinkTitle?: (targetKey: string) => string | null
   onOpenWikiLink?: (targetKey: string) => void
@@ -572,6 +585,40 @@ function getActiveAnnotationActionPosition(article: HTMLElement, annotationId: s
   return {
     top: top > 72 ? Math.max(12, top - 44) : bottom + 12,
     left: viewportWidth ? Math.min(Math.max(24, horizontalCenter), viewportWidth - 24) : horizontalCenter,
+    annotationId,
+  }
+}
+
+function getActiveAnnotationNotePosition(article: HTMLElement, annotationId: string): AnnotationNotePosition | null {
+  const highlights = Array.from(article.querySelectorAll<HTMLElement>(`mark[data-reader-annotation-id="${annotationId}"]`))
+  if (highlights.length === 0) {
+    return null
+  }
+
+  const rects = highlights
+    .map((highlight) => highlight.getBoundingClientRect())
+    .filter(
+      (rect) =>
+        Number.isFinite(rect.top) &&
+        Number.isFinite(rect.left) &&
+        Number.isFinite(rect.bottom) &&
+        Number.isFinite(rect.right),
+    )
+  if (rects.length === 0) {
+    return null
+  }
+
+  const bottom = Math.max(...rects.map((rect) => rect.bottom))
+  const left = Math.min(...rects.map((rect) => rect.left))
+  const right = Math.max(...rects.map((rect) => rect.right))
+  const viewportWidth = window.innerWidth || right || 0
+  const maxWidth = viewportWidth ? Math.min(360, Math.max(220, viewportWidth - 32)) : 360
+  const maxLeft = viewportWidth ? Math.max(16, viewportWidth - maxWidth - 16) : left
+
+  return {
+    top: bottom + 12,
+    left: viewportWidth ? Math.min(Math.max(16, left), maxLeft) : left,
+    maxWidth,
     annotationId,
   }
 }
@@ -1753,6 +1800,8 @@ export default function PreviewPane({
   previewImageUrls,
   annotations = [],
   activeAnnotationId = null,
+  editingAnnotationId = null,
+  annotationNoteDraft,
   annotationScrollRequest = 0,
   navigationRequest = null,
   onActiveOutlineTargetChange,
@@ -1760,6 +1809,10 @@ export default function PreviewPane({
   onCreateKnowledge,
   onSelectAnnotation,
   onClearActiveAnnotation,
+  onAnnotationNoteDraftChange,
+  onEditAnnotation,
+  onSaveAnnotationNote,
+  onCancelAnnotationEdit,
   onDeleteAnnotation,
   resolveWikiLinkTitle,
   onOpenWikiLink,
@@ -1769,9 +1822,11 @@ export default function PreviewPane({
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
   const [activeAnnotationAction, setActiveAnnotationAction] = useState<AnnotationActionPosition | null>(null)
+  const [activeAnnotationNotePosition, setActiveAnnotationNotePosition] = useState<AnnotationNotePosition | null>(null)
   const [activePostOutlineTargetId, setActivePostOutlineTargetId] = useState<string | null>(null)
   const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
   const [previewImage, setPreviewImage] = useState<PreviewImageState | null>(null)
+  const [internalAnnotationNoteDraft, setInternalAnnotationNoteDraft] = useState('')
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const postOutlinePanelRef = useRef<HTMLDivElement | null>(null)
@@ -1812,6 +1867,12 @@ export default function PreviewPane({
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
   const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
   const shouldShowTopicBacklinksDrawer = showTopicBacklinksDrawer
+  const activeAnnotation = useMemo(
+    () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
+    [activeAnnotationId, annotations],
+  )
+  const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
+  const isInlineAnnotationEditing = isReadLater && activeAnnotation?.id === editingAnnotationId
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink }),
     [onOpenWikiLink, resolveWikiLinkTitle],
@@ -1849,6 +1910,17 @@ export default function PreviewPane({
       setAnnotationDeleteTargetId(null)
     }
   }, [activeAnnotationId, annotationDeleteTargetId])
+
+  useEffect(() => {
+    if (!editingAnnotationId) {
+      setInternalAnnotationNoteDraft('')
+      return
+    }
+
+    setInternalAnnotationNoteDraft(
+      annotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '',
+    )
+  }, [annotations, editingAnnotationId])
 
   useEffect(() => {
     setAnnotationDeleteTargetId(null)
@@ -2021,6 +2093,33 @@ export default function PreviewPane({
   }, [annotationDeleteTargetId, annotations, isReadLater, markdown])
 
   useEffect(() => {
+    if (!isReadLater || !isInlineAnnotationEditing || !activeAnnotation) {
+      setActiveAnnotationNotePosition(null)
+      return
+    }
+
+    const pane = paneRef.current
+    const article = articleRef.current
+    if (!pane || !article) {
+      setActiveAnnotationNotePosition(null)
+      return
+    }
+
+    const updateNotePosition = () => {
+      setActiveAnnotationNotePosition(getActiveAnnotationNotePosition(article, activeAnnotation.id))
+    }
+
+    updateNotePosition()
+    pane.addEventListener('scroll', updateNotePosition, { passive: true })
+    window.addEventListener('resize', updateNotePosition)
+
+    return () => {
+      pane.removeEventListener('scroll', updateNotePosition)
+      window.removeEventListener('resize', updateNotePosition)
+    }
+  }, [activeAnnotation, annotations, isInlineAnnotationEditing, isReadLater, markdown])
+
+  useEffect(() => {
     if (!isReadLater || !navigationRequest) {
       return
     }
@@ -2133,6 +2232,26 @@ export default function PreviewPane({
     onDeleteAnnotation(activeAnnotationAction.annotationId)
   }
 
+  const handleAnnotationNoteDraftChange = (value: string) => {
+    setInternalAnnotationNoteDraft(value)
+    onAnnotationNoteDraftChange?.(value)
+  }
+
+  const handleInlineAnnotationSave = () => {
+    if (!activeAnnotation || !onSaveAnnotationNote) {
+      return
+    }
+
+    onSaveAnnotationNote(activeAnnotation.id, currentAnnotationNoteDraft)
+  }
+
+  const handleInlineAnnotationCancel = () => {
+    const nextDraft = activeAnnotation?.note || ''
+    setInternalAnnotationNoteDraft(nextDraft)
+    onAnnotationNoteDraftChange?.(nextDraft)
+    onCancelAnnotationEdit?.()
+  }
+
   return (
     <section ref={paneRef} className="preview-pane preview-pane--reading-canvas">
       {selectionToolbar ? (
@@ -2170,6 +2289,47 @@ export default function PreviewPane({
         >
           删除高亮
         </button>
+      ) : null}
+      {isInlineAnnotationEditing && activeAnnotationNotePosition ? (
+        <div
+          className="preview-content__annotation-note-editor settings-panel__document-note-editor settings-panel__document-note-editor--annotation"
+          style={{
+            top: `${activeAnnotationNotePosition.top}px`,
+            left: `${activeAnnotationNotePosition.left}px`,
+            width: `${activeAnnotationNotePosition.maxWidth}px`,
+          }}
+        >
+          <div className="preview-content__annotation-note-editor-header">
+            <span className="settings-panel__annotation-note-label">批注</span>
+            {activeAnnotation ? (
+              <button
+                type="button"
+                className="preview-content__annotation-note-link"
+                onClick={() => onEditAnnotation?.(activeAnnotation.id)}
+              >
+                定位到右侧
+              </button>
+            ) : null}
+          </div>
+          <textarea
+            aria-label="Inline highlight document note"
+            placeholder="Add a document note..."
+            value={currentAnnotationNoteDraft}
+            onChange={(event) => handleAnnotationNoteDraftChange(event.target.value)}
+          />
+          <div className="settings-panel__document-note-actions">
+            <button type="button" className="settings-panel__document-note-action" onClick={handleInlineAnnotationCancel}>
+              取消批注
+            </button>
+            <button
+              type="button"
+              className="settings-panel__document-note-action settings-panel__document-note-action--primary"
+              onClick={handleInlineAnnotationSave}
+            >
+              保存批注
+            </button>
+          </div>
+        </div>
       ) : null}
       {previewImage ? (
         <div className="confirm-dialog__overlay preview-image-viewer__overlay" onClick={() => setPreviewImage(null)}>

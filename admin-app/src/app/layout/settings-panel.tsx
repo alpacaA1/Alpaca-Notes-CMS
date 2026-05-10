@@ -35,7 +35,9 @@ type SettingsPanelProps = {
   annotations?: ReadLaterAnnotation[]
   activeAnnotationId?: string | null
   editingAnnotationId?: string | null
+  annotationNoteDraft?: string
   onSelectAnnotation?: (annotationId: string) => void
+  onAnnotationNoteDraftChange?: (note: string) => void
   onEditAnnotation?: (annotationId: string) => void
   onSaveAnnotationNote?: (annotationId: string, note: string) => void
   onCancelAnnotationEdit?: () => void
@@ -103,7 +105,9 @@ export default function SettingsPanel({
   annotations = [],
   activeAnnotationId = null,
   editingAnnotationId = null,
+  annotationNoteDraft,
   onSelectAnnotation,
+  onAnnotationNoteDraftChange,
   onEditAnnotation,
   onSaveAnnotationNote,
   onCancelAnnotationEdit,
@@ -113,7 +117,7 @@ export default function SettingsPanel({
   const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
   const [documentNoteDraft, setDocumentNoteDraft] = useState('')
-  const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
+  const [internalAnnotationNoteDraft, setInternalAnnotationNoteDraft] = useState('')
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isPost = contentType === 'post'
@@ -145,11 +149,11 @@ export default function SettingsPanel({
 
   useEffect(() => {
     if (!editingAnnotationId) {
-      setAnnotationNoteDraft('')
+      setInternalAnnotationNoteDraft('')
       return
     }
 
-    setAnnotationNoteDraft(annotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '')
+    setInternalAnnotationNoteDraft(annotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '')
   }, [annotations, editingAnnotationId])
 
   if (!document) {
@@ -162,6 +166,9 @@ export default function SettingsPanel({
   const isLegacyTopicKnowledge = isKnowledge && knowledgeKind === 'topic'
   const isTopicPost = isPost && frontmatter.topic === true
   const isTopicDocument = isTopicPost || isLegacyTopicKnowledge
+  const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
+  const currentDocumentNote = readLaterSections?.commentary || ''
+  const isDocumentNoteEmpty = !currentDocumentNote.trim()
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -227,11 +234,13 @@ export default function SettingsPanel({
       return
     }
 
-    onSaveAnnotationNote(editingAnnotationId, annotationNoteDraft)
+    onSaveAnnotationNote(editingAnnotationId, currentAnnotationNoteDraft)
   }
 
   const handleCancelAnnotation = () => {
-    setAnnotationNoteDraft(activeAnnotation?.note || '')
+    const nextDraft = activeAnnotation?.note || ''
+    setInternalAnnotationNoteDraft(nextDraft)
+    onAnnotationNoteDraftChange?.(nextDraft)
     onCancelAnnotationEdit?.()
   }
 
@@ -693,8 +702,13 @@ export default function SettingsPanel({
                 </div>
               </div>
             ) : (
-              <button type="button" aria-label="Document note" className="settings-panel__document-note-entry" onClick={handleOpenDocumentNoteEditor}>
-                {renderDocumentNoteValue(readLaterSections?.commentary || '')}
+              <button
+                type="button"
+                aria-label="Document note"
+                className={`settings-panel__document-note-entry${isDocumentNoteEmpty ? ' settings-panel__document-note-entry--borderless' : ''}`}
+                onClick={handleOpenDocumentNoteEditor}
+              >
+                {renderDocumentNoteValue(currentDocumentNote)}
               </button>
             )}
           </section>
@@ -747,8 +761,11 @@ export default function SettingsPanel({
                               <textarea
                                 aria-label="Highlight document note"
                                 placeholder="Add a document note..."
-                                value={annotationNoteDraft}
-                                onChange={(event) => setAnnotationNoteDraft(event.target.value)}
+                                value={currentAnnotationNoteDraft}
+                                onChange={(event) => {
+                                  setInternalAnnotationNoteDraft(event.target.value)
+                                  onAnnotationNoteDraftChange?.(event.target.value)
+                                }}
                               />
                               <div className="settings-panel__document-note-actions">
                                 <button type="button" className="settings-panel__document-note-action" onClick={handleCancelAnnotation}>

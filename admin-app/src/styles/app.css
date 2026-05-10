@@ -644,6 +644,25 @@ textarea {
   color: #ffd0ca;
 }
 
+.admin-shell--dark .settings-panel__document-note-entry--borderless,
+.admin-shell--dark .settings-panel__document-note-entry--borderless:hover {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.admin-shell--dark .preview-content__annotation-note-editor {
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.34);
+}
+
+.admin-shell--dark .preview-content__annotation-note-link {
+  color: #f0be7a;
+}
+
+.admin-shell--dark .preview-content__annotation-note-link:hover {
+  color: #f6d4a2;
+}
+
 .admin-shell--dark .preview-content__selection-toolbar {
   border-color: rgba(228, 163, 88, 0.28);
   background: rgba(22, 19, 16, 0.96);
@@ -2385,6 +2404,13 @@ textarea {
   color: var(--admin-text);
 }
 
+.settings-panel__document-note-entry--borderless,
+.settings-panel__document-note-entry--borderless:hover {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
 .settings-panel__document-note-entry:focus-visible,
 .settings-panel__document-note-action:focus-visible,
 .settings-panel__linked-post:focus-visible,
@@ -2556,6 +2582,36 @@ textarea {
   border-color: rgba(193, 108, 95, 0.48);
   background: rgba(255, 244, 242, 0.98);
   color: #723f38;
+}
+
+.preview-content__annotation-note-editor {
+  position: fixed;
+  z-index: 42;
+  width: min(360px, calc(100vw - 32px));
+  box-shadow: 0 22px 44px rgba(56, 43, 30, 0.18);
+}
+
+.preview-content__annotation-note-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.preview-content__annotation-note-link {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--admin-warm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.preview-content__annotation-note-link:hover {
+  color: #745734;
 }
 
 .settings-panel__annotation-note-entry {
@@ -8327,4 +8383,100 @@ textarea {
 
 .admin-shell--dark .annotation-dashboard__source-icon {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-shell :is(
+  .post-pane,
+  .editor-frame,
+  .editor-surface,
+  .settings-panel,
+  .preview-pane,
+  .post-list-item,
+  .preview-post-outline__panel,
+  .preview-topic-backlinks-drawer__panel,
+  .confirm-dialog,
+  .material-organizer-dialog__section,
+  .material-organizer-dialog__item,
+  .annotation-dashboard__hero,
+  .annotation-dashboard__toolbar,
+  .annotation-dashboard__list-shell,
+  .annotation-dashboard__card,
+  .annotation-dashboard__empty,
+  .annotation-dashboard__detail,
+  .annotation-dashboard__detail-section,
+  .annotation-dashboard__quote-block,
+  .annotation-dashboard__source-rail
+) {
+  border-radius: 18px;
+}
+
+.admin-shell :is(
+  .top-bar__button,
+  .editor-mode-bar button,
+  .top-bar__search input,
+  .editor-textarea,
+  .settings-panel input,
+  .settings-panel textarea,
+  .settings-panel select,
+  .settings-panel__tabs,
+  .settings-panel__tab,
+  .settings-panel__filter-like-select,
+  .settings-panel__document-note-entry,
+  .settings-panel__document-note-editor,
+  .settings-panel__document-note-action,
+  .settings-panel__linked-post,
+  .post-pane__back-link,
+  .post-outline__item,
+  .preview-post-outline__item,
+  .post-pane__count,
+  .markdown-editor__upload-button,
+  .preview-content__meta-chip,
+  .preview-content__cover,
+  .preview-content img,
+  .preview-content__annotation-delete,
+  .preview-content__selection-toolbar,
+  .preview-content__selection-toolbar button,
+  .preview-content__annotation-note-editor,
+  .taxonomy-multi-select__trigger,
+  .taxonomy-multi-select__panel,
+  .taxonomy-multi-select__chip,
+  .taxonomy-multi-select__status,
+  .taxonomy-multi-select__create-btn,
+  .taxonomy-multi-select__action-btn,
+  .taxonomy-multi-select__edit-input,
+  .post-list-item__pin-btn,
+  .post-list-item__delete-btn,
+  .preview-topic-backlinks-drawer__toggle,
+  .annotation-dashboard__section-pill,
+  .annotation-dashboard__status,
+  .annotation-dashboard__tag,
+  .annotation-dashboard__time,
+  .annotation-dashboard__toolbar-meta span,
+  .annotation-dashboard__source-item,
+  .annotation-dashboard__source-item-count,
+  .annotation-dashboard__source-rail-toggle,
+  .annotation-dashboard__clear-btn,
+  .annotation-dashboard__open-btn,
+  .annotation-dashboard__icon-btn,
+  .annotation-dashboard__detail-close-btn,
+  .annotation-dashboard__filter select,
+  .annotation-dashboard__source-icon
+) {
+  border-radius: 12px;
+}
+
+.admin-shell :is(
+  .settings-panel__chip,
+  .post-status-badge,
+  .top-bar__switcher-short,
+  .top-bar__switcher-option,
+  .top-bar__button--theme,
+  .top-bar__button--active,
+  .top-bar__button--quiet,
+  .top-bar__button--danger,
+  .top-bar__button--save,
+  .top-bar__button--back,
+  .top-bar__button--new-post
+) {
+  border-radius: 10px;
 }

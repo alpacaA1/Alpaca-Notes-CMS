@@ -486,7 +486,7 @@ describe('App editor modes', () => {
     expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
   })
 
-  it('creates a read-later highlight note from text selection and opens the sidebar editor', async () => {
+  it('creates a read-later highlight note from text selection and opens the inline editor under the highlight', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
@@ -513,12 +513,15 @@ describe('App editor modes', () => {
 
     expect(await screen.findByRole('button', { name: '这里是原文摘录。' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '高亮：这里是原文摘录。' })).toBeTruthy()
+    expect(screen.getByLabelText('Inline highlight document note')).toBeTruthy()
     expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('Highlight document note'), { target: { value: '选区批注' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('Inline highlight document note'), { target: { value: '选区批注' } })
+    expect((screen.getByLabelText('Highlight document note') as HTMLTextAreaElement).value).toBe('选区批注')
+    fireEvent.click(screen.getByRole('button', { name: '保存批注' }))
 
     expect(await screen.findByText('选区批注')).toBeTruthy()
+    expect(screen.queryByLabelText('Inline highlight document note')).toBeNull()
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
     expect(screen.queryByRole('button', { name: '阅读视图' })).toBeNull()

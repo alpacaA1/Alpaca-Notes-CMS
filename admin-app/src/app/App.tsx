@@ -350,6 +350,7 @@ export default function App() {
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
+  const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
   const [annotationScrollRequest, setAnnotationScrollRequest] = useState(0)
   const [readerNavigationRequest, setReaderNavigationRequest] = useState<ReaderNavigationRequest | null>(null)
   const [activeOutlineTargetId, setActiveOutlineTargetId] = useState<string | null>(null)
@@ -532,6 +533,17 @@ export default function App() {
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
   }, [document?.path, document?.contentType])
+
+  useEffect(() => {
+    if (!editingAnnotationId) {
+      setAnnotationNoteDraft('')
+      return
+    }
+
+    setAnnotationNoteDraft(
+      readLaterAnnotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '',
+    )
+  }, [editingAnnotationId, readLaterAnnotations])
 
   useEffect(() => {
     if (!session || contentType !== 'read-later' || adminView !== 'annotations') {
@@ -2274,6 +2286,8 @@ export default function App() {
                       previewImageUrls={previewImageUrls}
                       annotations={readLaterAnnotations}
                       activeAnnotationId={activeAnnotationId}
+                      editingAnnotationId={editingAnnotationId}
+                      annotationNoteDraft={annotationNoteDraft}
                       annotationScrollRequest={annotationScrollRequest}
                       navigationRequest={readerNavigationRequest}
                       onActiveOutlineTargetChange={setActiveOutlineTargetId}
@@ -2281,6 +2295,10 @@ export default function App() {
                       onCreateKnowledge={handleCreateKnowledgeFromSelection}
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}
+                      onAnnotationNoteDraftChange={setAnnotationNoteDraft}
+                      onEditAnnotation={handleOpenAnnotationNote}
+                      onSaveAnnotationNote={handleSaveAnnotationNote}
+                      onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                       onDeleteAnnotation={handleDeleteAnnotation}
                       resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
                       onOpenWikiLink={handleOpenTopicNode}
@@ -2327,7 +2345,9 @@ export default function App() {
                 annotations={readLaterAnnotations}
                 activeAnnotationId={activeAnnotationId}
                 editingAnnotationId={editingAnnotationId}
+                annotationNoteDraft={annotationNoteDraft}
                 onSelectAnnotation={handleSelectAnnotation}
+                onAnnotationNoteDraftChange={setAnnotationNoteDraft}
                 onEditAnnotation={handleOpenAnnotationNote}
                 onSaveAnnotationNote={handleSaveAnnotationNote}
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
