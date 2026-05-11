@@ -34,6 +34,33 @@ function renderControlledEditorWithUpload(
   }
 }
 
+function renderControlledEditorWithReferences(
+  initialValue: string,
+  internalReferenceCandidates: Array<{
+    targetKey: string
+    title: string
+    contentType: 'post' | 'diary' | 'knowledge' | 'read-later'
+    identifier: string
+    keywords: string
+    date: string
+    path: string
+  }>,
+) {
+  function Harness() {
+    const [value, setValue] = useState(initialValue)
+    return (
+      <MarkdownEditor
+        value={value}
+        onChange={setValue}
+        internalReferenceCandidates={internalReferenceCandidates}
+      />
+    )
+  }
+
+  render(<Harness />)
+  return screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+}
+
 function createDeferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (reason?: unknown) => void
@@ -80,6 +107,34 @@ describe('markdown editor', () => {
     expect(editor.value).toBe('1. aaa\n    1. item')
     expect(editor.selectionStart).toBe(11)
     expect(editor.selectionEnd).toBe(11)
+  })
+
+  it('inserts an internal reference from the suggestion panel after typing [[ query', async () => {
+    const editor = renderControlledEditorWithReferences('', [
+      {
+        targetKey: 'post:influence/',
+        title: '《影响力》书摘',
+        contentType: 'post',
+        identifier: 'influence/',
+        keywords: '影响力 书摘 influence/',
+        date: '2026-05-11 08:00:00',
+        path: 'source/_posts/influence.md',
+      },
+    ])
+
+    fireEvent.change(editor, { target: { value: '今天又想到 [[影响' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+
+    expect(await screen.findByRole('listbox', { name: '内部引用候选' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /《影响力》书摘/ })).toBeTruthy()
+
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(editor.value).toBe('今天又想到 [[post:influence/|《影响力》书摘]]')
+    })
   })
 
   it('indents empty list items when pressing Tab', () => {

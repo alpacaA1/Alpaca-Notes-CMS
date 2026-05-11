@@ -1,4 +1,10 @@
-import { useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  buildInternalReferenceMarkdown,
+  getInternalReferenceTypeLabel,
+  searchInternalReferenceCandidates,
+  type InternalReferenceCandidate,
+} from '../internal-links'
 
 const INDENT = '  '
 const LIST_INDENT = '    '
@@ -14,6 +20,7 @@ type MarkdownEditorProps = {
   onToggleImmersive?: () => void
   isImmersive?: boolean
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
+  internalReferenceCandidates?: InternalReferenceCandidate[]
 }
 
 type SelectionRange = {
@@ -24,6 +31,12 @@ type SelectionRange = {
 type HistoryEntry = {
   value: string
   selection: SelectionRange
+}
+
+type ActiveInternalReferenceQuery = {
+  start: number
+  end: number
+  query: string
 }
 
 function getLineStart(value: string, index: number) {
@@ -422,12 +435,41 @@ function getSelectionRange(textarea: HTMLTextAreaElement | null): SelectionRange
   }
 }
 
+function getActiveInternalReferenceQuery(value: string, selection: SelectionRange): ActiveInternalReferenceQuery | null {
+  if (selection.start !== selection.end) {
+    return null
+  }
+
+  const cursor = selection.start
+  const triggerStart = value.lastIndexOf('[[', Math.max(0, cursor - 1))
+  if (triggerStart < 0) {
+    return null
+  }
+
+  const contentSinceTrigger = value.slice(triggerStart + 2, cursor)
+  if (!contentSinceTrigger.trim() || contentSinceTrigger.includes('\n') || contentSinceTrigger.includes(']]')) {
+    return null
+  }
+
+  const lastClosedTrigger = value.lastIndexOf(']]', Math.max(0, cursor - 1))
+  if (lastClosedTrigger > triggerStart) {
+    return null
+  }
+
+  return {
+    start: triggerStart,
+    end: cursor,
+    query: contentSinceTrigger,
+  }
+}
+
 export default function MarkdownEditor({
   value,
   onChange,
   onToggleImmersive,
   isImmersive = false,
   onUploadImage,
+  internalReferenceCandidates = [],
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -440,6 +482,9 @@ export default function MarkdownEditor({
   const redoStackRef = useRef<HistoryEntry[]>([])
   const isComposingRef = useRef(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [editorSelection, setEditorSelection] = useState<SelectionRange>({ start: 0, end: 0 })
+  const [activeInternalReferenceIndex, setActiveInternalReferenceIndex] = useState(0)
+  const [dismissedInternalReferenceKey, setDismissedInternalReferenceKey] = useState<string | null>(null)
   const textareaId = useId()
 
   currentValueRef.current = value
@@ -454,6 +499,7 @@ export default function MarkdownEditor({
       pendingSelectionRef.current.end,
     )
     trackedSelectionRef.current = pendingSelectionRef.current
+    setEditorSelection(pendingSelectionRef.current)
     pendingSelectionRef.current = null
   }, [value])
 
@@ -467,7 +513,29 @@ export default function MarkdownEditor({
     undoStackRef.current = []
     redoStackRef.current = []
     trackedSelectionRef.current = getSelectionRange(textareaRef.current)
+    setEditorSelection(trackedSelectionRef.current)
   }, [value])
+
+  const activeInternalReferenceQuery = useMemo(
+    () => getActiveInternalReferenceQuery(value, editorSelection),
+    [editorSelection, value],
+  )
+  const visibleInternalReferenceKey = activeInternalReferenceQuery
+    ? `${activeInternalReferenceQuery.start}:${activeInternalReferenceQuery.query}`
+    : null
+  const visibleInternalReferenceCandidates = useMemo(
+    () =>
+      activeInternalReferenceQuery
+        ? searchInternalReferenceCandidates(internalReferenceCandidates, activeInternalReferenceQuery.query)
+        : [],
+    [activeInternalReferenceQuery, internalReferenceCandidates],
+  )
+  const isInternalReferencePanelVisible =
+    Boolean(activeInternalReferenceQuery) && visibleInternalReferenceKey !== dismissedInternalReferenceKey
+
+  useEffect(() => {
+    setActiveInternalReferenceIndex(0)
+  }, [visibleInternalReferenceKey])
 
   const pushHistoryEntry = (stack: React.MutableRefObject<HistoryEntry[]>, entry: HistoryEntry) => {
     const lastEntry = stack.current[stack.current.length - 1]
@@ -490,6 +558,7 @@ export default function MarkdownEditor({
     if (nextValue === currentValueRef.current) {
       pendingSelectionRef.current = nextSelection
       trackedSelectionRef.current = nextSelection
+      setEditorSelection(nextSelection)
       return
     }
 
@@ -500,6 +569,7 @@ export default function MarkdownEditor({
     redoStackRef.current = []
     pendingSelectionRef.current = nextSelection
     trackedSelectionRef.current = nextSelection
+    setEditorSelection(nextSelection)
     expectedValueRef.current = nextValue
     onChange(nextValue)
   }
@@ -515,6 +585,21 @@ export default function MarkdownEditor({
     )
     const urlStart = nextValue.lastIndexOf(DEFAULT_LINK_URL)
     dispatchValueChange(nextValue, { start: urlStart, end: urlStart + DEFAULT_LINK_URL.length }, selection)
+  }
+
+  const insertInternalReference = (
+    candidate: InternalReferenceCandidate,
+    selection: SelectionRange = trackedSelectionRef.current,
+  ) => {
+    if (!activeInternalReferenceQuery) {
+      return
+    }
+
+    const markdown = buildInternalReferenceMarkdown(candidate)
+    const nextValue = `${currentValueRef.current.slice(0, activeInternalReferenceQuery.start)}${markdown}${currentValueRef.current.slice(activeInternalReferenceQuery.end)}`
+    const nextCaret = activeInternalReferenceQuery.start + markdown.length
+    dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+    setDismissedInternalReferenceKey(null)
   }
 
   const insertUploadedMarkdown = async (
@@ -576,6 +661,7 @@ export default function MarkdownEditor({
     const normalizedKey = event.key.toLowerCase()
     const selection = { start: selectionStart, end: selectionEnd }
     trackedSelectionRef.current = selection
+    setEditorSelection(selection)
     const nativeKeyEvent = event.nativeEvent as KeyboardEvent & {
       isComposing?: boolean
       keyCode?: number
@@ -590,6 +676,43 @@ export default function MarkdownEditor({
 
     if (isImeConfirming) {
       return
+    }
+
+    if (isInternalReferencePanelVisible) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        setDismissedInternalReferenceKey(visibleInternalReferenceKey)
+        return
+      }
+
+      if (visibleInternalReferenceCandidates.length > 0 && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault()
+        event.stopPropagation()
+        setDismissedInternalReferenceKey(null)
+        setActiveInternalReferenceIndex((currentIndex) => {
+          if (event.key === 'ArrowDown') {
+            return (currentIndex + 1) % visibleInternalReferenceCandidates.length
+          }
+
+          return (currentIndex + visibleInternalReferenceCandidates.length - 1) % visibleInternalReferenceCandidates.length
+        })
+        return
+      }
+
+      if (
+        visibleInternalReferenceCandidates.length > 0 &&
+        selectionStart === selectionEnd &&
+        (event.key === 'Enter' || event.key === 'Tab')
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        insertInternalReference(
+          visibleInternalReferenceCandidates[Math.min(activeInternalReferenceIndex, visibleInternalReferenceCandidates.length - 1)],
+          selection,
+        )
+        return
+      }
     }
 
     if ((event.metaKey || event.ctrlKey) && !event.altKey) {
@@ -856,6 +979,7 @@ export default function MarkdownEditor({
       end: event.currentTarget.selectionEnd,
     }
     trackedSelectionRef.current = selection
+    setEditorSelection(selection)
     const imageFile = onUploadImage ? getImageFileFromClipboardData(event.clipboardData) : null
     if (imageFile) {
       event.preventDefault()
@@ -924,6 +1048,46 @@ export default function MarkdownEditor({
           ) : null}
         </div>
       </div>
+      {isInternalReferencePanelVisible ? (
+        <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
+          <div className="markdown-editor__reference-panel-header">
+            <strong>插入内部引用</strong>
+            <span>输入内容后回车即可插入</span>
+          </div>
+          {visibleInternalReferenceCandidates.length > 0 ? (
+            <div className="markdown-editor__reference-options">
+              {visibleInternalReferenceCandidates.map((candidate, index) => {
+                const isActive = index === activeInternalReferenceIndex
+
+                return (
+                  <button
+                    key={candidate.targetKey}
+                    type="button"
+                    role="option"
+                    aria-selected={isActive}
+                    className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
+                    onMouseDown={(event) => {
+                      event.preventDefault()
+                    }}
+                    onClick={() => insertInternalReference(candidate)}
+                    onMouseEnter={() => setActiveInternalReferenceIndex(index)}
+                  >
+                    <span className="markdown-editor__reference-option-main">
+                      <strong>{candidate.title}</strong>
+                      <span className="markdown-editor__reference-option-type">
+                        {getInternalReferenceTypeLabel(candidate.contentType)}
+                      </span>
+                    </span>
+                    <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
+                  </button>
+                )
+              })}
+            </div>
+          ) : (
+            <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
+          )}
+        </div>
+      ) : null}
       <textarea
         id={textareaId}
         ref={textareaRef}
@@ -933,6 +1097,7 @@ export default function MarkdownEditor({
         disabled={isUploadingImage}
         onChange={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)
+          setDismissedInternalReferenceKey(null)
           dispatchValueChange(event.target.value, nextSelection)
         }}
         onCompositionStart={() => {
@@ -941,8 +1106,15 @@ export default function MarkdownEditor({
         onCompositionEnd={() => {
           isComposingRef.current = false
         }}
+        onClick={(event) => {
+          const nextSelection = getSelectionRange(event.currentTarget)
+          trackedSelectionRef.current = nextSelection
+          setEditorSelection(nextSelection)
+        }}
         onSelect={(event) => {
-          trackedSelectionRef.current = getSelectionRange(event.currentTarget)
+          const nextSelection = getSelectionRange(event.currentTarget)
+          trackedSelectionRef.current = nextSelection
+          setEditorSelection(nextSelection)
         }}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}

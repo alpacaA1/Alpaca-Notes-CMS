@@ -267,6 +267,19 @@ const topicNodePost = {
   aliases: ['《影响力》'],
 }
 
+const linkedPost = {
+  path: 'source/_posts/influence-article.md',
+  sha: 'sha-linked-influence',
+  title: 'Influence article',
+  date: '2026-05-07 18:30:00',
+  desc: 'related desc',
+  published: true,
+  hasExplicitPublished: true,
+  categories: ['读书'],
+  tags: ['读书'],
+  permalink: 'influence/',
+}
+
 const wikiLinkContent = `---
 title: Preview supported post
 permalink: preview-supported-post/
@@ -313,6 +326,34 @@ desc: 关于《影响力》的主题页
 ---
 
 这是一个主题文章。`
+
+const internalReferenceContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+今天又想到 [[post:influence/|《影响力》书摘]] 里讲的互惠原则。`
+
+const linkedPostContent = `---
+title: Influence article
+permalink: influence/
+date: 2026-05-07 18:30:00
+published: true
+categories:
+  - 读书
+tags:
+  - 读书
+desc: related desc
+---
+
+这是被内部引用打开的文章。`
 
 const nestedOrderedListContent = `---
 title: Preview supported post
@@ -684,6 +725,42 @@ describe('App preview mode', () => {
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('影响力')).toBeTruthy()
+    })
+  })
+
+  it('opens a typed internal reference when it is clicked in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost, linkedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
+      if (path === supportedPost.path) {
+        return {
+          path: supportedPost.path,
+          sha: supportedPost.sha,
+          content: internalReferenceContent,
+        }
+      }
+
+      return {
+        path: linkedPost.path,
+        sha: linkedPost.sha,
+        content: linkedPostContent,
+      }
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+    fireEvent.click(await screen.findByRole('button', { name: '《影响力》书摘' }))
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Influence article')).toBeTruthy()
     })
   })
 

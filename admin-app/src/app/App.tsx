@@ -14,6 +14,7 @@ import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDra
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
+import { buildInternalReferenceCandidates, buildInternalReferenceLookup } from './internal-links'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
 import {
@@ -475,6 +476,24 @@ export default function App() {
     return buildTopicNodeMap(upsertDocumentIntoIndexItems(indexedPosts, document))
   }, [document, postsByType.knowledge, postsByType.post])
   const topicBacklinksByKey = useMemo(() => buildTopicBacklinkMap(backlinkSourcePosts), [backlinkSourcePosts])
+  const internalReferencePosts = useMemo(() => {
+    const indexedPosts = [...postsByType.post, ...postsByType.diary, ...postsByType['read-later'], ...postsByType.knowledge]
+
+    if (!document) {
+      return indexedPosts
+    }
+
+    const activeDocumentPost = buildPostIndexItemFromDocument(document)
+    return [activeDocumentPost, ...indexedPosts.filter((post) => post.path !== activeDocumentPost.path)]
+  }, [document, postsByType.diary, postsByType.knowledge, postsByType.post, postsByType['read-later']])
+  const internalReferenceCandidates = useMemo(
+    () => buildInternalReferenceCandidates(internalReferencePosts),
+    [internalReferencePosts],
+  )
+  const internalReferenceLookup = useMemo(
+    () => buildInternalReferenceLookup(internalReferencePosts),
+    [internalReferencePosts],
+  )
   const activeTopicNodeKey =
     document?.contentType === 'post' && document.frontmatter.topic === true
       ? document.frontmatter.node_key?.trim() || ''
@@ -895,6 +914,17 @@ export default function App() {
     }
 
     void openIndexedPost(topicPost, { navigationBehavior: 'push' })
+  }
+
+  const handleOpenInternalReference = (targetKey: string) => {
+    const targetPost = internalReferenceLookup.get(targetKey)
+    if (!targetPost) {
+      setSuccessMessage(null)
+      setError(`未找到内部引用 ${targetKey}。`)
+      return
+    }
+
+    void openIndexedPost(targetPost, { navigationBehavior: 'push' })
   }
 
   const returnToDashboard = () => {
@@ -2302,6 +2332,8 @@ export default function App() {
                       onDeleteAnnotation={handleDeleteAnnotation}
                       resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
                       onOpenWikiLink={handleOpenTopicNode}
+                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
+                      onOpenInternalReference={handleOpenInternalReference}
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                     />
@@ -2312,6 +2344,7 @@ export default function App() {
                       onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
                       isImmersive={isImmersive}
                       onUploadImage={handleUploadImage}
+                      internalReferenceCandidates={internalReferenceCandidates}
                     />
                   )}
                 </>

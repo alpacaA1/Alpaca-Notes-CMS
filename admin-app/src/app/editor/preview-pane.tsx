@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
+import { parseInternalReferenceTargetKey } from '../internal-links'
 import type { TopicBacklinkItem } from '../knowledge/wiki-links'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
@@ -105,6 +106,8 @@ type PreviewPaneProps = {
   onDeleteAnnotation?: (annotationId: string) => void
   resolveWikiLinkTitle?: (targetKey: string) => string | null
   onOpenWikiLink?: (targetKey: string) => void
+  resolveInternalReferenceTitle?: (targetKey: string) => string | null
+  onOpenInternalReference?: (targetKey: string) => void
   topicBacklinks?: TopicBacklinkItem[]
   showTopicBacklinksDrawer?: boolean
 }
@@ -112,6 +115,8 @@ type PreviewPaneProps = {
 type WikiLinkRenderOptions = {
   resolveWikiLinkTitle?: (targetKey: string) => string | null
   onOpenWikiLink?: (targetKey: string) => void
+  resolveInternalReferenceTitle?: (targetKey: string) => string | null
+  onOpenInternalReference?: (targetKey: string) => void
 }
 
 type MarkdownDestinationMatch = {
@@ -936,13 +941,21 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
 
     if (wikiTargetKey) {
       const normalizedTargetKey = wikiTargetKey.trim()
-      const resolvedTitle = wikiLinkOptions?.resolveWikiLinkTitle?.(normalizedTargetKey)?.trim() || ''
+      const parsedInternalReference = parseInternalReferenceTargetKey(normalizedTargetKey)
+      const resolvedTitle = (
+        parsedInternalReference
+          ? wikiLinkOptions?.resolveInternalReferenceTitle?.(normalizedTargetKey)
+          : wikiLinkOptions?.resolveWikiLinkTitle?.(normalizedTargetKey)
+      )?.trim() || ''
       const explicitLabel = wikiLabel?.trim() || ''
-      const displayLabel = explicitLabel || (normalizedTargetKey.includes('/') ? resolvedTitle || normalizedTargetKey : normalizedTargetKey)
+      const displayLabel = parsedInternalReference
+        ? (explicitLabel || resolvedTitle || normalizedTargetKey)
+        : (explicitLabel || (normalizedTargetKey.includes('/') ? resolvedTitle || normalizedTargetKey : normalizedTargetKey))
       const isResolved = Boolean(resolvedTitle)
+      const openLink = parsedInternalReference ? wikiLinkOptions?.onOpenInternalReference : wikiLinkOptions?.onOpenWikiLink
 
       nodes.push(
-        isResolved && wikiLinkOptions?.onOpenWikiLink ? (
+        isResolved && openLink ? (
           <button
             key={`inline-${matchIndex}`}
             type="button"
@@ -950,7 +963,7 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              wikiLinkOptions.onOpenWikiLink?.(normalizedTargetKey)
+              openLink?.(normalizedTargetKey)
             }}
           >
             {displayLabel}
@@ -1816,6 +1829,8 @@ export default function PreviewPane({
   onDeleteAnnotation,
   resolveWikiLinkTitle,
   onOpenWikiLink,
+  resolveInternalReferenceTitle,
+  onOpenInternalReference,
   topicBacklinks = [],
   showTopicBacklinksDrawer = false,
 }: PreviewPaneProps) {
@@ -1874,8 +1889,8 @@ export default function PreviewPane({
   const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
   const isInlineAnnotationEditing = isReadLater && activeAnnotation?.id === editingAnnotationId
   const wikiLinkOptions = useMemo(
-    () => ({ resolveWikiLinkTitle, onOpenWikiLink }),
-    [onOpenWikiLink, resolveWikiLinkTitle],
+    () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
+    [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
   )
 
   useEffect(() => {
