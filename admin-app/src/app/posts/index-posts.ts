@@ -115,6 +115,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const tags = readList(frontmatter, 'tags')
   const body = stripGeneratedTopicBacklinks(stripFrontmatter(input.content))
   const knowledgePreview = contentType === 'knowledge' ? extractKnowledgePreview(body) : ''
+  const bodySearchText = normalizeSearchText(body)
   const searchText = normalizeSearchText([
     title,
     date,
@@ -127,7 +128,6 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     ...aliases,
     ...categories,
     ...tags,
-    body,
   ].join('\n'))
 
   return {
@@ -145,6 +145,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     cover: cover ? cover : null,
     body,
     searchText,
+    bodySearchText,
     contentType,
     ...(sourceType === 'post' || sourceType === 'read-later' || sourceType === 'diary' ? { sourceType } : {}),
     ...(sourcePath ? { sourcePath } : {}),
@@ -194,6 +195,7 @@ export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): Po
         (post.desc || '').toLowerCase().includes(normalizedQuery) ||
         (post.permalink || '').toLowerCase().includes(normalizedQuery) ||
         (post.searchText || '').includes(normalizedQuery) ||
+        (post.bodySearchText || '').includes(normalizedQuery) ||
         (post.sourceName || '').toLowerCase().includes(normalizedQuery) ||
         (post.externalUrl || '').toLowerCase().includes(normalizedQuery) ||
         (post.sourceTitle || '').toLowerCase().includes(normalizedQuery) ||

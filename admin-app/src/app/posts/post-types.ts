@@ -21,6 +21,7 @@ export type PostIndexItem = {
   cover: string | null
   body?: string
   searchText?: string
+  bodySearchText?: string
   contentType?: ContentType
   externalUrl?: string | null
   sourceName?: string | null

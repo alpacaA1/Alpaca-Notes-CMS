@@ -8,6 +8,7 @@ export type InternalReferenceCandidate = {
   keywords: string
   date: string
   path: string
+  search?: InternalReferenceCandidateSearchFields
 }
 
 type InternalReferenceSearch = {
@@ -15,10 +16,35 @@ type InternalReferenceSearch = {
   query: string
 }
 
+type InternalReferenceCandidateSearchFields = {
+  normalizedTitle: string
+  normalizedIdentifier: string
+  normalizedTargetKey: string
+  strongTerms: string[]
+  auxiliaryTerms: string[]
+  bodyText: string
+}
+
 const INTERNAL_REFERENCE_TYPES: ContentType[] = ['read-later', 'knowledge', 'diary', 'post']
+const INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH = 3
 
 function normalizeText(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase()
+}
+
+function joinSearchSegments(values: Array<string | null | undefined>) {
+  return values
+    .map((value) => value?.trim() || '')
+    .filter(Boolean)
+    .join('\n')
+}
+
+function normalizeTerms(values: Array<string | null | undefined>) {
+  return Array.from(new Set(
+    values
+      .map((value) => normalizeText(value || ''))
+      .filter(Boolean),
+  ))
 }
 
 export function getInternalReferenceTypeLabel(contentType: ContentType) {
@@ -100,7 +126,7 @@ export function getInternalReferenceTargetKeys(post: PostIndexItem) {
 }
 
 function getReferenceCandidateKeywords(post: PostIndexItem, identifier: string, targetKeys: string[]) {
-  return [
+  return joinSearchSegments([
     post.title,
     identifier,
     post.path,
@@ -114,11 +140,89 @@ function getReferenceCandidateKeywords(post: PostIndexItem, identifier: string, 
     post.sourceUrl || '',
     post.externalUrl || '',
     post.sourceName || '',
-    post.searchText || '',
     ...targetKeys,
-  ]
-    .filter(Boolean)
-    .join('\n')
+  ])
+}
+
+function buildInternalReferenceCandidateSearchFields(
+  post: PostIndexItem,
+  candidateTitle: string,
+  identifier: string,
+  targetKeys: string[],
+): InternalReferenceCandidateSearchFields {
+  return {
+    normalizedTitle: normalizeText(candidateTitle),
+    normalizedIdentifier: normalizeText(identifier),
+    normalizedTargetKey: normalizeText(targetKeys[0] || ''),
+    strongTerms: normalizeTerms([
+      post.permalink || '',
+      post.nodeKey || '',
+      ...(post.aliases || []),
+      ...targetKeys,
+    ]),
+    auxiliaryTerms: normalizeTerms([
+      post.path,
+      ...(post.categories || []),
+      ...(post.tags || []),
+      post.sourceTitle || '',
+      post.sourcePath || '',
+      post.sourceUrl || '',
+      post.externalUrl || '',
+      post.sourceName || '',
+    ]),
+    bodyText: post.bodySearchText || normalizeText(post.body || ''),
+  }
+}
+
+function getCandidateSearchFields(candidate: InternalReferenceCandidate) {
+  if (candidate.search) {
+    return candidate.search
+  }
+
+  const legacySearchFields: InternalReferenceCandidateSearchFields = {
+    normalizedTitle: normalizeText(candidate.title),
+    normalizedIdentifier: normalizeText(candidate.identifier),
+    normalizedTargetKey: normalizeText(candidate.targetKey),
+    strongTerms: [],
+    auxiliaryTerms: normalizeTerms([candidate.keywords]),
+    bodyText: '',
+  }
+  candidate.search = legacySearchFields
+  return legacySearchFields
+}
+
+function getTermMatchScore(
+  terms: string[],
+  normalizedQuery: string,
+  scores: { exact: number; startsWith: number; includes: number },
+) {
+  let score = 0
+
+  for (const term of terms) {
+    if (!term) {
+      continue
+    }
+
+    if (term === normalizedQuery) {
+      return scores.exact
+    }
+
+    if (term.startsWith(normalizedQuery)) {
+      score = Math.max(score, scores.startsWith)
+      continue
+    }
+
+    if (term.includes(normalizedQuery)) {
+      score = Math.max(score, scores.includes)
+    }
+  }
+
+  return score
+}
+
+function shouldSearchBody(normalizedQuery: string) {
+  const compactQuery = normalizedQuery.replace(/\s+/g, '')
+  return Array.from(compactQuery).length >= INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH
 }
 
 export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
@@ -133,14 +237,16 @@ export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
     }
 
     const identifier = parseInternalReferenceTargetKey(canonicalTargetKey)?.identifier || canonicalTargetKey
+    const title = post.title.trim() || '未命名内容'
     dedupedCandidates.set(canonicalTargetKey, {
       targetKey: canonicalTargetKey,
-      title: post.title.trim() || '未命名内容',
+      title,
       contentType,
       identifier,
       keywords: getReferenceCandidateKeywords(post, identifier, targetKeys),
       date: post.date,
       path: post.path,
+      search: buildInternalReferenceCandidateSearchFields(post, title, identifier, targetKeys),
     })
   })
 
@@ -197,6 +303,7 @@ export function searchInternalReferenceCandidates(
 ) {
   const { contentType, query } = parseInternalReferenceSearch(rawQuery)
   const normalizedQuery = normalizeText(query)
+  const allowBodyMatch = shouldSearchBody(normalizedQuery)
   if (!normalizedQuery) {
     return []
   }
@@ -204,27 +311,35 @@ export function searchInternalReferenceCandidates(
   return candidates
     .filter((candidate) => !contentType || candidate.contentType === contentType)
     .map((candidate) => {
-      const normalizedTitle = normalizeText(candidate.title)
-      const normalizedIdentifier = normalizeText(candidate.identifier)
-      const normalizedKeywords = normalizeText(candidate.keywords)
-      const normalizedTargetKey = normalizeText(candidate.targetKey)
-      let score = 0
-
-      if (normalizedTitle === normalizedQuery) {
-        score = 520
-      } else if (normalizedTitle.startsWith(normalizedQuery)) {
-        score = 460
-      } else if (normalizedTitle.includes(normalizedQuery)) {
-        score = 380
-      } else if (normalizedIdentifier.startsWith(normalizedQuery)) {
-        score = 320
-      } else if (normalizedIdentifier.includes(normalizedQuery)) {
-        score = 280
-      } else if (normalizedTargetKey.includes(normalizedQuery)) {
-        score = 220
-      } else if (normalizedKeywords.includes(normalizedQuery)) {
-        score = 160
-      }
+      const searchFields = getCandidateSearchFields(candidate)
+      const score = Math.max(
+        getTermMatchScore([searchFields.normalizedTitle], normalizedQuery, {
+          exact: 640,
+          startsWith: 580,
+          includes: 520,
+        }),
+        getTermMatchScore([searchFields.normalizedIdentifier], normalizedQuery, {
+          exact: 500,
+          startsWith: 460,
+          includes: 420,
+        }),
+        getTermMatchScore([searchFields.normalizedTargetKey], normalizedQuery, {
+          exact: 400,
+          startsWith: 360,
+          includes: 320,
+        }),
+        getTermMatchScore(searchFields.strongTerms, normalizedQuery, {
+          exact: 340,
+          startsWith: 300,
+          includes: 260,
+        }),
+        getTermMatchScore(searchFields.auxiliaryTerms, normalizedQuery, {
+          exact: 220,
+          startsWith: 180,
+          includes: 150,
+        }),
+        allowBodyMatch && searchFields.bodyText.includes(normalizedQuery) ? 90 : 0,
+      )
 
       return { candidate, score }
     })
