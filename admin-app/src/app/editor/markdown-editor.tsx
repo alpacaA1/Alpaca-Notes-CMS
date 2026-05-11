@@ -537,6 +537,14 @@ export default function MarkdownEditor({
     setActiveInternalReferenceIndex(0)
   }, [visibleInternalReferenceKey])
 
+  const dismissInternalReferencePanel = () => {
+    if (!visibleInternalReferenceKey) {
+      return
+    }
+
+    setDismissedInternalReferenceKey(visibleInternalReferenceKey)
+  }
+
   const pushHistoryEntry = (stack: React.MutableRefObject<HistoryEntry[]>, entry: HistoryEntry) => {
     const lastEntry = stack.current[stack.current.length - 1]
     if (lastEntry && lastEntry.value === entry.value) {
@@ -682,7 +690,7 @@ export default function MarkdownEditor({
       if (event.key === 'Escape') {
         event.preventDefault()
         event.stopPropagation()
-        setDismissedInternalReferenceKey(visibleInternalReferenceKey)
+        dismissInternalReferencePanel()
         return
       }
 
@@ -1046,48 +1054,61 @@ export default function MarkdownEditor({
               {isImmersive ? '退出沉浸' : '沉浸模式'}
             </button>
           ) : null}
+          {isInternalReferencePanelVisible ? (
+            <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
+              <div className="markdown-editor__reference-panel-header">
+                <div className="markdown-editor__reference-panel-heading">
+                  <strong>内部引用</strong>
+                  <span>回车即可插入</span>
+                </div>
+                <button
+                  type="button"
+                  className="markdown-editor__reference-dismiss"
+                  aria-label="关闭内部引用候选"
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={dismissInternalReferencePanel}
+                >
+                  收起
+                </button>
+              </div>
+              {visibleInternalReferenceCandidates.length > 0 ? (
+                <div className="markdown-editor__reference-options">
+                  {visibleInternalReferenceCandidates.map((candidate, index) => {
+                    const isActive = index === activeInternalReferenceIndex
+
+                    return (
+                      <button
+                        key={candidate.targetKey}
+                        type="button"
+                        role="option"
+                        aria-selected={isActive}
+                        className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                        }}
+                        onClick={() => insertInternalReference(candidate)}
+                        onMouseEnter={() => setActiveInternalReferenceIndex(index)}
+                      >
+                        <span className="markdown-editor__reference-option-main">
+                          <strong>{candidate.title}</strong>
+                          <span className="markdown-editor__reference-option-type">
+                            {getInternalReferenceTypeLabel(candidate.contentType)}
+                          </span>
+                        </span>
+                        <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
-      {isInternalReferencePanelVisible ? (
-        <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
-          <div className="markdown-editor__reference-panel-header">
-            <strong>插入内部引用</strong>
-            <span>输入内容后回车即可插入</span>
-          </div>
-          {visibleInternalReferenceCandidates.length > 0 ? (
-            <div className="markdown-editor__reference-options">
-              {visibleInternalReferenceCandidates.map((candidate, index) => {
-                const isActive = index === activeInternalReferenceIndex
-
-                return (
-                  <button
-                    key={candidate.targetKey}
-                    type="button"
-                    role="option"
-                    aria-selected={isActive}
-                    className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                    }}
-                    onClick={() => insertInternalReference(candidate)}
-                    onMouseEnter={() => setActiveInternalReferenceIndex(index)}
-                  >
-                    <span className="markdown-editor__reference-option-main">
-                      <strong>{candidate.title}</strong>
-                      <span className="markdown-editor__reference-option-type">
-                        {getInternalReferenceTypeLabel(candidate.contentType)}
-                      </span>
-                    </span>
-                    <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
-                  </button>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
-          )}
-        </div>
-      ) : null}
       <textarea
         id={textareaId}
         ref={textareaRef}

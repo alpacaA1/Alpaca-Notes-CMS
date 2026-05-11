@@ -137,6 +137,34 @@ describe('markdown editor', () => {
     })
   })
 
+  it('dismisses the internal reference suggestion panel without changing the editor value', async () => {
+    const editor = renderControlledEditorWithReferences('', [
+      {
+        targetKey: 'post:influence/',
+        title: '《影响力》书摘',
+        contentType: 'post',
+        identifier: 'influence/',
+        keywords: '影响力 书摘 influence/',
+        date: '2026-05-11 08:00:00',
+        path: 'source/_posts/influence.md',
+      },
+    ])
+
+    fireEvent.change(editor, { target: { value: '今天又想到 [[影响' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+
+    expect(await screen.findByRole('listbox', { name: '内部引用候选' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭内部引用候选' }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('listbox', { name: '内部引用候选' })).toBeNull()
+    })
+    expect(editor.value).toBe('今天又想到 [[影响')
+  })
+
   it('indents empty list items when pressing Tab', () => {
     const editor = renderControlledEditor('- 12\n- ')
 
