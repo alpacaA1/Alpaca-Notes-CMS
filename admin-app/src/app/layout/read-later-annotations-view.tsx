@@ -264,6 +264,10 @@ export default function ReadLaterAnnotationsView({
   )
 
   function handleListShellWheel(event: WheelEvent<HTMLElement>) {
+    if (!event.shiftKey) {
+      return
+    }
+
     const currentTarget = event.currentTarget
     if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
       return
