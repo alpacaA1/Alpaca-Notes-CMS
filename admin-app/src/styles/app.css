@@ -6976,7 +6976,8 @@ textarea {
   align-self: stretch;
   overflow-x: auto;
   overflow-y: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
   scrollbar-gutter: stable both-edges;
   contain: layout paint;
   padding: 12px;

@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { ReadLaterAnnotationIndexItem } from '../read-later/annotation-index'
 import ReadLaterAnnotationsView from './read-later-annotations-view'
+
+const appStyles = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8')
 
 function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexItem> = {}): ReadLaterAnnotationIndexItem {
   return {
@@ -27,6 +31,11 @@ function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexIt
 }
 
 describe('ReadLaterAnnotationsView', () => {
+  it('allows vertical scroll chaining from the annotations list shell', () => {
+    expect(appStyles).toMatch(/\.annotation-dashboard__list-shell\s*\{[^}]*overscroll-behavior-x:\s*contain;[^}]*overscroll-behavior-y:\s*auto;/s)
+    expect(appStyles).not.toMatch(/\.annotation-dashboard__list-shell\s*\{[^}]*overscroll-behavior:\s*contain;/s)
+  })
+
   it('keeps vertical mouse wheel scrolling available on the annotations list shell', () => {
     render(
       <ReadLaterAnnotationsView
