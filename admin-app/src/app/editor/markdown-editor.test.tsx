@@ -40,6 +40,7 @@ function renderControlledEditorWithReferences(
     targetKey: string
     title: string
     contentType: 'post' | 'diary' | 'knowledge' | 'read-later'
+    isTopicNode?: boolean
     identifier: string
     keywords: string
     date: string
@@ -134,6 +135,35 @@ describe('markdown editor', () => {
 
     await waitFor(() => {
       expect(editor.value).toBe('今天又想到 [[post:influence/|《影响力》书摘]]')
+    })
+  })
+
+  it('inserts a topic node reference from the suggestion panel after typing [[ query', async () => {
+    const editor = renderControlledEditorWithReferences('', [
+      {
+        targetKey: 'book/影响力',
+        title: '《影响力》',
+        contentType: 'post',
+        isTopicNode: true,
+        identifier: 'book/影响力',
+        keywords: '影响力 book/影响力 Influence',
+        date: '2026-05-11 08:00:00',
+        path: 'source/_posts/influence-topic.md',
+      },
+    ])
+
+    fireEvent.change(editor, { target: { value: '今天又想到 [[影响' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+
+    expect(await screen.findByRole('listbox', { name: '内部引用候选' })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /《影响力》/ }).textContent).toContain('主题')
+
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(editor.value).toBe('今天又想到 [[book/影响力|《影响力》]]')
     })
   })
 

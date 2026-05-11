@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildInternalReferenceCandidates, searchInternalReferenceCandidates } from './internal-links'
+import { buildInternalReferenceCandidates, buildInternalReferenceLookup, searchInternalReferenceCandidates } from './internal-links'
 import { parsePostIndexItem } from './posts/index-posts'
 
 describe('internal reference search', () => {
@@ -101,5 +101,37 @@ published: true
     expect(searchInternalReferenceCandidates(candidates, '互惠原则').map((item) => item.title)).toEqual([
       '说服笔记',
     ])
+  })
+
+  it('uses node_key as the primary target for topic nodes', () => {
+    const topicPost = parsePostIndexItem({
+      path: 'source/_posts/influence-topic.md',
+      sha: 'topic-sha',
+      content: `---
+title: 影响力
+date: 2026-05-11 10:00:00
+permalink: influence/
+published: true
+topic: true
+topic_type: book
+node_key: book/影响力
+aliases:
+  - 《影响力》
+---
+
+这是一个主题文章。`,
+    })
+
+    const [candidate] = buildInternalReferenceCandidates([topicPost])
+    const lookup = buildInternalReferenceLookup([topicPost])
+
+    expect(candidate).toMatchObject({
+      targetKey: 'book/影响力',
+      identifier: 'book/影响力',
+      contentType: 'post',
+      isTopicNode: true,
+    })
+    expect(lookup.get('book/影响力')?.path).toBe(topicPost.path)
+    expect(lookup.get('post:influence/')?.path).toBe(topicPost.path)
   })
 })

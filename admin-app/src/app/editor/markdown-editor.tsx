@@ -1094,7 +1094,7 @@ export default function MarkdownEditor({
                         <span className="markdown-editor__reference-option-main">
                           <strong>{candidate.title}</strong>
                           <span className="markdown-editor__reference-option-type">
-                            {getInternalReferenceTypeLabel(candidate.contentType)}
+                            {getInternalReferenceTypeLabel(candidate.contentType, candidate.isTopicNode)}
                           </span>
                         </span>
                         <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>

@@ -4,6 +4,7 @@ export type InternalReferenceCandidate = {
   targetKey: string
   title: string
   contentType: ContentType
+  isTopicNode?: boolean
   identifier: string
   keywords: string
   date: string
@@ -47,7 +48,21 @@ function normalizeTerms(values: Array<string | null | undefined>) {
   ))
 }
 
-export function getInternalReferenceTypeLabel(contentType: ContentType) {
+function isTopicNodeCandidate(
+  post: Pick<PostIndexItem, 'contentType' | 'knowledgeKind' | 'nodeKey' | 'isTopic'>,
+) {
+  if (!post.nodeKey?.trim()) {
+    return false
+  }
+
+  return (post.contentType === 'knowledge' && post.knowledgeKind === 'topic') || (post.contentType === 'post' && post.isTopic === true)
+}
+
+export function getInternalReferenceTypeLabel(contentType: ContentType, isTopicNode = false) {
+  if (isTopicNode) {
+    return '主题'
+  }
+
   if (contentType === 'read-later') {
     return '待读'
   }
@@ -83,6 +98,10 @@ export function parseInternalReferenceTargetKey(targetKey: string) {
 }
 
 function getCanonicalReferenceIdentifier(post: PostIndexItem) {
+  if (isTopicNodeCandidate(post)) {
+    return post.nodeKey?.trim() || post.path
+  }
+
   if (post.contentType === 'diary' || post.contentType === 'read-later') {
     return post.path
   }
@@ -97,13 +116,17 @@ function getCanonicalReferenceIdentifier(post: PostIndexItem) {
 export function getInternalReferenceTargetKeys(post: PostIndexItem) {
   const contentType = post.contentType || 'post'
   const targetKeys = new Set<string>()
-  const addTargetKey = (identifier: string | null | undefined) => {
+  const addTargetKey = (identifier: string | null | undefined, useTypedPrefix = true) => {
     const normalizedIdentifier = identifier?.trim()
     if (!normalizedIdentifier) {
       return
     }
 
-    targetKeys.add(`${contentType}:${normalizedIdentifier}`)
+    targetKeys.add(useTypedPrefix ? `${contentType}:${normalizedIdentifier}` : normalizedIdentifier)
+  }
+
+  if (isTopicNodeCandidate(post)) {
+    addTargetKey(post.nodeKey || null, false)
   }
 
   addTargetKey(getCanonicalReferenceIdentifier(post))
@@ -230,6 +253,7 @@ export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
 
   posts.forEach((post) => {
     const contentType = post.contentType || 'post'
+    const isTopicNode = isTopicNodeCandidate(post)
     const targetKeys = getInternalReferenceTargetKeys(post)
     const canonicalTargetKey = targetKeys[0]
     if (!canonicalTargetKey || dedupedCandidates.has(canonicalTargetKey)) {
@@ -242,6 +266,7 @@ export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
       targetKey: canonicalTargetKey,
       title,
       contentType,
+      isTopicNode,
       identifier,
       keywords: getReferenceCandidateKeywords(post, identifier, targetKeys),
       date: post.date,
