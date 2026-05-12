@@ -9,6 +9,7 @@ export type ImportedReadLaterArticle = {
   markdown: string
   requestedUrl: string
   finalUrl: string
+  needsManualPaste: boolean
 }
 
 type ImportResponse = Partial<ImportedReadLaterArticle> & {
@@ -24,8 +25,21 @@ function readErrorMessage(payload: unknown) {
   return typeof message === 'string' ? message : ''
 }
 
-export async function importReadLaterFromUrl(session: SessionState, url: string): Promise<ImportedReadLaterArticle> {
-  const response = await fetch(`${READ_LATER_IMPORT_URL}?url=${encodeURIComponent(url)}`, {
+type ImportReadLaterOptions = {
+  allowMetadataOnly?: boolean
+}
+
+export async function importReadLaterFromUrl(
+  session: SessionState,
+  url: string,
+  options?: ImportReadLaterOptions,
+): Promise<ImportedReadLaterArticle> {
+  const params = new URLSearchParams({ url })
+  if (options?.allowMetadataOnly) {
+    params.set('allowMetadataOnly', '1')
+  }
+
+  const response = await fetch(`${READ_LATER_IMPORT_URL}?${params.toString()}`, {
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${session.token}`,
@@ -53,8 +67,9 @@ export async function importReadLaterFromUrl(session: SessionState, url: string)
   const markdown = typeof payload?.markdown === 'string' ? payload.markdown.trim() : ''
   const requestedUrl = typeof payload?.requestedUrl === 'string' ? payload.requestedUrl : ''
   const finalUrl = typeof payload?.finalUrl === 'string' ? payload.finalUrl : ''
+  const needsManualPaste = payload?.needsManualPaste === true
 
-  if (!markdown) {
+  if (!markdown && !needsManualPaste) {
     throw new Error('导入结果不完整，请稍后重试。')
   }
 
@@ -65,5 +80,6 @@ export async function importReadLaterFromUrl(session: SessionState, url: string)
     markdown,
     requestedUrl,
     finalUrl,
+    needsManualPaste,
   }
 }

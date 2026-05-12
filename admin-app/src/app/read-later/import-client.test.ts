@@ -19,6 +19,7 @@ describe('importReadLaterFromUrl', () => {
         markdown: '  正文内容  ',
         requestedUrl: 'https://example.com/requested',
         finalUrl: 'https://example.com/final',
+        needsManualPaste: false,
       }),
     } as Response)
 
@@ -31,6 +32,7 @@ describe('importReadLaterFromUrl', () => {
       markdown: '正文内容',
       requestedUrl: 'https://example.com/requested',
       finalUrl: 'https://example.com/final',
+      needsManualPaste: false,
     })
     expect(fetchSpy).toHaveBeenCalledWith(
       `${READ_LATER_IMPORT_URL}?url=${encodeURIComponent('https://example.com/requested')}`,
@@ -80,5 +82,45 @@ describe('importReadLaterFromUrl', () => {
     } as Response)
 
     await expect(importReadLaterFromUrl({ token: 'token-1' }, 'https://example.com/requested')).rejects.toThrow('导入结果不完整，请稍后重试。')
+  })
+
+  it('returns metadata-only payloads when manual paste fallback is enabled', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        title: '仅导入元信息',
+        desc: '摘要',
+        sourceName: '来源站点',
+        requestedUrl: 'https://example.com/requested',
+        finalUrl: 'https://example.com/final',
+        needsManualPaste: true,
+      }),
+    } as Response)
+
+    const result = await importReadLaterFromUrl(
+      { token: 'token-1' },
+      'https://example.com/requested',
+      { allowMetadataOnly: true },
+    )
+
+    expect(result).toEqual({
+      title: '仅导入元信息',
+      desc: '摘要',
+      sourceName: '来源站点',
+      markdown: '',
+      requestedUrl: 'https://example.com/requested',
+      finalUrl: 'https://example.com/final',
+      needsManualPaste: true,
+    })
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${READ_LATER_IMPORT_URL}?url=${encodeURIComponent('https://example.com/requested')}&allowMetadataOnly=1`,
+      {
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer token-1',
+        },
+      },
+    )
   })
 })

@@ -1777,11 +1777,11 @@ export default function App() {
     setSuccessMessage(null)
 
     try {
-      const imported = await importReadLaterFromUrl(session, externalUrl)
+      const imported = await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
       const savedBaseDocument = createNewReadLaterItem()
       const draftDocument: ParsedReadLaterItem = {
         ...savedBaseDocument,
-        body: imported.markdown,
+        body: imported.markdown || savedBaseDocument.body,
         frontmatter: {
           ...savedBaseDocument.frontmatter,
           title: imported.title || savedBaseDocument.frontmatter.title,
@@ -1792,12 +1792,14 @@ export default function App() {
       }
 
       const redirectedDuplicate = findDuplicateReadLaterByUrl(draftDocument.frontmatter.external_url, draftDocument.path)
+      const successMessages = [
+        redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
+        imported.needsManualPaste ? '未自动识别正文，已创建带元信息的待读草稿，请手动粘贴原文。' : null,
+      ].filter((message): message is string => Boolean(message))
 
       openDocument(savedBaseDocument, {
         draftPost: draftDocument,
-        successMessage: redirectedDuplicate
-          ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。`
-          : null,
+        successMessage: successMessages.length > 0 ? successMessages.join(' ') : null,
       })
       setEditorNavigationStack([])
       setQuickReadLaterUrl('')

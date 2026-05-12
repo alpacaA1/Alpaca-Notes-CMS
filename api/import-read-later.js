@@ -55,12 +55,14 @@ module.exports = async function handler(req, res) {
       return;
     }
 
-    const requestedUrl = getRequestUrl(req).searchParams.get('url') || '';
+    const requestUrl = getRequestUrl(req);
+    const requestedUrl = requestUrl.searchParams.get('url') || '';
+    const allowMetadataOnly = /^(?:1|true)$/i.test(requestUrl.searchParams.get('allowMetadataOnly') || '');
     if (!requestedUrl.trim()) {
       throw new ArticleImportError('请先填写原文链接。', 400);
     }
 
-    const result = await importArticle(requestedUrl);
+    const result = await importArticle(requestedUrl, { allowMetadataOnly });
     sendJson(req, res, 200, result);
   } catch (error) {
     if (error instanceof ArticleImportError) {

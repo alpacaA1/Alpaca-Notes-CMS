@@ -233,6 +233,41 @@ test('importArticle imports note.mowen.cn detail pages via the note api and pres
   assert.match(article.markdown, /结尾段落/);
 });
 
+test('importArticle can fall back to metadata-only capture for JS-rendered public pages', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.31', family: 4 }]);
+  global.fetch = async () => createMockResponse({
+    url: 'https://www.superlinear.academy/c/posts/ai-5eb938',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+    },
+    html: `<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>上下文主权：AI 时代，什么才算你的想法 | Superlinear Academy</title>
+    <meta name="description" content="上下文不是越多越好。AI 时代真正重要的，是分清什么是你的，什么只是你看过的。" />
+    <meta property="og:title" content="上下文主权：AI 时代，什么才算你的想法 | Superlinear Academy" />
+    <meta property="og:site_name" content="Superlinear Academy" />
+  </head>
+  <body>
+    <div data-component="App"></div>
+  </body>
+</html>`,
+  });
+
+  const article = await importArticle('https://www.superlinear.academy/c/posts/ai-5eb938', {
+    allowMetadataOnly: true,
+  });
+
+  assert.equal(article.title, '上下文主权：AI 时代，什么才算你的想法');
+  assert.equal(article.desc, '上下文不是越多越好。AI 时代真正重要的，是分清什么是你的，什么只是你看过的。');
+  assert.equal(article.sourceName, 'Superlinear Academy');
+  assert.equal(article.requestedUrl, 'https://www.superlinear.academy/c/posts/ai-5eb938');
+  assert.equal(article.finalUrl, 'https://www.superlinear.academy/c/posts/ai-5eb938');
+  assert.equal(article.markdown, '');
+  assert.equal(article.needsManualPaste, true);
+});
+
 test('importArticle blocks hostnames that resolve to private addresses before fetching', async () => {
   let fetchCalls = 0;
   setDnsLookupForTesting(async () => [{ address: '127.0.0.1', family: 4 }]);

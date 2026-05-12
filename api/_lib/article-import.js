@@ -192,6 +192,10 @@ function normalizeText(value) {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function sanitizeCodeFenceLanguage(value) {
   const language = String(value || '').trim();
   if (!language || language.toLowerCase() === 'text') {
@@ -408,6 +412,39 @@ function convertArticleHtmlToMarkdown(content, baseUrl) {
   }
 }
 
+function stripSourceNameSuffix(title, sourceName) {
+  const normalizedTitle = normalizeText(title);
+  const normalizedSourceName = normalizeText(sourceName);
+
+  if (!normalizedTitle || !normalizedSourceName) {
+    return normalizedTitle;
+  }
+
+  const suffixPattern = new RegExp(`\\s*(?:\\||｜|-|—|–|:|：)\\s*${escapeRegExp(normalizedSourceName)}\\s*$`);
+  return normalizeText(normalizedTitle.replace(suffixPattern, '')) || normalizedTitle;
+}
+
+function extractArticleMetadata(document, finalUrl) {
+  const sourceName = normalizeText(
+    readMetaContent(document, 'meta[property="og:site_name"]') ||
+      new URL(finalUrl).hostname.replace(/^www\./, '')
+  );
+  const rawTitle = normalizeText(
+    readMetaContent(document, 'meta[property="og:title"]') ||
+      document.title ||
+      ''
+  );
+
+  return {
+    title: stripSourceNameSuffix(rawTitle, sourceName),
+    desc: normalizeText(
+      readMetaContent(document, 'meta[name="description"]') ||
+        readMetaContent(document, 'meta[property="og:description"]')
+    ),
+    sourceName,
+  };
+}
+
 function extractWeChatArticle(document, finalUrl) {
   const content = document.querySelector('#js_content');
   const articleHtml = content?.innerHTML?.trim();
@@ -536,10 +573,11 @@ async function importMowenArticle(finalArticleUrl, signal) {
   };
 }
 
-async function importArticle(requestedUrl) {
+async function importArticle(requestedUrl, options = {}) {
   const validatedRequestedUrl = validateArticleUrl(requestedUrl, '请填写有效的文章链接。');
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const allowMetadataOnly = options.allowMetadataOnly === true;
 
   try {
     const { response, finalUrl: finalArticleUrl } = await fetchArticleResponse(validatedRequestedUrl, controller.signal);
@@ -577,9 +615,28 @@ async function importArticle(requestedUrl) {
 
     try {
       const { document } = sourceDom.window;
-      const extractedArticle = isWeChatArticleUrl(finalArticleUrl)
-        ? extractWeChatArticle(document, finalUrl) || extractReadableArticle(document, finalUrl)
-        : extractReadableArticle(document, finalUrl);
+      const extractedMetadata = extractArticleMetadata(document, finalUrl);
+      let extractedArticle;
+
+      try {
+        extractedArticle = isWeChatArticleUrl(finalArticleUrl)
+          ? extractWeChatArticle(document, finalUrl) || extractReadableArticle(document, finalUrl)
+          : extractReadableArticle(document, finalUrl);
+      } catch (error) {
+        if (allowMetadataOnly && error instanceof ArticleImportError && error.statusCode === 422) {
+          return {
+            title: extractedMetadata.title,
+            desc: extractedMetadata.desc,
+            sourceName: extractedMetadata.sourceName || finalArticleUrl.hostname.replace(/^www\./, ''),
+            markdown: '',
+            requestedUrl: validatedRequestedUrl.toString(),
+            finalUrl,
+            needsManualPaste: true,
+          };
+        }
+
+        throw error;
+      }
 
       return {
         title: extractedArticle.title,
@@ -588,6 +645,7 @@ async function importArticle(requestedUrl) {
         markdown: extractedArticle.markdown,
         requestedUrl: validatedRequestedUrl.toString(),
         finalUrl,
+        needsManualPaste: false,
       };
     } finally {
       sourceDom.window.close();

@@ -81,6 +81,7 @@ describe('App read-later import flow', () => {
       markdown: '# 导入正文\n\n第二段',
       requestedUrl: 'https://example.com/article',
       finalUrl: 'https://example.com/article',
+      needsManualPaste: false,
     })
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
@@ -153,6 +154,7 @@ describe('App read-later import flow', () => {
       markdown: '# 导入正文',
       requestedUrl: 'https://example.com/article',
       finalUrl: 'https://example.com/article',
+      needsManualPaste: false,
     })
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
@@ -245,6 +247,7 @@ describe('App read-later import flow', () => {
       markdown: '# 快速导入正文\n\n第二段',
       requestedUrl: 'https://example.com/article',
       finalUrl: 'https://example.com/article',
+      needsManualPaste: false,
     })
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
 
@@ -261,7 +264,11 @@ describe('App read-later import flow', () => {
 
     expect(confirmSpy).toHaveBeenCalledWith('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')
     await waitFor(() => {
-      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
+      expect(importSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        'https://example.com/article',
+        { allowMetadataOnly: true },
+      )
     })
 
     expect(await screen.findByRole('heading', { name: '快速导入正文' })).toBeTruthy()
@@ -270,5 +277,48 @@ describe('App read-later import flow', () => {
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('快速收录摘要')
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('快速来源')
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
+  })
+
+  it('falls back to metadata-only quick capture when article extraction fails', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '上下文主权：AI 时代，什么才算你的想法',
+      desc: '上下文不是越多越好。',
+      sourceName: 'Superlinear Academy',
+      markdown: '',
+      requestedUrl: 'https://www.superlinear.academy/c/posts/ai-5eb938',
+      finalUrl: 'https://www.superlinear.academy/c/posts/ai-5eb938',
+      needsManualPaste: true,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Import me later')).toBeTruthy()
+    })
+
+    fireEvent.change(screen.getByLabelText('快速收录链接'), {
+      target: { value: 'https://www.superlinear.academy/c/posts/ai-5eb938' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '快速收录' }))
+
+    await waitFor(() => {
+      expect(importSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        'https://www.superlinear.academy/c/posts/ai-5eb938',
+        { allowMetadataOnly: true },
+      )
+    })
+
+    expect(await screen.findByRole('heading', { name: '上下文主权：AI 时代，什么才算你的想法' })).toBeTruthy()
+    expect(await screen.findByRole('link', { name: '原文摘录' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
+    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('上下文主权：AI 时代，什么才算你的想法')
+    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('上下文不是越多越好。')
+    expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('Superlinear Academy')
   })
 })
