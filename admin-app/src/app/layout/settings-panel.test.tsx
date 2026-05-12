@@ -329,6 +329,7 @@ describe('settings panel', () => {
     expect(screen.getByRole('checkbox', { name: '置顶' })).toBeTruthy()
     expect(screen.queryByLabelText('永久链接')).toBeNull()
     expect(screen.getByLabelText('站内详情链接')).toBeTruthy()
+    expect(screen.getByLabelText('手动粘贴正文')).toBeTruthy()
 
     const importButton = screen.getByRole('button', { name: '从链接导入正文' }) as HTMLButtonElement
     expect(importButton.disabled).toBe(true)
@@ -343,6 +344,33 @@ describe('settings panel', () => {
     expect(onFieldChange).toHaveBeenCalledWith('source_name', 'Example Source')
     expect(onFieldChange).toHaveBeenCalledWith('reading_status', 'reading')
     expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
+  })
+
+  it('lets read-later drafts paste article content from the info tab without overwriting notes', () => {
+    const { onBodyChange } = renderControlledSettingsPanel({
+      document: {
+        ...createNewReadLaterItem(new Date(2026, 3, 3, 10, 11, 12)),
+        body: createReadLaterBody({
+          articleExcerpt: '',
+          summary: '已有总结',
+          commentary: '已有评论',
+        }),
+      },
+      contentType: 'read-later',
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
+    fireEvent.change(screen.getByLabelText('手动粘贴正文'), {
+      target: { value: '第一段\n\n第二段' },
+    })
+
+    expect(onBodyChange).toHaveBeenCalledWith(
+      createReadLaterBody({
+        articleExcerpt: '第一段\n\n第二段',
+        summary: '已有总结',
+        commentary: '已有评论',
+      }),
+    )
   })
 
   it('enables and triggers read-later import button', () => {

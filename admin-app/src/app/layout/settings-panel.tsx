@@ -353,6 +353,19 @@ export default function SettingsPanel({
               </label>
 
               <label>
+                <span>手动粘贴正文</span>
+                <textarea
+                  aria-label="手动粘贴正文"
+                  rows={12}
+                  readOnly={!onBodyChange}
+                  value={readLaterSections?.articleExcerpt || ''}
+                  placeholder="链接无法识别正文时，把原文粘贴到这里"
+                  onChange={(event) => handleReadLaterSectionChange('articleExcerpt', event.target.value)}
+                />
+                <p className="settings-panel__field-note">会写入“原文摘录”，不会覆盖“我的总结”和“我的评论”。</p>
+              </label>
+
+              <label>
                 <span>来源</span>
                 <input
                   aria-label="来源"

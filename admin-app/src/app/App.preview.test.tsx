@@ -1367,7 +1367,7 @@ describe('App preview mode', () => {
     expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '我的总结' })).toBeTruthy()
     expect(screen.getByRole('heading', { name: '我的评论' })).toBeTruthy()
-    expect(screen.getByText('这里是原文摘录。')).toBeTruthy()
+    expect(screen.getAllByText('这里是原文摘录。').length).toBeGreaterThan(0)
     expect(screen.getByText('这里是我的总结。')).toBeTruthy()
     expect(screen.getByText('这里是我的评论。')).toBeTruthy()
   })

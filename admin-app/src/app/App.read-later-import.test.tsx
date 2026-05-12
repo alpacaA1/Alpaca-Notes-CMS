@@ -320,5 +320,13 @@ describe('App read-later import flow', () => {
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('上下文主权：AI 时代，什么才算你的想法')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('上下文不是越多越好。')
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('Superlinear Academy')
+
+    fireEvent.change(screen.getByLabelText('手动粘贴正文'), {
+      target: { value: '手动补录的正文第一段。' },
+    })
+
+    await waitFor(() => {
+      expect(screen.getAllByText('手动补录的正文第一段。').length).toBeGreaterThan(0)
+    })
   })
 })
