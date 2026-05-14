@@ -189,6 +189,8 @@ const ACTIVE_OUTLINE_OFFSET = 120
 const MERMAID_RUNTIME_SCRIPT_ID = 'admin-preview-mermaid-runtime'
 const MERMAID_RUNTIME_SRC = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'
 const MERMAID_RUNTIME_TIMEOUT_MS = 10_000
+const MERMAID_START_PATTERN = /^(?:flowchart|graph|sequenceDiagram|classDiagram|stateDiagram(?:-v2)?|erDiagram|journey|gantt|pie|mindmap|timeline|quadrantChart|requirementDiagram|gitGraph|C4Context|C4Container|C4Component|C4Dynamic|C4Deployment|sankey-beta|xychart-beta|block-beta|packet-beta|kanban)\b/i
+const MERMAID_DIRECTIVE_PATTERN = /^(?:%%|subgraph|end|style|linkStyle|classDef|class|click|note|section|accTitle|accDescr)\b/i
 const HTML_ENTITY_MAP: Record<string, string> = {
   '&amp;': '&',
   '&lt;': '<',
@@ -1348,6 +1350,56 @@ function getCodeFenceLanguage(trimmedLine: string) {
   return info ? info.split(/\s+/, 1)[0]?.toLowerCase() || '' : ''
 }
 
+function isIndentedMermaidLine(line: string) {
+  return /^(?: {2,}|\t+)/.test(line)
+}
+
+function looksLikeMermaidContinuation(line: string) {
+  const trimmedLine = line.trim()
+  if (!trimmedLine) {
+    return false
+  }
+
+  return (
+    isIndentedMermaidLine(line) ||
+    MERMAID_DIRECTIVE_PATTERN.test(trimmedLine) ||
+    /-->|==>|-.->|---|:::/.test(trimmedLine)
+  )
+}
+
+function parseBareMermaidBlock(lines: string[], startIndex: number) {
+  const startLine = lines[startIndex]?.trim()
+  if (!startLine || !MERMAID_START_PATTERN.test(startLine)) {
+    return null
+  }
+
+  const chartLines = [startLine]
+  let index = startIndex + 1
+
+  while (index < lines.length) {
+    const nextLine = lines[index]
+    if (!nextLine.trim()) {
+      break
+    }
+
+    if (!looksLikeMermaidContinuation(nextLine)) {
+      break
+    }
+
+    chartLines.push(nextLine.trimEnd())
+    index += 1
+  }
+
+  if (chartLines.length <= 1) {
+    return null
+  }
+
+  return {
+    chart: chartLines.join('\n'),
+    nextIndex: index - 1,
+  }
+}
+
 function initializeMermaidRuntime(runtime: MermaidRuntime) {
   if (hasInitializedMermaidRuntime) {
     return runtime
@@ -1600,6 +1652,14 @@ function renderBlocks(
           </pre>
         ),
       )
+      continue
+    }
+
+    const bareMermaidBlock = parseBareMermaidBlock(lines, index)
+    if (bareMermaidBlock) {
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      nodes.push(<MermaidBlock key={`mermaid-${nodes.length}`} chart={bareMermaidBlock.chart} />)
+      index = bareMermaidBlock.nextIndex
       continue
     }
 

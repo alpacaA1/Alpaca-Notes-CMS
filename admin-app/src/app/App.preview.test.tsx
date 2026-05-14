@@ -35,6 +35,22 @@ desc: desc
 
 Body with **bold** text and [link](https://example.com).`
 
+const bareMermaidContent = `---
+title: Preview supported post
+permalink: preview-supported-post/
+date: 2026-04-03 12:00:00
+published: true
+categories:
+  - 专业
+tags:
+  - 产品
+desc: desc
+---
+
+flowchart LR
+  A["阶段1：联机可管<br/>设备接入"] --> B["阶段2：业务可跑<br/>料仓建模"]
+  B --> C["阶段3：运维闭环<br/>告警中心"]`
+
 const unsafeLinkContent = `---
 title: Preview supported post
 permalink: preview-supported-post/
@@ -581,6 +597,8 @@ describe('App preview mode', () => {
     githubClientModule.clearMarkdownFileCache()
     window.sessionStorage.clear()
     window.localStorage.clear()
+    delete (window as Window & { mermaid?: unknown; __adminPreviewMermaidRuntimePromise?: Promise<unknown> }).mermaid
+    delete (window as Window & { mermaid?: unknown; __adminPreviewMermaidRuntimePromise?: Promise<unknown> }).__adminPreviewMermaidRuntimePromise
   })
 
   it('renders the current document title, date, and body in preview mode', async () => {
@@ -608,6 +626,57 @@ describe('App preview mode', () => {
     expect(screen.getByRole('heading', { name: 'Preview Title' })).toBeTruthy()
     expect(screen.getByText(/Body with/)).toBeTruthy()
     expect(screen.getByRole('link', { name: 'link' })).toBeTruthy()
+  })
+
+  it('renders bare mermaid content as a diagram in preview mode', async () => {
+    const initialize = vi.fn()
+    const renderMermaid = vi.fn().mockResolvedValue({
+      svg: '<svg viewBox="0 0 240 80"><text x="12" y="32">阶段 1 到阶段 3</text></svg>',
+    })
+
+    ;(window as Window & {
+      mermaid?: {
+        initialize: typeof initialize
+        render: typeof renderMermaid
+      }
+    }).mermaid = {
+      initialize,
+      render: renderMermaid,
+    }
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: bareMermaidContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Preview supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+
+    await waitFor(() => {
+      expect(renderMermaid).toHaveBeenCalledWith(
+        expect.stringMatching(/^preview-mermaid-/),
+        'flowchart LR\n  A["阶段1：联机可管<br/>设备接入"] --> B["阶段2：业务可跑<br/>料仓建模"]\n  B --> C["阶段3：运维闭环<br/>告警中心"]',
+      )
+    })
+
+    expect(initialize).toHaveBeenCalledWith({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'neutral',
+    })
+    expect(await screen.findByRole('heading', { name: 'Preview supported post' })).toBeTruthy()
+    expect(document.querySelector('.preview-mermaid svg')).toBeTruthy()
   })
 
   it('opens a topic node when a resolved wiki link is clicked in preview mode', async () => {

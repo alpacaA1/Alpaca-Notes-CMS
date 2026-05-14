@@ -286,6 +286,43 @@ describe('PreviewPane', () => {
     expect(screen.queryByText('flowchart LR')).toBeNull()
   })
 
+  it('renders bare mermaid blocks as diagrams when the runtime is available', async () => {
+    const initialize = vi.fn()
+    const renderMermaid = vi.fn().mockResolvedValue({
+      svg: '<svg viewBox="0 0 240 80"><text x="12" y="32">阶段 1 到阶段 2</text></svg>',
+    })
+
+    ;(window as Window & {
+      mermaid?: {
+        initialize: typeof initialize
+        render: typeof renderMermaid
+      }
+    }).mermaid = {
+      initialize,
+      render: renderMermaid,
+    }
+
+    const { container } = render(
+      <PreviewPane
+        title="裸 Mermaid 预览"
+        date="2026-05-14 21:05:00"
+        markdown={`flowchart LR
+  A["阶段 1"] --> B["阶段 2"]
+  B --> C["阶段 3"]`}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(renderMermaid).toHaveBeenCalledWith(
+        expect.stringMatching(/^preview-mermaid-/),
+        'flowchart LR\n  A["阶段 1"] --> B["阶段 2"]\n  B --> C["阶段 3"]',
+      )
+    })
+
+    expect(container.querySelector('.preview-mermaid svg')).toBeTruthy()
+    expect(screen.queryByText('A["阶段 1"] --> B["阶段 2"]')).toBeNull()
+  })
+
   it('falls back to raw code when mermaid rendering fails', async () => {
     ;(window as Window & {
       mermaid?: {
