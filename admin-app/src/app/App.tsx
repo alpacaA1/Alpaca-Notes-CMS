@@ -1,12 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   batchUpdatePostContents,
-  deleteMarkdownFile,
   fetchMarkdownFile,
   GitHubAuthError,
   GitHubConflictError,
+  listTrashEntries,
+  moveMarkdownFileToTrash,
+  permanentlyDeleteTrashEntry,
+  purgeExpiredTrashEntries,
   readCachedMarkdownFile,
+  restoreTrashEntry,
   saveMarkdownFile,
+  type TrashEntry,
   uploadImageFile,
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
@@ -30,6 +35,7 @@ import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, typ
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
+import TrashView from './layout/trash-view'
 import MaterialOrganizerDialog from './layout/material-organizer-dialog'
 import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import SettingsPanel from './layout/settings-panel'
@@ -68,6 +74,10 @@ type PostDeleteConfirmAction = {
   kind: 'delete-post'
   post: PostIndexItem
 }
+
+type TrashConfirmAction =
+  | { kind: 'restore-trash'; entry: TrashEntry }
+  | { kind: 'delete-trash'; entry: TrashEntry }
 
 type OpenDocumentOptions = {
   draftPost?: ParsedPost | null
@@ -276,6 +286,17 @@ function isTopicDocument(document: ParsedPost | PostIndexItem | null | undefined
   return Boolean(document && isTopicNodePost(document))
 }
 
+function buildIndexItemFromSavedFile(
+  contentType: ContentType,
+  file: { path: string; sha: string; content: string },
+): PostIndexItem {
+  if (contentType === 'read-later') {
+    return parseReadLaterIndexItem(file)
+  }
+
+  return parsePostIndexItem(file)
+}
+
 async function buildIndexByContentType(session: { token: string }, type: ContentType) {
   if (type === 'read-later') {
     return buildReadLaterIndex(session)
@@ -304,7 +325,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor' | 'annotations'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash'
 
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
@@ -322,6 +343,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
+  const [isTrashIndexing, setIsTrashIndexing] = useState(false)
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isImportingFromUrl, setIsImportingFromUrl] = useState(false)
@@ -336,14 +358,18 @@ export default function App() {
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
+  const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([])
   const previewObjectUrlsRef = useRef<string[]>([])
   const preloadAttemptedRef = useRef<Partial<Record<ContentType, boolean>>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
+  const [trashConfirm, setTrashConfirm] = useState<TrashConfirmAction | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [deletingPostPath, setDeletingPostPath] = useState<string | null>(null)
+  const [isProcessingTrash, setIsProcessingTrash] = useState(false)
+  const [processingTrashPath, setProcessingTrashPath] = useState<string | null>(null)
   const [isTogglingPinned, setIsTogglingPinned] = useState(false)
   const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
@@ -546,6 +572,18 @@ export default function App() {
     })
   }, [])
 
+  const loadTrashEntries = useCallback(async (activeSession: { token: string }) => {
+    setIsTrashIndexing(true)
+
+    try {
+      await purgeExpiredTrashEntries(activeSession)
+      const entries = await listTrashEntries(activeSession)
+      setTrashEntries(entries)
+    } finally {
+      setIsTrashIndexing(false)
+    }
+  }, [])
+
   useEffect(() => {
     setReadLaterTab('commentary')
     setActiveAnnotationId(null)
@@ -605,6 +643,37 @@ export default function App() {
   }, [adminView, contentType, readLaterPosts, session])
 
   useEffect(() => {
+    if (!session || adminView !== 'trash') {
+      return
+    }
+
+    let cancelled = false
+
+    const loadTrash = async () => {
+      try {
+        await loadTrashEntries(session)
+      } catch (caughtError) {
+        if (cancelled) {
+          return
+        }
+
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+          return
+        }
+
+        setError(caughtError instanceof Error ? caughtError.message : '加载回收站失败。')
+      }
+    }
+
+    void loadTrash()
+
+    return () => {
+      cancelled = true
+    }
+  }, [adminView, loadTrashEntries, session])
+
+  useEffect(() => {
     if (!document || document.contentType !== 'read-later' || mode !== 'preview') {
       setIsReadLaterTopBarHidden(false)
     }
@@ -647,6 +716,7 @@ export default function App() {
     if (!session) {
       preloadAttemptedRef.current = {}
       setPostsByType(createEmptyIndexedPostsByType())
+      setTrashEntries([])
       setIsIndexing(false)
       setIsOpeningPost(false)
       return
@@ -768,6 +838,7 @@ export default function App() {
     resetPreviewImageUrls()
     setPostsByType(createEmptyIndexedPostsByType())
     setReadLaterAnnotationIndex([])
+    setTrashEntries([])
     setActivePostPath(null)
     setEditorNavigationStack([])
     setIsOpeningPost(false)
@@ -978,6 +1049,12 @@ export default function App() {
     setAdminView('annotations')
   }
 
+  const handleOpenTrash = () => {
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('trash')
+  }
+
   const handleDeletePost = (post: PostIndexItem) => {
     if (isDeletingPost || isTogglingPinned) {
       return
@@ -1005,9 +1082,13 @@ export default function App() {
     setSuccessMessage(null)
 
     try {
-      await deleteMarkdownFile(session, {
+      const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
+      await moveMarkdownFileToTrash(session, {
         path: post.path,
         sha: post.sha,
+        title: post.title,
+        contentType: getContentTypeFromPostLike(post),
+        content: file.content,
       })
       removeLocalDraft(post.path)
       setEditorNavigationStack((currentStack) => currentStack.filter((entry) => entry.post.path !== post.path))
@@ -1026,8 +1107,7 @@ export default function App() {
         setIsImmersive(false)
         setAdminView('dashboard')
       }
-
-      setSuccessMessage(`已删除《${post.title}》。`)
+      setSuccessMessage(`Moved ${post.title} to trash.`)
       setPostDeleteConfirm(null)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -1039,8 +1119,7 @@ export default function App() {
         setError(caughtError.message)
         return
       }
-
-      setError(caughtError instanceof Error ? caughtError.message : `删除${getContentTypeLabel(getContentTypeFromPostLike(post))}失败。`)
+      setError(caughtError instanceof Error ? caughtError.message : `Failed to delete ${getContentTypeLabel(getContentTypeFromPostLike(post))}.`)
     } finally {
       setIsDeletingPost(false)
       setDeletingPostPath(null)
@@ -1050,6 +1129,60 @@ export default function App() {
   const handleDeletePostCancel = () => {
     if (!isDeletingPost) {
       setPostDeleteConfirm(null)
+    }
+  }
+
+  const handleRestoreTrashEntry = (entry: TrashEntry) => {
+    if (!isProcessingTrash) {
+      setTrashConfirm({ kind: 'restore-trash', entry })
+    }
+  }
+
+  const handleDeleteTrashEntry = (entry: TrashEntry) => {
+    if (!isProcessingTrash) {
+      setTrashConfirm({ kind: 'delete-trash', entry })
+    }
+  }
+
+  const handleTrashConfirm = async () => {
+    if (!session || !trashConfirm || isProcessingTrash) {
+      return
+    }
+
+    const { entry } = trashConfirm
+    setIsProcessingTrash(true)
+    setProcessingTrashPath(entry.trashPath)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      if (trashConfirm.kind === 'restore-trash') {
+        const restoredFile = await restoreTrashEntry(session, entry)
+        const restoredIndexItem = buildIndexItemFromSavedFile(entry.contentType, restoredFile)
+        updatePostsForType(entry.contentType, (currentPosts) => replacePostIndexItem(currentPosts, restoredIndexItem))
+        setSuccessMessage(`Restored ${entry.originalTitle}.`)
+      } else {
+        await permanentlyDeleteTrashEntry(session, entry)
+        setSuccessMessage(`Deleted ${entry.originalTitle} permanently.`)
+      }
+
+      setTrashEntries((currentEntries) => currentEntries.filter((currentEntry) => currentEntry.trashPath !== entry.trashPath))
+      setTrashConfirm(null)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+      setError(caughtError instanceof Error ? caughtError.message : 'Failed to process trash item.')
+    } finally {
+      setIsProcessingTrash(false)
+      setProcessingTrashPath(null)
+    }
+  }
+
+  const handleTrashConfirmCancel = () => {
+    if (!isProcessingTrash) {
+      setTrashConfirm(null)
     }
   }
 
@@ -2122,6 +2255,7 @@ export default function App() {
 
   const isDashboard = adminView === 'dashboard'
   const isAnnotationsView = adminView === 'annotations'
+  const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
@@ -2161,6 +2295,7 @@ export default function App() {
           onBackToDashboard={() => { void handleBackNavigation() }}
           backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
+          onOpenTrash={handleOpenTrash}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -2251,6 +2386,20 @@ export default function App() {
             search={search}
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
+          />
+        </section>
+      ) : isTrashView ? (
+        <section className="admin-shell__viewport">
+          {successMessage ? <p className="success-message">{successMessage}</p> : null}
+          {error ? <p className="error-message">{error}</p> : null}
+          <TrashView
+            entries={trashEntries}
+            search={search}
+            isLoading={isTrashIndexing}
+            isProcessing={isProcessingTrash}
+            processingTrashPath={processingTrashPath}
+            onRestore={handleRestoreTrashEntry}
+            onDelete={handleDeleteTrashEntry}
           />
         </section>
       ) : (
@@ -2428,14 +2577,28 @@ export default function App() {
       ) : null}
       {postDeleteConfirm ? (
         <ConfirmDialog
-          title={`删除${getDeleteContentTypeLabel(getContentTypeFromPostLike(postDeleteConfirm.post))}`}
-          message={`确定删除《${postDeleteConfirm.post.title}》吗？该操作会直接删除仓库中的 Markdown 文件，且不可恢复。`}
+          title={`Move ${getDeleteContentTypeLabel(getContentTypeFromPostLike(postDeleteConfirm.post))} to Trash`}
+          message={`Move ${postDeleteConfirm.post.title} to trash? It can be restored within 30 days or deleted permanently from trash.`}
           confirmLabel="确认删除"
           isDangerous
           isProcessing={isDeletingPost}
-          processingMessage={deletingPostPath ? `正在删除 ${deletingPostPath}` : undefined}
+          processingMessage={deletingPostPath ? `Processing ${deletingPostPath}` : undefined}
           onConfirm={() => { void handleDeletePostConfirm() }}
           onCancel={handleDeletePostCancel}
+        />
+      ) : null}
+      {trashConfirm ? (
+        <ConfirmDialog
+          title={trashConfirm.kind === 'restore-trash' ? 'Restore Item' : 'Delete Permanently'}
+          message={trashConfirm.kind === 'restore-trash'
+            ? `Restore ${trashConfirm.entry.originalTitle} to ${trashConfirm.entry.originalPath}?`
+            : `Delete ${trashConfirm.entry.originalTitle} permanently? This cannot be undone.`}
+          confirmLabel={trashConfirm.kind === 'restore-trash' ? 'Restore' : 'Delete Permanently'}
+          isDangerous={trashConfirm.kind === 'delete-trash'}
+          isProcessing={isProcessingTrash}
+          processingMessage={processingTrashPath ? `Processing ${processingTrashPath}` : undefined}
+          onConfirm={() => { void handleTrashConfirm() }}
+          onCancel={handleTrashConfirmCancel}
         />
       ) : null}
     </main>

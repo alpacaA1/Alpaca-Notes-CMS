@@ -1,4 +1,14 @@
-import { DIARY_PATH, KNOWLEDGE_PATH, POSTS_PATH, READ_LATER_PATH, REPO_BRANCH, REPO_NAME, REPO_OWNER } from './config'
+import {
+  DIARY_PATH,
+  KNOWLEDGE_PATH,
+  POSTS_PATH,
+  READ_LATER_PATH,
+  REPO_BRANCH,
+  REPO_NAME,
+  REPO_OWNER,
+  TRASH_PATH,
+  TRASH_RETENTION_DAYS,
+} from './config'
 import { isSupportedContentFileName } from './content-format'
 import { AuthError, type SessionState } from './session'
 
@@ -35,6 +45,18 @@ type MarkdownFile = {
 
 type GitHubSaveFileResponse = {
   content?: GitHubSavedContentFile
+}
+
+export type TrashEntry = {
+  trashPath: string
+  trashSha: string
+  originalPath: string
+  originalSha: string
+  originalTitle: string
+  contentType: 'post' | 'diary' | 'read-later' | 'knowledge'
+  deletedAt: string
+  expiresAt: string
+  content: string
 }
 
 const markdownFileCache = new Map<string, MarkdownFile>()
@@ -108,6 +130,25 @@ export function clearMarkdownFileCache() {
 
 function removeCachedMarkdownFile(path: string) {
   markdownFileCache.delete(path)
+}
+
+function normalizeIsoDate(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+
+  return date.toISOString()
+}
+
+function buildTrashFilePath(originalPath: string, deletedAt: string) {
+  const safeOriginalPath = originalPath.replace(/[\\/]+/g, '__').replace(/[^a-zA-Z0-9._-]/g, '_')
+  const timestamp = deletedAt.replace(/[-:.TZ]/g, '').slice(0, 14)
+  return `${TRASH_PATH}/${timestamp}-${safeOriginalPath}.json`
+}
+
+function encodeJsonContent(value: unknown) {
+  return JSON.stringify(value, null, 2)
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -184,6 +225,19 @@ export async function listDiaryFiles(session: SessionState): Promise<GitHubDirec
 
 export async function listKnowledgeFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
   return listMarkdownFiles(session, KNOWLEDGE_PATH)
+}
+
+export async function listTrashFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  try {
+    const path = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${TRASH_PATH}?ref=${encodeURIComponent(REPO_BRANCH)}`
+    const entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
+    return entries.filter((entry) => entry.type === 'file' && entry.name.endsWith('.json'))
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Not Found') {
+      return []
+    }
+    throw error
+  }
 }
 
 export async function fetchPostFile(
@@ -267,6 +321,147 @@ export async function deletePostFile(
     }),
   })
   removeCachedMarkdownFile(file.path)
+}
+
+async function fetchRawTextFile(
+  session: SessionState,
+  path: string,
+): Promise<{ path: string; sha: string; content: string }> {
+  const apiPath = `/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${encodeURIComponent(REPO_BRANCH)}`
+  const file = await requestGitHub<GitHubContentFile>(session, apiPath, {
+    cache: 'no-store',
+  })
+
+  if (file.type !== 'file' || file.encoding !== 'base64' || typeof file.content !== 'string') {
+    throw new Error('GitHub did not return a decodable content file.')
+  }
+
+  return {
+    path: file.path,
+    sha: file.sha,
+    content: decodeBase64(file.content.replace(/\n/g, '')),
+  }
+}
+
+export async function listTrashEntries(session: SessionState): Promise<TrashEntry[]> {
+  const files = await listTrashFiles(session)
+  const entries = await Promise.all(
+    files.map(async (file) => {
+      const trashFile = await fetchRawTextFile(session, file.path)
+      const parsed = JSON.parse(trashFile.content) as Omit<TrashEntry, 'trashPath' | 'trashSha'>
+
+      return {
+        ...parsed,
+        trashPath: trashFile.path,
+        trashSha: trashFile.sha,
+      }
+    }),
+  )
+
+  return entries
+    .filter((entry) => {
+      const deletedAt = normalizeIsoDate(entry.deletedAt)
+      const expiresAt = normalizeIsoDate(entry.expiresAt)
+      return Boolean(
+        entry.originalPath &&
+        entry.originalSha &&
+        entry.originalTitle &&
+        entry.content &&
+        entry.contentType &&
+        deletedAt &&
+        expiresAt,
+      )
+    })
+    .sort((left, right) => right.deletedAt.localeCompare(left.deletedAt))
+}
+
+export async function moveMarkdownFileToTrash(
+  session: SessionState,
+  file: {
+    path: string
+    sha: string
+    title: string
+    contentType: TrashEntry['contentType']
+    content: string
+  },
+): Promise<TrashEntry> {
+  const deletedAt = new Date().toISOString()
+  const expiresAt = new Date(Date.now() + TRASH_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString()
+  const trashPath = buildTrashFilePath(file.path, deletedAt)
+
+  const savedTrashFile = await savePostFile(session, {
+    path: trashPath,
+    content: encodeJsonContent({
+      originalPath: file.path,
+      originalSha: file.sha,
+      originalTitle: file.title,
+      contentType: file.contentType,
+      deletedAt,
+      expiresAt,
+      content: file.content,
+    }),
+  })
+
+  await deletePostFile(session, { path: file.path, sha: file.sha })
+
+  return {
+    trashPath,
+    trashSha: savedTrashFile.sha,
+    originalPath: file.path,
+    originalSha: file.sha,
+    originalTitle: file.title,
+    contentType: file.contentType,
+    deletedAt,
+    expiresAt,
+    content: file.content,
+  }
+}
+
+export async function restoreTrashEntry(
+  session: SessionState,
+  entry: Pick<TrashEntry, 'trashPath' | 'trashSha' | 'originalPath' | 'content'>,
+): Promise<{ path: string; sha: string; content: string }> {
+  const restoredFile = await savePostFile(session, {
+    path: entry.originalPath,
+    content: entry.content,
+  })
+
+  await deletePostFile(session, {
+    path: entry.trashPath,
+    sha: entry.trashSha,
+  })
+
+  return restoredFile
+}
+
+export async function permanentlyDeleteTrashEntry(
+  session: SessionState,
+  entry: Pick<TrashEntry, 'trashPath' | 'trashSha'>,
+): Promise<void> {
+  await deletePostFile(session, {
+    path: entry.trashPath,
+    sha: entry.trashSha,
+  })
+}
+
+export async function purgeExpiredTrashEntries(session: SessionState): Promise<TrashEntry[]> {
+  const entries = await listTrashEntries(session)
+  const now = Date.now()
+  const expiredEntries = entries.filter((entry) => {
+    const expiresAt = new Date(entry.expiresAt)
+    return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() <= now
+  })
+
+  await Promise.all(
+    expiredEntries.map((entry) =>
+      permanentlyDeleteTrashEntry(session, {
+        trashPath: entry.trashPath,
+        trashSha: entry.trashSha,
+      }),
+    ),
+  )
+
+  return expiredEntries
 }
 
 export async function uploadImageFile(

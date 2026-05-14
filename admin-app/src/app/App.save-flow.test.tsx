@@ -138,7 +138,7 @@ describe('App save flow', () => {
     vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
       path: existingPost.path,
       sha: existingPost.sha,
-      content: existingContent,
+      content: otherContent,
     })
     const deferredSave = createDeferredPromise<{ path: string; sha: string; content: string }>()
     const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockReturnValue(deferredSave.promise)
@@ -648,7 +648,22 @@ Original body.`,
     window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
-    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const moveMarkdownFileToTrash = vi.spyOn(githubClientModule, 'moveMarkdownFileToTrash').mockResolvedValue({
+      trashPath: 'recycle-bin/item.json',
+      trashSha: 'trash-sha',
+      originalPath: otherPost.path,
+      originalSha: otherPost.sha,
+      originalTitle: otherPost.title,
+      contentType: 'post',
+      deletedAt: '2026-05-14T00:00:00.000Z',
+      expiresAt: '2026-06-13T00:00:00.000Z',
+      content: existingContent,
+    })
 
     render(<App />)
 
@@ -660,9 +675,15 @@ Original body.`,
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
-      expect(deleteMarkdownFile).toHaveBeenCalledWith(
+      expect(moveMarkdownFileToTrash).toHaveBeenCalledWith(
         { token: 'persisted-token' },
-        { path: existingPost.path, sha: existingPost.sha },
+        expect.objectContaining({
+          path: existingPost.path,
+          sha: existingPost.sha,
+          title: existingPost.title,
+          contentType: 'post',
+          content: existingContent,
+        }),
       )
     })
 
@@ -680,7 +701,17 @@ Original body.`,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
+    const moveMarkdownFileToTrash = vi.spyOn(githubClientModule, 'moveMarkdownFileToTrash').mockResolvedValue({
+      trashPath: 'recycle-bin/item.json',
+      trashSha: 'trash-sha',
+      originalPath: otherPost.path,
+      originalSha: otherPost.sha,
+      originalTitle: otherPost.title,
+      contentType: 'post',
+      deletedAt: '2026-05-14T00:00:00.000Z',
+      expiresAt: '2026-06-13T00:00:00.000Z',
+      content: existingContent,
+    })
 
     render(<App />)
 
@@ -695,9 +726,15 @@ Original body.`,
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
-      expect(deleteMarkdownFile).toHaveBeenCalledWith(
+      expect(moveMarkdownFileToTrash).toHaveBeenCalledWith(
         { token: 'persisted-token' },
-        { path: existingPost.path, sha: existingPost.sha },
+        expect.objectContaining({
+          path: existingPost.path,
+          sha: existingPost.sha,
+          title: existingPost.title,
+          contentType: 'post',
+          content: existingContent,
+        }),
       )
     })
 
@@ -715,7 +752,17 @@ Original body.`,
       sha: existingPost.sha,
       content: existingContent,
     })
-    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
+    const moveMarkdownFileToTrash = vi.spyOn(githubClientModule, 'moveMarkdownFileToTrash').mockResolvedValue({
+      trashPath: 'recycle-bin/item.json',
+      trashSha: 'trash-sha',
+      originalPath: otherPost.path,
+      originalSha: otherPost.sha,
+      originalTitle: otherPost.title,
+      contentType: 'post',
+      deletedAt: '2026-05-14T00:00:00.000Z',
+      expiresAt: '2026-06-13T00:00:00.000Z',
+      content: existingContent,
+    })
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
 
     render(<App />)
@@ -731,14 +778,29 @@ Original body.`,
     fireEvent.click(screen.getByTitle('删除《Save flow post》'))
 
     expect(confirmSpy).toHaveBeenCalledWith('当前文章有未保存的修改。删除后无法恢复，确认继续吗？')
-    expect(deleteMarkdownFile).not.toHaveBeenCalled()
+    expect(moveMarkdownFileToTrash).not.toHaveBeenCalled()
     expect(screen.queryByText('删除文章')).toBeNull()
   })
 
   it('keeps a new unsaved draft untouched when deleting another post from the list', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([otherPost, existingPost])
-    const deleteMarkdownFile = vi.spyOn(githubClientModule, 'deleteMarkdownFile').mockResolvedValue()
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const moveMarkdownFileToTrash = vi.spyOn(githubClientModule, 'moveMarkdownFileToTrash').mockResolvedValue({
+      trashPath: 'recycle-bin/item.json',
+      trashSha: 'trash-sha',
+      originalPath: otherPost.path,
+      originalSha: otherPost.sha,
+      originalTitle: otherPost.title,
+      contentType: 'post',
+      deletedAt: '2026-05-14T00:00:00.000Z',
+      expiresAt: '2026-06-13T00:00:00.000Z',
+      content: existingContent,
+    })
 
     render(<App />)
 
@@ -754,9 +816,14 @@ Original body.`,
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
-      expect(deleteMarkdownFile).toHaveBeenCalledWith(
+      expect(moveMarkdownFileToTrash).toHaveBeenCalledWith(
         { token: 'persisted-token' },
-        { path: otherPost.path, sha: otherPost.sha },
+        expect.objectContaining({
+          path: otherPost.path,
+          sha: otherPost.sha,
+          title: otherPost.title,
+          contentType: 'post',
+        }),
       )
     })
 

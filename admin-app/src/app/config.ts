@@ -6,6 +6,8 @@ export const POSTS_PATH = 'source/_posts'
 export const DIARY_PATH = 'source/diary'
 export const READ_LATER_PATH = 'source/read-later-items'
 export const KNOWLEDGE_PATH = 'source/_knowledge'
+export const TRASH_PATH = 'recycle-bin'
+export const TRASH_RETENTION_DAYS = 30
 export const SITE_ROOT_PATH = '/Alpaca-Notes-CMS'
 
 export const AUTH_ORIGIN = new URL(AUTH_BASE_URL).origin

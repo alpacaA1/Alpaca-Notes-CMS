@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import type { ContentType } from '../posts/post-types'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash'
 
 function AlpacaLogo() {
   return (
@@ -32,6 +32,7 @@ type TopBarProps = {
   onBackToDashboard?: () => void
   backButtonLabel?: string
   onOpenAnnotations?: () => void
+  onOpenTrash?: () => void
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -60,6 +61,62 @@ const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabe
   { value: 'knowledge', label: '知识点', shortLabel: 'Know' },
 ]
 
+function getDashboardTitle(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '待读管理'
+  }
+
+  if (contentType === 'diary') {
+    return '日记管理'
+  }
+
+  if (contentType === 'knowledge') {
+    return '知识点管理'
+  }
+
+  return '文章管理'
+}
+
+function getCreateLabel(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '新建待读'
+  }
+
+  if (contentType === 'diary') {
+    return '新建日记'
+  }
+
+  if (contentType === 'knowledge') {
+    return '新建知识点'
+  }
+
+  return '新建文章'
+}
+
+function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
+  if (adminView === 'trash') {
+    return '搜索标题、原路径或已删除内容'
+  }
+
+  if (adminView === 'annotations') {
+    return '搜索摘录、批注、来源文章、来源或标签'
+  }
+
+  if (contentType === 'read-later') {
+    return '搜索标题、摘要、正文、来源或原文链接'
+  }
+
+  if (contentType === 'diary') {
+    return '搜索标题、正文或标签'
+  }
+
+  if (contentType === 'knowledge') {
+    return '搜索标题、内容、来源或标签'
+  }
+
+  return '搜索标题、摘要、正文、标签或链接'
+}
+
 export default function TopBar({
   search,
   onSearchChange,
@@ -70,8 +127,9 @@ export default function TopBar({
   onLogout,
   onToggleColorMode,
   onBackToDashboard,
-  backButtonLabel = '← 返回列表',
+  backButtonLabel = '返回列表',
   onOpenAnnotations,
+  onOpenTrash,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -86,41 +144,30 @@ export default function TopBar({
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
-  const isDashboardLike = !isEditor
-  const titleText = isAnnotationsView
-    ? '批注管理'
-    : isDashboardLike
-      ? (contentType === 'read-later' ? '待读管理' : contentType === 'diary' ? '日记管理' : contentType === 'knowledge' ? '知识点管理' : '文章管理')
-      : '内容编辑台'
-  const createLabel =
-    contentType === 'read-later'
-      ? '新建待读'
-      : contentType === 'diary'
-        ? '新建日记'
-        : contentType === 'knowledge'
-          ? '新建知识点'
-          : '新建文章'
+  const isTrashView = adminView === 'trash'
+  const isDashboardLike = !isEditor && !isTrashView
+  const titleText = isTrashView
+    ? '回收站'
+    : isAnnotationsView
+      ? '批注管理'
+      : isDashboardLike
+        ? getDashboardTitle(contentType)
+        : '内容编辑台'
+  const createLabel = getCreateLabel(contentType)
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
   const showContentTypeSwitcher = isDashboardLike
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
+  const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
-  const searchPlaceholder = isAnnotationsView
-    ? '搜索摘录、批注、来源文章、来源或标签'
-    : contentType === 'read-later'
-      ? '搜索标题、摘要、正文、来源或原文链接'
-      : contentType === 'diary'
-        ? '搜索标题、正文或标签'
-        : contentType === 'knowledge'
-          ? '搜索标题、内容、来源或标签'
-        : '搜索标题、摘要、正文、标签或链接'
+  const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
 
   return (
     <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>
       <div className="top-bar__identity">
         <AlpacaLogo />
         <div className="top-bar__identity-text">
-          {isDashboardLike ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
+          {isDashboardLike || isTrashView ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
           <div className="top-bar__title-row">
             <strong>{titleText}</strong>
             <span className="top-bar__status">{status}</span>
@@ -181,6 +228,15 @@ export default function TopBar({
               {isAnnotationsView ? '返回待读' : '批注'}
             </button>
           ) : null}
+          {showTrashToggle ? (
+            <button
+              className={`top-bar__button${isTrashView ? ' top-bar__button--active' : ''}`}
+              type="button"
+              onClick={isTrashView ? onBackToDashboard : onOpenTrash}
+            >
+              {isTrashView ? '返回内容' : '回收站'}
+            </button>
+          ) : null}
           {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
@@ -199,9 +255,11 @@ export default function TopBar({
               整理素材
             </button>
           ) : null}
-          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
-            {createLabel}
-          </button>
+          {!isTrashView ? (
+            <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
+              {createLabel}
+            </button>
+          ) : null}
           {isEditor ? (
             <>
               <button
@@ -228,7 +286,7 @@ export default function TopBar({
             aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
             title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
           >
-            {isDarkMode ? '☀️' : '🌙'}
+            {isDarkMode ? 'Light' : 'Dark'}
           </button>
           <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
             退出登录

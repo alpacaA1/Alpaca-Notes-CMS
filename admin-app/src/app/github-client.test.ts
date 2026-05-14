@@ -5,8 +5,12 @@ import {
   deletePostFile,
   fetchPostFile,
   GitHubAuthError,
+  listTrashEntries,
   listPostFiles,
+  moveMarkdownFileToTrash,
+  permanentlyDeleteTrashEntry,
   readCachedMarkdownFile,
+  restoreTrashEntry,
   savePostFile,
   uploadImageFile,
 } from './github-client'
@@ -184,6 +188,137 @@ describe('github client encoding', () => {
       sha: 'delete-sha',
       branch: REPO_BRANCH,
     })
+  })
+
+  it('moves a markdown file into trash and then deletes the original file', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: {
+            path: 'recycle-bin/20260514000000-source__posts__delete-me.md.json',
+            sha: 'trash-sha',
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as Response)
+
+    const entry = await moveMarkdownFileToTrash(
+      { token: 'token' },
+      {
+        path: 'source/_posts/delete-me.md',
+        sha: 'delete-sha',
+        title: 'Delete Me',
+        contentType: 'post',
+        content: '# hello',
+      },
+    )
+
+    expect(entry.originalPath).toBe('source/_posts/delete-me.md')
+    expect(entry.trashSha).toBe('trash-sha')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+
+    const [, saveInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(saveInit.method).toBe('PUT')
+    const savedBody = JSON.parse(String(saveInit.body))
+    expect(savedBody.branch).toBe(REPO_BRANCH)
+
+    const [, deleteInit] = fetchSpy.mock.calls[1] as [string, RequestInit]
+    expect(deleteInit.method).toBe('DELETE')
+  })
+
+  it('lists trash entries from json files', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ([
+          { type: 'file', path: 'recycle-bin/entry.json', sha: 'trash-sha', name: 'entry.json' },
+        ]),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          type: 'file',
+          path: 'recycle-bin/entry.json',
+          sha: 'trash-sha',
+          encoding: 'base64',
+          content: Buffer.from(JSON.stringify({
+            originalPath: 'source/_posts/delete-me.md',
+            originalSha: 'delete-sha',
+            originalTitle: 'Delete Me',
+            contentType: 'post',
+            deletedAt: '2026-05-01T00:00:00.000Z',
+            expiresAt: '2026-05-31T00:00:00.000Z',
+            content: '# hello',
+          }), 'utf8').toString('base64'),
+        }),
+      } as Response)
+
+    const entries = await listTrashEntries({ token: 'token' })
+
+    expect(entries).toHaveLength(1)
+    expect(entries[0]?.originalTitle).toBe('Delete Me')
+    expect(entries[0]?.trashPath).toBe('recycle-bin/entry.json')
+  })
+
+  it('restores a trash entry back to its original path and removes the trash file', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: {
+            path: 'source/_posts/delete-me.md',
+            sha: 'restored-sha',
+          },
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({}),
+      } as Response)
+
+    const restored = await restoreTrashEntry(
+      { token: 'token' },
+      {
+        trashPath: 'recycle-bin/entry.json',
+        trashSha: 'trash-sha',
+        originalPath: 'source/_posts/delete-me.md',
+        content: '# hello',
+      },
+    )
+
+    expect(restored.path).toBe('source/_posts/delete-me.md')
+    expect(restored.sha).toBe('restored-sha')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
+
+  it('permanently deletes a trash entry', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({}),
+    } as Response)
+
+    await permanentlyDeleteTrashEntry(
+      { token: 'token' },
+      {
+        trashPath: 'recycle-bin/entry.json',
+        trashSha: 'trash-sha',
+      },
+    )
+
+    const [requestUrl, requestInit] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(requestUrl).toContain('/contents/recycle-bin/entry.json')
+    expect(requestInit.method).toBe('DELETE')
   })
 
   it('lists markdown and plain text content files for the editor', async () => {

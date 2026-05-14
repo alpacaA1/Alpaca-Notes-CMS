@@ -2085,6 +2085,123 @@ textarea {
   color: #58755d;
 }
 
+.trash-view {
+  display: grid;
+  gap: 18px;
+}
+
+.trash-view__hero,
+.trash-view__empty,
+.trash-view__item {
+  border: 1px solid rgba(214, 200, 184, 0.72);
+  background: rgba(255, 255, 255, 0.62);
+  border-radius: 18px;
+  padding: 18px 20px;
+}
+
+.trash-view__hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: end;
+}
+
+.trash-view__eyebrow {
+  margin: 0 0 6px;
+  font-size: 0.78rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--admin-soft);
+}
+
+.trash-view__hero h2,
+.trash-view__empty strong,
+.trash-view__item strong {
+  color: var(--admin-text);
+}
+
+.trash-view__note,
+.trash-view__stats,
+.trash-view__path,
+.trash-view__item-meta {
+  color: var(--admin-muted);
+}
+
+.trash-view__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.trash-view__item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.trash-view__item-main {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.trash-view__item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.trash-view__path {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.84rem;
+}
+
+.trash-view__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.trash-view__btn {
+  appearance: none;
+  min-width: 104px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.trash-view__btn--restore {
+  border: 1px solid rgba(90, 150, 112, 0.3);
+  background: rgba(90, 150, 112, 0.1);
+  color: #58755d;
+}
+
+.trash-view__btn--delete {
+  border: 1px solid rgba(193, 108, 95, 0.28);
+  background: rgba(193, 108, 95, 0.08);
+  color: #8a4f46;
+}
+
+.trash-view__btn:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
 .editor-layout {
   min-width: 0;
   display: grid;

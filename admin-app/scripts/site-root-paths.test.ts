@@ -29,6 +29,23 @@ desc: 用于站点构建测试的文章。
 }
 
 function runSiteBuild(privateContentPath: string) {
+  if (process.platform === 'win32') {
+    execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm', 'run', 'clean'], {
+      cwd: workspaceRoot,
+      stdio: 'pipe',
+    })
+
+    execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm', 'run', 'build'], {
+      cwd: workspaceRoot,
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        PRIVATE_CONTENT_PATH: privateContentPath,
+      },
+    })
+    return
+  }
+
   execFileSync('npm', ['run', 'clean'], {
     cwd: workspaceRoot,
     stdio: 'pipe',

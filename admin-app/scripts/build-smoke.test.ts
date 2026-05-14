@@ -7,8 +7,15 @@ import { legacyAdminDir, sourceAdminAssetsDir, sourceAdminDir, workspaceRoot } f
 const generatedIndexPath = resolve(sourceAdminDir, 'index.html')
 const legacyIndexPath = resolve(legacyAdminDir, 'index.html')
 const staleSentinelPath = resolve(sourceAdminDir, '__stale-sentinel__.txt')
-
 function runBuild() {
+  if (process.platform === 'win32') {
+    execFileSync('cmd.exe', ['/d', '/s', '/c', 'npm', 'run', 'build:admin'], {
+      cwd: workspaceRoot,
+      stdio: 'pipe',
+    })
+    return
+  }
+
   execFileSync('npm', ['run', 'build:admin'], {
     cwd: workspaceRoot,
     stdio: 'pipe',
