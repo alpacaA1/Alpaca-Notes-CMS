@@ -6,6 +6,8 @@ describe('PreviewPane', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+    delete (window as Window & { mermaid?: unknown; __adminPreviewMermaidRuntimePromise?: Promise<unknown> }).mermaid
+    delete (window as Window & { mermaid?: unknown; __adminPreviewMermaidRuntimePromise?: Promise<unknown> }).__adminPreviewMermaidRuntimePromise
   })
 
   it('renders markdown headings as collapsible sections in preview', () => {
@@ -245,5 +247,67 @@ describe('PreviewPane', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '关闭图片预览' }))
     expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
+  })
+
+  it('renders mermaid fenced code blocks as diagrams when the runtime is available', async () => {
+    const initialize = vi.fn()
+    const renderMermaid = vi.fn().mockResolvedValue({
+      svg: '<svg viewBox="0 0 160 64"><text x="12" y="32">阶段 1</text></svg>',
+    })
+
+    ;(window as Window & {
+      mermaid?: {
+        initialize: typeof initialize
+        render: typeof renderMermaid
+      }
+    }).mermaid = {
+      initialize,
+      render: renderMermaid,
+    }
+
+    const { container } = render(
+      <PreviewPane
+        title="Mermaid 预览"
+        date="2026-05-14 20:16:00"
+        markdown={'```mermaid\nflowchart LR\nA[阶段 1] --> B[阶段 2]\n```'}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(renderMermaid).toHaveBeenCalledWith(expect.stringMatching(/^preview-mermaid-/), 'flowchart LR\nA[阶段 1] --> B[阶段 2]')
+    })
+
+    expect(initialize).toHaveBeenCalledWith({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme: 'neutral',
+    })
+    expect(container.querySelector('.preview-mermaid svg')).toBeTruthy()
+    expect(screen.queryByText('flowchart LR')).toBeNull()
+  })
+
+  it('falls back to raw code when mermaid rendering fails', async () => {
+    ;(window as Window & {
+      mermaid?: {
+        initialize: ReturnType<typeof vi.fn>
+        render: ReturnType<typeof vi.fn>
+      }
+    }).mermaid = {
+      initialize: vi.fn(),
+      render: vi.fn().mockRejectedValue(new Error('render failed')),
+    }
+
+    render(
+      <PreviewPane
+        title="Mermaid 回退"
+        date="2026-05-14 20:19:00"
+        markdown={'```mermaid\nflowchart LR\nA --> B\n```'}
+      />,
+    )
+
+    const rawCode = await screen.findByText(
+      (_, element) => element?.tagName === 'CODE' && element.textContent === 'flowchart LR\nA --> B',
+    )
+    expect(rawCode.closest('code')).toBeTruthy()
   })
 })

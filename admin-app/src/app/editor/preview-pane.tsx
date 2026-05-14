@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import { parseInternalReferenceTargetKey } from '../internal-links'
 import type { TopicBacklinkItem } from '../knowledge/wiki-links'
@@ -131,6 +131,23 @@ type MarkdownImageMatch = {
   end: number
 }
 
+type MermaidRenderResult = {
+  svg: string
+  bindFunctions?: (element: Element) => void
+}
+
+type MermaidRuntime = {
+  initialize: (config: { startOnLoad: boolean; securityLevel: string; theme: string }) => void
+  render: (id: string, definition: string) => Promise<MermaidRenderResult> | MermaidRenderResult
+}
+
+declare global {
+  interface Window {
+    mermaid?: MermaidRuntime
+    __adminPreviewMermaidRuntimePromise?: Promise<MermaidRuntime>
+  }
+}
+
 const READ_LATER_ROOT_ID = 'read-later-content'
 const POST_PREVIEW_ROOT_ID = 'post-preview-content'
 const POST_PREVIEW_HEADING_PREFIX = 'post-preview-heading'
@@ -169,12 +186,43 @@ const BALANCED_BARE_URL_PAIRS = [
 ] as const
 const ANNOTATION_CONTEXT_LENGTH = 48
 const ACTIVE_OUTLINE_OFFSET = 120
+const MERMAID_RUNTIME_SCRIPT_ID = 'admin-preview-mermaid-runtime'
+const MERMAID_RUNTIME_SRC = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'
+const MERMAID_RUNTIME_TIMEOUT_MS = 10_000
 const HTML_ENTITY_MAP: Record<string, string> = {
   '&amp;': '&',
   '&lt;': '<',
   '&gt;': '>',
   '&quot;': '"',
   '&#39;': '\'',
+}
+let hasInitializedMermaidRuntime = false
+let mermaidRenderSequence = 0
+const MERMAID_CONTAINER_STYLE: CSSProperties = {
+  margin: '1.8rem 0',
+  border: '1px solid rgba(214, 200, 184, 0.86)',
+  borderRadius: '20px',
+  background: 'linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(248, 243, 235, 0.92)), rgba(255, 255, 255, 0.82)',
+  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.7)',
+  overflowX: 'auto',
+}
+const MERMAID_LOADING_STYLE: CSSProperties = {
+  display: 'grid',
+  gap: 0,
+}
+const MERMAID_GRAPH_STYLE: CSSProperties = {
+  minHeight: '96px',
+  padding: '18px 20px',
+}
+const MERMAID_STATUS_STYLE: CSSProperties = {
+  margin: 0,
+  padding: '0 20px 18px',
+  color: '#8a7d6d',
+  fontSize: '0.82rem',
+  lineHeight: 1.5,
+}
+const MERMAID_FALLBACK_STYLE: CSSProperties = {
+  margin: '1.8rem 0',
 }
 
 function isReadLaterSectionKey(value: string | undefined): value is ReadLaterSectionKey {
@@ -1291,6 +1339,172 @@ function flushPlainTextParagraph(lines: string[], nodes: ReactNode[], keyPrefix:
   lines.length = 0
 }
 
+function getCodeFenceLanguage(trimmedLine: string) {
+  if (!trimmedLine.startsWith('```')) {
+    return ''
+  }
+
+  const info = trimmedLine.slice(3).trim()
+  return info ? info.split(/\s+/, 1)[0]?.toLowerCase() || '' : ''
+}
+
+function initializeMermaidRuntime(runtime: MermaidRuntime) {
+  if (hasInitializedMermaidRuntime) {
+    return runtime
+  }
+
+  runtime.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'neutral',
+  })
+  hasInitializedMermaidRuntime = true
+
+  return runtime
+}
+
+function getMermaidRuntime() {
+  if (typeof window === 'undefined') {
+    return Promise.reject(new Error('Mermaid runtime can only load in the browser.'))
+  }
+
+  if (window.mermaid) {
+    return Promise.resolve(window.mermaid)
+  }
+
+  if (window.__adminPreviewMermaidRuntimePromise) {
+    return window.__adminPreviewMermaidRuntimePromise
+  }
+
+  const runtimePromise = new Promise<MermaidRuntime>((resolve, reject) => {
+    const existingScript = document.getElementById(MERMAID_RUNTIME_SCRIPT_ID) as HTMLScriptElement | null
+    const script = existingScript ?? document.createElement('script')
+    let isSettled = false
+
+    const cleanup = () => {
+      script.removeEventListener('load', handleLoad)
+      script.removeEventListener('error', handleError)
+      window.clearTimeout(timeoutId)
+    }
+
+    const settle = (callback: () => void) => {
+      if (isSettled) {
+        return
+      }
+
+      isSettled = true
+      cleanup()
+      callback()
+    }
+
+    const handleLoad = () => {
+      if (window.mermaid) {
+        settle(() => resolve(window.mermaid as MermaidRuntime))
+        return
+      }
+
+      settle(() => reject(new Error('Mermaid runtime unavailable after script load.')))
+    }
+
+    const handleError = () => {
+      settle(() => reject(new Error('Failed to load Mermaid runtime.')))
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      settle(() => reject(new Error('Timed out loading Mermaid runtime.')))
+    }, MERMAID_RUNTIME_TIMEOUT_MS)
+
+    script.addEventListener('load', handleLoad)
+    script.addEventListener('error', handleError)
+
+    if (!existingScript) {
+      script.id = MERMAID_RUNTIME_SCRIPT_ID
+      script.src = MERMAID_RUNTIME_SRC
+      script.async = true
+      document.head.append(script)
+    }
+  }).catch((error) => {
+    delete window.__adminPreviewMermaidRuntimePromise
+    throw error
+  })
+
+  window.__adminPreviewMermaidRuntimePromise = runtimePromise
+  return runtimePromise
+}
+
+function MermaidBlock({ chart }: { chart: string }) {
+  const graphRef = useRef<HTMLDivElement | null>(null)
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+
+  useEffect(() => {
+    let isCancelled = false
+    const graph = graphRef.current
+
+    if (graph) {
+      graph.innerHTML = ''
+    }
+
+    setStatus('loading')
+
+    void (async () => {
+      try {
+        const runtime = initializeMermaidRuntime(await getMermaidRuntime())
+        const renderId = `preview-mermaid-${mermaidRenderSequence += 1}`
+        const rendered = await runtime.render(renderId, chart)
+
+        if (isCancelled || !graphRef.current) {
+          return
+        }
+
+        graphRef.current.innerHTML = rendered.svg
+        const svg = graphRef.current.querySelector('svg')
+        if (svg instanceof SVGElement) {
+          svg.style.display = 'block'
+          svg.style.width = '100%'
+          svg.style.height = 'auto'
+          svg.style.minWidth = 'min-content'
+        }
+        rendered.bindFunctions?.(graphRef.current)
+        setStatus('ready')
+      } catch {
+        if (isCancelled) {
+          return
+        }
+
+        if (graphRef.current) {
+          graphRef.current.innerHTML = ''
+        }
+        setStatus('error')
+      }
+    })()
+
+    return () => {
+      isCancelled = true
+      if (graphRef.current) {
+        graphRef.current.innerHTML = ''
+      }
+    }
+  }, [chart])
+
+  if (status === 'error') {
+    return (
+      <pre className="preview-mermaid preview-mermaid--fallback" style={MERMAID_FALLBACK_STYLE}>
+        <code>{chart}</code>
+      </pre>
+    )
+  }
+
+  return (
+    <figure
+      className={`preview-mermaid${status === 'loading' ? ' is-loading' : ''}`}
+      style={status === 'loading' ? { ...MERMAID_CONTAINER_STYLE, ...MERMAID_LOADING_STYLE } : MERMAID_CONTAINER_STYLE}
+    >
+      <div ref={graphRef} className="preview-mermaid__graph" style={MERMAID_GRAPH_STYLE} role="img" aria-label="Mermaid 图表" />
+      {status === 'loading' ? <figcaption className="preview-mermaid__status" style={MERMAID_STATUS_STYLE}>Mermaid 图表加载中...</figcaption> : null}
+    </figure>
+  )
+}
+
 function renderBlocks(
   markdown: string,
   previewImageUrls?: Record<string, string>,
@@ -1369,16 +1583,22 @@ function renderBlocks(
 
     if (/^(```)/.test(trimmed)) {
       flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      const codeFenceLanguage = getCodeFenceLanguage(trimmed)
       const codeLines: string[] = []
       index += 1
       while (index < lines.length && !/^```/.test(lines[index].trim())) {
         codeLines.push(lines[index])
         index += 1
       }
+      const code = codeLines.join('\n')
       nodes.push(
-        <pre key={`code-${nodes.length}`}>
-          <code>{codeLines.join('\n')}</code>
-        </pre>,
+        codeFenceLanguage === 'mermaid' ? (
+          <MermaidBlock key={`code-${nodes.length}`} chart={code} />
+        ) : (
+          <pre key={`code-${nodes.length}`}>
+            <code>{code}</code>
+          </pre>
+        ),
       )
       continue
     }
