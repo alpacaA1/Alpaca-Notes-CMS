@@ -13,6 +13,8 @@ html(lang="zh-CN")
                     div.visible-xs.site-bottom-footer
                         include footer
 
+        button#back-to-top.back-to-top(type="button", aria-label="返回顶部", title="返回顶部")
+            i.fa.fa-angle-up(aria-hidden="true")
 
         script(src= url_for('js/jquery-3.1.0.min.js'))
         script(src= url_for('js/bootstrap.min.js'))
@@ -20,4 +22,3 @@ html(lang="zh-CN")
         script(src= url_for('js/jquery.appear.js'))
         script(src= url_for('js/google-analytics.js'))
         script(src= url_for('js/typography.js'))
-
