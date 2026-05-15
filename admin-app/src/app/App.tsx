@@ -1061,7 +1061,7 @@ export default function App() {
     }
 
     if (document?.path === post.path && !canNavigateAway) {
-      const shouldContinue = window.confirm('当前文章有未保存的修改。删除后无法恢复，确认继续吗？')
+      const shouldContinue = window.confirm('当前文章有未保存的修改。删除后会进入回收站，确认继续吗？')
       if (!shouldContinue) {
         return
       }
@@ -1107,7 +1107,7 @@ export default function App() {
         setIsImmersive(false)
         setAdminView('dashboard')
       }
-      setSuccessMessage(`Moved ${post.title} to trash.`)
+      setSuccessMessage(`已删除《${post.title}》，可在回收站恢复。`)
       setPostDeleteConfirm(null)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -1119,7 +1119,7 @@ export default function App() {
         setError(caughtError.message)
         return
       }
-      setError(caughtError instanceof Error ? caughtError.message : `Failed to delete ${getContentTypeLabel(getContentTypeFromPostLike(post))}.`)
+      setError(caughtError instanceof Error ? caughtError.message : `删除${getContentTypeLabel(getContentTypeFromPostLike(post))}失败。`)
     } finally {
       setIsDeletingPost(false)
       setDeletingPostPath(null)
@@ -1160,10 +1160,10 @@ export default function App() {
         const restoredFile = await restoreTrashEntry(session, entry)
         const restoredIndexItem = buildIndexItemFromSavedFile(entry.contentType, restoredFile)
         updatePostsForType(entry.contentType, (currentPosts) => replacePostIndexItem(currentPosts, restoredIndexItem))
-        setSuccessMessage(`Restored ${entry.originalTitle}.`)
+        setSuccessMessage(`已恢复《${entry.originalTitle}》。`)
       } else {
         await permanentlyDeleteTrashEntry(session, entry)
-        setSuccessMessage(`Deleted ${entry.originalTitle} permanently.`)
+        setSuccessMessage(`已彻底删除《${entry.originalTitle}》。`)
       }
 
       setTrashEntries((currentEntries) => currentEntries.filter((currentEntry) => currentEntry.trashPath !== entry.trashPath))
@@ -1173,7 +1173,7 @@ export default function App() {
         handleAuthExpiry(caughtError.message)
         return
       }
-      setError(caughtError instanceof Error ? caughtError.message : 'Failed to process trash item.')
+      setError(caughtError instanceof Error ? caughtError.message : '处理回收站内容失败。')
     } finally {
       setIsProcessingTrash(false)
       setProcessingTrashPath(null)
@@ -2577,26 +2577,26 @@ export default function App() {
       ) : null}
       {postDeleteConfirm ? (
         <ConfirmDialog
-          title={`Move ${getDeleteContentTypeLabel(getContentTypeFromPostLike(postDeleteConfirm.post))} to Trash`}
-          message={`Move ${postDeleteConfirm.post.title} to trash? It can be restored within 30 days or deleted permanently from trash.`}
+          title={`删除${getDeleteContentTypeLabel(getContentTypeFromPostLike(postDeleteConfirm.post))}`}
+          message={`确定删除《${postDeleteConfirm.post.title}》吗？删除后会进入回收站，30 天内可恢复。`}
           confirmLabel="确认删除"
           isDangerous
           isProcessing={isDeletingPost}
-          processingMessage={deletingPostPath ? `Processing ${deletingPostPath}` : undefined}
+          processingMessage={deletingPostPath ? `正在删除 ${deletingPostPath}` : undefined}
           onConfirm={() => { void handleDeletePostConfirm() }}
           onCancel={handleDeletePostCancel}
         />
       ) : null}
       {trashConfirm ? (
         <ConfirmDialog
-          title={trashConfirm.kind === 'restore-trash' ? 'Restore Item' : 'Delete Permanently'}
+          title={trashConfirm.kind === 'restore-trash' ? '恢复内容' : '彻底删除'}
           message={trashConfirm.kind === 'restore-trash'
-            ? `Restore ${trashConfirm.entry.originalTitle} to ${trashConfirm.entry.originalPath}?`
-            : `Delete ${trashConfirm.entry.originalTitle} permanently? This cannot be undone.`}
-          confirmLabel={trashConfirm.kind === 'restore-trash' ? 'Restore' : 'Delete Permanently'}
+            ? `确定将《${trashConfirm.entry.originalTitle}》恢复到 ${trashConfirm.entry.originalPath} 吗？`
+            : `确定彻底删除《${trashConfirm.entry.originalTitle}》吗？此操作不可恢复。`}
+          confirmLabel={trashConfirm.kind === 'restore-trash' ? '恢复' : '彻底删除'}
           isDangerous={trashConfirm.kind === 'delete-trash'}
           isProcessing={isProcessingTrash}
-          processingMessage={processingTrashPath ? `Processing ${processingTrashPath}` : undefined}
+          processingMessage={processingTrashPath ? `正在处理 ${processingTrashPath}` : undefined}
           onConfirm={() => { void handleTrashConfirm() }}
           onCancel={handleTrashConfirmCancel}
         />

@@ -35,6 +35,15 @@ function getContentTypeLabel(contentType: TrashEntry['contentType']) {
   return '文章'
 }
 
+function getRemainingDays(value: string) {
+  const expiresAt = new Date(value)
+  if (Number.isNaN(expiresAt.getTime())) {
+    return null
+  }
+
+  return Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000)))
+}
+
 export default function TrashView({
   entries,
   search,
@@ -52,17 +61,28 @@ export default function TrashView({
         entry.content.toLowerCase().includes(normalizedQuery),
       )
     : entries
+  const expiringSoonCount = entries.filter((entry) => {
+    const remainingDays = getRemainingDays(entry.expiresAt)
+    return remainingDays !== null && remainingDays <= 7
+  }).length
 
   return (
     <section className="trash-view">
       <div className="trash-view__hero">
-        <div>
+        <div className="trash-view__hero-copy">
           <p className="trash-view__eyebrow">30 天内可恢复</p>
           <h2>回收站</h2>
           <p className="trash-view__note">删除的内容会先进入回收站，超过 30 天自动清理。</p>
         </div>
         <div className="trash-view__stats">
-          <span>{isLoading ? '加载中…' : `${visibleEntries.length} 项`}</span>
+          <div className="trash-view__stat-card">
+            <strong>{isLoading ? '...' : entries.length}</strong>
+            <span>可恢复内容</span>
+          </div>
+          <div className="trash-view__stat-card trash-view__stat-card--urgent">
+            <strong>{isLoading ? '...' : expiringSoonCount}</strong>
+            <span>7 天内到期</span>
+          </div>
         </div>
       </div>
 
@@ -75,14 +95,20 @@ export default function TrashView({
         <ul className="trash-view__list">
           {visibleEntries.map((entry) => {
             const isWorking = isProcessing && processingTrashPath === entry.trashPath
+            const remainingDays = getRemainingDays(entry.expiresAt)
 
             return (
               <li key={entry.trashPath} className="trash-view__item">
                 <div className="trash-view__item-main">
                   <div className="trash-view__item-meta">
-                    <span className="post-status-badge post-status-badge--draft">{getContentTypeLabel(entry.contentType)}</span>
+                    <span className={`trash-view__type trash-view__type--${entry.contentType}`}>{getContentTypeLabel(entry.contentType)}</span>
                     <span>删除于 {formatDateTime(entry.deletedAt)}</span>
                     <span>保留至 {formatDateTime(entry.expiresAt)}</span>
+                    {remainingDays !== null ? (
+                      <span className={remainingDays <= 7 ? 'trash-view__due trash-view__due--urgent' : 'trash-view__due'}>
+                        剩余 {remainingDays} 天
+                      </span>
+                    ) : null}
                   </div>
                   <strong>{entry.originalTitle}</strong>
                   <code className="trash-view__path">{entry.originalPath}</code>
