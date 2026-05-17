@@ -20,6 +20,35 @@ function AlpacaLogo() {
   )
 }
 
+function SunIcon() {
+  return (
+    <svg className="top-bar__theme-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M8 1.5V3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M8 12.75V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M1.5 8H3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12.75 8H14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3.4 3.4L4.65 4.65" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11.35 11.35L12.6 12.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11.35 4.65L12.6 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M3.4 12.6L4.65 11.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function MoonIcon() {
+  return (
+    <svg className="top-bar__theme-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M10.95 1.85a5.85 5.85 0 1 0 3.2 10.56 5.92 5.92 0 0 1-7.6-7.6 5.84 5.84 0 0 0 4.4-2.96Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 type TopBarProps = {
   search: string
   onSearchChange: (value: string) => void
@@ -280,13 +309,24 @@ export default function TopBar({
         </div>
         <div className="top-bar__utility-actions">
           <button
-            className="top-bar__button top-bar__button--theme"
+            className={`top-bar__button top-bar__button--theme${isDarkMode ? ' is-dark' : ' is-light'}`}
             type="button"
             onClick={onToggleColorMode}
             aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
+            aria-pressed={isDarkMode}
             title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
           >
-            {isDarkMode ? 'Light' : 'Dark'}
+            <span className="top-bar__theme-track" aria-hidden="true">
+              <span className="top-bar__theme-thumb" />
+              <span className="top-bar__theme-option top-bar__theme-option--light">
+                <SunIcon />
+                <span>浅</span>
+              </span>
+              <span className="top-bar__theme-option top-bar__theme-option--dark">
+                <MoonIcon />
+                <span>深</span>
+              </span>
+            </span>
           </button>
           <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
             退出登录

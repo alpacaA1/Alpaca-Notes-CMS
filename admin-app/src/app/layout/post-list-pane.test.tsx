@@ -282,6 +282,7 @@ describe('management layout components', () => {
   })
 
   it('shows the top bar controls without unused filter and sort buttons', () => {
+    const onToggleColorMode = vi.fn()
     render(
       <TopBar
         search=""
@@ -299,7 +300,7 @@ describe('management layout components', () => {
         isSaveDisabled
         isSaveQuiet={false}
         status="已就绪"
-        onToggleColorMode={vi.fn()}
+        onToggleColorMode={onToggleColorMode}
         adminView="editor"
         isDarkMode={false}
       />,
@@ -315,6 +316,10 @@ describe('management layout components', () => {
     const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
     expect(saveButton.disabled).toBe(true)
     expect(screen.getByRole('button', { name: '预览' })).toBeTruthy()
+    const themeButton = screen.getByRole('button', { name: '切换深色模式' })
+    expect(themeButton.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(themeButton)
+    expect(onToggleColorMode).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
     expect(screen.getByText('已就绪')).toBeTruthy()
   })
