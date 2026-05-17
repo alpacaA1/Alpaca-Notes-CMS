@@ -316,16 +316,8 @@ export default function TopBar({
             aria-pressed={isDarkMode}
             title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
           >
-            <span className="top-bar__theme-track" aria-hidden="true">
-              <span className="top-bar__theme-thumb" />
-              <span className="top-bar__theme-option top-bar__theme-option--light">
-                <SunIcon />
-                <span>浅</span>
-              </span>
-              <span className="top-bar__theme-option top-bar__theme-option--dark">
-                <MoonIcon />
-                <span>深</span>
-              </span>
+            <span className="top-bar__theme-glyph" aria-hidden="true">
+              {isDarkMode ? <MoonIcon /> : <SunIcon />}
             </span>
           </button>
           <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
