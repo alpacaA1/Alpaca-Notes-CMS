@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   buildInternalReferenceMarkdown,
   getInternalReferenceTypeLabel,
@@ -21,6 +21,11 @@ type MarkdownEditorProps = {
   isImmersive?: boolean
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
   internalReferenceCandidates?: InternalReferenceCandidate[]
+  label?: string
+  hint?: string
+  surfaceClassName?: string
+  textareaClassName?: string
+  footer?: ReactNode
 }
 
 type SelectionRange = {
@@ -556,6 +561,11 @@ export default function MarkdownEditor({
   isImmersive = false,
   onUploadImage,
   internalReferenceCandidates = [],
+  label = 'Markdown 编辑',
+  hint = '适合精确保留旧语法、嵌入与原始结构。',
+  surfaceClassName,
+  textareaClassName,
+  footer,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1104,14 +1114,21 @@ export default function MarkdownEditor({
     dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
   }
 
+  const surfaceClassNames = ['editor-surface', 'editor-surface--editor-canvas', surfaceClassName]
+    .filter(Boolean)
+    .join(' ')
+  const editorTextareaClassNames = ['editor-textarea', 'editor-textarea--editor-canvas', textareaClassName]
+    .filter(Boolean)
+    .join(' ')
+
   return (
-    <section className="editor-surface editor-surface--editor-canvas">
+    <section className={surfaceClassNames}>
       <div className="markdown-editor__toolbar">
         <div className="markdown-editor__meta">
           <label className="editor-surface__label" htmlFor={textareaId}>
-            Markdown 编辑
+            {label}
           </label>
-          <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
+          <span className="editor-surface__hint">{hint}</span>
         </div>
         <div className="markdown-editor__actions">
           {onUploadImage ? (
@@ -1202,7 +1219,7 @@ export default function MarkdownEditor({
         id={textareaId}
         ref={textareaRef}
         aria-label="Markdown 编辑器"
-        className="editor-textarea editor-textarea--editor-canvas"
+        className={editorTextareaClassNames}
         value={value}
         disabled={isUploadingImage}
         onChange={(event) => {
@@ -1229,6 +1246,7 @@ export default function MarkdownEditor({
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
       />
+      {footer ? <div className="markdown-editor__footer">{footer}</div> : null}
     </section>
   )
 }

@@ -16,6 +16,7 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
+import LiveMarkdownEditor from './editor/live-markdown-editor'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
@@ -2488,7 +2489,7 @@ export default function App() {
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                     />
-                  ) : (
+                  ) : document.contentType === 'read-later' ? (
                     <MarkdownEditor
                       value={document.body}
                       onChange={handleEditorChange}
@@ -2496,6 +2497,29 @@ export default function App() {
                       isImmersive={isImmersive}
                       onUploadImage={handleUploadImage}
                       internalReferenceCandidates={internalReferenceCandidates}
+                    />
+                  ) : (
+                    <LiveMarkdownEditor
+                      value={document.body}
+                      previewMarkdown={previewMarkdown}
+                      title={document.frontmatter.title}
+                      date={document.frontmatter.date}
+                      contentFormat={documentContentFormat}
+                      contentType={document.contentType}
+                      sourceType={document.frontmatter.source_type}
+                      sourceTitle={document.frontmatter.source_title}
+                      sourcePath={document.frontmatter.source_path}
+                      sourceUrl={document.frontmatter.source_url}
+                      previewImageUrls={previewImageUrls}
+                      onChange={handleEditorChange}
+                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
+                      isImmersive={isImmersive}
+                      onUploadImage={handleUploadImage}
+                      internalReferenceCandidates={internalReferenceCandidates}
+                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
+                      onOpenWikiLink={handleOpenTopicNode}
+                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
+                      onOpenInternalReference={handleOpenInternalReference}
                     />
                   )}
                 </>
