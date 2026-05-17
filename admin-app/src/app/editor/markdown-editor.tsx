@@ -26,6 +26,12 @@ type MarkdownEditorProps = {
   surfaceClassName?: string
   textareaClassName?: string
   footer?: ReactNode
+  showMeta?: boolean
+  autoFocus?: boolean
+  initialSelection?: SelectionRange | 'start' | 'end'
+  onSplitBlock?: (selection: SelectionRange, value: string) => boolean | void
+  onRemoveEmptyBlockBackward?: () => boolean | void
+  onMoveBetweenBlocks?: (direction: 'up' | 'down') => boolean | void
 }
 
 type SelectionRange = {
@@ -566,6 +572,12 @@ export default function MarkdownEditor({
   surfaceClassName,
   textareaClassName,
   footer,
+  showMeta = true,
+  autoFocus = false,
+  initialSelection,
+  onSplitBlock,
+  onRemoveEmptyBlockBackward,
+  onMoveBetweenBlocks,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -584,6 +596,29 @@ export default function MarkdownEditor({
   const textareaId = useId()
 
   currentValueRef.current = value
+
+  useEffect(() => {
+    if (!textareaRef.current || !autoFocus) {
+      return
+    }
+
+    textareaRef.current.focus()
+
+    if (!initialSelection) {
+      return
+    }
+
+    const nextSelection =
+      initialSelection === 'start'
+        ? { start: 0, end: 0 }
+        : initialSelection === 'end'
+          ? { start: value.length, end: value.length }
+          : initialSelection
+
+    textareaRef.current.setSelectionRange(nextSelection.start, nextSelection.end)
+    trackedSelectionRef.current = nextSelection
+    setEditorSelection(nextSelection)
+  }, [autoFocus, initialSelection, value])
 
   useLayoutEffect(() => {
     if (!textareaRef.current || !pendingSelectionRef.current) {
@@ -890,6 +925,36 @@ export default function MarkdownEditor({
       }
     }
 
+    if (
+      event.key === 'ArrowUp' &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      selectionStart === 0 &&
+      selectionEnd === 0 &&
+      onMoveBetweenBlocks?.('up')
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+
+    if (
+      event.key === 'ArrowDown' &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      selectionStart === value.length &&
+      selectionEnd === value.length &&
+      onMoveBetweenBlocks?.('down')
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
+    }
+
     if (event.altKey && selectionStart === selectionEnd) {
       const direction = event.key === 'ArrowDown' ? 'down' : event.key === 'ArrowUp' ? 'up' : null
       if (direction) {
@@ -904,6 +969,21 @@ export default function MarkdownEditor({
     }
 
     if (event.key === 'Backspace' && selectionStart === selectionEnd) {
+      if (
+        !event.shiftKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        value.trim().length === 0 &&
+        selectionStart === 0 &&
+        selectionEnd === 0 &&
+        onRemoveEmptyBlockBackward?.()
+      ) {
+        event.preventDefault()
+        event.stopPropagation()
+        return
+      }
+
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
       const lineIndex = getLineIndex(value, lineStart)
@@ -951,6 +1031,19 @@ export default function MarkdownEditor({
         dispatchValueChange(nextValue, { start: removeStart, end: removeStart }, selection)
         return
       }
+    }
+
+    if (
+      event.key === 'Enter' &&
+      !event.shiftKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      onSplitBlock?.(selection, value)
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      return
     }
 
     if (event.key === 'Enter' && selectionStart === selectionEnd) {
@@ -1124,12 +1217,14 @@ export default function MarkdownEditor({
   return (
     <section className={surfaceClassNames}>
       <div className="markdown-editor__toolbar">
-        <div className="markdown-editor__meta">
-          <label className="editor-surface__label" htmlFor={textareaId}>
-            {label}
-          </label>
-          <span className="editor-surface__hint">{hint}</span>
-        </div>
+        {showMeta ? (
+          <div className="markdown-editor__meta">
+            <label className="editor-surface__label" htmlFor={textareaId}>
+              {label}
+            </label>
+            <span className="editor-surface__hint">{hint}</span>
+          </div>
+        ) : null}
         <div className="markdown-editor__actions">
           {onUploadImage ? (
             <>
@@ -1221,6 +1316,7 @@ export default function MarkdownEditor({
         aria-label="Markdown 编辑器"
         className={editorTextareaClassNames}
         value={value}
+        autoFocus={autoFocus}
         disabled={isUploadingImage}
         onChange={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)

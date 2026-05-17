@@ -833,20 +833,29 @@ textarea {
   color: #efc28f;
 }
 
-.admin-shell--dark .live-markdown-editor__preview {
+.admin-shell--dark .single-pane-live-editor {
   border-color: rgba(255, 255, 255, 0.08);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01)),
     rgba(255, 255, 255, 0.02);
 }
 
-.admin-shell--dark .live-markdown-editor__preview-badge {
+.admin-shell--dark .single-pane-live-editor__badge {
   border-color: rgba(228, 163, 88, 0.24);
   background: rgba(228, 163, 88, 0.14);
   color: #efc28f;
 }
 
-.admin-shell--dark .live-markdown-editor__preview-empty {
+.admin-shell--dark .single-pane-live-editor__block:hover,
+.admin-shell--dark .single-pane-live-editor__block:focus-visible {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .single-pane-live-editor__block--active {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-shell--dark .single-pane-live-editor__empty-block {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -2883,18 +2892,20 @@ textarea {
   min-height: clamp(320px, calc(100vh - 540px), 560px);
 }
 
-.live-markdown-editor__preview {
+.single-pane-live-editor {
   display: grid;
-  gap: 16px;
-  padding: 18px 18px 20px;
-  border-radius: 22px;
-  border: 1px solid rgba(214, 200, 184, 0.72);
+  gap: 18px;
+  min-height: 100%;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1px solid var(--admin-line);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.64), rgba(248, 243, 235, 0.78)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(250, 246, 240, 0.94)),
     rgba(255, 255, 255, 0.44);
+  box-shadow: 0 18px 42px rgba(56, 43, 30, 0.06);
 }
 
-.live-markdown-editor__preview-header {
+.single-pane-live-editor__header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -2902,22 +2913,12 @@ textarea {
   gap: 12px;
 }
 
-.live-markdown-editor__preview-title-group {
+.single-pane-live-editor__title-group {
   display: grid;
   gap: 4px;
 }
 
-.live-markdown-editor__preview-title-group strong {
-  font-size: 0.96rem;
-  color: var(--admin-text);
-}
-
-.live-markdown-editor__preview-title-group span {
-  color: var(--admin-muted);
-  font-size: 0.8rem;
-}
-
-.live-markdown-editor__preview-badge {
+.single-pane-live-editor__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -2933,17 +2934,80 @@ textarea {
   text-transform: uppercase;
 }
 
-.live-markdown-editor__preview-empty {
-  padding: 18px 20px;
-  border-radius: 18px;
+.single-pane-live-editor__canvas {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.single-pane-live-editor__block {
+  display: grid;
+  gap: 0;
+  padding: 8px 12px;
+  border-radius: 16px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.single-pane-live-editor__block:hover,
+.single-pane-live-editor__block:focus-visible {
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: inset 0 0 0 1px rgba(214, 200, 184, 0.48);
+  outline: none;
+}
+
+.single-pane-live-editor__block--active {
+  padding: 12px 0 8px;
+  cursor: default;
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(214, 200, 184, 0.42);
+}
+
+.single-pane-live-editor__block-editor {
+  gap: 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.single-pane-live-editor__block-editor .markdown-editor__toolbar {
+  justify-content: flex-end;
+}
+
+.single-pane-live-editor__textarea {
+  min-height: 56px;
+  resize: vertical;
+  padding: 10px 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.single-pane-live-editor__textarea:focus {
+  box-shadow: none;
+}
+
+.single-pane-live-editor__empty-block {
+  padding: 10px 12px;
+  border-radius: 12px;
   border: 1px dashed var(--admin-line-strong);
   background: rgba(255, 255, 255, 0.52);
   color: var(--admin-muted);
+  font-size: 0.9rem;
 }
 
-.live-markdown-editor__preview-empty p {
-  margin: 0;
-  line-height: 1.7;
+.single-pane-live-editor__block .preview-pane--live {
+  gap: 0;
+}
+
+.single-pane-live-editor__block .preview-pane__canvas {
+  width: 100%;
 }
 
 .editor-textarea:focus,
@@ -4140,9 +4204,11 @@ textarea {
 .preview-content--live {
   width: 100%;
   margin: 0;
-  padding: 24px;
-  border-radius: 22px;
-  box-shadow: 0 16px 34px rgba(56, 43, 30, 0.05);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
 .preview-content__header {

@@ -2500,8 +2500,8 @@ export default function App() {
                     />
                   ) : (
                     <LiveMarkdownEditor
+                      documentKey={document.path}
                       value={document.body}
-                      previewMarkdown={previewMarkdown}
                       title={document.frontmatter.title}
                       date={document.frontmatter.date}
                       contentFormat={documentContentFormat}
