@@ -191,6 +191,32 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
+  it('opens diary documents in a single full-document markdown editor', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([diaryPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: diaryPost.path,
+      sha: diaryPost.sha,
+      content: diaryContent,
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+    await waitFor(() => {
+      expect(screen.getByText('2026-05-06-星期三')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
+
+    const markdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    expect(markdownEditor.value).toContain('## 今日进展')
+    expect(markdownEditor.value).toContain('- [x] 完成预览适配')
+    expect(markdownEditor.value).toContain('## 知识点')
+    expect(screen.getAllByLabelText('Markdown 编辑器')).toHaveLength(1)
+  })
+
   it('returns to markdown mode after leaving preview', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
@@ -309,18 +335,18 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
     await screen.findByText('这里是原文摘录。')
 
-    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '隐藏顶部栏' }))
 
-    expect(screen.queryByRole('textbox', { name: '搜索' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '退出登录' })).toBeNull()
     expect(screen.getByRole('button', { name: '显示顶部栏' })).toBeTruthy()
     expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '显示顶部栏' }))
 
-    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
     expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeNull()
   })
@@ -720,7 +746,8 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
-    expect(screen.getByText('当前稿件')).toBeTruthy()
+    expect(screen.getAllByText('Supported post').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('编辑中 · source/_posts/supported.md')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
 
@@ -733,14 +760,13 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
 
-    expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
     expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.markdown-editor__toolbar')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 
-    expect(await screen.findByText('当前稿件')).toBeTruthy()
+    expect(await screen.findByText('编辑中 · source/_posts/supported.md')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
   })
@@ -772,7 +798,6 @@ describe('App editor modes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Edited title before preview' })).toBeTruthy()
     expect(screen.getByText(/Edited body before preview/)).toBeTruthy()
-    expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
 
@@ -782,7 +807,7 @@ describe('App editor modes', () => {
     expect(restoredMarkdownEditor).toBeTruthy()
     expect(screen.getByDisplayValue('Edited title before preview')).toBeTruthy()
     expect(screen.getByDisplayValue('Edited body before preview with **bold** text.')).toBeTruthy()
-    expect(screen.getByText('当前稿件')).toBeTruthy()
+    expect(screen.getByText('Edited title before preview')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
   })

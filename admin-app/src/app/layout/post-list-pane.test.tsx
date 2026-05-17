@@ -281,7 +281,7 @@ describe('management layout components', () => {
     expect(screen.getByRole('link', { name: '回到顶部' }).className).not.toContain('is-active')
   })
 
-  it('shows the top bar controls without unused filter and sort buttons', () => {
+  it('shows a compact editor top bar without dashboard search and create controls', () => {
     const onToggleColorMode = vi.fn()
     render(
       <TopBar
@@ -303,12 +303,13 @@ describe('management layout components', () => {
         onToggleColorMode={onToggleColorMode}
         adminView="editor"
         isDarkMode={false}
+        editorTitle="正在编辑的文章"
       />,
     )
 
-    expect(screen.getByText('内容编辑台')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByText('正在编辑的文章')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /新建文章/ })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: '搜索' })).toBeNull()
     expect(screen.queryByRole('radio', { name: '文章' })).toBeNull()
     expect(screen.queryByRole('radio', { name: '待读' })).toBeNull()
     expect(screen.queryByRole('button', { name: '筛选' })).toBeNull()

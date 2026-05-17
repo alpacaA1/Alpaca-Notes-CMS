@@ -16,7 +16,6 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
-import LiveMarkdownEditor from './editor/live-markdown-editor'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
@@ -2264,7 +2263,6 @@ export default function App() {
   const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
-  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
   const canReturnToPreviousDocument = editorNavigationStack.length > 0
   const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
   const readerBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回归档'
@@ -2332,6 +2330,7 @@ export default function App() {
           isDeletingCurrent={Boolean(activeDocumentPost && isDeletingPost && deletingPostPath === activeDocumentPost.path)}
           isDeleteActionDisabled={!activeDocumentPost?.sha || isDeletingPost || isTogglingPinned}
           onDeleteCurrent={activeDocumentPost ? () => handleDeletePost(activeDocumentPost) : undefined}
+          editorTitle={document?.frontmatter.title || null}
         />
       ) : null}
       {isDashboard ? (
@@ -2431,22 +2430,6 @@ export default function App() {
             <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
-                  {showDocumentFrame ? (
-                    <section className="editor-frame">
-                      <div className="editor-frame__header">
-                        <div>
-                          <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>当前稿件</p>
-                          <h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>
-                            {document.frontmatter.title?.trim() || '未命名草稿'}
-                          </h1>
-                        </div>
-                      </div>
-                      <div className="editor-frame__meta">
-                        <span>{document.path}</span>
-                        <span>{mode === 'preview' ? (isReadLaterDocument ? '阅读视图' : '预览模式') : '编辑模式'}</span>
-                      </div>
-                    </section>
-                  ) : null}
                   {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
                   {error ? <p className="error-message">{error}</p> : null}
                   {mode === 'preview' ? (
@@ -2499,27 +2482,13 @@ export default function App() {
                       internalReferenceCandidates={internalReferenceCandidates}
                     />
                   ) : (
-                    <LiveMarkdownEditor
-                      documentKey={document.path}
+                    <MarkdownEditor
                       value={document.body}
-                      title={document.frontmatter.title}
-                      date={document.frontmatter.date}
-                      contentFormat={documentContentFormat}
-                      contentType={document.contentType}
-                      sourceType={document.frontmatter.source_type}
-                      sourceTitle={document.frontmatter.source_title}
-                      sourcePath={document.frontmatter.source_path}
-                      sourceUrl={document.frontmatter.source_url}
-                      previewImageUrls={previewImageUrls}
                       onChange={handleEditorChange}
                       onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
                       isImmersive={isImmersive}
                       onUploadImage={handleUploadImage}
                       internalReferenceCandidates={internalReferenceCandidates}
-                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
-                      onOpenWikiLink={handleOpenTopicNode}
-                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
-                      onOpenInternalReference={handleOpenInternalReference}
                     />
                   )}
                 </>

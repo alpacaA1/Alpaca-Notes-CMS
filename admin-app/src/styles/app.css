@@ -1268,7 +1268,7 @@ textarea {
 }
 
 .top-bar--editor .top-bar__identity {
-  max-width: 180px;
+  max-width: min(420px, 34vw);
 }
 
 .top-bar__logo-svg {
@@ -1338,6 +1338,8 @@ textarea {
 
 .top-bar--editor .top-bar__identity strong {
   font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .top-bar__status {

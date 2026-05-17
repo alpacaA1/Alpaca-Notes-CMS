@@ -69,6 +69,7 @@ type TopBarProps = {
   isPreviewing: boolean
   isDarkMode: boolean
   hasActiveDocument: boolean
+  editorTitle?: string | null
   saveLabel: string
   isSaveDisabled: boolean
   isSaveQuiet: boolean
@@ -166,6 +167,7 @@ export default function TopBar({
   isPreviewing,
   isDarkMode,
   hasActiveDocument,
+  editorTitle = null,
   saveLabel,
   isSaveDisabled,
   isSaveQuiet,
@@ -175,13 +177,14 @@ export default function TopBar({
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isDashboardLike = !isEditor && !isTrashView
+  const trimmedEditorTitle = editorTitle?.trim() || ''
   const titleText = isTrashView
     ? '回收站'
     : isAnnotationsView
       ? '批注管理'
       : isDashboardLike
         ? getDashboardTitle(contentType)
-        : '内容编辑台'
+        : trimmedEditorTitle || (hasActiveDocument ? '未命名草稿' : '内容编辑台')
   const createLabel = getCreateLabel(contentType)
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
@@ -190,6 +193,8 @@ export default function TopBar({
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
+  const showSearch = !isEditor
+  const showCreateAction = !isTrashView && !isEditor
 
   return (
     <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>
@@ -204,47 +209,51 @@ export default function TopBar({
         </div>
       </div>
 
-      <div className={`top-bar__controls${showContentTypeSwitcher ? '' : ' top-bar__controls--editor'}`}>
-        <label className="top-bar__search" style={{ marginBottom: 0 }}>
-          <span className="sr-only">搜索</span>
-          <input
-            ref={searchInputRef}
-            aria-label="搜索"
-            value={search}
-            onChange={(event) => onSearchChange(event.target.value)}
-            placeholder={searchPlaceholder}
-          />
-        </label>
-        {showContentTypeSwitcher ? (
-          <div className="top-bar__content-switcher">
-            <span className="top-bar__switcher-label">内容类型</span>
-            <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
-              {CONTENT_TYPE_OPTIONS.map((option) => {
-                const checked = option.value === contentType
-                return (
-                  <label
-                    key={option.value}
-                    className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="content-type"
-                      value={option.value}
-                      aria-label={option.label}
-                      checked={checked}
-                      onChange={() => onContentTypeChange(option.value)}
-                    />
-                    <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
-                    <span className="top-bar__switcher-text">
-                      <strong>{option.label}</strong>
-                    </span>
-                  </label>
-                )
-              })}
+      {showSearch || showContentTypeSwitcher ? (
+        <div className={`top-bar__controls${showContentTypeSwitcher ? '' : ' top-bar__controls--editor'}`}>
+          {showSearch ? (
+            <label className="top-bar__search" style={{ marginBottom: 0 }}>
+              <span className="sr-only">搜索</span>
+              <input
+                ref={searchInputRef}
+                aria-label="搜索"
+                value={search}
+                onChange={(event) => onSearchChange(event.target.value)}
+                placeholder={searchPlaceholder}
+              />
+            </label>
+          ) : null}
+          {showContentTypeSwitcher ? (
+            <div className="top-bar__content-switcher">
+              <span className="top-bar__switcher-label">内容类型</span>
+              <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
+                {CONTENT_TYPE_OPTIONS.map((option) => {
+                  const checked = option.value === contentType
+                  return (
+                    <label
+                      key={option.value}
+                      className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="content-type"
+                        value={option.value}
+                        aria-label={option.label}
+                        checked={checked}
+                        onChange={() => onContentTypeChange(option.value)}
+                      />
+                      <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
+                      <span className="top-bar__switcher-text">
+                        <strong>{option.label}</strong>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
             </div>
-          </div>
-        ) : null}
-      </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="top-bar__actions">
         <div className="top-bar__primary-actions">
@@ -284,7 +293,7 @@ export default function TopBar({
               整理素材
             </button>
           ) : null}
-          {!isTrashView ? (
+          {showCreateAction ? (
             <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
               {createLabel}
             </button>
