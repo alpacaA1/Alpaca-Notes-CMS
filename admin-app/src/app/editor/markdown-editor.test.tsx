@@ -282,6 +282,18 @@ describe('markdown editor', () => {
     expect(editor.selectionStart).toBe(editor.value.length)
   })
 
+  it('renumbers following numbered items when pressing Enter in the middle of a list', () => {
+    const editor = renderControlledEditor('1. aaa\n2. bbb\n3. ccc\n4. ddd')
+
+    editor.focus()
+    editor.setSelectionRange(6, 6)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. aaa\n2. \n3. bbb\n4. ccc\n5. ddd')
+    expect(editor.selectionStart).toBe(10)
+    expect(editor.selectionEnd).toBe(10)
+  })
+
   it('does not continue numbered lists when Enter confirms an IME composition', () => {
     const editor = renderControlledEditor('1. 五一')
 
@@ -367,6 +379,18 @@ describe('markdown editor', () => {
 
     expect(editor.value).toBe('> 1. item\n> 2. ')
     expect(editor.selectionStart).toBe(editor.value.length)
+  })
+
+  it('renumbers following blockquote list items when pressing Enter in the middle of a list', () => {
+    const editor = renderControlledEditor('> 1. aaa\n> 2. bbb\n> 3. ccc')
+
+    editor.focus()
+    editor.setSelectionRange(8, 8)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('> 1. aaa\n> 2. \n> 3. bbb\n> 4. ccc')
+    expect(editor.selectionStart).toBe(14)
+    expect(editor.selectionEnd).toBe(14)
   })
 
   it('continues fenced code blocks when pressing Enter', () => {

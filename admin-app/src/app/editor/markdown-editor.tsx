@@ -202,9 +202,26 @@ function getOrderedLineMatch(line: string) {
 
   return {
     indentWidth: getIndentWidth(orderedMatch[1]),
+    kind: marker.kind,
     ordinal: marker.ordinal,
     separator: marker.separator,
+    uppercase: marker.uppercase,
     suffix: orderedMatch[3],
+  }
+}
+
+function splitBlockquotePrefix(line: string) {
+  const blockquoteMatch = line.match(/^(\s*(?:>\s?)+)(.*)$/)
+  if (!blockquoteMatch) {
+    return {
+      blockquotePrefix: '',
+      content: line,
+    }
+  }
+
+  return {
+    blockquotePrefix: blockquoteMatch[1],
+    content: blockquoteMatch[2],
   }
 }
 
@@ -325,22 +342,91 @@ function getListPrefixToRemove(line: string) {
 }
 
 function getBlockquoteContinuationPrefix(line: string) {
-  const blockquoteMatch = line.match(/^(\s*(?:>\s?)+)(.*)$/)
-  if (!blockquoteMatch) {
+  const { blockquotePrefix, content } = splitBlockquotePrefix(line)
+  if (!blockquotePrefix) {
     return null
   }
 
-  const [, prefix, content] = blockquoteMatch
   const continuedListPrefix = getContinuedListPrefix(content)
   if (continuedListPrefix) {
-    return `${prefix}${continuedListPrefix}`
+    return `${blockquotePrefix}${continuedListPrefix}`
   }
 
   if (getListPrefixToRemove(content) || content.trim()) {
-    return prefix.endsWith(' ') ? prefix : `${prefix} `
+    return blockquotePrefix.endsWith(' ') ? blockquotePrefix : `${blockquotePrefix} `
   }
 
   return null
+}
+
+function getOrderedListLineContext(line: string) {
+  const { blockquotePrefix, content } = splitBlockquotePrefix(line)
+  const orderedMatch = getOrderedLineMatch(content)
+  if (!orderedMatch) {
+    return null
+  }
+
+  return {
+    blockquotePrefix,
+    indentWidth: orderedMatch.indentWidth,
+    kind: orderedMatch.kind,
+    ordinal: orderedMatch.ordinal,
+    separator: orderedMatch.separator,
+    uppercase: orderedMatch.uppercase,
+    suffix: orderedMatch.suffix,
+  }
+}
+
+function renumberFollowingOrderedListLines(value: string, insertedLineIndex: number) {
+  const lines = value.split('\n')
+  const insertedLine = lines[insertedLineIndex]
+  const insertedContext = insertedLine ? getOrderedListLineContext(insertedLine) : null
+  if (!insertedContext) {
+    return value
+  }
+
+  let nextOrdinal = insertedContext.ordinal + 1
+  let changed = false
+
+  for (let index = insertedLineIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (!line.trim()) {
+      continue
+    }
+
+    const { blockquotePrefix, content } = splitBlockquotePrefix(line)
+    if (blockquotePrefix !== insertedContext.blockquotePrefix) {
+      break
+    }
+
+    const indentWidth = getIndentWidth(getLeadingWhitespace(content))
+    if (indentWidth > insertedContext.indentWidth) {
+      continue
+    }
+
+    if (indentWidth < insertedContext.indentWidth) {
+      break
+    }
+
+    const lineContext = getOrderedListLineContext(line)
+    if (
+      !lineContext ||
+      lineContext.kind !== insertedContext.kind ||
+      lineContext.separator !== insertedContext.separator ||
+      lineContext.uppercase !== insertedContext.uppercase
+    ) {
+      break
+    }
+
+    const nextLine = `${lineContext.blockquotePrefix}${buildIndentWhitespace(lineContext.indentWidth)}${formatOrderedMarker(insertedContext.kind, nextOrdinal, insertedContext.separator, insertedContext.uppercase)}${lineContext.suffix}`
+    if (nextLine !== line) {
+      lines[index] = nextLine
+      changed = true
+    }
+    nextOrdinal += 1
+  }
+
+  return changed ? lines.join('\n') : value
 }
 
 function wrapSelection(
@@ -858,6 +944,15 @@ export default function MarkdownEditor({
     }
 
     if (event.key === 'Enter' && selectionStart === selectionEnd) {
+      const insertContinuedPrefix = (continuedPrefix: string) => {
+        event.preventDefault()
+        const baseNextValue = `${value.slice(0, selectionStart)}\n${continuedPrefix}${value.slice(selectionEnd)}`
+        const insertedLineIndex = getLineIndex(value, selectionStart) + 1
+        const nextValue = renumberFollowingOrderedListLines(baseNextValue, insertedLineIndex)
+        const nextCaret = selectionStart + 1 + continuedPrefix.length
+        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+      }
+
       const lineStart = getLineStart(value, selectionStart)
       const currentLine = value.slice(lineStart, selectionStart)
       const codeFenceMatch = currentLine.match(/^(\s*)```(?:[^`]*)$/)
@@ -882,10 +977,7 @@ export default function MarkdownEditor({
 
       const blockquoteContinuationPrefix = getBlockquoteContinuationPrefix(currentLine)
       if (blockquoteContinuationPrefix) {
-        event.preventDefault()
-        const nextValue = `${value.slice(0, selectionStart)}\n${blockquoteContinuationPrefix}${value.slice(selectionEnd)}`
-        const nextCaret = selectionStart + 1 + blockquoteContinuationPrefix.length
-        dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+        insertContinuedPrefix(blockquoteContinuationPrefix)
         return
       }
 
@@ -904,10 +996,7 @@ export default function MarkdownEditor({
         return
       }
 
-      event.preventDefault()
-      const nextValue = `${value.slice(0, selectionStart)}\n${continuedPrefix}${value.slice(selectionEnd)}`
-      const nextCaret = selectionStart + 1 + continuedPrefix.length
-      dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+      insertContinuedPrefix(continuedPrefix)
       return
     }
 
