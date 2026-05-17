@@ -28,6 +28,7 @@ type MarkdownEditorProps = {
   footer?: ReactNode
   showMeta?: boolean
   autoFocus?: boolean
+  autoResize?: boolean
   initialSelection?: SelectionRange | 'start' | 'end'
   onSplitBlock?: (selection: SelectionRange, value: string) => boolean | void
   onRemoveEmptyBlockBackward?: () => boolean | void
@@ -574,6 +575,7 @@ export default function MarkdownEditor({
   footer,
   showMeta = true,
   autoFocus = false,
+  autoResize = false,
   initialSelection,
   onSplitBlock,
   onRemoveEmptyBlockBackward,
@@ -597,6 +599,15 @@ export default function MarkdownEditor({
 
   currentValueRef.current = value
 
+  const syncAutoResizeHeight = () => {
+    if (!textareaRef.current || !autoResize) {
+      return
+    }
+
+    textareaRef.current.style.height = '0px'
+    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
+  }
+
   useEffect(() => {
     if (!textareaRef.current || !autoFocus) {
       return
@@ -618,7 +629,11 @@ export default function MarkdownEditor({
     textareaRef.current.setSelectionRange(nextSelection.start, nextSelection.end)
     trackedSelectionRef.current = nextSelection
     setEditorSelection(nextSelection)
-  }, [autoFocus, initialSelection, value])
+  }, [autoFocus, initialSelection])
+
+  useLayoutEffect(() => {
+    syncAutoResizeHeight()
+  }, [autoResize, value])
 
   useLayoutEffect(() => {
     if (!textareaRef.current || !pendingSelectionRef.current) {

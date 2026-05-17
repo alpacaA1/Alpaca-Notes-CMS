@@ -3,7 +3,7 @@ import type { ResolvedContentFormat } from '../content-format'
 import type { InternalReferenceCandidate } from '../internal-links'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
 import MarkdownEditor from './markdown-editor'
-import PreviewPane from './preview-pane'
+import { renderContentBlocks } from './preview-pane'
 
 type EditableLiveContentType = Exclude<ContentType, 'read-later'>
 
@@ -199,14 +199,7 @@ function getSafeActiveIndex(blocks: string[], requestedIndex: number) {
 export default function LiveMarkdownEditor({
   documentKey,
   value,
-  title,
-  date,
-  contentType,
   contentFormat,
-  sourceType,
-  sourceTitle,
-  sourcePath,
-  sourceUrl,
   previewImageUrls,
   onChange,
   onToggleImmersive,
@@ -221,6 +214,10 @@ export default function LiveMarkdownEditor({
   const [blocks, setBlocks] = useState<string[]>(() => normalizeBlocks(value))
   const [activeBlockIndex, setActiveBlockIndex] = useState(() => Math.max(0, normalizeBlocks(value).length - 1))
   const [focusPlacement, setFocusPlacement] = useState<FocusPlacement>('end')
+  const wikiLinkOptions = useMemo(
+    () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
+    [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
+  )
 
   const serializedValue = useMemo(() => serializeBlocks(blocks), [blocks])
 
@@ -306,17 +303,7 @@ export default function LiveMarkdownEditor({
 
   return (
     <section className="single-pane-live-editor">
-      <div className="single-pane-live-editor__header">
-        <div className="single-pane-live-editor__title-group">
-          <span className="editor-surface__label">
-            实时写作
-          </span>
-          <span className="editor-surface__hint">同一块画布内编辑。`Enter` 进入下一块，`Shift + Enter` 继续在当前块内输入。</span>
-        </div>
-        <span className="single-pane-live-editor__badge">Single Canvas</span>
-      </div>
-
-      <div className="single-pane-live-editor__canvas">
+      <article className="preview-content preview-content--live single-pane-live-editor__document">
         {blocks.map((block, blockIndex) => {
           const isActiveBlock = blockIndex === activeBlockIndex
 
@@ -334,6 +321,7 @@ export default function LiveMarkdownEditor({
                   textareaClassName="single-pane-live-editor__textarea"
                   showMeta={false}
                   autoFocus
+                  autoResize
                   initialSelection={focusPlacement}
                   onSplitBlock={(selection, blockValue) => handleSplitBlock(blockIndex, selection, blockValue)}
                   onRemoveEmptyBlockBackward={() => handleRemoveEmptyBlockBackward(blockIndex)}
@@ -343,14 +331,16 @@ export default function LiveMarkdownEditor({
             )
           }
 
+          if (block.trim().length === 0) {
+            return null
+          }
+
           const previewKey = `${documentKey || 'document'}-preview-${blockIndex}-${block}`
 
           return (
             <div
               key={previewKey}
-              className={`single-pane-live-editor__block${block.trim().length === 0 ? ' single-pane-live-editor__block--empty' : ''}`}
-              role="button"
-              tabIndex={0}
+              className="single-pane-live-editor__block"
               onClick={(event) => {
                 const target = event.target as HTMLElement
                 if (target.closest('a, button, summary, input, textarea')) {
@@ -359,38 +349,12 @@ export default function LiveMarkdownEditor({
 
                 activateBlock(blockIndex, 'end')
               }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  activateBlock(blockIndex, 'end')
-                }
-              }}
             >
-              {block.trim().length > 0 ? (
-                <PreviewPane
-                  title={title}
-                  date={date}
-                  markdown={block}
-                  contentFormat={contentFormat}
-                  sourceType={sourceType}
-                  sourceTitle={sourceTitle}
-                  sourcePath={sourcePath}
-                  sourceUrl={sourceUrl}
-                  contentType={contentType}
-                  previewImageUrls={previewImageUrls}
-                  resolveWikiLinkTitle={resolveWikiLinkTitle}
-                  onOpenWikiLink={onOpenWikiLink}
-                  resolveInternalReferenceTitle={resolveInternalReferenceTitle}
-                  onOpenInternalReference={onOpenInternalReference}
-                  displayMode="live"
-                />
-              ) : (
-                <div className="single-pane-live-editor__empty-block">空白段落</div>
-              )}
+              {renderContentBlocks(block, contentFormat ?? 'markdown', previewImageUrls, undefined, wikiLinkOptions)}
             </div>
           )
         })}
-      </div>
+      </article>
     </section>
   )
 }
