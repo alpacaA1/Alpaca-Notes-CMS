@@ -399,6 +399,7 @@ textarea {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.1);
   color: var(--admin-muted);
+  -webkit-text-fill-color: var(--admin-muted);
 }
 
 .admin-shell--dark .post-pane,
@@ -1577,6 +1578,7 @@ textarea {
 .top-bar__button--save:disabled,
 .top-bar__button--save:disabled:hover {
   color: var(--admin-save-text);
+  -webkit-text-fill-color: var(--admin-save-text);
 }
 
 .top-bar__button--save {
@@ -1586,6 +1588,8 @@ textarea {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 14px 26px rgba(54, 42, 28, 0.16);
+  font-weight: 700;
+  opacity: 1;
 }
 
 .top-bar__button--save:hover {
@@ -1599,20 +1603,22 @@ textarea {
 .top-bar__button--save.top-bar__button--save-quiet:active,
 .top-bar__button--save.top-bar__button--save-quiet:disabled,
 .top-bar__button--save.top-bar__button--save-quiet:disabled:hover {
-  border-color: var(--admin-save-disabled);
-  color: var(--admin-save-muted-text);
+  border-color: rgba(141, 113, 77, 0.32);
+  color: #5f5144;
+  -webkit-text-fill-color: #5f5144;
 }
 
 .top-bar__button--save.top-bar__button--save-quiet,
 .top-bar__button--save.top-bar__button--save-quiet:disabled {
-  background: linear-gradient(180deg, rgba(121, 109, 97, 0.96), var(--admin-save-disabled));
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.94), rgba(239, 226, 205, 0.88));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.62);
   text-shadow: none;
   opacity: 1;
 }
 
 .top-bar__button--save.top-bar__button--save-quiet:hover,
 .top-bar__button--save.top-bar__button--save-quiet:disabled:hover {
-  background: linear-gradient(180deg, rgba(111, 99, 88, 0.98), var(--admin-save-disabled-hover));
+  background: linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(239, 226, 205, 0.92));
 }
 
 .top-bar__button--theme,
