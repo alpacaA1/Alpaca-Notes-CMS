@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 type ConfirmDialogProps = {
   title: string
   message: string
@@ -21,17 +23,29 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const titleId = useId()
+  const messageId = useId()
+  const toneClass = isDangerous ? 'confirm-dialog--danger' : 'confirm-dialog--notice'
+
   return (
     <div className="confirm-dialog__overlay" onClick={isProcessing ? undefined : onCancel}>
       <div
-        className="confirm-dialog"
+        className={`confirm-dialog ${toneClass}`}
         role="alertdialog"
-        aria-labelledby="confirm-dialog-title"
-        aria-describedby="confirm-dialog-message"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 id="confirm-dialog-title" className="confirm-dialog__title">{title}</h3>
-        <p id="confirm-dialog-message" className="confirm-dialog__message">{message}</p>
+        <div className="confirm-dialog__header">
+          <span className="confirm-dialog__mark" aria-hidden="true">
+            {isDangerous ? '!' : '?'}
+          </span>
+          <div className="confirm-dialog__copy">
+            <h3 id={titleId} className="confirm-dialog__title">{title}</h3>
+            <p id={messageId} className="confirm-dialog__message">{message}</p>
+          </div>
+        </div>
 
         {isProcessing && processingMessage ? (
           <p className="confirm-dialog__processing">{processingMessage}</p>

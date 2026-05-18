@@ -541,7 +541,7 @@ describe('markdown editor', () => {
 
   it('keeps active live editor list blocks horizontally aligned with rendered list previews', () => {
     expect(appStyles).toMatch(
-      /\.single-pane-live-editor__textarea--list\s*\{[^}]*padding-left:\s*1\.4rem;/s,
+      /\.single-pane-live-editor__textarea--list\s*\{[^}]*padding-left:\s*0;/s,
     )
   })
 

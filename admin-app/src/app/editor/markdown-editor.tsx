@@ -43,12 +43,20 @@ type MarkdownEditorProps = {
   onSplitBlock?: (selection: SelectionRange, value: string) => boolean | void
   onRemoveEmptyBlockBackward?: () => boolean | void
   onMoveBetweenBlocks?: (direction: 'up' | 'down') => boolean | void
+  onSelectionBoundaryDrag?: (event: MarkdownEditorSelectionBoundaryDrag) => void
   hideToolbar?: boolean
 }
 
 export type SelectionRange = {
   start: number
   end: number
+}
+
+export type MarkdownEditorSelectionBoundaryDrag = {
+  direction: 'up' | 'down'
+  selection: SelectionRange
+  clientX: number
+  clientY: number
 }
 
 export type MarkdownEditorHandle = {
@@ -596,6 +604,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   onSplitBlock,
   onRemoveEmptyBlockBackward,
   onMoveBetweenBlocks,
+  onSelectionBoundaryDrag,
   hideToolbar = false,
 }, ref) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -1262,6 +1271,61 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
   }
 
+  const handleTextareaMouseDown = (event: React.MouseEvent<HTMLTextAreaElement>) => {
+    if (!onSelectionBoundaryDrag || event.button !== 0) {
+      return
+    }
+
+    const textarea = event.currentTarget
+    const ownerDocument = textarea.ownerDocument
+    let boundaryDrag:
+      | Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
+      | null = null
+
+    const getBoundaryDrag = (mouseEvent: MouseEvent) => {
+      const selection = getSelectionRange(textarea)
+      const bounds = textarea.getBoundingClientRect()
+
+      if (mouseEvent.clientY < bounds.top && selection.start === 0 && selection.end > 0) {
+        return {
+          direction: 'up',
+          selection,
+        } satisfies Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
+      }
+
+      if (mouseEvent.clientY > bounds.bottom && selection.end === textarea.value.length && selection.start < textarea.value.length) {
+        return {
+          direction: 'down',
+          selection,
+        } satisfies Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
+      }
+
+      return null
+    }
+
+    const handleMouseMove = (mouseEvent: MouseEvent) => {
+      boundaryDrag = boundaryDrag ?? getBoundaryDrag(mouseEvent)
+      if (!boundaryDrag) {
+        return
+      }
+
+      onSelectionBoundaryDrag({
+        ...boundaryDrag,
+        clientX: mouseEvent.clientX,
+        clientY: mouseEvent.clientY,
+      })
+    }
+
+    const handleMouseUp = (mouseEvent: MouseEvent) => {
+      handleMouseMove(mouseEvent)
+      ownerDocument.removeEventListener('mousemove', handleMouseMove)
+      ownerDocument.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    ownerDocument.addEventListener('mousemove', handleMouseMove)
+    ownerDocument.addEventListener('mouseup', handleMouseUp)
+  }
+
   const surfaceClassNames = ['editor-surface', 'editor-surface--editor-canvas', surfaceClassName]
     .filter(Boolean)
     .join(' ')
@@ -1471,6 +1535,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         }}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
+        onMouseDown={handleTextareaMouseDown}
       />
       {footer ? <div className="markdown-editor__footer">{footer}</div> : null}
     </section>

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
@@ -83,8 +83,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -100,11 +98,14 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
+    const overwriteDialog = await screen.findByRole('alertdialog', { name: '覆盖当前正文？' })
+    expect(within(overwriteDialog).getByText('当前正文将被导入内容覆盖，确认继续吗？')).toBeTruthy()
+    fireEvent.click(within(overwriteDialog).getByRole('button', { name: '覆盖并导入' }))
+
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('导入后的标题')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
@@ -156,8 +157,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -174,7 +173,10 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前正文和高亮批注将被导入内容覆盖，确认继续吗？')
+    const overwriteDialog = await screen.findByRole('alertdialog', { name: '覆盖当前正文？' })
+    expect(within(overwriteDialog).getByText('当前正文和高亮批注将被导入内容覆盖，确认继续吗？')).toBeTruthy()
+    fireEvent.click(within(overwriteDialog).getByRole('button', { name: '覆盖并导入' }))
+
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
@@ -249,8 +251,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -262,7 +262,10 @@ describe('App read-later import flow', () => {
     fireEvent.change(screen.getByLabelText('快速收录链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.click(screen.getByRole('button', { name: '快速收录' }))
 
-    expect(confirmSpy).toHaveBeenCalledWith('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')
+    const duplicateDialog = await screen.findByRole('alertdialog', { name: '已存在相同待读' })
+    expect(within(duplicateDialog).getByText('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')).toBeTruthy()
+    fireEvent.click(within(duplicateDialog).getByRole('button', { name: '仍然创建' }))
+
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith(
         { token: 'persisted-token' },

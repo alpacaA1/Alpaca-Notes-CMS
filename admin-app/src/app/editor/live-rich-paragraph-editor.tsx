@@ -1,7 +1,14 @@
 import { forwardRef, useEffect, useImperativeHandle, useLayoutEffect, useRef } from 'react'
 
+type TextSelectionRange = {
+  start: number
+  end: number
+}
+
+type TextSelectionPlacement = TextSelectionRange | 'start' | 'end'
+
 export type LiveRichParagraphEditorHandle = {
-  focus: (placement?: 'start' | 'end') => void
+  focus: (placement?: TextSelectionPlacement) => void
 }
 
 type LiveRichParagraphEditorProps = {
@@ -9,7 +16,7 @@ type LiveRichParagraphEditorProps = {
   className?: string
   ariaLabel?: string
   autoFocus?: boolean
-  initialSelection?: 'start' | 'end'
+  initialSelection?: TextSelectionPlacement
   allowSoftBreaks?: boolean
   normalizeValue?: (value: string) => string
   onChange: (value: string) => void
@@ -249,6 +256,73 @@ function setSelectionToBoundary(root: HTMLElement, placement: 'start' | 'end') {
   selection.addRange(range)
 }
 
+function isTextSelectionRange(placement: TextSelectionPlacement): placement is TextSelectionRange {
+  return typeof placement !== 'string'
+}
+
+function getTextPosition(root: HTMLElement, offset: number) {
+  const safeOffset = Math.max(0, offset)
+  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+  let remainingOffset = safeOffset
+  let lastTextNode: Text | null = null
+
+  while (true) {
+    const textNode = walker.nextNode() as Text | null
+    if (!textNode) {
+      break
+    }
+
+    lastTextNode = textNode
+    if (remainingOffset <= textNode.data.length) {
+      return {
+        node: textNode,
+        offset: remainingOffset,
+      }
+    }
+
+    remainingOffset -= textNode.data.length
+  }
+
+  if (lastTextNode) {
+    return {
+      node: lastTextNode,
+      offset: lastTextNode.data.length,
+    }
+  }
+
+  return {
+    node: root,
+    offset: 0,
+  }
+}
+
+function setSelectionToTextRange(root: HTMLElement, selectionRange: TextSelectionRange) {
+  const selection = root.ownerDocument.defaultView?.getSelection()
+  if (!selection) {
+    return
+  }
+
+  const startOffset = Math.min(selectionRange.start, selectionRange.end)
+  const endOffset = Math.max(selectionRange.start, selectionRange.end)
+  const startPosition = getTextPosition(root, startOffset)
+  const endPosition = getTextPosition(root, endOffset)
+  const range = root.ownerDocument.createRange()
+
+  range.setStart(startPosition.node, startPosition.offset)
+  range.setEnd(endPosition.node, endPosition.offset)
+  selection.removeAllRanges()
+  selection.addRange(range)
+}
+
+function setSelectionToPlacement(root: HTMLElement, placement: TextSelectionPlacement) {
+  if (isTextSelectionRange(placement)) {
+    setSelectionToTextRange(root, placement)
+    return
+  }
+
+  setSelectionToBoundary(root, placement)
+}
+
 function insertPlainTextAtSelection(root: HTMLElement, text: string) {
   const selection = root.ownerDocument.defaultView?.getSelection()
   if (!selection || selection.rangeCount === 0) {
@@ -342,7 +416,7 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
       }
 
       editorRef.current.focus()
-      setSelectionToBoundary(editorRef.current, placement)
+      setSelectionToPlacement(editorRef.current, placement)
     },
   }), [])
 
@@ -365,7 +439,7 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
     }
 
     editorRef.current.focus()
-    setSelectionToBoundary(editorRef.current, initialSelection)
+    setSelectionToPlacement(editorRef.current, initialSelection)
   }, [autoFocus, initialSelection])
 
   return (

@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import { GitHubAuthError, GitHubConflictError } from './github-client'
@@ -763,8 +763,6 @@ Original body.`,
       expiresAt: '2026-06-13T00:00:00.000Z',
       content: existingContent,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
-
     render(<App />)
 
     await waitFor(() => {
@@ -777,7 +775,10 @@ Original body.`,
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Locally changed title' } })
     fireEvent.click(screen.getByTitle('删除《Save flow post》'))
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前文章有未保存的修改。删除后会进入回收站，确认继续吗？')
+    const unsavedDeleteDialog = await screen.findByRole('alertdialog', { name: '未保存修改' })
+    expect(within(unsavedDeleteDialog).getByText('当前文章有未保存的修改。删除后会进入回收站，确认继续吗？')).toBeTruthy()
+    fireEvent.click(within(unsavedDeleteDialog).getByRole('button', { name: '继续编辑' }))
+
     expect(moveMarkdownFileToTrash).not.toHaveBeenCalled()
     expect(screen.queryByText('删除文章')).toBeNull()
   })

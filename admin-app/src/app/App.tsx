@@ -80,6 +80,14 @@ type TrashConfirmAction =
   | { kind: 'restore-trash'; entry: TrashEntry }
   | { kind: 'delete-trash'; entry: TrashEntry }
 
+type AppConfirmRequest = {
+  title: string
+  message: string
+  confirmLabel?: string
+  cancelLabel?: string
+  isDangerous?: boolean
+}
+
 type OpenDocumentOptions = {
   draftPost?: ParsedPost | null
   successMessage?: string | null
@@ -366,6 +374,8 @@ export default function App() {
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
   const [trashConfirm, setTrashConfirm] = useState<TrashConfirmAction | null>(null)
+  const [appConfirmRequest, setAppConfirmRequest] = useState<AppConfirmRequest | null>(null)
+  const appConfirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [deletingPostPath, setDeletingPostPath] = useState<string | null>(null)
@@ -397,6 +407,27 @@ export default function App() {
     validate,
     markSaved,
   } = useEditorDocument()
+
+  const requestConfirmation = useCallback((request: AppConfirmRequest) => {
+    appConfirmResolverRef.current?.(false)
+
+    return new Promise<boolean>((resolve) => {
+      appConfirmResolverRef.current = resolve
+      setAppConfirmRequest(request)
+    })
+  }, [])
+
+  const resolveAppConfirmation = useCallback((confirmed: boolean) => {
+    const resolver = appConfirmResolverRef.current
+    appConfirmResolverRef.current = null
+    setAppConfirmRequest(null)
+    resolver?.(confirmed)
+  }, [])
+
+  useEffect(() => () => {
+    appConfirmResolverRef.current?.(false)
+    appConfirmResolverRef.current = null
+  }, [])
 
   const filteredPosts = useMemo(
     () =>
@@ -804,12 +835,17 @@ export default function App() {
     setError(null)
   }
 
-  const confirmNavigation = () => {
+  const confirmNavigation = async () => {
     if (canNavigateAway) {
       return true
     }
 
-    const shouldDiscard = window.confirm('当前有未保存的修改。确认丢弃并继续吗？')
+    const shouldDiscard = await requestConfirmation({
+      title: '丢弃未保存修改？',
+      message: '当前内容还有未保存的修改。继续操作会丢弃这次修改。',
+      confirmLabel: '丢弃并继续',
+      cancelLabel: '继续编辑',
+    })
     if (shouldDiscard && document) {
       removeLocalDraft(document.path)
     }
@@ -865,7 +901,7 @@ export default function App() {
     setError(null)
   }
 
-  const resolveDocumentWithLocalDraft = (savedPost: ParsedPost) => {
+  const resolveDocumentWithLocalDraft = async (savedPost: ParsedPost) => {
     const storedDraft = readLocalDraft(savedPost.path)
     if (!storedDraft || !hasRecoverableChanges(storedDraft.draftDocument, storedDraft.savedDocument)) {
       return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
@@ -876,7 +912,12 @@ export default function App() {
       storedDraft.savedDocument?.sha === savedPost.sha
 
     if (!hasMatchingBaseline) {
-      const shouldRestore = window.confirm('检测到本地未保存草稿，但远端内容可能已更新。是否恢复本地草稿继续编辑？')
+      const shouldRestore = await requestConfirmation({
+        title: '恢复本地草稿？',
+        message: '检测到本地未保存草稿，但远端内容可能已更新。恢复后会继续编辑本地草稿。',
+        confirmLabel: '恢复草稿',
+        cancelLabel: '打开远端内容',
+      })
       if (!shouldRestore) {
         return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
       }
@@ -889,8 +930,8 @@ export default function App() {
     }
   }
 
-  const handleNewPost = () => {
-    if (!confirmNavigation()) {
+  const handleNewPost = async () => {
+    if (!(await confirmNavigation())) {
       return
     }
 
@@ -908,7 +949,7 @@ export default function App() {
   }
 
   const openIndexedPost = async (post: PostIndexItem, options?: OpenIndexedPostOptions) => {
-    if (!session || (!options?.skipNavigationConfirm && !confirmNavigation())) {
+    if (!session || (!options?.skipNavigationConfirm && !(await confirmNavigation()))) {
       return false
     }
 
@@ -928,7 +969,7 @@ export default function App() {
     const cachedFile = readCachedMarkdownFile(post.path, post.sha)
     if (cachedFile) {
       setIsOpeningPost(false)
-      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(cachedFile))
+      const resolvedDocument = await resolveDocumentWithLocalDraft(parseOpenedFile(cachedFile))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -948,7 +989,7 @@ export default function App() {
 
     try {
       const file = await fetchMarkdownFile(session, post.path)
-      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(file))
+      const resolvedDocument = await resolveDocumentWithLocalDraft(parseOpenedFile(file))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -1010,8 +1051,8 @@ export default function App() {
     setAdminView('dashboard')
   }
 
-  const handleBackToDashboard = () => {
-    if (!confirmNavigation()) {
+  const handleBackToDashboard = async () => {
+    if (!(await confirmNavigation())) {
       return
     }
 
@@ -1021,11 +1062,11 @@ export default function App() {
   const handleBackNavigation = async () => {
     const previousEntry = editorNavigationStack[editorNavigationStack.length - 1]
     if (!previousEntry) {
-      handleBackToDashboard()
+      await handleBackToDashboard()
       return
     }
 
-    if (!confirmNavigation()) {
+    if (!(await confirmNavigation())) {
       return
     }
 
@@ -1056,13 +1097,19 @@ export default function App() {
     setAdminView('trash')
   }
 
-  const handleDeletePost = (post: PostIndexItem) => {
+  const handleDeletePost = async (post: PostIndexItem) => {
     if (isDeletingPost || isTogglingPinned) {
       return
     }
 
     if (document?.path === post.path && !canNavigateAway) {
-      const shouldContinue = window.confirm('当前文章有未保存的修改。删除后会进入回收站，确认继续吗？')
+      const shouldContinue = await requestConfirmation({
+        title: '未保存修改',
+        message: '当前文章有未保存的修改。删除后会进入回收站，确认继续吗？',
+        confirmLabel: '继续删除',
+        cancelLabel: '继续编辑',
+        isDangerous: true,
+      })
       if (!shouldContinue) {
         return
       }
@@ -1363,12 +1410,12 @@ export default function App() {
   }
 
   const handleOpenReadLaterAnnotation = async (annotation: ReadLaterAnnotationIndexItem) => {
-    if (!session || !confirmNavigation()) {
+    if (!session || !(await confirmNavigation())) {
       return
     }
 
-    const openAnnotationDocument = (file: { path: string; sha: string; content: string }) => {
-      const resolvedDocument = resolveDocumentWithLocalDraft(parseReadLaterItem(file))
+    const openAnnotationDocument = async (file: { path: string; sha: string; content: string }) => {
+      const resolvedDocument = await resolveDocumentWithLocalDraft(parseReadLaterItem(file))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -1389,7 +1436,7 @@ export default function App() {
     const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
     if (cachedFile) {
       setIsOpeningPost(false)
-      openAnnotationDocument(cachedFile)
+      await openAnnotationDocument(cachedFile)
       return
     }
 
@@ -1399,7 +1446,7 @@ export default function App() {
 
     try {
       const file = await fetchMarkdownFile(session, annotation.postPath)
-      openAnnotationDocument(file)
+      await openAnnotationDocument(file)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -1762,7 +1809,14 @@ export default function App() {
     const shouldConfirmOverwrite = currentBody.length > 0 && currentBody !== defaultBody
     if (
       shouldConfirmOverwrite &&
-      !window.confirm(hasAnnotations ? '当前正文和高亮批注将被导入内容覆盖，确认继续吗？' : '当前正文将被导入内容覆盖，确认继续吗？')
+      !(await requestConfirmation({
+        title: '覆盖当前正文？',
+        message: hasAnnotations
+          ? '当前正文和高亮批注将被导入内容覆盖，确认继续吗？'
+          : '当前正文将被导入内容覆盖，确认继续吗？',
+        confirmLabel: '覆盖并导入',
+        cancelLabel: '取消',
+      }))
     ) {
       return
     }
@@ -1901,7 +1955,12 @@ export default function App() {
     const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
     if (
       duplicatedPost &&
-      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
+      !(await requestConfirmation({
+        title: '已存在相同待读',
+        message: `已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`,
+        confirmLabel: '仍然创建',
+        cancelLabel: '取消',
+      }))
     ) {
       return
     }
@@ -2042,7 +2101,7 @@ export default function App() {
   }
 
   const handleOpenRecoveredDraft = async (path: string) => {
-    if (!confirmNavigation()) {
+    if (!(await confirmNavigation())) {
       return
     }
 
@@ -2300,11 +2359,11 @@ export default function App() {
           backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
-          onContentTypeChange={(value) => {
+          onContentTypeChange={async (value) => {
             if (value === contentType) {
               return
             }
-            if (!confirmNavigation()) {
+            if (!(await confirmNavigation())) {
               return
             }
             resetPreviewImageUrls()
@@ -2334,7 +2393,7 @@ export default function App() {
           onTogglePinnedCurrent={activeDocumentPost ? () => { void handleTogglePinned(activeDocumentPost) } : undefined}
           isDeletingCurrent={Boolean(activeDocumentPost && isDeletingPost && deletingPostPath === activeDocumentPost.path)}
           isDeleteActionDisabled={!activeDocumentPost?.sha || isDeletingPost || isTogglingPinned}
-          onDeleteCurrent={activeDocumentPost ? () => handleDeletePost(activeDocumentPost) : undefined}
+          onDeleteCurrent={activeDocumentPost ? () => { void handleDeletePost(activeDocumentPost) } : undefined}
           editorTitle={document?.frontmatter.title || null}
         />
       ) : null}
@@ -2574,6 +2633,17 @@ export default function App() {
           onClearSelectedMaterials={clearSelectedMaterials}
           onConfirm={() => { void handleConfirmOrganizeMaterials() }}
           onCancel={() => setIsMaterialOrganizerOpen(false)}
+        />
+      ) : null}
+      {appConfirmRequest ? (
+        <ConfirmDialog
+          title={appConfirmRequest.title}
+          message={appConfirmRequest.message}
+          confirmLabel={appConfirmRequest.confirmLabel}
+          cancelLabel={appConfirmRequest.cancelLabel}
+          isDangerous={appConfirmRequest.isDangerous}
+          onConfirm={() => resolveAppConfirmation(true)}
+          onCancel={() => resolveAppConfirmation(false)}
         />
       ) : null}
       {taxonomyConfirm ? (
