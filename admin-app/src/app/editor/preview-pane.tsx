@@ -76,7 +76,6 @@ type PreviewPaneProps = {
   title: string
   date: string
   markdown: string
-  displayMode?: 'full' | 'live'
   contentFormat?: ResolvedContentFormat
   desc?: string
   cover?: string
@@ -2080,7 +2079,6 @@ export default function PreviewPane({
   title,
   date,
   markdown,
-  displayMode = 'full',
   contentFormat = 'markdown',
   desc,
   cover,
@@ -2135,14 +2133,13 @@ export default function PreviewPane({
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
   const isPreviewPost = contentType === 'post'
-  const isLiveDisplay = displayMode === 'live'
   const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later' || contentType === 'diary') && Boolean(onCreateKnowledge)
   const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
   const structuredSections = !isReadLater && contentFormat === 'markdown' && (isDiary || isKnowledge)
     ? parseStructuredMarkdownSections(markdown)
     : null
   const articleRootId = isReadLater ? READ_LATER_ROOT_ID : POST_PREVIEW_ROOT_ID
-  const postHeadingIdPrefix = !isLiveDisplay && isPreviewPost && contentFormat === 'markdown' ? POST_PREVIEW_HEADING_PREFIX : undefined
+  const postHeadingIdPrefix = isPreviewPost && contentFormat === 'markdown' ? POST_PREVIEW_HEADING_PREFIX : undefined
   const postOutlineItems = useMemo(
     () => (
       postHeadingIdPrefix
@@ -2151,7 +2148,7 @@ export default function PreviewPane({
     ),
     [markdown, postHeadingIdPrefix],
   )
-  const shouldShowPostOutline = !isLiveDisplay && isPreviewPost && postOutlineItems.length > 0
+  const shouldShowPostOutline = isPreviewPost && postOutlineItems.length > 0
   const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
   const outlineTargetIds = isReadLater
     ? readLaterOutlineTargetIds
@@ -2164,7 +2161,7 @@ export default function PreviewPane({
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
   const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
   const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
-  const shouldShowTopicBacklinksDrawer = !isLiveDisplay && showTopicBacklinksDrawer
+  const shouldShowTopicBacklinksDrawer = showTopicBacklinksDrawer
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
     [activeAnnotationId, annotations],
@@ -2459,10 +2456,6 @@ export default function PreviewPane({
   ].filter(Boolean).join(' ')
 
   const handleSelectionChange = () => {
-    if (isLiveDisplay) {
-      return
-    }
-
     const article = articleRef.current
     if ((!isReadLater || !onCreateAnnotation) && !canCreateKnowledge) {
       if (selectionToolbar) {
@@ -2555,8 +2548,8 @@ export default function PreviewPane({
   }
 
   return (
-    <section ref={paneRef} className={`preview-pane preview-pane--reading-canvas${isLiveDisplay ? ' preview-pane--live' : ''}`}>
-      {!isLiveDisplay && selectionToolbar ? (
+    <section ref={paneRef} className="preview-pane preview-pane--reading-canvas">
+      {selectionToolbar ? (
         <div
           className="preview-content__selection-toolbar"
           role="toolbar"
@@ -2581,7 +2574,7 @@ export default function PreviewPane({
           ) : null}
         </div>
       ) : null}
-      {!isLiveDisplay && activeAnnotationAction && onDeleteAnnotation ? (
+      {activeAnnotationAction && onDeleteAnnotation ? (
         <button
           type="button"
           className="preview-content__annotation-delete"
@@ -2592,7 +2585,7 @@ export default function PreviewPane({
           删除高亮
         </button>
       ) : null}
-      {!isLiveDisplay && isInlineAnnotationEditing && activeAnnotationNotePosition ? (
+      {isInlineAnnotationEditing && activeAnnotationNotePosition ? (
         <div
           className="preview-content__annotation-note-editor settings-panel__document-note-editor settings-panel__document-note-editor--annotation"
           style={{
@@ -2693,69 +2686,67 @@ export default function PreviewPane({
         ) : null}
         <article
           ref={articleRef}
-          className={`preview-content${isReadLater ? ' preview-content--reader' : ''}${isLiveDisplay ? ' preview-content--live' : ''}`}
+          className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
           id={articleRootId}
           onClick={handleArticleClick}
           onMouseUp={handleSelectionChange}
           onKeyUp={handleSelectionChange}
         >
-          {!isLiveDisplay ? (
-            <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
-              <h1>{title.trim() || '未命名草稿'}</h1>
-              <p className="preview-content__date">{date}</p>
-              {isReadLater ? (
-                <div className="preview-content__read-later-meta">
-                  {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
-                  <div className="preview-content__meta-grid">
-                    {sourceName?.trim() ? (
-                      <span className="preview-content__meta-chip">
-                        <strong>来源</strong>
-                        <span>{sourceName.trim()}</span>
-                      </span>
-                    ) : null}
-                    <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
-                      <strong>状态</strong>
-                      <span>{getReadingStatusLabel(readingStatus)}</span>
-                    </span>
-                    {safeExternalUrl ? (
-                      <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
-                        <strong>原文</strong>
-                        <span>阅读原文</span>
-                      </a>
-                    ) : null}
-                  </div>
-                  {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
-                </div>
-              ) : isKnowledge ? (
-                <div className="preview-content__read-later-meta">
-                  <div className="preview-content__meta-grid">
+          <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
+            <h1>{title.trim() || '未命名草稿'}</h1>
+            <p className="preview-content__date">{date}</p>
+            {isReadLater ? (
+              <div className="preview-content__read-later-meta">
+                {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
+                <div className="preview-content__meta-grid">
+                  {sourceName?.trim() ? (
                     <span className="preview-content__meta-chip">
-                      <strong>来源类型</strong>
-                      <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : sourceType === 'diary' ? '日记' : '手动整理'}</span>
+                      <strong>来源</strong>
+                      <span>{sourceName.trim()}</span>
                     </span>
-                    {sourceTitle?.trim() ? (
-                      <span className="preview-content__meta-chip">
-                        <strong>来源内容</strong>
-                        <span>{sourceTitle.trim()}</span>
-                      </span>
-                    ) : null}
-                    {safeSourceUrl ? (
-                      <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeSourceUrl} rel="noreferrer" target="_blank">
-                        <strong>原链接</strong>
-                        <span>打开原文</span>
-                      </a>
-                    ) : null}
-                    {sourcePath?.trim() ? (
-                      <span className="preview-content__meta-chip">
-                        <strong>来源路径</strong>
-                        <span>{sourcePath.trim()}</span>
-                      </span>
-                    ) : null}
-                  </div>
+                  ) : null}
+                  <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
+                    <strong>状态</strong>
+                    <span>{getReadingStatusLabel(readingStatus)}</span>
+                  </span>
+                  {safeExternalUrl ? (
+                    <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
+                      <strong>原文</strong>
+                      <span>阅读原文</span>
+                    </a>
+                  ) : null}
                 </div>
-              ) : null}
-            </header>
-          ) : null}
+                {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
+              </div>
+            ) : isKnowledge ? (
+              <div className="preview-content__read-later-meta">
+                <div className="preview-content__meta-grid">
+                  <span className="preview-content__meta-chip">
+                    <strong>来源类型</strong>
+                    <span>{sourceType === 'read-later' ? '待读' : sourceType === 'post' ? '文章' : sourceType === 'diary' ? '日记' : '手动整理'}</span>
+                  </span>
+                  {sourceTitle?.trim() ? (
+                    <span className="preview-content__meta-chip">
+                      <strong>来源内容</strong>
+                      <span>{sourceTitle.trim()}</span>
+                    </span>
+                  ) : null}
+                  {safeSourceUrl ? (
+                    <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeSourceUrl} rel="noreferrer" target="_blank">
+                      <strong>原链接</strong>
+                      <span>打开原文</span>
+                    </a>
+                  ) : null}
+                  {sourcePath?.trim() ? (
+                    <span className="preview-content__meta-chip">
+                      <strong>来源路径</strong>
+                      <span>{sourcePath.trim()}</span>
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </header>
           {isReadLater && hasStructuredReadLaterSections ? (
             <div className="preview-content__sections">
               {renderReadLaterSection(

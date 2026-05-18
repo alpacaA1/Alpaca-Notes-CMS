@@ -16,7 +16,6 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
-import LiveMarkdownEditor from './editor/live-markdown-editor'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
@@ -79,14 +78,6 @@ type PostDeleteConfirmAction = {
 type TrashConfirmAction =
   | { kind: 'restore-trash'; entry: TrashEntry }
   | { kind: 'delete-trash'; entry: TrashEntry }
-
-type AppConfirmRequest = {
-  title: string
-  message: string
-  confirmLabel?: string
-  cancelLabel?: string
-  isDangerous?: boolean
-}
 
 type OpenDocumentOptions = {
   draftPost?: ParsedPost | null
@@ -374,8 +365,6 @@ export default function App() {
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
   const [trashConfirm, setTrashConfirm] = useState<TrashConfirmAction | null>(null)
-  const [appConfirmRequest, setAppConfirmRequest] = useState<AppConfirmRequest | null>(null)
-  const appConfirmResolverRef = useRef<((confirmed: boolean) => void) | null>(null)
   const [isBatchUpdating, setIsBatchUpdating] = useState(false)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
   const [deletingPostPath, setDeletingPostPath] = useState<string | null>(null)
@@ -407,27 +396,6 @@ export default function App() {
     validate,
     markSaved,
   } = useEditorDocument()
-
-  const requestConfirmation = useCallback((request: AppConfirmRequest) => {
-    appConfirmResolverRef.current?.(false)
-
-    return new Promise<boolean>((resolve) => {
-      appConfirmResolverRef.current = resolve
-      setAppConfirmRequest(request)
-    })
-  }, [])
-
-  const resolveAppConfirmation = useCallback((confirmed: boolean) => {
-    const resolver = appConfirmResolverRef.current
-    appConfirmResolverRef.current = null
-    setAppConfirmRequest(null)
-    resolver?.(confirmed)
-  }, [])
-
-  useEffect(() => () => {
-    appConfirmResolverRef.current?.(false)
-    appConfirmResolverRef.current = null
-  }, [])
 
   const filteredPosts = useMemo(
     () =>
@@ -835,17 +803,12 @@ export default function App() {
     setError(null)
   }
 
-  const confirmNavigation = async () => {
+  const confirmNavigation = () => {
     if (canNavigateAway) {
       return true
     }
 
-    const shouldDiscard = await requestConfirmation({
-      title: '丢弃未保存修改？',
-      message: '当前内容还有未保存的修改。继续操作会丢弃这次修改。',
-      confirmLabel: '丢弃并继续',
-      cancelLabel: '继续编辑',
-    })
+    const shouldDiscard = window.confirm('当前有未保存的修改。确认丢弃并继续吗？')
     if (shouldDiscard && document) {
       removeLocalDraft(document.path)
     }
@@ -901,7 +864,7 @@ export default function App() {
     setError(null)
   }
 
-  const resolveDocumentWithLocalDraft = async (savedPost: ParsedPost) => {
+  const resolveDocumentWithLocalDraft = (savedPost: ParsedPost) => {
     const storedDraft = readLocalDraft(savedPost.path)
     if (!storedDraft || !hasRecoverableChanges(storedDraft.draftDocument, storedDraft.savedDocument)) {
       return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
@@ -912,12 +875,7 @@ export default function App() {
       storedDraft.savedDocument?.sha === savedPost.sha
 
     if (!hasMatchingBaseline) {
-      const shouldRestore = await requestConfirmation({
-        title: '恢复本地草稿？',
-        message: '检测到本地未保存草稿，但远端内容可能已更新。恢复后会继续编辑本地草稿。',
-        confirmLabel: '恢复草稿',
-        cancelLabel: '打开远端内容',
-      })
+      const shouldRestore = window.confirm('检测到本地未保存草稿，但远端内容可能已更新。是否恢复本地草稿继续编辑？')
       if (!shouldRestore) {
         return { savedPost, draftPost: null as ParsedPost | null, successMessage: null as string | null }
       }
@@ -930,8 +888,8 @@ export default function App() {
     }
   }
 
-  const handleNewPost = async () => {
-    if (!(await confirmNavigation())) {
+  const handleNewPost = () => {
+    if (!confirmNavigation()) {
       return
     }
 
@@ -949,7 +907,7 @@ export default function App() {
   }
 
   const openIndexedPost = async (post: PostIndexItem, options?: OpenIndexedPostOptions) => {
-    if (!session || (!options?.skipNavigationConfirm && !(await confirmNavigation()))) {
+    if (!session || (!options?.skipNavigationConfirm && !confirmNavigation())) {
       return false
     }
 
@@ -969,7 +927,7 @@ export default function App() {
     const cachedFile = readCachedMarkdownFile(post.path, post.sha)
     if (cachedFile) {
       setIsOpeningPost(false)
-      const resolvedDocument = await resolveDocumentWithLocalDraft(parseOpenedFile(cachedFile))
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(cachedFile))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -989,7 +947,7 @@ export default function App() {
 
     try {
       const file = await fetchMarkdownFile(session, post.path)
-      const resolvedDocument = await resolveDocumentWithLocalDraft(parseOpenedFile(file))
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseOpenedFile(file))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -1051,8 +1009,8 @@ export default function App() {
     setAdminView('dashboard')
   }
 
-  const handleBackToDashboard = async () => {
-    if (!(await confirmNavigation())) {
+  const handleBackToDashboard = () => {
+    if (!confirmNavigation()) {
       return
     }
 
@@ -1062,11 +1020,11 @@ export default function App() {
   const handleBackNavigation = async () => {
     const previousEntry = editorNavigationStack[editorNavigationStack.length - 1]
     if (!previousEntry) {
-      await handleBackToDashboard()
+      handleBackToDashboard()
       return
     }
 
-    if (!(await confirmNavigation())) {
+    if (!confirmNavigation()) {
       return
     }
 
@@ -1097,19 +1055,13 @@ export default function App() {
     setAdminView('trash')
   }
 
-  const handleDeletePost = async (post: PostIndexItem) => {
+  const handleDeletePost = (post: PostIndexItem) => {
     if (isDeletingPost || isTogglingPinned) {
       return
     }
 
     if (document?.path === post.path && !canNavigateAway) {
-      const shouldContinue = await requestConfirmation({
-        title: '未保存修改',
-        message: '当前文章有未保存的修改。删除后会进入回收站，确认继续吗？',
-        confirmLabel: '继续删除',
-        cancelLabel: '继续编辑',
-        isDangerous: true,
-      })
+      const shouldContinue = window.confirm('当前文章有未保存的修改。删除后会进入回收站，确认继续吗？')
       if (!shouldContinue) {
         return
       }
@@ -1410,12 +1362,12 @@ export default function App() {
   }
 
   const handleOpenReadLaterAnnotation = async (annotation: ReadLaterAnnotationIndexItem) => {
-    if (!session || !(await confirmNavigation())) {
+    if (!session || !confirmNavigation()) {
       return
     }
 
-    const openAnnotationDocument = async (file: { path: string; sha: string; content: string }) => {
-      const resolvedDocument = await resolveDocumentWithLocalDraft(parseReadLaterItem(file))
+    const openAnnotationDocument = (file: { path: string; sha: string; content: string }) => {
+      const resolvedDocument = resolveDocumentWithLocalDraft(parseReadLaterItem(file))
       openDocument(resolvedDocument.savedPost, {
         draftPost: resolvedDocument.draftPost,
         successMessage: resolvedDocument.successMessage,
@@ -1436,7 +1388,7 @@ export default function App() {
     const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
     if (cachedFile) {
       setIsOpeningPost(false)
-      await openAnnotationDocument(cachedFile)
+      openAnnotationDocument(cachedFile)
       return
     }
 
@@ -1446,7 +1398,7 @@ export default function App() {
 
     try {
       const file = await fetchMarkdownFile(session, annotation.postPath)
-      await openAnnotationDocument(file)
+      openAnnotationDocument(file)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -1809,14 +1761,7 @@ export default function App() {
     const shouldConfirmOverwrite = currentBody.length > 0 && currentBody !== defaultBody
     if (
       shouldConfirmOverwrite &&
-      !(await requestConfirmation({
-        title: '覆盖当前正文？',
-        message: hasAnnotations
-          ? '当前正文和高亮批注将被导入内容覆盖，确认继续吗？'
-          : '当前正文将被导入内容覆盖，确认继续吗？',
-        confirmLabel: '覆盖并导入',
-        cancelLabel: '取消',
-      }))
+      !window.confirm(hasAnnotations ? '当前正文和高亮批注将被导入内容覆盖，确认继续吗？' : '当前正文将被导入内容覆盖，确认继续吗？')
     ) {
       return
     }
@@ -1955,12 +1900,7 @@ export default function App() {
     const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
     if (
       duplicatedPost &&
-      !(await requestConfirmation({
-        title: '已存在相同待读',
-        message: `已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`,
-        confirmLabel: '仍然创建',
-        cancelLabel: '取消',
-      }))
+      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
     ) {
       return
     }
@@ -2101,7 +2041,7 @@ export default function App() {
   }
 
   const handleOpenRecoveredDraft = async (path: string) => {
-    if (!(await confirmNavigation())) {
+    if (!confirmNavigation()) {
       return
     }
 
@@ -2317,16 +2257,13 @@ export default function App() {
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
-  const activeDocumentContentType = document ? getContentTypeFromPostLike(document) : null
-  const isReadLaterDocument = activeDocumentContentType === 'read-later'
-  const useContinuousLiveEditor = Boolean(
-    isImmersive && (activeDocumentContentType === 'post' || activeDocumentContentType === 'knowledge'),
-  )
+  const isReadLaterDocument = document?.contentType === 'read-later'
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
   const hideTopBar = isReadLaterPreview && isReadLaterTopBarHidden
   const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
+  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
   const canReturnToPreviousDocument = editorNavigationStack.length > 0
   const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
   const readerBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回归档'
@@ -2359,11 +2296,11 @@ export default function App() {
           backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
-          onContentTypeChange={async (value) => {
+          onContentTypeChange={(value) => {
             if (value === contentType) {
               return
             }
-            if (!(await confirmNavigation())) {
+            if (!confirmNavigation()) {
               return
             }
             resetPreviewImageUrls()
@@ -2393,8 +2330,7 @@ export default function App() {
           onTogglePinnedCurrent={activeDocumentPost ? () => { void handleTogglePinned(activeDocumentPost) } : undefined}
           isDeletingCurrent={Boolean(activeDocumentPost && isDeletingPost && deletingPostPath === activeDocumentPost.path)}
           isDeleteActionDisabled={!activeDocumentPost?.sha || isDeletingPost || isTogglingPinned}
-          onDeleteCurrent={activeDocumentPost ? () => { void handleDeletePost(activeDocumentPost) } : undefined}
-          editorTitle={document?.frontmatter.title || null}
+          onDeleteCurrent={activeDocumentPost ? () => handleDeletePost(activeDocumentPost) : undefined}
         />
       ) : null}
       {isDashboard ? (
@@ -2494,6 +2430,22 @@ export default function App() {
             <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
+                  {showDocumentFrame ? (
+                    <section className="editor-frame">
+                      <div className="editor-frame__header">
+                        <div>
+                          <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>当前稿件</p>
+                          <h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>
+                            {document.frontmatter.title?.trim() || '未命名草稿'}
+                          </h1>
+                        </div>
+                      </div>
+                      <div className="editor-frame__meta">
+                        <span>{document.path}</span>
+                        <span>{mode === 'preview' ? (isReadLaterDocument ? '阅读视图' : '预览模式') : '编辑模式'}</span>
+                      </div>
+                    </section>
+                  ) : null}
                   {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
                   {error ? <p className="error-message">{error}</p> : null}
                   {mode === 'preview' ? (
@@ -2535,38 +2487,6 @@ export default function App() {
                       onOpenInternalReference={handleOpenInternalReference}
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
-                    />
-                  ) : activeDocumentContentType === 'read-later' ? (
-                    <MarkdownEditor
-                      value={document.body}
-                      onChange={handleEditorChange}
-                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-                      isImmersive={isImmersive}
-                      onUploadImage={handleUploadImage}
-                      internalReferenceCandidates={internalReferenceCandidates}
-                    />
-                  ) : useContinuousLiveEditor ? (
-                    <LiveMarkdownEditor
-                      documentKey={document.path}
-                      value={document.body}
-                      title={document.frontmatter.title}
-                      date={document.frontmatter.date}
-                      contentType={activeDocumentContentType === 'knowledge' ? 'knowledge' : 'post'}
-                      contentFormat={documentContentFormat}
-                      sourceType={document.frontmatter.source_type}
-                      sourceTitle={document.frontmatter.source_title}
-                      sourcePath={document.frontmatter.source_path}
-                      sourceUrl={document.frontmatter.source_url}
-                      previewImageUrls={previewImageUrls}
-                      onChange={handleEditorChange}
-                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-                      isImmersive={isImmersive}
-                      onUploadImage={handleUploadImage}
-                      internalReferenceCandidates={internalReferenceCandidates}
-                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
-                      onOpenWikiLink={handleOpenTopicNode}
-                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
-                      onOpenInternalReference={handleOpenInternalReference}
                     />
                   ) : (
                     <MarkdownEditor
@@ -2633,17 +2553,6 @@ export default function App() {
           onClearSelectedMaterials={clearSelectedMaterials}
           onConfirm={() => { void handleConfirmOrganizeMaterials() }}
           onCancel={() => setIsMaterialOrganizerOpen(false)}
-        />
-      ) : null}
-      {appConfirmRequest ? (
-        <ConfirmDialog
-          title={appConfirmRequest.title}
-          message={appConfirmRequest.message}
-          confirmLabel={appConfirmRequest.confirmLabel}
-          cancelLabel={appConfirmRequest.cancelLabel}
-          isDangerous={appConfirmRequest.isDangerous}
-          onConfirm={() => resolveAppConfirmation(true)}
-          onCancel={() => resolveAppConfirmation(false)}
         />
       ) : null}
       {taxonomyConfirm ? (

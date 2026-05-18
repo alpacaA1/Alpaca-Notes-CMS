@@ -191,32 +191,6 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: 'Markdown' })).toBeNull()
   })
 
-  it('opens diary documents in a single full-document markdown editor', async () => {
-    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
-    vi.spyOn(indexPostsModule, 'buildDiaryIndex').mockResolvedValue([diaryPost])
-    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
-      path: diaryPost.path,
-      sha: diaryPost.sha,
-      content: diaryContent,
-    })
-
-    render(<App />)
-
-    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
-    await waitFor(() => {
-      expect(screen.getByText('2026-05-06-星期三')).toBeTruthy()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
-
-    const markdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    expect(markdownEditor.value).toContain('## 今日进展')
-    expect(markdownEditor.value).toContain('- [x] 完成预览适配')
-    expect(markdownEditor.value).toContain('## 知识点')
-    expect(screen.getAllByLabelText('Markdown 编辑器')).toHaveLength(1)
-  })
-
   it('returns to markdown mode after leaving preview', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
@@ -335,18 +309,18 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: /read-later mode item/i }))
     await screen.findByText('这里是原文摘录。')
 
-    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '隐藏顶部栏' }))
 
-    expect(screen.queryByRole('button', { name: '退出登录' })).toBeNull()
+    expect(screen.queryByRole('textbox', { name: '搜索' })).toBeNull()
     expect(screen.getByRole('button', { name: '显示顶部栏' })).toBeTruthy()
     expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '显示顶部栏' }))
 
-    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
+    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '隐藏顶部栏' })).toBeTruthy()
     expect(container.querySelector('.admin-shell--reader-top-bar-hidden')).toBeNull()
   })
@@ -746,8 +720,7 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
-    expect(screen.getAllByText('Supported post').length).toBeGreaterThanOrEqual(2)
-    expect(screen.getByText('编辑中 · source/_posts/supported.md')).toBeTruthy()
+    expect(screen.getByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
 
@@ -760,93 +733,16 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
 
+    expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
-    expect(document.querySelector('.single-pane-live-editor')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.single-pane-live-editor__document-toolbar')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.markdown-editor__toolbar')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 
-    expect(await screen.findByText('编辑中 · source/_posts/supported.md')).toBeTruthy()
+    expect(await screen.findByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
-  })
-
-  it('uses the continuous immersive editor for newly created posts', async () => {
-    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
-
-    render(<App />)
-
-    await waitFor(() => {
-      expect(screen.getAllByRole('button', { name: '+ 新建文章' }).length).toBeGreaterThan(0)
-    })
-
-    fireEvent.click(screen.getAllByRole('button', { name: '+ 新建文章' })[0])
-    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
-
-    expect(document.querySelector('.single-pane-live-editor')).toBeTruthy()
-    expect(document.querySelector('.single-pane-live-editor__document-toolbar-hint')).toBeNull()
-
-    const markdownEditor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    fireEvent.change(markdownEditor, {
-      target: { value: '### 嗯是对方' },
-    })
-
-    const headingEditor = await screen.findByRole('textbox', { name: 'Markdown 标题编辑器' })
-    headingEditor.focus()
-    const selection = window.getSelection()
-    const range = document.createRange()
-    range.selectNodeContents(headingEditor)
-    range.collapse(false)
-    selection?.removeAllRanges()
-    selection?.addRange(range)
-
-    fireEvent.keyDown(headingEditor, { key: 'Enter' })
-
-    await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '嗯是对方' })).toBeTruthy()
-      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
-    })
-  })
-
-  it('keeps continuous immersive body edits after exiting immersive mode', async () => {
-    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
-    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
-    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
-      path: supportedPost.path,
-      sha: supportedPost.sha,
-      content: supportedContent,
-    })
-
-    render(<App />)
-
-    await waitFor(() => {
-      expect(screen.getByText('Supported post')).toBeTruthy()
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
-    await screen.findByLabelText('Markdown 编辑器')
-
-    fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
-
-    const immersiveMarkdownEditor = screen.queryByLabelText('Markdown 编辑器')
-    if (immersiveMarkdownEditor) {
-      fireEvent.change(immersiveMarkdownEditor, {
-        target: { value: 'Immersive live body edit.' },
-      })
-    } else {
-      const immersiveRichEditor = await screen.findByRole('textbox', { name: 'Markdown 段落编辑器' })
-      immersiveRichEditor.textContent = 'Immersive live body edit.'
-      fireEvent.input(immersiveRichEditor)
-    }
-
-    fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
-
-    const restoredMarkdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    expect(restoredMarkdownEditor.value).toBe('Immersive live body edit.')
   })
 
   it('renders unsaved title and body edits in preview and returns to markdown mode on exit', async () => {
@@ -876,6 +772,7 @@ describe('App editor modes', () => {
 
     expect(await screen.findByRole('heading', { name: 'Edited title before preview' })).toBeTruthy()
     expect(screen.getByText(/Edited body before preview/)).toBeTruthy()
+    expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
 
@@ -885,7 +782,7 @@ describe('App editor modes', () => {
     expect(restoredMarkdownEditor).toBeTruthy()
     expect(screen.getByDisplayValue('Edited title before preview')).toBeTruthy()
     expect(screen.getByDisplayValue('Edited body before preview with **bold** text.')).toBeTruthy()
-    expect(screen.getByText('Edited title before preview')).toBeTruthy()
+    expect(screen.getByText('当前稿件')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
   })

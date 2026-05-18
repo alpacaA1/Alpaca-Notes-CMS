@@ -1,14 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useId,
-  useImperativeHandle,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   buildInternalReferenceMarkdown,
   getInternalReferenceTypeLabel,
@@ -31,37 +21,11 @@ type MarkdownEditorProps = {
   isImmersive?: boolean
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
   internalReferenceCandidates?: InternalReferenceCandidate[]
-  label?: string
-  hint?: string
-  surfaceClassName?: string
-  textareaClassName?: string
-  footer?: ReactNode
-  showMeta?: boolean
-  autoFocus?: boolean
-  autoResize?: boolean
-  initialSelection?: SelectionRange | 'start' | 'end'
-  onSplitBlock?: (selection: SelectionRange, value: string) => boolean | void
-  onRemoveEmptyBlockBackward?: () => boolean | void
-  onMoveBetweenBlocks?: (direction: 'up' | 'down') => boolean | void
-  onSelectionBoundaryDrag?: (event: MarkdownEditorSelectionBoundaryDrag) => void
-  hideToolbar?: boolean
 }
 
-export type SelectionRange = {
+type SelectionRange = {
   start: number
   end: number
-}
-
-export type MarkdownEditorSelectionBoundaryDrag = {
-  direction: 'up' | 'down'
-  selection: SelectionRange
-  clientX: number
-  clientY: number
-}
-
-export type MarkdownEditorHandle = {
-  focus: (selection?: SelectionRange | 'start' | 'end') => void
-  openImagePicker: () => void
 }
 
 type HistoryEntry = {
@@ -585,28 +549,14 @@ function getActiveInternalReferenceQuery(value: string, selection: SelectionRang
   }
 }
 
-const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(function MarkdownEditor({
+export default function MarkdownEditor({
   value,
   onChange,
   onToggleImmersive,
   isImmersive = false,
   onUploadImage,
   internalReferenceCandidates = [],
-  label = 'Markdown 编辑',
-  hint = '适合精确保留旧语法、嵌入与原始结构。',
-  surfaceClassName,
-  textareaClassName,
-  footer,
-  showMeta = true,
-  autoFocus = false,
-  autoResize = false,
-  initialSelection,
-  onSplitBlock,
-  onRemoveEmptyBlockBackward,
-  onMoveBetweenBlocks,
-  onSelectionBoundaryDrag,
-  hideToolbar = false,
-}, ref) {
+}: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const currentValueRef = useRef(value)
@@ -624,42 +574,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
   const textareaId = useId()
 
   currentValueRef.current = value
-
-  const syncAutoResizeHeight = () => {
-    if (!textareaRef.current || !autoResize) {
-      return
-    }
-
-    textareaRef.current.style.height = '0px'
-    textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`
-  }
-
-  useEffect(() => {
-    if (!textareaRef.current || !autoFocus) {
-      return
-    }
-
-    textareaRef.current.focus()
-
-    if (!initialSelection) {
-      return
-    }
-
-    const nextSelection =
-      initialSelection === 'start'
-        ? { start: 0, end: 0 }
-        : initialSelection === 'end'
-          ? { start: value.length, end: value.length }
-          : initialSelection
-
-    textareaRef.current.setSelectionRange(nextSelection.start, nextSelection.end)
-    trackedSelectionRef.current = nextSelection
-    setEditorSelection(nextSelection)
-  }, [autoFocus, initialSelection])
-
-  useLayoutEffect(() => {
-    syncAutoResizeHeight()
-  }, [autoResize, value])
 
   useLayoutEffect(() => {
     if (!textareaRef.current || !pendingSelectionRef.current) {
@@ -814,37 +728,14 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     trackedSelectionRef.current = uploadSelectionRef.current
   }
 
-  const openImagePicker = () => {
+  const handleUploadButtonClick = () => {
     if (!fileInputRef.current || !onUploadImage) {
       return
     }
 
-    uploadSelectionRef.current = trackedSelectionRef.current
     fileInputRef.current.value = ''
     fileInputRef.current.click()
   }
-
-  useImperativeHandle(ref, () => ({
-    focus: (selection = trackedSelectionRef.current) => {
-      if (!textareaRef.current) {
-        return
-      }
-
-      textareaRef.current.focus()
-
-      const nextSelection =
-        selection === 'start'
-          ? { start: 0, end: 0 }
-          : selection === 'end'
-            ? { start: currentValueRef.current.length, end: currentValueRef.current.length }
-            : selection
-
-      textareaRef.current.setSelectionRange(nextSelection.start, nextSelection.end)
-      trackedSelectionRef.current = nextSelection
-      setEditorSelection(nextSelection)
-    },
-    openImagePicker,
-  }), [])
 
   const handleFileInputChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -989,36 +880,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
       }
     }
 
-    if (
-      event.key === 'ArrowUp' &&
-      !event.shiftKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      selectionStart === 0 &&
-      selectionEnd === 0 &&
-      onMoveBetweenBlocks?.('up')
-    ) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
-
-    if (
-      event.key === 'ArrowDown' &&
-      !event.shiftKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      selectionStart === value.length &&
-      selectionEnd === value.length &&
-      onMoveBetweenBlocks?.('down')
-    ) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
-    }
-
     if (event.altKey && selectionStart === selectionEnd) {
       const direction = event.key === 'ArrowDown' ? 'down' : event.key === 'ArrowUp' ? 'up' : null
       if (direction) {
@@ -1033,21 +894,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     }
 
     if (event.key === 'Backspace' && selectionStart === selectionEnd) {
-      if (
-        !event.shiftKey &&
-        !event.altKey &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        value.trim().length === 0 &&
-        selectionStart === 0 &&
-        selectionEnd === 0 &&
-        onRemoveEmptyBlockBackward?.()
-      ) {
-        event.preventDefault()
-        event.stopPropagation()
-        return
-      }
-
       const lineStart = getLineStart(value, selectionStart)
       const lineEnd = getLineEnd(value, selectionStart)
       const lineIndex = getLineIndex(value, lineStart)
@@ -1095,19 +941,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         dispatchValueChange(nextValue, { start: removeStart, end: removeStart }, selection)
         return
       }
-    }
-
-    if (
-      event.key === 'Enter' &&
-      !event.shiftKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      !event.ctrlKey &&
-      onSplitBlock?.(selection, value)
-    ) {
-      event.preventDefault()
-      event.stopPropagation()
-      return
     }
 
     if (event.key === 'Enter' && selectionStart === selectionEnd) {
@@ -1271,246 +1104,106 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
     dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
   }
 
-  const handleTextareaMouseDown = (event: React.MouseEvent<HTMLTextAreaElement>) => {
-    if (!onSelectionBoundaryDrag || event.button !== 0) {
-      return
-    }
-
-    const textarea = event.currentTarget
-    const ownerDocument = textarea.ownerDocument
-    let boundaryDrag:
-      | Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
-      | null = null
-
-    const getBoundaryDrag = (mouseEvent: MouseEvent) => {
-      const selection = getSelectionRange(textarea)
-      const bounds = textarea.getBoundingClientRect()
-
-      if (mouseEvent.clientY < bounds.top && selection.start === 0 && selection.end > 0) {
-        return {
-          direction: 'up',
-          selection,
-        } satisfies Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
-      }
-
-      if (mouseEvent.clientY > bounds.bottom && selection.end === textarea.value.length && selection.start < textarea.value.length) {
-        return {
-          direction: 'down',
-          selection,
-        } satisfies Pick<MarkdownEditorSelectionBoundaryDrag, 'direction' | 'selection'>
-      }
-
-      return null
-    }
-
-    const handleMouseMove = (mouseEvent: MouseEvent) => {
-      boundaryDrag = boundaryDrag ?? getBoundaryDrag(mouseEvent)
-      if (!boundaryDrag) {
-        return
-      }
-
-      onSelectionBoundaryDrag({
-        ...boundaryDrag,
-        clientX: mouseEvent.clientX,
-        clientY: mouseEvent.clientY,
-      })
-    }
-
-    const handleMouseUp = (mouseEvent: MouseEvent) => {
-      handleMouseMove(mouseEvent)
-      ownerDocument.removeEventListener('mousemove', handleMouseMove)
-      ownerDocument.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    ownerDocument.addEventListener('mousemove', handleMouseMove)
-    ownerDocument.addEventListener('mouseup', handleMouseUp)
-  }
-
-  const surfaceClassNames = ['editor-surface', 'editor-surface--editor-canvas', surfaceClassName]
-    .filter(Boolean)
-    .join(' ')
-  const editorTextareaClassNames = ['editor-textarea', 'editor-textarea--editor-canvas', textareaClassName]
-    .filter(Boolean)
-    .join(' ')
-
-  const showToolbar = !hideToolbar || isInternalReferencePanelVisible
-
   return (
-    <section className={surfaceClassNames}>
-      {showToolbar ? (
-        <div className="markdown-editor__toolbar">
-          {!hideToolbar && showMeta ? (
-            <div className="markdown-editor__meta">
-              <label className="editor-surface__label" htmlFor={textareaId}>
-                {label}
-              </label>
-              <span className="editor-surface__hint">{hint}</span>
-            </div>
+    <section className="editor-surface editor-surface--editor-canvas">
+      <div className="markdown-editor__toolbar">
+        <div className="markdown-editor__meta">
+          <label className="editor-surface__label" htmlFor={textareaId}>
+            Markdown 编辑
+          </label>
+          <span className="editor-surface__hint">适合精确保留旧语法、嵌入与原始结构。</span>
+        </div>
+        <div className="markdown-editor__actions">
+          {onUploadImage ? (
+            <>
+              <input
+                ref={fileInputRef}
+                aria-label="上传图片文件"
+                className="sr-only"
+                type="file"
+                accept="image/*"
+                tabIndex={-1}
+                onChange={(event) => {
+                  void handleFileInputChange(event)
+                }}
+              />
+              <button
+                type="button"
+                className="markdown-editor__upload-button"
+                disabled={isUploadingImage}
+                onMouseDown={handleUploadButtonMouseDown}
+                onClick={handleUploadButtonClick}
+              >
+                上传图片
+              </button>
+            </>
           ) : null}
-          {!hideToolbar ? (
-            <div className="markdown-editor__actions">
-              {onUploadImage ? (
-                <>
-                  <input
-                    ref={fileInputRef}
-                    aria-label="上传图片文件"
-                    className="sr-only"
-                    type="file"
-                    accept="image/*"
-                    tabIndex={-1}
-                    onChange={(event) => {
-                      void handleFileInputChange(event)
-                    }}
-                  />
-                  <button
-                    type="button"
-                    className="markdown-editor__upload-button"
-                    disabled={isUploadingImage}
-                    onMouseDown={handleUploadButtonMouseDown}
-                    onClick={openImagePicker}
-                  >
-                    上传图片
-                  </button>
-                </>
-              ) : null}
-              {onToggleImmersive ? (
-                <button type="button" className="markdown-editor__upload-button" onClick={onToggleImmersive}>
-                  {isImmersive ? '退出沉浸' : '沉浸模式'}
+          {onToggleImmersive ? (
+            <button type="button" className="markdown-editor__upload-button" onClick={onToggleImmersive}>
+              {isImmersive ? '退出沉浸' : '沉浸模式'}
+            </button>
+          ) : null}
+          {isInternalReferencePanelVisible ? (
+            <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
+              <div className="markdown-editor__reference-panel-header">
+                <div className="markdown-editor__reference-panel-heading">
+                  <strong>内部引用</strong>
+                  <span>回车即可插入</span>
+                </div>
+                <button
+                  type="button"
+                  className="markdown-editor__reference-dismiss"
+                  aria-label="关闭内部引用候选"
+                  onMouseDown={(event) => {
+                    event.preventDefault()
+                  }}
+                  onClick={dismissInternalReferencePanel}
+                >
+                  收起
                 </button>
-              ) : null}
-              {isInternalReferencePanelVisible ? (
-                <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
-                  <div className="markdown-editor__reference-panel-header">
-                    <div className="markdown-editor__reference-panel-heading">
-                      <strong>内部引用</strong>
-                      <span>回车即可插入</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="markdown-editor__reference-dismiss"
-                      aria-label="关闭内部引用候选"
-                      onMouseDown={(event) => {
-                        event.preventDefault()
-                      }}
-                      onClick={dismissInternalReferencePanel}
-                    >
-                      收起
-                    </button>
-                  </div>
-                  {visibleInternalReferenceCandidates.length > 0 ? (
-                    <div className="markdown-editor__reference-options">
-                      {visibleInternalReferenceCandidates.map((candidate, index) => {
-                        const isActive = index === activeInternalReferenceIndex
-
-                        return (
-                          <button
-                            key={candidate.targetKey}
-                            type="button"
-                            role="option"
-                            aria-selected={isActive}
-                            className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
-                            onMouseDown={(event) => {
-                              event.preventDefault()
-                            }}
-                            onClick={() => insertInternalReference(candidate)}
-                            onMouseEnter={() => setActiveInternalReferenceIndex(index)}
-                          >
-                            <span className="markdown-editor__reference-option-main">
-                              <strong>{candidate.title}</strong>
-                              <span className="markdown-editor__reference-option-type">
-                                {getInternalReferenceTypeLabel(candidate.contentType, candidate.isTopicNode)}
-                              </span>
-                            </span>
-                            <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ) : isInternalReferencePanelVisible ? (
-            <div className="markdown-editor__actions">
-              <div className="markdown-editor__reference-panel" role="listbox" aria-label="内部引用候选">
-                <div className="markdown-editor__reference-panel-header">
-                  <div className="markdown-editor__reference-panel-heading">
-                    <strong>内部引用</strong>
-                    <span>回车即可插入</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="markdown-editor__reference-dismiss"
-                    aria-label="关闭内部引用候选"
-                    onMouseDown={(event) => {
-                      event.preventDefault()
-                    }}
-                    onClick={dismissInternalReferencePanel}
-                  >
-                    收起
-                  </button>
-                </div>
-                {visibleInternalReferenceCandidates.length > 0 ? (
-                  <div className="markdown-editor__reference-options">
-                    {visibleInternalReferenceCandidates.map((candidate, index) => {
-                      const isActive = index === activeInternalReferenceIndex
-
-                      return (
-                        <button
-                          key={candidate.targetKey}
-                          type="button"
-                          role="option"
-                          aria-selected={isActive}
-                          className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
-                          onMouseDown={(event) => {
-                            event.preventDefault()
-                          }}
-                          onClick={() => insertInternalReference(candidate)}
-                          onMouseEnter={() => setActiveInternalReferenceIndex(index)}
-                        >
-                          <span className="markdown-editor__reference-option-main">
-                            <strong>{candidate.title}</strong>
-                            <span className="markdown-editor__reference-option-type">
-                              {getInternalReferenceTypeLabel(candidate.contentType, candidate.isTopicNode)}
-                            </span>
-                          </span>
-                          <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                ) : (
-                  <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
-                )}
               </div>
+              {visibleInternalReferenceCandidates.length > 0 ? (
+                <div className="markdown-editor__reference-options">
+                  {visibleInternalReferenceCandidates.map((candidate, index) => {
+                    const isActive = index === activeInternalReferenceIndex
+
+                    return (
+                      <button
+                        key={candidate.targetKey}
+                        type="button"
+                        role="option"
+                        aria-selected={isActive}
+                        className={`markdown-editor__reference-option${isActive ? ' is-active' : ''}`}
+                        onMouseDown={(event) => {
+                          event.preventDefault()
+                        }}
+                        onClick={() => insertInternalReference(candidate)}
+                        onMouseEnter={() => setActiveInternalReferenceIndex(index)}
+                      >
+                        <span className="markdown-editor__reference-option-main">
+                          <strong>{candidate.title}</strong>
+                          <span className="markdown-editor__reference-option-type">
+                            {getInternalReferenceTypeLabel(candidate.contentType, candidate.isTopicNode)}
+                          </span>
+                        </span>
+                        <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="markdown-editor__reference-empty">没有找到匹配内容，继续输入或换个关键词。</p>
+              )}
             </div>
           ) : null}
         </div>
-      ) : (
-        onUploadImage ? (
-          <input
-            ref={fileInputRef}
-            aria-label="上传图片文件"
-            className="sr-only"
-            type="file"
-            accept="image/*"
-            tabIndex={-1}
-            onChange={(event) => {
-              void handleFileInputChange(event)
-            }}
-          />
-        ) : null
-      )}
+      </div>
       <textarea
         id={textareaId}
         ref={textareaRef}
         aria-label="Markdown 编辑器"
-        className={editorTextareaClassNames}
+        className="editor-textarea editor-textarea--editor-canvas"
         value={value}
-        rows={autoResize ? 1 : undefined}
-        autoFocus={autoFocus}
         disabled={isUploadingImage}
         onChange={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)
@@ -1535,11 +1228,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorHandle, MarkdownEditorProps>(fun
         }}
         onKeyDown={handleKeyDown}
         onPaste={handlePaste}
-        onMouseDown={handleTextareaMouseDown}
       />
-      {footer ? <div className="markdown-editor__footer">{footer}</div> : null}
     </section>
   )
-})
-
-export default MarkdownEditor
+}
