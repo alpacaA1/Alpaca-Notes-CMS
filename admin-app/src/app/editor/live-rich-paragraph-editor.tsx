@@ -7,8 +7,11 @@ export type LiveRichParagraphEditorHandle = {
 type LiveRichParagraphEditorProps = {
   value: string
   className?: string
+  ariaLabel?: string
   autoFocus?: boolean
   initialSelection?: 'start' | 'end'
+  allowSoftBreaks?: boolean
+  normalizeValue?: (value: string) => string
   onChange: (value: string) => void
   onSplitBlock?: (value: string) => boolean | void
   onRemoveEmptyBlockBackward?: () => boolean | void
@@ -287,8 +290,11 @@ function insertPlainTextAtSelection(root: HTMLElement, text: string) {
 const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRichParagraphEditorProps>(function LiveRichParagraphEditor({
   value,
   className,
+  ariaLabel = 'Markdown 段落编辑器',
   autoFocus = false,
   initialSelection = 'end',
+  allowSoftBreaks = true,
+  normalizeValue = (nextValue) => nextValue,
   onChange,
   onSplitBlock,
   onRemoveEmptyBlockBackward,
@@ -313,7 +319,7 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
       return
     }
 
-    const nextValue = serializeEditableRoot(editorRef.current)
+    const nextValue = normalizeValue(serializeEditableRoot(editorRef.current))
     if (nextValue === value) {
       return
     }
@@ -359,7 +365,7 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
     <div
       ref={editorRef}
       role="textbox"
-      aria-label="Markdown 段落编辑器"
+      aria-label={ariaLabel}
       aria-multiline="true"
       className={className}
       contentEditable
@@ -369,7 +375,7 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
         emitChangeFromDom()
       }}
       onPaste={(event) => {
-        const pastedText = event.clipboardData.getData('text/plain')
+        const pastedText = normalizeValue(event.clipboardData.getData('text/plain'))
         if (!pastedText) {
           return
         }
@@ -385,6 +391,11 @@ const LiveRichParagraphEditor = forwardRef<LiveRichParagraphEditorHandle, LiveRi
         if (event.key === 'Enter') {
           const isAtEnd = isSelectionAtBoundary(root, 'end')
           if (isAtEnd && onSplitBlock?.(currentValue)) {
+            event.preventDefault()
+            return
+          }
+
+          if (!allowSoftBreaks) {
             event.preventDefault()
             return
           }

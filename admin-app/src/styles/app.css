@@ -859,6 +859,10 @@ textarea {
   color: var(--admin-text);
 }
 
+.admin-shell--dark .single-pane-live-editor__rich-editor {
+  color: var(--admin-text);
+}
+
 .admin-shell--dark .single-pane-live-editor__tail-line {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0));
 }
@@ -2918,7 +2922,7 @@ textarea {
   gap: 10px;
   max-width: 1720px;
   margin: 0 auto;
-  padding: 24px clamp(28px, 3.6vw, 48px) 0;
+  padding: 24px clamp(28px, 4.8vw, 72px) 0;
 }
 
 .single-pane-live-editor__document-toolbar-actions {
@@ -2954,7 +2958,7 @@ textarea {
   max-width: 1720px;
   margin: 0 auto;
   min-height: 100%;
-  padding: 28px clamp(40px, 5vw, 88px) 36px;
+  padding: 28px clamp(40px, 6.4vw, 128px) 36px;
   font-family: var(--single-pane-live-font-family);
   font-size: var(--single-pane-live-font-size);
   line-height: var(--single-pane-live-line-height);
@@ -3044,6 +3048,37 @@ textarea {
 
 .single-pane-live-editor__rich-editor a {
   pointer-events: none;
+}
+
+.single-pane-live-editor__rich-editor--heading {
+  font-weight: var(--single-pane-live-heading-font-weight);
+  letter-spacing: var(--single-pane-live-heading-letter-spacing);
+}
+
+.single-pane-live-editor__rich-editor--heading-1 {
+  font-size: var(--single-pane-live-heading-1-font-size);
+  line-height: var(--single-pane-live-heading-1-line-height);
+  min-height: calc(1em * var(--single-pane-live-heading-1-line-height));
+}
+
+.single-pane-live-editor__rich-editor--heading-2 {
+  font-size: var(--single-pane-live-heading-2-font-size);
+  line-height: var(--single-pane-live-heading-2-line-height);
+  min-height: calc(1em * var(--single-pane-live-heading-2-line-height));
+}
+
+.single-pane-live-editor__rich-editor--heading-3 {
+  font-size: var(--single-pane-live-heading-3-font-size);
+  line-height: var(--single-pane-live-heading-3-line-height);
+  min-height: calc(1em * var(--single-pane-live-heading-3-line-height));
+}
+
+.single-pane-live-editor__rich-editor--heading-4,
+.single-pane-live-editor__rich-editor--heading-5,
+.single-pane-live-editor__rich-editor--heading-6 {
+  font-size: var(--single-pane-live-heading-4-font-size);
+  line-height: var(--single-pane-live-heading-4-line-height);
+  min-height: calc(1em * var(--single-pane-live-heading-4-line-height));
 }
 
 .single-pane-live-editor__textarea--heading {

@@ -558,6 +558,12 @@ describe('markdown editor', () => {
     expect(appStyles).toMatch(
       /\.single-pane-live-editor__textarea--heading-4,\s*\.single-pane-live-editor__textarea--heading-5,\s*\.single-pane-live-editor__textarea--heading-6\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-4-line-height\)\);/s,
     )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__rich-editor--heading\s*\{[^}]*font-weight:\s*var\(--single-pane-live-heading-font-weight\);[^}]*letter-spacing:\s*var\(--single-pane-live-heading-letter-spacing\);/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__rich-editor--heading-3\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-3-line-height\)\);/s,
+    )
   })
 
   it('keeps preview heading line heights aligned with live editor heading levels', () => {
@@ -566,6 +572,15 @@ describe('markdown editor', () => {
     )
     expect(appStyles).toMatch(
       /\.preview-content h4,\s*\.preview-content h5,\s*\.preview-content h6\s*\{[^}]*line-height:\s*1\.28;/s,
+    )
+  })
+
+  it('gives the immersive live editor a roomier desktop gutter without losing mobile-safe clamps', () => {
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__document-toolbar\s*\{[^}]*padding:\s*24px clamp\(28px,\s*4\.8vw,\s*72px\) 0;/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__document\s*\{[^}]*padding:\s*28px clamp\(40px,\s*6\.4vw,\s*128px\) 36px;/s,
     )
   })
 

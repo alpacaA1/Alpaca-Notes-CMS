@@ -55,7 +55,8 @@ describe('LiveMarkdownEditor', () => {
     fireEvent.click(headingBlock)
 
     await waitFor(() => {
-      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('## 需求背景')
+      expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+      expect(screen.getByRole('textbox', { name: 'Markdown 标题编辑器' }).textContent).toBe('需求背景')
     })
   })
 
@@ -70,7 +71,46 @@ describe('LiveMarkdownEditor', () => {
     fireEvent.click(screen.getByRole('heading', { name: '一' }))
 
     await waitFor(() => {
-      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('### 一')
+      const editor = screen.getByRole('textbox', { name: 'Markdown 标题编辑器' })
+      expect(editor.textContent).toBe('一')
+      expect(editor.textContent).not.toContain('###')
+    })
+  })
+
+  it('splits an active heading editor into a rendered heading and a fresh paragraph block', async () => {
+    function Harness() {
+      const [value, setValue] = useState('### 一')
+
+      return (
+        <LiveMarkdownEditor
+          value={value}
+          documentKey="heading-split-doc"
+          title="预览标题"
+          date="2026-05-17 09:00:00"
+          contentType="post"
+          contentFormat="markdown"
+          onChange={setValue}
+        />
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Markdown 标题编辑器' })
+    editor.focus()
+
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.selectNodeContents(editor)
+    range.collapse(false)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '一' })).toBeTruthy()
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
     })
   })
 

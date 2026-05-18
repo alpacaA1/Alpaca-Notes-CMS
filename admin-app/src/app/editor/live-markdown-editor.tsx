@@ -49,6 +49,12 @@ type ParsedNode = {
   text: string
 }
 
+type ParsedHeadingNode = {
+  level: number
+  prefix: string
+  content: string
+}
+
 type LiveEditableHandle = MarkdownEditorHandle | LiveRichParagraphEditorHandle
 
 function isBlankLine(line: string) {
@@ -117,6 +123,24 @@ function getHeadingLevel(markdown: string) {
   const firstLine = markdown.split('\n').find((line) => line.trim().length > 0) ?? ''
   const match = firstLine.match(/^(#{1,6})\s+/)
   return match ? match[1].length : null
+}
+
+function parseHeadingNode(markdown: string): ParsedHeadingNode | null {
+  const firstLine = markdown.split('\n').find((line) => line.trim().length > 0) ?? ''
+  const match = firstLine.match(/^(#{1,6}\s+)(.*)$/)
+  if (!match) {
+    return null
+  }
+
+  return {
+    level: match[1].trim().length,
+    prefix: match[1],
+    content: match[2],
+  }
+}
+
+function normalizeSingleLineText(value: string) {
+  return value.replace(/\r/g, '').replace(/\s*\n+\s*/g, ' ')
 }
 
 function parseMarkdownNodes(markdown: string): ParsedNode[] {
@@ -498,6 +522,8 @@ export default function LiveMarkdownEditor({
             node.kind === 'paragraph' &&
             (contentFormat ?? 'markdown') === 'markdown' &&
             (richEditingNodeId === node.id || hasRenderableInlineMarkdown(node.text))
+          const parsedHeadingNode = node.kind === 'heading' ? parseHeadingNode(node.text) : null
+          const usesRichHeadingEditor = Boolean(parsedHeadingNode)
           const headingLevel = node.kind === 'heading' ? getHeadingLevel(node.text) : null
           const blockClassName = [
             'single-pane-live-editor__block',
@@ -516,22 +542,51 @@ export default function LiveMarkdownEditor({
             .join(' ')
 
           if (isActiveNode) {
-            if (usesRichParagraphEditor) {
+            if (usesRichParagraphEditor || usesRichHeadingEditor) {
+              const richEditorClassName = [
+                'single-pane-live-editor__rich-editor',
+                usesRichHeadingEditor ? 'single-pane-live-editor__rich-editor--heading' : null,
+                usesRichHeadingEditor ? `single-pane-live-editor__rich-editor--heading-${parsedHeadingNode?.level}` : null,
+              ]
+                .filter(Boolean)
+                .join(' ')
+              const richEditorValue = usesRichHeadingEditor ? parsedHeadingNode?.content ?? '' : node.text
+
               return (
                 <div key={node.id} className={blockClassName}>
                   <LiveRichParagraphEditor
                     ref={activeEditorRef as Ref<LiveRichParagraphEditorHandle>}
-                    value={node.text}
-                    className="single-pane-live-editor__rich-editor"
+                    value={richEditorValue}
+                    className={richEditorClassName}
+                    ariaLabel={usesRichHeadingEditor ? 'Markdown 标题编辑器' : 'Markdown 段落编辑器'}
                     autoFocus
                     initialSelection={focusPlacement}
-                    onChange={(nextValue) => updateNode(nodeIndex, nextValue)}
-                    onSplitBlock={(currentValue) =>
-                      handleSplitNode(
+                    allowSoftBreaks={!usesRichHeadingEditor}
+                    normalizeValue={usesRichHeadingEditor ? normalizeSingleLineText : undefined}
+                    onChange={(nextValue) => {
+                      if (usesRichHeadingEditor && parsedHeadingNode) {
+                        updateNode(nodeIndex, `${parsedHeadingNode.prefix}${normalizeSingleLineText(nextValue)}`)
+                        return
+                      }
+
+                      updateNode(nodeIndex, nextValue)
+                    }}
+                    onSplitBlock={(currentValue) => {
+                      if (usesRichHeadingEditor && parsedHeadingNode) {
+                        const nextValue = `${parsedHeadingNode.prefix}${normalizeSingleLineText(currentValue)}`
+                        return handleSplitNode(
+                          nodeIndex,
+                          { start: nextValue.length, end: nextValue.length },
+                          nextValue,
+                        )
+                      }
+
+                      return handleSplitNode(
                         nodeIndex,
                         { start: currentValue.length, end: currentValue.length },
                         currentValue,
-                      )}
+                      )
+                    }}
                     onRemoveEmptyBlockBackward={() => handleRemoveEmptyNodeBackward(nodeIndex)}
                     onMoveBetweenBlocks={(direction) => handleMoveBetweenNodes(nodeIndex, direction)}
                   />
