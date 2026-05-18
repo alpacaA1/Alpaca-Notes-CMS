@@ -535,7 +535,7 @@ describe('markdown editor', () => {
       /\.single-pane-live-editor__document\.preview-content--live li \+ li,\s*\.single-pane-live-editor__document\.preview-content--live \.preview-content__task-item \+ \.preview-content__task-item\s*\{[^}]*margin-top:\s*0;/s,
     )
     expect(appStyles).toMatch(
-      /\.single-pane-live-editor__block--list > ul,\s*\.single-pane-live-editor__block--list > ol\s*\{[^}]*padding-left:\s*0;[^}]*list-style-position:\s*inside;/s,
+      /\.single-pane-live-editor__document\.preview-content--live \.single-pane-live-editor__block--list > ul,\s*\.single-pane-live-editor__document\.preview-content--live \.single-pane-live-editor__block--list > ol\s*\{[^}]*padding-left:\s*0;[^}]*list-style-position:\s*inside;/s,
     )
   })
 
@@ -562,6 +562,9 @@ describe('markdown editor', () => {
       /\.single-pane-live-editor__rich-editor--heading\s*\{[^}]*font-weight:\s*var\(--single-pane-live-heading-font-weight\);[^}]*letter-spacing:\s*var\(--single-pane-live-heading-letter-spacing\);/s,
     )
     expect(appStyles).toMatch(
+      /\.single-pane-live-editor__heading-prefix\s*\{[^}]*white-space:\s*pre;[^}]*user-select:\s*none;/s,
+    )
+    expect(appStyles).toMatch(
       /\.single-pane-live-editor__rich-editor--heading-3\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-3-line-height\)\);/s,
     )
   })
@@ -575,12 +578,18 @@ describe('markdown editor', () => {
     )
   })
 
-  it('gives the immersive live editor a roomier desktop gutter without losing mobile-safe clamps', () => {
+  it('keeps the immersive live editor gutter aligned with the markdown canvas and the toolbar actions pinned to the right', () => {
     expect(appStyles).toMatch(
-      /\.single-pane-live-editor__document-toolbar\s*\{[^}]*padding:\s*24px clamp\(28px,\s*4\.8vw,\s*72px\) 0;/s,
+      /\.single-pane-live-editor__document-toolbar\s*\{[^}]*max-width:\s*1720px;[^}]*padding:\s*24px clamp\(28px,\s*3\.6vw,\s*48px\) 0;/s,
     )
     expect(appStyles).toMatch(
-      /\.single-pane-live-editor__document\s*\{[^}]*padding:\s*28px clamp\(40px,\s*6\.4vw,\s*128px\) 36px;/s,
+      /\.single-pane-live-editor__document-toolbar-actions\s*\{[^}]*width:\s*100%;[^}]*justify-content:\s*flex-end;[^}]*gap:\s*10px;/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__document\s*\{[^}]*--preview-content-live-padding:\s*28px clamp\(40px,\s*5vw,\s*88px\) 36px;[^}]*max-width:\s*1720px;[^}]*padding:\s*var\(--preview-content-live-padding\);/s,
+    )
+    expect(appStyles).toMatch(
+      /\.preview-content--live\s*\{[^}]*padding:\s*var\(--preview-content-live-padding,\s*0\);/s,
     )
   })
 

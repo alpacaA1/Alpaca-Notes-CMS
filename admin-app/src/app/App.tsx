@@ -2258,9 +2258,10 @@ export default function App() {
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
-  const isReadLaterDocument = document?.contentType === 'read-later'
+  const activeDocumentContentType = document ? getContentTypeFromPostLike(document) : null
+  const isReadLaterDocument = activeDocumentContentType === 'read-later'
   const useContinuousLiveEditor = Boolean(
-    isImmersive && (document?.contentType === 'post' || document?.contentType === 'knowledge'),
+    isImmersive && (activeDocumentContentType === 'post' || activeDocumentContentType === 'knowledge'),
   )
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
   const hideTopBar = isReadLaterPreview && isReadLaterTopBarHidden
@@ -2476,7 +2477,7 @@ export default function App() {
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                     />
-                  ) : document.contentType === 'read-later' ? (
+                  ) : activeDocumentContentType === 'read-later' ? (
                     <MarkdownEditor
                       value={document.body}
                       onChange={handleEditorChange}
@@ -2491,7 +2492,7 @@ export default function App() {
                       value={document.body}
                       title={document.frontmatter.title}
                       date={document.frontmatter.date}
-                      contentType={document.contentType}
+                      contentType={activeDocumentContentType === 'knowledge' ? 'knowledge' : 'post'}
                       contentFormat={documentContentFormat}
                       sourceType={document.frontmatter.source_type}
                       sourceTitle={document.frontmatter.source_title}

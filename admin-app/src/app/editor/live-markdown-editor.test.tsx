@@ -56,7 +56,9 @@ describe('LiveMarkdownEditor', () => {
 
     await waitFor(() => {
       expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
-      expect(screen.getByRole('textbox', { name: 'Markdown 标题编辑器' }).textContent).toBe('需求背景')
+      const editor = screen.getByRole('textbox', { name: 'Markdown 标题编辑器' })
+      expect(editor.textContent).toBe('需求背景')
+      expect(editor.parentElement?.textContent).toContain('## ')
     })
   })
 
@@ -73,7 +75,7 @@ describe('LiveMarkdownEditor', () => {
     await waitFor(() => {
       const editor = screen.getByRole('textbox', { name: 'Markdown 标题编辑器' })
       expect(editor.textContent).toBe('一')
-      expect(editor.textContent).not.toContain('###')
+      expect(editor.parentElement?.textContent).toContain('### ')
     })
   })
 
@@ -110,6 +112,35 @@ describe('LiveMarkdownEditor', () => {
 
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: '一' })).toBeTruthy()
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
+    })
+  })
+
+  it('splits a typed heading when the caret is inside the heading text node end', async () => {
+    const editor = renderControlledLiveEditor('')
+
+    fireEvent.change(editor, {
+      target: { value: '### 一天渡口上看到 但是都是12的撒啥是多少 sd' },
+    })
+
+    const headingEditor = await screen.findByRole('textbox', { name: 'Markdown 标题编辑器' })
+    const headingTextNode = headingEditor.firstChild
+    if (!headingTextNode) {
+      throw new Error('Missing heading text node.')
+    }
+
+    headingEditor.focus()
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.setStart(headingTextNode, headingTextNode.textContent?.length ?? 0)
+    range.collapse(true)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.keyDown(headingEditor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '一天渡口上看到 但是都是12的撒啥是多少 sd' })).toBeTruthy()
       expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
     })
   })

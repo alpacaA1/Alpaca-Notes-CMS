@@ -214,19 +214,26 @@ function getSelectionRange(root: HTMLElement) {
   return range
 }
 
+function serializeRangeContents(range: Range) {
+  return Array.from(range.cloneContents().childNodes).map(serializeEditableNode).join('')
+}
+
 function isSelectionAtBoundary(root: HTMLElement, boundary: 'start' | 'end') {
   const range = getSelectionRange(root)
   if (!range || !range.collapsed) {
     return false
   }
 
-  const markerRange = root.ownerDocument.createRange()
-  markerRange.selectNodeContents(root)
-  markerRange.collapse(boundary === 'start')
+  const remainingRange = root.ownerDocument.createRange()
+  remainingRange.selectNodeContents(root)
 
-  return boundary === 'start'
-    ? range.compareBoundaryPoints(Range.START_TO_START, markerRange) === 0
-    : range.compareBoundaryPoints(Range.END_TO_END, markerRange) === 0
+  if (boundary === 'start') {
+    remainingRange.setEnd(range.startContainer, range.startOffset)
+  } else {
+    remainingRange.setStart(range.endContainer, range.endOffset)
+  }
+
+  return serializeRangeContents(remainingRange).length === 0
 }
 
 function setSelectionToBoundary(root: HTMLElement, placement: 'start' | 'end') {

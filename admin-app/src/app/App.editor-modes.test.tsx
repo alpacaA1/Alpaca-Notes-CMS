@@ -772,6 +772,46 @@ describe('App editor modes', () => {
     expect(screen.getByText('发布设置')).toBeTruthy()
   })
 
+  it('uses the continuous immersive editor for newly created posts', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getAllByRole('button', { name: '+ 新建文章' }).length).toBeGreaterThan(0)
+    })
+
+    fireEvent.click(screen.getAllByRole('button', { name: '+ 新建文章' })[0])
+    expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
+
+    expect(document.querySelector('.single-pane-live-editor')).toBeTruthy()
+    expect(document.querySelector('.single-pane-live-editor__document-toolbar-hint')).toBeNull()
+
+    const markdownEditor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    fireEvent.change(markdownEditor, {
+      target: { value: '### 嗯是对方' },
+    })
+
+    const headingEditor = await screen.findByRole('textbox', { name: 'Markdown 标题编辑器' })
+    headingEditor.focus()
+    const selection = window.getSelection()
+    const range = document.createRange()
+    range.selectNodeContents(headingEditor)
+    range.collapse(false)
+    selection?.removeAllRanges()
+    selection?.addRange(range)
+
+    fireEvent.keyDown(headingEditor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '嗯是对方' })).toBeTruthy()
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
+    })
+  })
+
   it('keeps continuous immersive body edits after exiting immersive mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])

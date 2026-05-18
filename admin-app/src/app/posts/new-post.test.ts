@@ -16,6 +16,7 @@ describe('new post helpers', () => {
   it('generates timestamp filename YYYYMMDDHHmmss.md', () => {
     expect(formatPostTimestamp(fixedDate)).toBe('20260403060708')
     expect(createNewPost(fixedDate).path).toBe('source/_posts/20260403060708.md')
+    expect(createNewPost(fixedDate).contentType).toBe('post')
   })
 
   it('initializes default frontmatter with published false', () => {

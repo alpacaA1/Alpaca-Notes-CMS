@@ -59,6 +59,7 @@ export function createNewPost(date = new Date()): ParsedPost {
     body: '',
     hasExplicitPublished: true,
     hasExplicitPermalink: false,
+    contentType: 'post',
     frontmatter: {
       title: '',
       date: formatPostDate(date),

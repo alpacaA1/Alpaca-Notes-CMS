@@ -493,7 +493,6 @@ export default function LiveMarkdownEditor({
               </button>
             ) : null}
           </div>
-          <p className="single-pane-live-editor__document-toolbar-hint">回车提交当前段落，列表、引用和代码块保留原生 Markdown 编辑。</p>
         </div>
       ) : null}
       {onUploadImage ? (
@@ -543,50 +542,65 @@ export default function LiveMarkdownEditor({
 
           if (isActiveNode) {
             if (usesRichParagraphEditor || usesRichHeadingEditor) {
-              const richEditorClassName = [
-                'single-pane-live-editor__rich-editor',
-                usesRichHeadingEditor ? 'single-pane-live-editor__rich-editor--heading' : null,
-                usesRichHeadingEditor ? `single-pane-live-editor__rich-editor--heading-${parsedHeadingNode?.level}` : null,
-              ]
-                .filter(Boolean)
-                .join(' ')
-              const richEditorValue = usesRichHeadingEditor ? parsedHeadingNode?.content ?? '' : node.text
+              if (usesRichHeadingEditor && parsedHeadingNode) {
+                const headingEditorClassName = [
+                  'single-pane-live-editor__heading-editor',
+                  'single-pane-live-editor__rich-editor--heading',
+                  `single-pane-live-editor__rich-editor--heading-${parsedHeadingNode.level}`,
+                ].join(' ')
+
+                return (
+                  <div key={node.id} className={blockClassName}>
+                    <div className={headingEditorClassName}>
+                      <span className="single-pane-live-editor__heading-prefix" aria-hidden="true">
+                        {parsedHeadingNode.prefix}
+                      </span>
+                      <LiveRichParagraphEditor
+                        ref={activeEditorRef as Ref<LiveRichParagraphEditorHandle>}
+                        value={parsedHeadingNode.content}
+                        className="single-pane-live-editor__rich-editor single-pane-live-editor__heading-content"
+                        ariaLabel="Markdown 标题编辑器"
+                        autoFocus
+                        initialSelection={focusPlacement}
+                        allowSoftBreaks={false}
+                        normalizeValue={normalizeSingleLineText}
+                        onChange={(nextValue) => {
+                          updateNode(nodeIndex, `${parsedHeadingNode.prefix}${normalizeSingleLineText(nextValue)}`)
+                        }}
+                        onSplitBlock={(currentValue) => {
+                          const nextValue = `${parsedHeadingNode.prefix}${normalizeSingleLineText(currentValue)}`
+                          return handleSplitNode(
+                            nodeIndex,
+                            { start: nextValue.length, end: nextValue.length },
+                            nextValue,
+                          )
+                        }}
+                        onRemoveEmptyBlockBackward={() => handleRemoveEmptyNodeBackward(nodeIndex)}
+                        onMoveBetweenBlocks={(direction) => handleMoveBetweenNodes(nodeIndex, direction)}
+                      />
+                    </div>
+                  </div>
+                )
+              }
+
+              const richEditorClassName = 'single-pane-live-editor__rich-editor'
 
               return (
                 <div key={node.id} className={blockClassName}>
                   <LiveRichParagraphEditor
                     ref={activeEditorRef as Ref<LiveRichParagraphEditorHandle>}
-                    value={richEditorValue}
+                    value={node.text}
                     className={richEditorClassName}
-                    ariaLabel={usesRichHeadingEditor ? 'Markdown 标题编辑器' : 'Markdown 段落编辑器'}
+                    ariaLabel="Markdown 段落编辑器"
                     autoFocus
                     initialSelection={focusPlacement}
-                    allowSoftBreaks={!usesRichHeadingEditor}
-                    normalizeValue={usesRichHeadingEditor ? normalizeSingleLineText : undefined}
-                    onChange={(nextValue) => {
-                      if (usesRichHeadingEditor && parsedHeadingNode) {
-                        updateNode(nodeIndex, `${parsedHeadingNode.prefix}${normalizeSingleLineText(nextValue)}`)
-                        return
-                      }
-
-                      updateNode(nodeIndex, nextValue)
-                    }}
-                    onSplitBlock={(currentValue) => {
-                      if (usesRichHeadingEditor && parsedHeadingNode) {
-                        const nextValue = `${parsedHeadingNode.prefix}${normalizeSingleLineText(currentValue)}`
-                        return handleSplitNode(
-                          nodeIndex,
-                          { start: nextValue.length, end: nextValue.length },
-                          nextValue,
-                        )
-                      }
-
-                      return handleSplitNode(
+                    onChange={(nextValue) => updateNode(nodeIndex, nextValue)}
+                    onSplitBlock={(currentValue) =>
+                      handleSplitNode(
                         nodeIndex,
                         { start: currentValue.length, end: currentValue.length },
                         currentValue,
-                      )
-                    }}
+                      )}
                     onRemoveEmptyBlockBackward={() => handleRemoveEmptyNodeBackward(nodeIndex)}
                     onMoveBetweenBlocks={(direction) => handleMoveBetweenNodes(nodeIndex, direction)}
                   />
