@@ -1,8 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { InternalReferenceCandidate } from '../internal-links'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
-import MarkdownEditor from './markdown-editor'
+import MarkdownEditor, { type MarkdownEditorHandle } from './markdown-editor'
+import LiveRichParagraphEditor, {
+  hasRenderableInlineMarkdown,
+  type LiveRichParagraphEditorHandle,
+} from './live-rich-paragraph-editor'
 import { renderContentBlocks } from './preview-pane'
 
 type EditableLiveContentType = Exclude<ContentType, 'read-later'>
@@ -30,13 +34,22 @@ type LiveMarkdownEditorProps = {
   onOpenInternalReference?: (targetKey: string) => void
 }
 
-type ParsedBlockRange = {
-  start: number
-  end: number
+type FocusPlacement = 'start' | 'end'
+
+type LiveNodeKind = 'paragraph' | 'heading' | 'list' | 'blockquote' | 'code-fence' | 'thematic-break'
+
+type LiveNode = {
+  id: string
+  kind: LiveNodeKind
   text: string
 }
 
-type FocusPlacement = 'start' | 'end'
+type ParsedNode = {
+  kind: LiveNodeKind
+  text: string
+}
+
+type LiveEditableHandle = MarkdownEditorHandle | LiveRichParagraphEditorHandle
 
 function isBlankLine(line: string) {
   return line.trim().length === 0
@@ -70,30 +83,49 @@ function isIndentedContinuationLine(line: string) {
   return /^\s{2,}\S/.test(line)
 }
 
-function getLineStartOffsets(lines: string[]) {
-  const offsets: number[] = []
-  let offset = 0
-
-  for (const line of lines) {
-    offsets.push(offset)
-    offset += line.length + 1
-  }
-
-  return offsets
-}
-
 function sliceLines(lines: string[], startLine: number, endLine: number) {
   return lines.slice(startLine, endLine + 1).join('\n')
 }
 
-function parseMarkdownBlockRanges(markdown: string): ParsedBlockRange[] {
+function inferNodeKind(markdown: string): LiveNodeKind {
+  const firstLine = markdown.split('\n').find((line) => line.trim().length > 0) ?? ''
+
+  if (isFenceLine(firstLine)) {
+    return 'code-fence'
+  }
+
+  if (isHeadingLine(firstLine)) {
+    return 'heading'
+  }
+
+  if (isHorizontalRule(firstLine)) {
+    return 'thematic-break'
+  }
+
+  if (isListLine(firstLine)) {
+    return 'list'
+  }
+
+  if (isBlockquoteLine(firstLine)) {
+    return 'blockquote'
+  }
+
+  return 'paragraph'
+}
+
+function getHeadingLevel(markdown: string) {
+  const firstLine = markdown.split('\n').find((line) => line.trim().length > 0) ?? ''
+  const match = firstLine.match(/^(#{1,6})\s+/)
+  return match ? match[1].length : null
+}
+
+function parseMarkdownNodes(markdown: string): ParsedNode[] {
   if (!markdown.trim()) {
     return []
   }
 
   const lines = markdown.split('\n')
-  const lineOffsets = getLineStartOffsets(lines)
-  const blocks: ParsedBlockRange[] = []
+  const nodes: ParsedNode[] = []
   let lineIndex = 0
 
   while (lineIndex < lines.length) {
@@ -104,8 +136,9 @@ function parseMarkdownBlockRanges(markdown: string): ParsedBlockRange[] {
 
     const startLine = lineIndex
     let endLine = lineIndex
+    const kind = inferNodeKind(lines[lineIndex])
 
-    if (isFenceLine(lines[lineIndex])) {
+    if (kind === 'code-fence') {
       const marker = getFenceMarker(lines[lineIndex])
       lineIndex += 1
 
@@ -117,9 +150,9 @@ function parseMarkdownBlockRanges(markdown: string): ParsedBlockRange[] {
         }
         lineIndex += 1
       }
-    } else if (isHeadingLine(lines[lineIndex]) || isHorizontalRule(lines[lineIndex])) {
+    } else if (kind === 'heading' || kind === 'thematic-break') {
       lineIndex += 1
-    } else if (isListLine(lines[lineIndex])) {
+    } else if (kind === 'list') {
       lineIndex += 1
 
       while (lineIndex < lines.length) {
@@ -134,7 +167,7 @@ function parseMarkdownBlockRanges(markdown: string): ParsedBlockRange[] {
         }
         break
       }
-    } else if (isBlockquoteLine(lines[lineIndex])) {
+    } else if (kind === 'blockquote') {
       lineIndex += 1
 
       while (lineIndex < lines.length && isBlockquoteLine(lines[lineIndex])) {
@@ -162,38 +195,33 @@ function parseMarkdownBlockRanges(markdown: string): ParsedBlockRange[] {
       }
     }
 
-    const blockStart = lineOffsets[startLine]
-    const blockEnd = lineOffsets[endLine] + lines[endLine].length
-    blocks.push({
-      start: blockStart,
-      end: blockEnd,
+    nodes.push({
+      kind,
       text: sliceLines(lines, startLine, endLine),
     })
   }
 
-  return blocks
+  return nodes
 }
 
-function normalizeBlocks(markdown: string) {
-  const parsedBlocks = parseMarkdownBlockRanges(markdown).map((block) => block.text)
-  return parsedBlocks.length > 0 ? parsedBlocks : ['']
-}
+function serializeNodes(nodes: LiveNode[]) {
+  const compactNodes = nodes
+    .map((node) => node.text.trim().length === 0 ? null : node.text.replace(/\n+$/g, ''))
+    .filter((node): node is string => Boolean(node))
 
-function serializeBlocks(blocks: string[]) {
-  const compactBlocks = blocks.filter((block) => block.trim().length > 0)
-  if (compactBlocks.length === 0) {
+  if (compactNodes.length === 0) {
     return ''
   }
 
-  return compactBlocks.join('\n\n')
+  return compactNodes.join('\n\n')
 }
 
-function getSafeActiveIndex(blocks: string[], requestedIndex: number) {
-  if (blocks.length === 0) {
+function getSafeActiveIndex(nodes: LiveNode[], requestedIndex: number) {
+  if (nodes.length === 0) {
     return 0
   }
 
-  return Math.min(Math.max(requestedIndex, 0), blocks.length - 1)
+  return Math.min(Math.max(requestedIndex, 0), nodes.length - 1)
 }
 
 export default function LiveMarkdownEditor({
@@ -211,149 +239,366 @@ export default function LiveMarkdownEditor({
   resolveInternalReferenceTitle,
   onOpenInternalReference,
 }: LiveMarkdownEditorProps) {
-  const [blocks, setBlocks] = useState<string[]>(() => normalizeBlocks(value))
-  const [activeBlockIndex, setActiveBlockIndex] = useState(() => Math.max(0, normalizeBlocks(value).length - 1))
+  const nextNodeIdRef = useRef(0)
+  const activeEditorRef = useRef<LiveEditableHandle | null>(null)
+  const fallbackUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const expectedValueRef = useRef<string | null>(null)
+
+  const createNode = (partial?: Partial<Omit<LiveNode, 'id'>>) => ({
+    id: `live-node-${nextNodeIdRef.current += 1}`,
+    kind: partial?.kind ?? 'paragraph',
+    text: partial?.text ?? '',
+  })
+
+  const normalizeNodes = (markdown: string) => {
+    const parsedNodes = parseMarkdownNodes(markdown).map((node) => createNode(node))
+    return parsedNodes.length > 0 ? parsedNodes : [createNode()]
+  }
+
+  const [nodes, setNodes] = useState<LiveNode[]>(() => normalizeNodes(value))
+  const [activeNodeIndex, setActiveNodeIndex] = useState(() => Math.max(0, normalizeNodes(value).length - 1))
   const [focusPlacement, setFocusPlacement] = useState<FocusPlacement>('end')
+  const [richEditingNodeId, setRichEditingNodeId] = useState<string | null>(null)
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
     [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
   )
 
-  const serializedValue = useMemo(() => serializeBlocks(blocks), [blocks])
+  const serializedValue = useMemo(() => serializeNodes(nodes), [nodes])
 
   useEffect(() => {
+    if (expectedValueRef.current === value) {
+      expectedValueRef.current = null
+      return
+    }
+
+    if (expectedValueRef.current) {
+      return
+    }
+
     if (value === serializedValue) {
       return
     }
 
-    const nextBlocks = normalizeBlocks(value)
-    setBlocks(nextBlocks)
-    setActiveBlockIndex(Math.max(0, nextBlocks.length - 1))
+    const nextNodes = normalizeNodes(value)
+    setNodes(nextNodes)
+    setActiveNodeIndex(Math.max(0, nextNodes.length - 1))
     setFocusPlacement('end')
   }, [serializedValue, value])
 
   useEffect(() => {
-    const nextBlocks = normalizeBlocks(value)
-    setBlocks(nextBlocks)
-    setActiveBlockIndex(Math.max(0, nextBlocks.length - 1))
+    expectedValueRef.current = null
+    const nextNodes = normalizeNodes(value)
+    setNodes(nextNodes)
+    setActiveNodeIndex(Math.max(0, nextNodes.length - 1))
     setFocusPlacement('end')
+    setRichEditingNodeId(null)
   }, [documentKey])
 
-  const commitBlocks = (nextBlocks: string[], nextActiveIndex: number, nextFocusPlacement: FocusPlacement) => {
-    const safeBlocks = nextBlocks.length > 0 ? nextBlocks : ['']
-    const safeActiveIndex = getSafeActiveIndex(safeBlocks, nextActiveIndex)
+  useEffect(() => {
+    const activeNode = nodes[activeNodeIndex]
+    if (
+      activeNode &&
+      activeNode.kind === 'paragraph' &&
+      (richEditingNodeId === activeNode.id || hasRenderableInlineMarkdown(activeNode.text))
+    ) {
+      if (richEditingNodeId !== activeNode.id) {
+        setRichEditingNodeId(activeNode.id)
+      }
+      return
+    }
 
-    setBlocks(safeBlocks)
-    setActiveBlockIndex(safeActiveIndex)
+    if (richEditingNodeId !== null) {
+      setRichEditingNodeId(null)
+    }
+  }, [activeNodeIndex, nodes, richEditingNodeId])
+
+  useEffect(() => {
+    if (serializedValue === value) {
+      return
+    }
+
+    onChange(serializedValue)
+  }, [onChange, serializedValue, value])
+
+  const commitNodes = (nextNodes: LiveNode[], nextActiveIndex: number, nextFocusPlacement: FocusPlacement) => {
+    const safeNodes = nextNodes.length > 0 ? nextNodes : [createNode()]
+    const safeActiveIndex = getSafeActiveIndex(safeNodes, nextActiveIndex)
+    const nextSerializedValue = serializeNodes(safeNodes)
+
+    setNodes(safeNodes)
+    setActiveNodeIndex(safeActiveIndex)
     setFocusPlacement(nextFocusPlacement)
-    onChange(serializeBlocks(safeBlocks))
+    expectedValueRef.current = nextSerializedValue
   }
 
-  const handleBlockChange = (blockIndex: number, nextText: string) => {
-    const nextBlocks = blocks.slice()
-    nextBlocks[blockIndex] = nextText
-    setBlocks(nextBlocks)
-    onChange(serializeBlocks(nextBlocks))
+  const updateNode = (nodeIndex: number, nextText: string) => {
+    const nextNodes = nodes.slice()
+    nextNodes[nodeIndex] = {
+      ...nextNodes[nodeIndex],
+      kind: inferNodeKind(nextText),
+      text: nextText,
+    }
+    const nextSerializedValue = serializeNodes(nextNodes)
+
+    setNodes(nextNodes)
+    expectedValueRef.current = nextSerializedValue
   }
 
-  const activateBlock = (blockIndex: number, placement: FocusPlacement = 'end') => {
-    setActiveBlockIndex(getSafeActiveIndex(blocks, blockIndex))
+  const insertUploadedMarkdownIntoActiveNode = async (file: File) => {
+    if (!onUploadImage) {
+      return
+    }
+
+    const activeNode = nodes[activeNodeIndex]
+    if (!activeNode) {
+      return
+    }
+
+    try {
+      const { markdown } = await onUploadImage(file)
+      const separator =
+        activeNode.text.trim().length > 0 && !activeNode.text.endsWith('\n')
+          ? '\n'
+          : ''
+      updateNode(activeNodeIndex, `${activeNode.text}${separator}${markdown}`)
+      setFocusPlacement('end')
+      activeEditorRef.current?.focus('end')
+    } catch {
+      // App-level error handling remains at the caller boundary.
+    }
+  }
+
+  const activateNode = (nodeIndex: number, placement: FocusPlacement = 'end') => {
+    setActiveNodeIndex(getSafeActiveIndex(nodes, nodeIndex))
     setFocusPlacement(placement)
   }
 
-  const handleSplitBlock = (blockIndex: number, selection: { start: number; end: number }, blockValue: string) => {
-    if (selection.start === 0 && selection.end === 0 && blockValue.length === 0) {
-      return true
+  const appendTrailingNode = () => {
+    const lastNode = nodes[nodes.length - 1]
+    if (lastNode && lastNode.text.trim().length === 0) {
+      activateNode(nodes.length - 1, 'end')
+      activeEditorRef.current?.focus('end')
+      return
     }
 
-    const before = blockValue.slice(0, selection.start)
-    const after = blockValue.slice(selection.end)
-    const nextBlocks = blocks.slice()
-    nextBlocks.splice(blockIndex, 1, before, after)
-    commitBlocks(nextBlocks, blockIndex + 1, 'start')
-    return true
+    const nextNodes = [...nodes, createNode()]
+    commitNodes(nextNodes, nextNodes.length - 1, 'start')
   }
 
-  const handleRemoveEmptyBlockBackward = (blockIndex: number) => {
-    if (blocks.length === 1) {
+  const handleSplitNode = (nodeIndex: number, selection: { start: number; end: number }, nodeValue: string) => {
+    const activeNode = nodes[nodeIndex]
+    const nodeKind = activeNode?.kind ?? inferNodeKind(nodeValue)
+    const isCursorAtNodeEnd = selection.start === selection.end && selection.end === nodeValue.length
+
+    if (!isCursorAtNodeEnd) {
       return false
     }
 
-    const nextBlocks = blocks.slice()
-    nextBlocks.splice(blockIndex, 1)
-    commitBlocks(nextBlocks, Math.max(0, blockIndex - 1), 'end')
-    return true
-  }
+    if (nodeKind === 'list' || nodeKind === 'blockquote' || nodeKind === 'code-fence') {
+      return false
+    }
 
-  const handleMoveBetweenBlocks = (blockIndex: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && blockIndex > 0) {
-      activateBlock(blockIndex - 1, 'end')
+    if (nodeValue.trim().length === 0) {
       return true
     }
 
-    if (direction === 'down' && blockIndex < blocks.length - 1) {
-      activateBlock(blockIndex + 1, 'start')
+    const nextNodes = nodes.slice()
+    nextNodes[nodeIndex] = {
+      ...nextNodes[nodeIndex],
+      kind: inferNodeKind(nodeValue),
+      text: nodeValue.replace(/\n+$/g, ''),
+    }
+    nextNodes.splice(nodeIndex + 1, 0, createNode())
+    commitNodes(nextNodes, nodeIndex + 1, 'start')
+    return true
+  }
+
+  const handleRemoveEmptyNodeBackward = (nodeIndex: number) => {
+    if (nodes.length === 1) {
+      return false
+    }
+
+    const nextNodes = nodes.slice()
+    nextNodes.splice(nodeIndex, 1)
+    commitNodes(nextNodes, Math.max(0, nodeIndex - 1), 'end')
+    return true
+  }
+
+  const handleMoveBetweenNodes = (nodeIndex: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && nodeIndex > 0) {
+      activateNode(nodeIndex - 1, 'end')
+      return true
+    }
+
+    if (direction === 'down' && nodeIndex < nodes.length - 1) {
+      activateNode(nodeIndex + 1, 'start')
       return true
     }
 
     return false
   }
 
-  const activeEditorKey = `${documentKey || 'document'}-${activeBlockIndex}-${focusPlacement}`
-
   return (
     <section className="single-pane-live-editor">
-      <article className="preview-content preview-content--live single-pane-live-editor__document">
-        {blocks.map((block, blockIndex) => {
-          const isActiveBlock = blockIndex === activeBlockIndex
+      {(onUploadImage || onToggleImmersive) ? (
+        <div className="single-pane-live-editor__document-toolbar">
+          <div className="single-pane-live-editor__document-toolbar-actions">
+            {onUploadImage ? (
+              <button
+                type="button"
+                className="markdown-editor__upload-button"
+                onMouseDown={(event) => {
+                  event.preventDefault()
+                }}
+                onClick={() => {
+                  if (activeEditorRef.current && 'openImagePicker' in activeEditorRef.current) {
+                    activeEditorRef.current.openImagePicker()
+                  } else {
+                    fallbackUploadInputRef.current?.click()
+                  }
+                  activeEditorRef.current?.focus()
+                }}
+              >
+                上传图片
+              </button>
+            ) : null}
+            {onToggleImmersive ? (
+              <button type="button" className="markdown-editor__upload-button" onClick={onToggleImmersive}>
+                {isImmersive ? '退出沉浸' : '沉浸模式'}
+              </button>
+            ) : null}
+          </div>
+          <p className="single-pane-live-editor__document-toolbar-hint">回车提交当前段落，列表、引用和代码块保留原生 Markdown 编辑。</p>
+        </div>
+      ) : null}
+      {onUploadImage ? (
+        <input
+          ref={fallbackUploadInputRef}
+          aria-label="连续编辑器上传图片文件"
+          className="sr-only"
+          type="file"
+          accept="image/*"
+          tabIndex={-1}
+          onChange={(event) => {
+            const file = event.target.files?.[0]
+            event.currentTarget.value = ''
+            if (!file) {
+              return
+            }
 
-          if (isActiveBlock) {
+            void insertUploadedMarkdownIntoActiveNode(file)
+          }}
+        />
+      ) : null}
+      <article className="preview-content preview-content--live single-pane-live-editor__document">
+        {nodes.map((node, nodeIndex) => {
+          const isActiveNode = nodeIndex === activeNodeIndex
+          const usesRichParagraphEditor =
+            node.kind === 'paragraph' &&
+            (contentFormat ?? 'markdown') === 'markdown' &&
+            (richEditingNodeId === node.id || hasRenderableInlineMarkdown(node.text))
+          const headingLevel = node.kind === 'heading' ? getHeadingLevel(node.text) : null
+          const blockClassName = [
+            'single-pane-live-editor__block',
+            `single-pane-live-editor__block--${node.kind}`,
+            usesRichParagraphEditor ? 'single-pane-live-editor__block--rich-paragraph' : null,
+            isActiveNode ? 'single-pane-live-editor__block--active' : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+          const textareaClassName = [
+            'single-pane-live-editor__textarea',
+            `single-pane-live-editor__textarea--${node.kind}`,
+            headingLevel ? `single-pane-live-editor__textarea--heading-${headingLevel}` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+
+          if (isActiveNode) {
+            if (usesRichParagraphEditor) {
+              return (
+                <div key={node.id} className={blockClassName}>
+                  <LiveRichParagraphEditor
+                    ref={activeEditorRef as Ref<LiveRichParagraphEditorHandle>}
+                    value={node.text}
+                    className="single-pane-live-editor__rich-editor"
+                    autoFocus
+                    initialSelection={focusPlacement}
+                    onChange={(nextValue) => updateNode(nodeIndex, nextValue)}
+                    onSplitBlock={(currentValue) =>
+                      handleSplitNode(
+                        nodeIndex,
+                        { start: currentValue.length, end: currentValue.length },
+                        currentValue,
+                      )}
+                    onRemoveEmptyBlockBackward={() => handleRemoveEmptyNodeBackward(nodeIndex)}
+                    onMoveBetweenBlocks={(direction) => handleMoveBetweenNodes(nodeIndex, direction)}
+                  />
+                </div>
+              )
+            }
+
             return (
-              <div key={activeEditorKey} className="single-pane-live-editor__block single-pane-live-editor__block--active">
+              <div key={node.id} className={blockClassName}>
                 <MarkdownEditor
-                  value={block}
-                  onChange={(nextValue) => handleBlockChange(blockIndex, nextValue)}
-                  onToggleImmersive={onToggleImmersive}
-                  isImmersive={isImmersive}
+                  ref={activeEditorRef as Ref<MarkdownEditorHandle>}
+                  value={node.text}
+                  onChange={(nextValue) => updateNode(nodeIndex, nextValue)}
                   onUploadImage={onUploadImage}
                   internalReferenceCandidates={internalReferenceCandidates}
                   surfaceClassName="single-pane-live-editor__block-editor"
-                  textareaClassName="single-pane-live-editor__textarea"
+                  textareaClassName={textareaClassName}
                   showMeta={false}
+                  hideToolbar
                   autoFocus
                   autoResize
                   initialSelection={focusPlacement}
-                  onSplitBlock={(selection, blockValue) => handleSplitBlock(blockIndex, selection, blockValue)}
-                  onRemoveEmptyBlockBackward={() => handleRemoveEmptyBlockBackward(blockIndex)}
-                  onMoveBetweenBlocks={(direction) => handleMoveBetweenBlocks(blockIndex, direction)}
+                  onSplitBlock={(selection, currentValue) => handleSplitNode(nodeIndex, selection, currentValue)}
+                  onRemoveEmptyBlockBackward={() => handleRemoveEmptyNodeBackward(nodeIndex)}
+                  onMoveBetweenBlocks={(direction) => handleMoveBetweenNodes(nodeIndex, direction)}
                 />
               </div>
             )
           }
 
-          if (block.trim().length === 0) {
+          if (node.text.trim().length === 0) {
             return null
           }
 
-          const previewKey = `${documentKey || 'document'}-preview-${blockIndex}-${block}`
-
           return (
             <div
-              key={previewKey}
-              className="single-pane-live-editor__block"
+              key={node.id}
+              className={blockClassName}
               onClick={(event) => {
                 const target = event.target as HTMLElement
-                if (target.closest('a, button, summary, input, textarea')) {
+                if (target.closest('a, button, input, textarea')) {
                   return
                 }
 
-                activateBlock(blockIndex, 'end')
+                if (target.closest('summary')) {
+                  event.preventDefault()
+                }
+
+                activateNode(nodeIndex, 'end')
               }}
             >
-              {renderContentBlocks(block, contentFormat ?? 'markdown', previewImageUrls, undefined, wikiLinkOptions)}
+              {renderContentBlocks(node.text, contentFormat ?? 'markdown', previewImageUrls, undefined, wikiLinkOptions)}
             </div>
           )
         })}
+        <button
+          type="button"
+          className="single-pane-live-editor__tail"
+          onMouseDown={(event) => {
+            event.preventDefault()
+          }}
+          onClick={() => {
+            appendTrailingNode()
+          }}
+        >
+          <span className="single-pane-live-editor__tail-line" aria-hidden="true" />
+        </button>
       </article>
     </section>
   )

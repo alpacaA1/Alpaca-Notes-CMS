@@ -16,6 +16,7 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
+import LiveMarkdownEditor from './editor/live-markdown-editor'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
@@ -2258,6 +2259,9 @@ export default function App() {
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
+  const useContinuousLiveEditor = Boolean(
+    isImmersive && (document?.contentType === 'post' || document?.contentType === 'knowledge'),
+  )
   const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
   const hideTopBar = isReadLaterPreview && isReadLaterTopBarHidden
   const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
@@ -2480,6 +2484,29 @@ export default function App() {
                       isImmersive={isImmersive}
                       onUploadImage={handleUploadImage}
                       internalReferenceCandidates={internalReferenceCandidates}
+                    />
+                  ) : useContinuousLiveEditor ? (
+                    <LiveMarkdownEditor
+                      documentKey={document.path}
+                      value={document.body}
+                      title={document.frontmatter.title}
+                      date={document.frontmatter.date}
+                      contentType={document.contentType}
+                      contentFormat={documentContentFormat}
+                      sourceType={document.frontmatter.source_type}
+                      sourceTitle={document.frontmatter.source_title}
+                      sourcePath={document.frontmatter.source_path}
+                      sourceUrl={document.frontmatter.source_url}
+                      previewImageUrls={previewImageUrls}
+                      onChange={handleEditorChange}
+                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
+                      isImmersive={isImmersive}
+                      onUploadImage={handleUploadImage}
+                      internalReferenceCandidates={internalReferenceCandidates}
+                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
+                      onOpenWikiLink={handleOpenTopicNode}
+                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
+                      onOpenInternalReference={handleOpenInternalReference}
                     />
                   ) : (
                     <MarkdownEditor

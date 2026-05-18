@@ -59,6 +59,48 @@ describe('LiveMarkdownEditor', () => {
     })
   })
 
+  it('reactivates a heading node when clicking the rendered heading line itself', async () => {
+    renderControlledLiveEditor('### 一\n\n第二段')
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: '一' })).toBeTruthy()
+      expect(screen.getByText('第二段')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('heading', { name: '一' }))
+
+    await waitFor(() => {
+      expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('### 一')
+    })
+  })
+
+  it('uses a rendered rich paragraph editor for inline markdown paragraphs to keep layout stable', async () => {
+    function Harness() {
+      const [value, setValue] = useState('这是一段 **加粗内容** 和 [链接标题](https://example.com)')
+
+      return (
+        <LiveMarkdownEditor
+          value={value}
+          documentKey="rich-paragraph-doc"
+          title="预览标题"
+          date="2026-05-17 09:00:00"
+          contentType="post"
+          contentFormat="markdown"
+          onChange={setValue}
+        />
+      )
+    }
+
+    render(<Harness />)
+
+    const editor = await screen.findByRole('textbox', { name: 'Markdown 段落编辑器' })
+    expect(screen.queryByLabelText('Markdown 编辑器')).toBeNull()
+    expect(editor.textContent).toContain('加粗内容')
+    expect(editor.textContent).toContain('链接标题')
+    expect(editor.textContent).not.toContain('**')
+    expect(editor.textContent).not.toContain('https://example.com')
+  })
+
   it('commits the current block into preview and opens a new editable block after pressing Enter', async () => {
     const editor = renderControlledLiveEditor('')
 
@@ -77,5 +119,16 @@ describe('LiveMarkdownEditor', () => {
       expect(screen.getByText('参考文章')).toBeTruthy()
       expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('')
     })
+  })
+
+  it('keeps list editing in the current node when pressing Enter inside a list', () => {
+    const editor = renderControlledLiveEditor('- 第一项')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toBe('- 第一项\n- ')
+    expect(screen.queryByText('第一项')).toBeNull()
   })
 })

@@ -762,13 +762,51 @@ describe('App editor modes', () => {
 
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.queryByText('发布设置')).toBeNull()
-    expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.markdown-editor__toolbar')).toBeTruthy()
+    expect(document.querySelector('.single-pane-live-editor')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.single-pane-live-editor__document-toolbar')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 
     expect(await screen.findByText('编辑中 · source/_posts/supported.md')).toBeTruthy()
     expect(screen.getByText('文章归档')).toBeTruthy()
     expect(screen.getByText('发布设置')).toBeTruthy()
+  })
+
+  it('keeps continuous immersive body edits after exiting immersive mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: supportedContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    fireEvent.click(screen.getByRole('button', { name: '沉浸模式' }))
+
+    const immersiveMarkdownEditor = screen.queryByLabelText('Markdown 编辑器')
+    if (immersiveMarkdownEditor) {
+      fireEvent.change(immersiveMarkdownEditor, {
+        target: { value: 'Immersive live body edit.' },
+      })
+    } else {
+      const immersiveRichEditor = await screen.findByRole('textbox', { name: 'Markdown 段落编辑器' })
+      immersiveRichEditor.textContent = 'Immersive live body edit.'
+      fireEvent.input(immersiveRichEditor)
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
+
+    const restoredMarkdownEditor = await screen.findByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+    expect(restoredMarkdownEditor.value).toBe('Immersive live body edit.')
   })
 
   it('renders unsaved title and body edits in preview and returns to markdown mode on exit', async () => {

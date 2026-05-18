@@ -516,6 +516,59 @@ describe('markdown editor', () => {
     expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*tab-size:\s*2;/s)
   })
 
+  it('starts auto-resize editors from a single visible row', () => {
+    render(<MarkdownEditor value="单行内容" onChange={() => {}} autoResize />)
+
+    expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).getAttribute('rows')).toBe('1')
+  })
+
+  it('keeps live editor blocks visually flat even when editor-surface and editor-textarea theme styles are present', () => {
+    expect(appStyles).toMatch(/\.single-pane-live-editor__block-editor\.editor-surface\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s)
+    expect(appStyles).toMatch(/\.single-pane-live-editor__textarea\.editor-textarea\s*\{[^}]*background:\s*transparent;[^}]*box-shadow:\s*none;/s)
+  })
+
+  it('keeps live editor list previews on the same vertical rhythm as raw markdown editing', () => {
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__document\.preview-content--live ul,\s*\.single-pane-live-editor__document\.preview-content--live ol\s*\{[^}]*margin:\s*0;/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__document\.preview-content--live li \+ li,\s*\.single-pane-live-editor__document\.preview-content--live \.preview-content__task-item \+ \.preview-content__task-item\s*\{[^}]*margin-top:\s*0;/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__block--list > ul,\s*\.single-pane-live-editor__block--list > ol\s*\{[^}]*padding-left:\s*0;[^}]*list-style-position:\s*inside;/s,
+    )
+  })
+
+  it('keeps active live editor list blocks horizontally aligned with rendered list previews', () => {
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__textarea--list\s*\{[^}]*padding-left:\s*1\.4rem;/s,
+    )
+  })
+
+  it('keeps active live editor heading blocks on a single heading line height instead of paragraph height', () => {
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__textarea--heading-1\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-1-line-height\)\);/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__textarea--heading-2\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-2-line-height\)\);/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__textarea--heading-3\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-3-line-height\)\);/s,
+    )
+    expect(appStyles).toMatch(
+      /\.single-pane-live-editor__textarea--heading-4,\s*\.single-pane-live-editor__textarea--heading-5,\s*\.single-pane-live-editor__textarea--heading-6\s*\{[^}]*min-height:\s*calc\(1em \* var\(--single-pane-live-heading-4-line-height\)\);/s,
+    )
+  })
+
+  it('keeps preview heading line heights aligned with live editor heading levels', () => {
+    expect(appStyles).toMatch(
+      /\.preview-content h3\s*\{[^}]*line-height:\s*1\.2;/s,
+    )
+    expect(appStyles).toMatch(
+      /\.preview-content h4,\s*\.preview-content h5,\s*\.preview-content h6\s*\{[^}]*line-height:\s*1\.28;/s,
+    )
+  })
+
   it('keeps the editor workspace scrollable inside the fixed admin shell', () => {
     expect(appStyles).toMatch(/\.admin-layout\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;/s)
   })
