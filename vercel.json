@@ -1,0 +1,3 @@
+{
+  "buildCommand": "echo \"Skipping static site build on Vercel; GitHub Pages builds the Hexo site.\""
+}
