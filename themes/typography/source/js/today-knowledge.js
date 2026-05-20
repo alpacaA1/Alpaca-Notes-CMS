@@ -26,6 +26,7 @@
   const SWIPE_INTENT_THRESHOLD = 12;
   const WHEEL_RESET_DELAY = 160;
   const TRANSITION_LOCK_DELAY = 260;
+  const ADMIN_SESSION_STORAGE_KEY = 'alpaca-admin-session-v2';
 
   function escapeHtml(value) {
     return String(value || '')
@@ -95,6 +96,32 @@
         return left.path.localeCompare(right.path, 'zh-CN');
       })
       .slice(0, Math.max(0, Math.floor(limit)));
+  }
+
+  function readStoredAdminToken(storage) {
+    if (!storage || typeof storage.getItem !== 'function') {
+      return '';
+    }
+
+    try {
+      const raw = storage.getItem(ADMIN_SESSION_STORAGE_KEY);
+      if (!raw) {
+        return '';
+      }
+
+      const session = JSON.parse(raw);
+      if (!session || typeof session.token !== 'string' || !session.token) {
+        return '';
+      }
+
+      if (typeof session.expiresAt === 'number' && session.expiresAt <= Date.now()) {
+        return '';
+      }
+
+      return session.token;
+    } catch (_error) {
+      return '';
+    }
   }
 
   function normalizeBlock(value) {
@@ -610,6 +637,7 @@
     const menuNode = doc.getElementById('today-knowledge-menu');
     const menuTopButton = doc.getElementById('today-knowledge-menu-top');
     const dataPath = app.dataset.dataPath;
+    const realtimeDataUrl = app.dataset.realtimeDataUrl;
     const timeZone = app.dataset.timezone || 'Asia/Shanghai';
     const envWindow = (options && options.window) || doc.defaultView || null;
     const fetcher =
@@ -744,19 +772,77 @@
       deckController = createWheelDeck(app, listNode, statusNode, { window: envWindow });
     }
 
-    if (!fetcher || !dataPath) {
+    function readAuthToken() {
+      return (
+        readStoredAdminToken(envWindow && envWindow.localStorage) ||
+        readStoredAdminToken(envWindow && envWindow.sessionStorage)
+      );
+    }
+
+    function fetchJson(source) {
+      const headers = {};
+      const token = source.includeAuth ? readAuthToken() : '';
+
+      if (token) {
+        headers.Authorization = 'Bearer ' + token;
+      }
+
+      return fetcher(source.url, {
+        cache: 'no-store',
+        headers: headers,
+      }).then(function (response) {
+        if (!response.ok) {
+          throw new Error(source.fallbackMessage);
+        }
+
+        return response.json();
+      });
+    }
+
+    function fetchFirstAvailable(sources) {
+      let currentIndex = 0;
+      let lastError = null;
+
+      function tryNext() {
+        if (currentIndex >= sources.length) {
+          return Promise.reject(lastError || new Error('加载知识点失败，请稍后重试。'));
+        }
+
+        const source = sources[currentIndex];
+        currentIndex += 1;
+
+        return fetchJson(source).catch(function (error) {
+          lastError = error;
+          return tryNext();
+        });
+      }
+
+      return tryNext();
+    }
+
+    if (!fetcher || (!realtimeDataUrl && !dataPath)) {
       showState('加载知识点失败，请稍后重试。');
       return Promise.resolve(null);
     }
 
-    return fetcher(dataPath, { cache: 'no-store' })
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error('加载今日知识点数据失败');
-        }
+    const dataSources = [
+      realtimeDataUrl
+        ? {
+            url: realtimeDataUrl,
+            includeAuth: true,
+            fallbackMessage: '实时知识点加载失败',
+          }
+        : null,
+      dataPath
+        ? {
+            url: dataPath,
+            includeAuth: false,
+            fallbackMessage: '加载今日知识点数据失败',
+          }
+        : null,
+    ].filter(Boolean);
 
-        return response.json();
-      })
+    return fetchFirstAvailable(dataSources)
       .then(function (payload) {
         const items = Array.isArray(payload.items) ? payload.items : [];
 
@@ -783,6 +869,7 @@
     createWheelDeck: createWheelDeck,
     initTodayKnowledgePage: initTodayKnowledgePage,
     pickDailyItems: pickDailyItems,
+    readStoredAdminToken: readStoredAdminToken,
     renderCard: renderCard,
   };
 });

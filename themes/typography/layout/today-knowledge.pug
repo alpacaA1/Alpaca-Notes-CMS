@@ -605,7 +605,7 @@ block content
                         display: none !important;
                     }
                 }
-            .today-knowledge#today-knowledge-app(data-data-path=url_for('today-knowledge/data.json') data-timezone=(config.timezone || 'Asia/Shanghai'))
+            .today-knowledge#today-knowledge-app(data-data-path=url_for('today-knowledge/data.json') data-realtime-data-url="https://alpaca-notes-cms.vercel.app/api/today-knowledge" data-timezone=(config.timezone || 'Asia/Shanghai'))
                 header.today-knowledge__hero
                     a.today-knowledge__icon-button.today-knowledge__hero-close#today-knowledge-close(href=url_for('/') aria-label="返回首页")
                         span.today-knowledge__icon-button-label ×

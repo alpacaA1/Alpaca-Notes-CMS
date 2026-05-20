@@ -2,7 +2,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 
-const { createWheelDeck, renderCard } = require('../themes/typography/source/js/today-knowledge.js');
+const {
+  createWheelDeck,
+  initTodayKnowledgePage,
+  readStoredAdminToken,
+  renderCard,
+} = require('../themes/typography/source/js/today-knowledge.js');
 const { buildKnowledgeItem } = require('./today-knowledge.js');
 
 function createMatchMedia(matches) {
@@ -247,6 +252,110 @@ test('renderCard plain content omits the complete-content section label', () => 
   assert.match(html, /这里只有正文内容/);
   assert.doesNotMatch(html, /完整内容/);
   assert.doesNotMatch(html, /today-knowledge__section-label/);
+});
+
+test('readStoredAdminToken reads the current admin session only when it is valid', () => {
+  const storage = new Map();
+  const adapter = {
+    getItem(key) {
+      return storage.get(key) || null;
+    },
+  };
+
+  storage.set('alpaca-admin-session-v2', JSON.stringify({ token: 'token-123', expiresAt: Date.now() + 60_000 }));
+  assert.equal(readStoredAdminToken(adapter), 'token-123');
+
+  storage.set('alpaca-admin-session-v2', JSON.stringify({ token: 'expired-token', expiresAt: Date.now() - 1 }));
+  assert.equal(readStoredAdminToken(adapter), '');
+
+  storage.set('alpaca-admin-session-v2', '{');
+  assert.equal(readStoredAdminToken(adapter), '');
+});
+
+test('initTodayKnowledgePage prefers realtime API and sends the stored admin token', async () => {
+  const dom = new JSDOM(
+    `<!doctype html>
+    <div id="today-knowledge-app" data-data-path="/today-knowledge/data.json" data-realtime-data-url="https://api.example.test/api/today-knowledge" data-timezone="Asia/Shanghai">
+      <div id="today-knowledge-state"></div>
+      <div id="today-knowledge-deck-status" hidden></div>
+      <div id="today-knowledge-list" hidden></div>
+      <div id="today-knowledge-pager" hidden>
+        <button id="today-knowledge-pager-prev" type="button"></button>
+        <span id="today-knowledge-pager-current"></span>
+        <button id="today-knowledge-pager-next" type="button"></button>
+      </div>
+    </div>`,
+    { url: 'https://example.com/today-knowledge/' },
+  );
+  const { window } = dom;
+  window.matchMedia = createMatchMedia(false);
+  window.localStorage.setItem(
+    'alpaca-admin-session-v2',
+    JSON.stringify({ token: 'token-123', expiresAt: Date.now() + 60_000 }),
+  );
+  const calls = [];
+  const fetcher = async (url, options) => {
+    calls.push({ url, options });
+    return {
+      ok: true,
+      json: async () => ({
+        items: [
+          { path: 'source/_knowledge/live.md', title: '实时知识点', date: '2026-05-19 23:13:22', body: '实时内容' },
+        ],
+      }),
+    };
+  };
+
+  const result = await initTodayKnowledgePage(window.document, { window, fetch: fetcher });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, 'https://api.example.test/api/today-knowledge');
+  assert.equal(calls[0].options.headers.Authorization, 'Bearer token-123');
+  assert.equal(result.items.length, 1);
+  assert.match(window.document.getElementById('today-knowledge-list').textContent, /实时知识点/);
+});
+
+test('initTodayKnowledgePage falls back to static data when realtime API fails', async () => {
+  const dom = new JSDOM(
+    `<!doctype html>
+    <div id="today-knowledge-app" data-data-path="/today-knowledge/data.json" data-realtime-data-url="https://api.example.test/api/today-knowledge" data-timezone="Asia/Shanghai">
+      <div id="today-knowledge-state"></div>
+      <div id="today-knowledge-deck-status" hidden></div>
+      <div id="today-knowledge-list" hidden></div>
+      <div id="today-knowledge-pager" hidden>
+        <button id="today-knowledge-pager-prev" type="button"></button>
+        <span id="today-knowledge-pager-current"></span>
+        <button id="today-knowledge-pager-next" type="button"></button>
+      </div>
+    </div>`,
+    { url: 'https://example.com/today-knowledge/' },
+  );
+  const { window } = dom;
+  window.matchMedia = createMatchMedia(false);
+  const calls = [];
+  const fetcher = async (url, options) => {
+    calls.push({ url, options });
+    if (url === 'https://api.example.test/api/today-knowledge') {
+      return { ok: false, json: async () => ({ message: 'no auth' }) };
+    }
+
+    return {
+      ok: true,
+      json: async () => ({
+        items: [
+          { path: 'source/_knowledge/static.md', title: '静态知识点', date: '2026-05-18 18:26:26', body: '静态内容' },
+        ],
+      }),
+    };
+  };
+
+  const result = await initTodayKnowledgePage(window.document, { window, fetch: fetcher });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].url, 'https://api.example.test/api/today-knowledge');
+  assert.equal(calls[1].url, '/today-knowledge/data.json');
+  assert.equal(result.items.length, 1);
+  assert.match(window.document.getElementById('today-knowledge-list').textContent, /静态知识点/);
 });
 
 test('buildKnowledgeItem flattens quote-based knowledge into a single body field', () => {
