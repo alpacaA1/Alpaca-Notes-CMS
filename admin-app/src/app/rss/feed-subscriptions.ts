@@ -10,7 +10,9 @@ export type FeedSubscription = {
   category: string
   sourceType: 'manual' | 'shared'
   articleCount: number
+  readLaterCount: number
   createdAt: string
+  updatedAt: string
 }
 
 type FeedSubscriptionFile = {
@@ -42,7 +44,9 @@ function normalizeSubscription(record: unknown, index: number): FeedSubscription
     category: typeof candidate.category === 'string' ? candidate.category : '',
     sourceType: candidate.sourceType === 'shared' ? 'shared' : 'manual',
     articleCount: typeof candidate.articleCount === 'number' ? candidate.articleCount : 0,
+    readLaterCount: typeof candidate.readLaterCount === 'number' ? candidate.readLaterCount : 0,
     createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : '',
+    updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : '',
   }
 }
 
@@ -63,6 +67,26 @@ export function parseFeedSubscriptions(content: string): FeedSubscription[] {
 
 export function serializeFeedSubscriptions(subscriptions: FeedSubscription[]) {
   return `${JSON.stringify({ feeds: subscriptions }, null, 2)}\n`
+}
+
+export function sortFeedSubscriptions(subscriptions: FeedSubscription[]) {
+  return subscriptions
+    .map((subscription, index) => ({ subscription, index }))
+    .sort((left, right) => {
+      const leftHasReadLater = left.subscription.readLaterCount > 0
+      const rightHasReadLater = right.subscription.readLaterCount > 0
+
+      if (leftHasReadLater !== rightHasReadLater) {
+        return leftHasReadLater ? -1 : 1
+      }
+
+      if (leftHasReadLater && rightHasReadLater && left.subscription.updatedAt !== right.subscription.updatedAt) {
+        return right.subscription.updatedAt.localeCompare(left.subscription.updatedAt)
+      }
+
+      return left.index - right.index
+    })
+    .map(({ subscription }) => subscription)
 }
 
 export async function readFeedSubscriptions(session: SessionState): Promise<FeedSubscriptionsState> {

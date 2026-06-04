@@ -6140,7 +6140,8 @@ textarea {
 .feed-dashboard__composer,
 .feed-dashboard__directory,
 .feed-dashboard__subscriptions,
-.feed-dashboard__preview {
+.feed-dashboard__preview,
+.feed-dashboard__reader {
   border-radius: 20px;
   border: 1px solid var(--admin-line);
   background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(252, 247, 241, 0.92));
@@ -6151,7 +6152,8 @@ textarea {
 .feed-dashboard__composer,
 .feed-dashboard__directory,
 .feed-dashboard__subscriptions,
-.feed-dashboard__preview {
+.feed-dashboard__preview,
+.feed-dashboard__reader {
   padding: 18px;
 }
 
@@ -6221,7 +6223,8 @@ textarea {
 .feed-dashboard__composer-copy strong,
 .feed-dashboard__directory-header strong,
 .feed-dashboard__subscriptions-header strong,
-.feed-dashboard__preview-header strong {
+.feed-dashboard__preview-header strong,
+.feed-dashboard__reader-header strong {
   display: block;
   margin-top: 4px;
   color: var(--admin-text);
@@ -6305,7 +6308,8 @@ textarea {
 }
 
 .feed-dashboard__directory-header,
-.feed-dashboard__preview-header {
+.feed-dashboard__preview-header,
+.feed-dashboard__reader-header {
   display: flex;
   justify-content: space-between;
   gap: 16px;
@@ -6313,14 +6317,16 @@ textarea {
 }
 
 .feed-dashboard__directory-header span,
-.feed-dashboard__preview-header span {
+.feed-dashboard__preview-header span,
+.feed-dashboard__reader-header span {
   color: var(--admin-muted);
   line-height: 1.6;
 }
 
 .feed-dashboard__directory-empty,
 .feed-dashboard__subscriptions-empty,
-.feed-dashboard__preview-empty {
+.feed-dashboard__preview-empty,
+.feed-dashboard__reader-empty {
   padding: 14px 16px;
   border-radius: 16px;
   border: 1px dashed var(--admin-line-strong);
@@ -6356,9 +6362,18 @@ textarea {
 
 .feed-dashboard__directory-list,
 .feed-dashboard__preview-list,
-.feed-dashboard__subscription-list {
+.feed-dashboard__subscription-groups,
+.feed-dashboard__subscription-group-list {
   display: grid;
   gap: 10px;
+}
+
+.feed-dashboard__preview-list,
+.feed-dashboard__subscription-groups {
+  max-height: min(68vh, 920px);
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .feed-dashboard__directory-item,
@@ -6372,6 +6387,109 @@ textarea {
   border-radius: 18px;
   border: 1px solid var(--admin-line);
   background: rgba(255, 255, 255, 0.66);
+}
+
+.feed-dashboard__subscription-groups {
+  gap: 12px;
+}
+
+.feed-dashboard__subscription-group {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.feed-dashboard__subscription-group.is-active {
+  border-color: rgba(203, 167, 119, 0.34);
+  background: linear-gradient(180deg, rgba(255, 251, 245, 0.84), rgba(249, 241, 230, 0.62));
+}
+
+.feed-dashboard__subscription-group-toggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 2px 4px 0;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-dashboard__subscription-group-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12);
+}
+
+.feed-dashboard__subscription-group-label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed-dashboard__subscription-group-label strong {
+  color: var(--admin-text);
+  font-size: 0.94rem;
+  line-height: 1.3;
+}
+
+.feed-dashboard__subscription-group-label small {
+  color: var(--admin-muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.feed-dashboard__subscription-group-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.feed-dashboard__subscription-group-chevron {
+  width: 9px;
+  height: 9px;
+  margin-top: -2px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 180ms ease;
+}
+
+.feed-dashboard__subscription-group-toggle[aria-expanded='true'] .feed-dashboard__subscription-group-chevron {
+  transform: rotate(225deg);
+}
+
+.feed-dashboard__subscription-group-list {
+  gap: 8px;
+}
+
+.feed-dashboard__subscription-item {
+  gap: 8px;
+  align-items: center;
+  padding: 10px 10px 10px 12px;
+  border-radius: 14px;
+}
+
+.feed-dashboard__preview-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .feed-dashboard__directory-item-title-row,
@@ -6393,6 +6511,43 @@ textarea {
   line-height: 1.45;
 }
 
+.feed-dashboard__preview-item-main strong {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.94rem;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.feed-dashboard__subscription-main strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.25;
+  font-size: 0.95rem;
+}
+
+.feed-dashboard__subscription-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.feed-dashboard__subscription-kicker span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(141, 113, 77, 0.1);
+  color: var(--admin-warm);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
 .feed-dashboard__directory-item-title-row span {
   color: var(--admin-warm);
   font-size: 0.82rem;
@@ -6409,6 +6564,17 @@ textarea {
   white-space: pre-line;
 }
 
+.feed-dashboard__preview-item-main p {
+  margin-top: 5px;
+  overflow: hidden;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  display: -webkit-box;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
 .feed-dashboard__directory-item-meta,
 .feed-dashboard__preview-item-meta,
 .feed-dashboard__subscription-meta {
@@ -6420,22 +6586,38 @@ textarea {
   font-size: 0.82rem;
 }
 
+.feed-dashboard__preview-item-meta {
+  margin-top: 0;
+  gap: 6px 12px;
+  font-size: 0.78rem;
+}
+
+.feed-dashboard__preview-item-meta span:last-child {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .feed-dashboard__content {
   display: grid;
-  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 280px) minmax(320px, 420px) minmax(0, 1fr);
   gap: 18px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .feed-dashboard__subscriptions,
-.feed-dashboard__preview {
+.feed-dashboard__preview,
+.feed-dashboard__reader {
   display: grid;
   gap: 14px;
+  min-height: 0;
 }
 
 .feed-dashboard__subscription-item.is-active {
   border-color: rgba(203, 167, 119, 0.4);
   box-shadow: 0 14px 28px rgba(141, 113, 77, 0.1);
+  background: linear-gradient(180deg, rgba(255, 251, 245, 0.96), rgba(249, 241, 230, 0.92));
 }
 
 .feed-dashboard__subscription-main {
@@ -6445,10 +6627,174 @@ textarea {
   background: transparent;
   text-align: left;
   cursor: pointer;
+  min-width: 0;
+  padding: 0;
 }
 
 .feed-dashboard__subscription-main:focus-visible {
   outline: none;
+}
+
+.feed-dashboard__preview-item.is-active {
+  border-color: rgba(203, 167, 119, 0.48);
+  background: linear-gradient(180deg, rgba(255, 248, 238, 0.96), rgba(250, 239, 223, 0.92));
+  box-shadow: 0 18px 30px rgba(141, 113, 77, 0.12);
+  transform: translateY(-1px);
+}
+
+.feed-dashboard__preview-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  padding: 14px 15px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.feed-dashboard__preview-select:hover {
+  background: rgba(141, 113, 77, 0.08);
+}
+
+.feed-dashboard__preview-select:focus-visible {
+  outline: none;
+  background: rgba(141, 113, 77, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(141, 113, 77, 0.28);
+}
+
+.feed-dashboard__reader {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.feed-dashboard__reader-preview {
+  min-height: 0;
+  max-height: min(68vh, 920px);
+  border-radius: 18px;
+  border: 1px solid rgba(203, 167, 119, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(252, 247, 241, 0.86)),
+    radial-gradient(circle at top right, rgba(203, 167, 119, 0.14), transparent 32%);
+  overflow: hidden;
+}
+
+.feed-dashboard__reader-preview .preview-pane {
+  height: 100%;
+}
+
+.feed-dashboard__reader-preview .preview-pane--reading-canvas {
+  min-height: 100%;
+}
+
+.feed-dashboard__reader-preview .preview-content {
+  max-height: calc(min(68vh, 920px) - 60px);
+  overflow-y: auto;
+}
+
+.feed-dashboard__reader-preview .preview-content__header {
+  padding-top: 8px;
+}
+
+.feed-dashboard__reader-article {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-height: 100%;
+  max-height: min(68vh, 920px);
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(203, 167, 119, 0.22);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(252, 247, 241, 0.86)),
+    radial-gradient(circle at top right, rgba(203, 167, 119, 0.14), transparent 32%);
+  overflow-y: auto;
+}
+
+.feed-dashboard__reader-masthead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 12px;
+  padding-bottom: 14px;
+  background:
+    linear-gradient(180deg, rgba(252, 247, 241, 0.98), rgba(252, 247, 241, 0.9) 82%, rgba(252, 247, 241, 0));
+}
+
+.feed-dashboard__reader-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.feed-dashboard__reader-title {
+  margin: 0;
+  color: var(--admin-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-size: clamp(1.4rem, 2vw, 1.85rem);
+  line-height: 1.18;
+}
+
+.feed-dashboard__reader-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.feed-dashboard__reader-meta span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(203, 167, 119, 0.16);
+  color: var(--admin-soft);
+  font-size: 0.8rem;
+}
+
+.feed-dashboard__reader-summary {
+  min-height: 0;
+  padding: 0 2px 2px 0;
+}
+
+.feed-dashboard__reader-summary p {
+  margin: 0;
+  color: var(--admin-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-size: 1.04rem;
+  line-height: 1.9;
+  white-space: pre-line;
+}
+
+.feed-dashboard__reader-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: auto;
+  padding: 14px 16px 0;
+}
+
+.feed-dashboard__reader-link {
+  text-decoration: none;
+}
+
+.feed-dashboard__reader-nav-btn {
+  min-height: 40px;
+  padding: 0 14px;
+}
+
+.feed-dashboard__subscription-remove-btn {
+  align-self: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  line-height: 1;
 }
 
 .post-dashboard__daily-knowledge {
@@ -7635,6 +7981,16 @@ textarea {
   white-space: nowrap;
 }
 
+@media (max-width: 1180px) {
+  .feed-dashboard__content {
+    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  }
+
+  .feed-dashboard__reader {
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 900px) {
   .feed-dashboard__hero,
   .feed-dashboard__content {
@@ -7645,6 +8001,10 @@ textarea {
   .feed-dashboard__preview-item,
   .feed-dashboard__subscription-item {
     grid-template-columns: 1fr;
+  }
+
+  .feed-dashboard__reader {
+    grid-column: auto;
   }
 
   .post-dashboard__feed-directory-body {
@@ -7704,12 +8064,14 @@ textarea {
   .feed-dashboard__composer,
   .feed-dashboard__directory,
   .feed-dashboard__subscriptions,
-  .feed-dashboard__preview {
+  .feed-dashboard__preview,
+  .feed-dashboard__reader {
     padding: 14px;
   }
 
   .feed-dashboard__directory-header,
-  .feed-dashboard__preview-header {
+  .feed-dashboard__preview-header,
+  .feed-dashboard__reader-header {
     display: grid;
     grid-template-columns: 1fr;
   }
@@ -9203,7 +9565,8 @@ textarea {
 .admin-shell--dark .feed-dashboard__composer,
 .admin-shell--dark .feed-dashboard__directory,
 .admin-shell--dark .feed-dashboard__subscriptions,
-.admin-shell--dark .feed-dashboard__preview {
+.admin-shell--dark .feed-dashboard__preview,
+.admin-shell--dark .feed-dashboard__reader {
   border-color: rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
@@ -9213,9 +9576,11 @@ textarea {
 .admin-shell--dark .feed-dashboard__directory-item,
 .admin-shell--dark .feed-dashboard__preview-item,
 .admin-shell--dark .feed-dashboard__subscription-item,
+.admin-shell--dark .feed-dashboard__reader-article,
 .admin-shell--dark .feed-dashboard__directory-empty,
 .admin-shell--dark .feed-dashboard__subscriptions-empty,
-.admin-shell--dark .feed-dashboard__preview-empty {
+.admin-shell--dark .feed-dashboard__preview-empty,
+.admin-shell--dark .feed-dashboard__reader-empty {
   border-color: rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.03);
 }
@@ -9246,6 +9611,58 @@ textarea {
 .admin-shell--dark .feed-dashboard__subscription-remove-btn:hover {
   border-color: var(--admin-warm);
   color: var(--admin-warm);
+}
+
+.admin-shell--dark .feed-dashboard__preview-select:hover {
+  background: rgba(228, 163, 88, 0.08);
+}
+
+.admin-shell--dark .feed-dashboard__preview-select:focus-visible {
+  background: rgba(228, 163, 88, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(228, 163, 88, 0.28);
+}
+
+.admin-shell--dark .feed-dashboard__preview-item.is-active {
+  border-color: rgba(228, 163, 88, 0.28);
+  background: linear-gradient(180deg, rgba(228, 163, 88, 0.12), rgba(228, 163, 88, 0.06));
+  box-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+}
+
+.admin-shell--dark .feed-dashboard__subscription-item.is-active {
+  background: linear-gradient(180deg, rgba(228, 163, 88, 0.08), rgba(255, 255, 255, 0.03));
+}
+
+.admin-shell--dark .feed-dashboard__subscription-group {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-shell--dark .feed-dashboard__subscription-group.is-active {
+  border-color: rgba(228, 163, 88, 0.2);
+  background: linear-gradient(180deg, rgba(228, 163, 88, 0.08), rgba(255, 255, 255, 0.02));
+}
+
+.admin-shell--dark .feed-dashboard__subscription-group-toggle:focus-visible {
+  box-shadow: 0 0 0 3px rgba(228, 163, 88, 0.14);
+}
+
+.admin-shell--dark .feed-dashboard__subscription-kicker span {
+  background: rgba(228, 163, 88, 0.1);
+}
+
+.admin-shell--dark .feed-dashboard__reader-masthead {
+  background:
+    linear-gradient(180deg, rgba(22, 19, 16, 0.98), rgba(22, 19, 16, 0.9) 82%, rgba(22, 19, 16, 0));
+}
+
+.admin-shell--dark .feed-dashboard__reader-preview {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .feed-dashboard__reader-meta span {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(228, 163, 88, 0.14);
 }
 
 .admin-shell--dark .post-dashboard__quick-capture-directory-btn {

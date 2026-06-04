@@ -51,7 +51,7 @@ import { fetchFeedDirectory, type SharedFeedCategory, type SharedFeedSource } fr
 import { importFeedFromUrl, type ImportedFeed, type ImportedFeedItem } from './read-later/feed-import-client'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
-import { importReadLaterFromUrl } from './read-later/import-client'
+import { importReadLaterFromUrl, type ImportedReadLaterArticle } from './read-later/import-client'
 import { parseReadLaterItem, parseReadLaterSections } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
@@ -75,6 +75,7 @@ type ReadLaterTab = 'info' | 'commentary'
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 type ReadLaterAnnotationDraft = Pick<ReadLaterAnnotation, 'sectionKey' | 'quote' | 'prefix' | 'suffix'>
 type ReaderNavigationRequest = { targetId: string; requestId: number }
+type PendingFeedDraftContext = { draftPath: string; feedUrl: string } | null
 type TaxonomyType = 'categories' | 'tags'
 type TaxonomyConfirmAction =
   | { kind: 'rename'; type: TaxonomyType; oldName: string; newName: string; affectedPaths: string[] }
@@ -238,7 +239,9 @@ function createFeedSubscriptionRecord({
     category: category.trim(),
     sourceType,
     articleCount,
+    readLaterCount: 0,
     createdAt: new Date().toISOString(),
+    updatedAt: '',
   }
 }
 
@@ -406,6 +409,9 @@ export default function App() {
   })
   const [selectedRssFeedUrl, setSelectedRssFeedUrl] = useState<string | null>(null)
   const [rssPreviewFeed, setRssPreviewFeed] = useState<ImportedFeed | null>(null)
+  const [rssPreviewArticlesByUrl, setRssPreviewArticlesByUrl] = useState<Record<string, ImportedReadLaterArticle>>({})
+  const [rssPreviewArticleLoadingByUrl, setRssPreviewArticleLoadingByUrl] = useState<Record<string, boolean>>({})
+  const [rssPreviewArticleErrorsByUrl, setRssPreviewArticleErrorsByUrl] = useState<Record<string, string>>({})
   const [manualFeedUrl, setManualFeedUrl] = useState('')
   const [isRssSubscriptionsLoading, setIsRssSubscriptionsLoading] = useState(false)
   const [isSavingRssSubscription, setIsSavingRssSubscription] = useState(false)
@@ -415,6 +421,7 @@ export default function App() {
   const [isQuickReadLaterDirectoryLoading, setIsQuickReadLaterDirectoryLoading] = useState(false)
   const [quickReadLaterDirectoryPendingFeedUrl, setQuickReadLaterDirectoryPendingFeedUrl] = useState<string | null>(null)
   const [quickReadLaterPendingItemUrl, setQuickReadLaterPendingItemUrl] = useState<string | null>(null)
+  const [pendingFeedDraftContext, setPendingFeedDraftContext] = useState<PendingFeedDraftContext>(null)
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
   const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([])
@@ -968,6 +975,7 @@ export default function App() {
     setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, subscriptions: [] })
     setSelectedRssFeedUrl(null)
     setRssPreviewFeed(null)
+    setPendingFeedDraftContext(null)
     setIsFeedDirectoryVisible(false)
     setQuickReadLaterDirectory([])
     setSuccessMessage(null)
@@ -1209,6 +1217,30 @@ export default function App() {
     return savedState
   }
 
+  const incrementFeedReadLaterCount = async (feedUrl: string) => {
+    if (!session) {
+      return null
+    }
+
+    const timestamp = new Date().toISOString()
+    const nextSubscriptions = rssSubscriptions.map((subscription) =>
+      subscription.url === feedUrl
+        ? {
+            ...subscription,
+            readLaterCount: Math.max(0, subscription.readLaterCount) + 1,
+            updatedAt: timestamp,
+          }
+        : subscription,
+    )
+
+    const savedState = await saveFeedSubscriptions(session, {
+      ...rssSubscriptionsState,
+      subscriptions: nextSubscriptions,
+    })
+    setRssSubscriptionsState(savedState)
+    return savedState
+  }
+
   const handlePreviewSubscriptionFeed = async (subscription: FeedSubscription) => {
     if (!session || isRssPreviewLoading || quickReadLaterDirectoryPendingFeedUrl) {
       return
@@ -1235,6 +1267,59 @@ export default function App() {
       setIsRssPreviewLoading(false)
     }
   }
+
+  const handlePreviewFeedItemArticle = useCallback(async (item: ImportedFeedItem | null) => {
+    if (!session || !item?.url) {
+      return
+    }
+
+    const articleUrl = item.url
+    if (rssPreviewArticlesByUrl[articleUrl] || rssPreviewArticleLoadingByUrl[articleUrl]) {
+      return
+    }
+
+    setRssPreviewArticleLoadingByUrl((currentState) => ({
+      ...currentState,
+      [articleUrl]: true,
+    }))
+    setRssPreviewArticleErrorsByUrl((currentState) => {
+      if (!currentState[articleUrl]) {
+        return currentState
+      }
+
+      const nextState = { ...currentState }
+      delete nextState[articleUrl]
+      return nextState
+    })
+
+    try {
+      const importedArticle = await importReadLaterFromUrl(session, articleUrl)
+      setRssPreviewArticlesByUrl((currentState) => ({
+        ...currentState,
+        [articleUrl]: importedArticle,
+      }))
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setRssPreviewArticleErrorsByUrl((currentState) => ({
+        ...currentState,
+        [articleUrl]: caughtError instanceof Error ? caughtError.message : '正文抓取失败。',
+      }))
+    } finally {
+      setRssPreviewArticleLoadingByUrl((currentState) => {
+        if (!currentState[articleUrl]) {
+          return currentState
+        }
+
+        const nextState = { ...currentState }
+        delete nextState[articleUrl]
+        return nextState
+      })
+    }
+  }, [handleAuthExpiry, rssPreviewArticleLoadingByUrl, rssPreviewArticlesByUrl, session])
 
   const handleAddManualFeedSubscription = async () => {
     if (!session || isSavingRssSubscription) {
@@ -1607,6 +1692,11 @@ export default function App() {
       return
     }
 
+    const pendingFeedUrl =
+      document.contentType === 'read-later' && pendingFeedDraftContext?.draftPath === document.path
+        ? pendingFeedDraftContext.feedUrl
+        : ''
+    const shouldIncrementFeedReadLaterCount = document.contentType === 'read-later' && document.sha.length === 0 && Boolean(pendingFeedUrl)
     const nextErrors = validate({ isNewPost: document.sha.length === 0 })
     if (Object.keys(nextErrors).length > 0) {
       return
@@ -1625,6 +1715,10 @@ export default function App() {
         savedDocument: saveResult.savedDocument,
         savedPostIndexItem: saveResult.savedPostIndexItem,
       })
+      if (shouldIncrementFeedReadLaterCount && pendingFeedUrl) {
+        await incrementFeedReadLaterCount(pendingFeedUrl)
+        setPendingFeedDraftContext(null)
+      }
       markSaved(syncResult.savedDocument)
       removeLocalDraft(syncResult.savedDocument.path)
       setActivePostPath(syncResult.savedDocument.path)
@@ -2247,6 +2341,7 @@ export default function App() {
     fallbackTitle = '',
     fallbackDesc = '',
     fallbackSourceName = '',
+    sourceFeedUrl = '',
     successMessage = null,
   }: {
     externalUrl: string
@@ -2254,6 +2349,7 @@ export default function App() {
     fallbackTitle?: string
     fallbackDesc?: string
     fallbackSourceName?: string
+    sourceFeedUrl?: string
     successMessage?: string | null
   }) => {
     const savedBaseDocument = createNewReadLaterItem()
@@ -2273,6 +2369,7 @@ export default function App() {
       draftPost: draftDocument,
       successMessage,
     })
+    setPendingFeedDraftContext(sourceFeedUrl ? { draftPath: savedBaseDocument.path, feedUrl: sourceFeedUrl } : null)
     setContentType('read-later')
     setEditorNavigationStack([])
     setQuickReadLaterUrl('')
@@ -2330,58 +2427,6 @@ export default function App() {
       setError(caughtError instanceof Error ? caughtError.message : '快速收录失败。')
     } finally {
       setIsQuickCollectingReadLater(false)
-    }
-  }
-
-  const handleImportFeedItemToReadLater = async (item: ImportedFeedItem, fallbackSourceName = '') => {
-    if (!session || isQuickCollectingReadLater || quickReadLaterPendingItemUrl) {
-      return
-    }
-
-    const duplicatedPost = findDuplicateReadLaterByUrl(item.url)
-    if (
-      duplicatedPost &&
-      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
-    ) {
-      return
-    }
-
-    setQuickReadLaterPendingItemUrl(item.url)
-    setError(null)
-    setSuccessMessage(null)
-
-    try {
-      const imported = await importReadLaterFromUrl(session, item.url, { allowMetadataOnly: true })
-      const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || item.url)
-      const successMessages = [
-        redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
-        imported.needsManualPaste ? '未自动识别正文，已创建带元信息的待读草稿，请手动粘贴原文。' : null,
-      ].filter((message): message is string => Boolean(message))
-
-      openQuickReadLaterDraft({
-        externalUrl: item.url,
-        imported,
-        fallbackTitle: item.title,
-        fallbackDesc: item.summary,
-        fallbackSourceName: item.sourceName || fallbackSourceName,
-        successMessage: successMessages.length > 0 ? successMessages.join(' ') : null,
-      })
-    } catch (caughtError) {
-      if (caughtError instanceof GitHubAuthError) {
-        handleAuthExpiry(caughtError.message)
-        return
-      }
-
-      openQuickReadLaterDraft({
-        externalUrl: item.url,
-        imported: null,
-        fallbackTitle: item.title,
-        fallbackDesc: item.summary,
-        fallbackSourceName: item.sourceName || fallbackSourceName,
-        successMessage: '未自动抓取正文，已按 RSS 条目元信息创建待读草稿。',
-      })
-    } finally {
-      setQuickReadLaterPendingItemUrl(null)
     }
   }
 
@@ -2834,8 +2879,10 @@ export default function App() {
             subscriptions={rssSubscriptions}
             selectedSubscriptionUrl={selectedRssFeedUrl}
             previewFeed={rssPreviewFeed}
+            previewArticlesByUrl={rssPreviewArticlesByUrl}
+            previewArticleLoadingByUrl={rssPreviewArticleLoadingByUrl}
+            previewArticleErrorsByUrl={rssPreviewArticleErrorsByUrl}
             isPreviewLoading={isRssPreviewLoading}
-            previewImportingItemUrl={quickReadLaterPendingItemUrl}
             directoryCategories={quickReadLaterDirectory}
             isDirectoryVisible={isFeedDirectoryVisible}
             isDirectoryLoading={isQuickReadLaterDirectoryLoading}
@@ -2844,9 +2891,9 @@ export default function App() {
             onAddManualFeed={() => { void handleAddManualFeedSubscription() }}
             onToggleDirectory={handleToggleFeedDirectory}
             onOpenDirectoryFeed={(feed) => { void handleOpenDirectoryFeed(feed) }}
+            onPreviewItemChange={(item) => { void handlePreviewFeedItemArticle(item) }}
             onSelectSubscription={(subscription) => { void handlePreviewSubscriptionFeed(subscription) }}
             onRemoveSubscription={(subscription) => { void handleRemoveFeedSubscription(subscription) }}
-            onImportFeedItem={(item) => { void handleImportFeedItemToReadLater(item, selectedRssSubscription?.title || rssPreviewFeed?.title || '') }}
           />
         </section>
       ) : isAnnotationsView ? (

@@ -335,7 +335,7 @@ describe('App read-later import flow', () => {
     })
   })
 
-  it('subscribes a feed from the RSS page and imports a selected item into a new read-later draft', async () => {
+  it('subscribes a feed from the RSS page and automatically previews the selected article body', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
@@ -383,24 +383,15 @@ describe('App read-later import flow', () => {
       expect(feedSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/feed.xml')
     })
 
-    expect(await screen.findAllByText('设计摘录')).toHaveLength(2)
-    expect(screen.getByText('新的系统设计文章')).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: '添加到待读' }))
+    expect((await screen.findAllByText('设计摘录')).length).toBeGreaterThan(0)
 
     await waitFor(() => {
-      expect(importSpy).toHaveBeenCalledWith(
-        { token: 'persisted-token' },
-        'https://example.com/posts/design-systems',
-        { allowMetadataOnly: true },
-      )
+      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/posts/design-systems')
     })
 
     expect(await screen.findByRole('heading', { name: '正文标题' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
-    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('新的系统设计文章')
-    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('这是一篇关于系统设计取舍的摘要。')
-    expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('设计摘录')
+    expect(screen.getByText('正文第一段')).toBeTruthy()
+    expect(screen.getByRole('link', { name: '打开原文' }).getAttribute('href')).toBe('https://example.com/posts/design-systems')
   })
 
   it('subscribes a shared RSS feed from the RSS page without manual url input', async () => {
@@ -447,6 +438,15 @@ describe('App read-later import flow', () => {
         },
       ],
     })
+    const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: 'Claude 新发布',
+      desc: '关于新版本的摘要。',
+      sourceName: 'Claude Blog',
+      markdown: '# 发布正文\n\n这里是正文段落。',
+      requestedUrl: 'https://example.com/posts/claude-update',
+      finalUrl: 'https://example.com/posts/claude-update',
+      needsManualPaste: false,
+    })
 
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
@@ -465,7 +465,56 @@ describe('App read-later import flow', () => {
     })
     expect(saveFeedSpy).toHaveBeenCalled()
 
-    expect(await screen.findByText('Claude 新发布')).toBeTruthy()
-    expect(screen.getByText('关于新版本的摘要。')).toBeTruthy()
+    await waitFor(() => {
+      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/posts/claude-update')
+    })
+    expect(await screen.findByRole('heading', { name: '发布正文' })).toBeTruthy()
+    expect(screen.getByText('这里是正文段落。')).toBeTruthy()
+  })
+
+  it('shows a fallback notice when the RSS article body cannot be extracted automatically', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      subscriptions: [],
+    })
+    vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'feed-sha',
+    }))
+    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
+      title: '设计摘录',
+      description: '最近更新的设计文章',
+      requestedUrl: 'https://example.com/feed.xml',
+      finalUrl: 'https://example.com/feed.xml',
+      items: [
+        {
+          id: 'feed-item-1',
+          title: '新的系统设计文章',
+          url: 'https://example.com/posts/design-systems',
+          summary: '这是一篇关于系统设计取舍的摘要。',
+          publishedAt: '2026-06-04T08:00:00.000Z',
+          sourceName: '设计摘录',
+        },
+      ],
+    })
+    vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '新的系统设计文章',
+      desc: '这是一篇关于系统设计取舍的摘要。',
+      sourceName: '设计摘录',
+      markdown: '',
+      requestedUrl: 'https://example.com/posts/design-systems',
+      finalUrl: 'https://example.com/posts/design-systems',
+      needsManualPaste: true,
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
+    fireEvent.change(screen.getByLabelText('Feed URL'), { target: { value: 'https://example.com/feed.xml' } })
+    fireEvent.click(screen.getByRole('button', { name: '新增 feed' }))
+    expect(await screen.findByText('这篇文章暂时没自动识别出正文，可先打开原文。')).toBeTruthy()
   })
 })
