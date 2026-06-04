@@ -375,7 +375,7 @@ describe('App read-later import flow', () => {
 
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
-    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
+    await screen.findByLabelText('Feed URL')
     fireEvent.change(screen.getByLabelText('Feed URL'), { target: { value: 'https://example.com/feed.xml' } })
     fireEvent.click(screen.getByRole('button', { name: '新增 feed' }))
 
@@ -450,8 +450,8 @@ describe('App read-later import flow', () => {
 
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
-    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
-    fireEvent.click(screen.getByRole('button', { name: '共享 RSS 源目录' }))
+    await screen.findByLabelText('Feed URL')
+    fireEvent.click(screen.getByRole('button', { name: '共享目录' }))
 
     await waitFor(() => {
       expect(directorySpy).toHaveBeenCalledWith({ token: 'persisted-token' })
@@ -512,7 +512,7 @@ describe('App read-later import flow', () => {
 
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
-    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
+    await screen.findByLabelText('Feed URL')
     fireEvent.change(screen.getByLabelText('Feed URL'), { target: { value: 'https://example.com/feed.xml' } })
     fireEvent.click(screen.getByRole('button', { name: '新增 feed' }))
     expect(await screen.findByText('这篇文章暂时没自动识别出正文，可先打开原文。')).toBeTruthy()
