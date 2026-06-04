@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import PreviewPane from '../editor/preview-pane'
-import type { SharedFeedCategory, SharedFeedSource } from '../read-later/feed-directory-client'
 import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import type { ImportedReadLaterArticle } from '../read-later/import-client'
 import { sortFeedSubscriptions, type FeedSubscription } from '../rss/feed-subscriptions'
@@ -17,30 +16,11 @@ type FeedDashboardProps = {
   previewArticleLoadingByUrl: Record<string, boolean>
   previewArticleErrorsByUrl: Record<string, string>
   isPreviewLoading: boolean
-  directoryCategories: SharedFeedCategory[]
-  isDirectoryVisible: boolean
-  isDirectoryLoading: boolean
-  directoryPendingFeedUrl: string | null
   onManualFeedUrlChange: (value: string) => void
   onAddManualFeed: () => void
-  onToggleDirectory: () => void
-  onOpenDirectoryFeed: (feed: SharedFeedSource) => void
   onPreviewItemChange: (item: ImportedFeedItem | null) => void
   onSelectSubscription: (subscription: FeedSubscription) => void
   onRemoveSubscription: (subscription: FeedSubscription) => void
-}
-
-function formatFeedMetaDate(value: string) {
-  if (!value) {
-    return '未同步'
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 function formatFeedItemDate(value: string) {
@@ -73,15 +53,6 @@ function readFeedItemHostLabel(value: string) {
   }
 }
 
-function readSubscriptionSourceLabel(sourceType: FeedSubscription['sourceType']) {
-  return sourceType === 'shared' ? '共享源' : '手动订阅'
-}
-
-function readSubscriptionCategoryLabel(category: string) {
-  const normalizedCategory = category.trim()
-  return normalizedCategory || '未分类'
-}
-
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false
@@ -103,21 +74,14 @@ export default function FeedDashboard({
   previewArticleLoadingByUrl,
   previewArticleErrorsByUrl,
   isPreviewLoading,
-  directoryCategories,
-  isDirectoryVisible,
-  isDirectoryLoading,
-  directoryPendingFeedUrl,
   onManualFeedUrlChange,
   onAddManualFeed,
-  onToggleDirectory,
-  onOpenDirectoryFeed,
   onPreviewItemChange,
   onSelectSubscription,
   onRemoveSubscription,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const [selectedPreviewItemUrl, setSelectedPreviewItemUrl] = useState<string | null>(null)
-  const [collapsedSubscriptionCategories, setCollapsedSubscriptionCategories] = useState<Record<string, boolean>>({})
 
   const filteredSubscriptions = useMemo(() => {
     const matchingSubscriptions = !normalizedSearch
@@ -126,7 +90,6 @@ export default function FeedDashboard({
         [
           subscription.title,
           subscription.description,
-          subscription.category,
           subscription.url,
         ].some((value) => value.toLowerCase().includes(normalizedSearch)),
       )
@@ -138,76 +101,6 @@ export default function FeedDashboard({
     () => subscriptions.find((subscription) => subscription.url === selectedSubscriptionUrl) || null,
     [selectedSubscriptionUrl, subscriptions],
   )
-
-  const groupedSubscriptions = useMemo(() => {
-    const categoryMap = new Map<string, FeedSubscription[]>()
-
-    filteredSubscriptions.forEach((subscription) => {
-      const category = readSubscriptionCategoryLabel(subscription.category)
-      const existingCategorySubscriptions = categoryMap.get(category)
-      if (existingCategorySubscriptions) {
-        existingCategorySubscriptions.push(subscription)
-        return
-      }
-
-      categoryMap.set(category, [subscription])
-    })
-
-    return Array.from(categoryMap.entries()).map(([category, categorySubscriptions]) => ({
-      category,
-      subscriptions: categorySubscriptions,
-      readLaterCount: categorySubscriptions.reduce(
-        (total, subscription) => total + subscription.readLaterCount,
-        0,
-      ),
-    }))
-  }, [filteredSubscriptions])
-
-  const selectedSubscriptionCategory = selectedSubscription
-    ? readSubscriptionCategoryLabel(selectedSubscription.category)
-    : null
-
-  const sharedFeedUrlSet = useMemo(
-    () => new Set(subscriptions.map((subscription) => subscription.url)),
-    [subscriptions],
-  )
-
-  useEffect(() => {
-    if (!selectedSubscriptionCategory) {
-      return
-    }
-
-    setCollapsedSubscriptionCategories((currentState) => {
-      if (!currentState[selectedSubscriptionCategory]) {
-        return currentState
-      }
-
-      return {
-        ...currentState,
-        [selectedSubscriptionCategory]: false,
-      }
-    })
-  }, [selectedSubscriptionCategory])
-
-  useEffect(() => {
-    if (!normalizedSearch) {
-      return
-    }
-
-    setCollapsedSubscriptionCategories((currentState) => {
-      let didChange = false
-      const nextState = { ...currentState }
-
-      groupedSubscriptions.forEach((group) => {
-        if (nextState[group.category]) {
-          nextState[group.category] = false
-          didChange = true
-        }
-      })
-
-      return didChange ? nextState : currentState
-    })
-  }, [groupedSubscriptions, normalizedSearch])
 
   useEffect(() => {
     setSelectedPreviewItemUrl(previewFeed?.items[0]?.url || null)
@@ -328,74 +221,9 @@ export default function FeedDashboard({
               {isSavingFeed ? '…' : '+'}
             </button>
           </div>
-          <button
-            type="button"
-            className="feed-dashboard__toolbar-directory-btn"
-            onClick={onToggleDirectory}
-            disabled={isDirectoryLoading}
-          >
-            {isDirectoryLoading ? '目录加载中…' : isDirectoryVisible ? '收起共享目录' : '共享目录'}
-          </button>
         </div>
 
-        {/* Directory dropdown overlay */}
         <div className="feed-dashboard__sidebar-body">
-          {isDirectoryVisible ? (
-            <section className="feed-dashboard__directory" aria-label="共享 RSS 源目录">
-              <div className="feed-dashboard__directory-header">
-                <strong>共享目录</strong>
-                <span>{directoryCategories.length > 0 ? `${directoryCategories.length} 个分类` : '共享目录'}</span>
-              </div>
-              {isDirectoryLoading ? (
-                <div className="feed-dashboard__directory-empty">正在加载共享 RSS 源目录…</div>
-              ) : directoryCategories.length === 0 ? (
-                <div className="feed-dashboard__directory-empty">目录暂时为空，稍后再试。</div>
-              ) : (
-                <div className="feed-dashboard__directory-groups">
-                  {directoryCategories.map((group) => (
-                    <section key={group.category} className="feed-dashboard__directory-group">
-                      <header className="feed-dashboard__directory-group-header">
-                        <strong>{group.category}</strong>
-                        <span>{group.feeds.length} 个源</span>
-                      </header>
-                      <div className="feed-dashboard__directory-list">
-                        {group.feeds.map((feed) => {
-                          const isProcessingThisFeed = directoryPendingFeedUrl === feed.url
-                          const isSubscribed = sharedFeedUrlSet.has(feed.url)
-
-                          return (
-                            <article key={feed.id || feed.url} className="feed-dashboard__directory-item">
-                              <div className="feed-dashboard__directory-item-main">
-                                <div className="feed-dashboard__directory-item-title-row">
-                                  <strong>{feed.title || '未命名源'}</strong>
-                                  <span>{feed.articleCount > 0 ? `${feed.articleCount} 篇` : '已收录'}</span>
-                                </div>
-                                <p>{feed.intro || '这个共享源暂时还没有说明。'}</p>
-                                <div className="feed-dashboard__directory-item-meta">
-                                  <span>{group.category}</span>
-                                  <span>{formatFeedMetaDate(feed.lastSuccessAt)}</span>
-                                </div>
-                              </div>
-                              <button
-                                type="button"
-                                className="feed-dashboard__directory-btn"
-                                onClick={() => onOpenDirectoryFeed(feed)}
-                                disabled={Boolean(directoryPendingFeedUrl) || isSavingFeed}
-                              >
-                                {isProcessingThisFeed ? '处理中…' : isSubscribed ? '查看最近条目' : '订阅并查看'}
-                              </button>
-                            </article>
-                          )
-                        })}
-                      </div>
-                    </section>
-                  ))}
-                </div>
-              )}
-            </section>
-          ) : null}
-
-          {/* Subscription list */}
           <div className="feed-dashboard__subscriptions" aria-label="已订阅 feed">
             {isLoading ? (
               <div className="feed-dashboard__subscriptions-empty">正在读取 feed 订阅…</div>
@@ -404,75 +232,33 @@ export default function FeedDashboard({
                 {subscriptions.length === 0 ? '还没有订阅 feed。' : '当前搜索没有匹配的 feed。'}
               </div>
             ) : (
-              <div className="feed-dashboard__subscription-groups">
-                {groupedSubscriptions.map((group) => {
-                  const isSelectedCategory = selectedSubscriptionCategory === group.category
-                  const isExpanded = isSelectedCategory || !collapsedSubscriptionCategories[group.category]
+              <div className="feed-dashboard__subscription-list">
+                {filteredSubscriptions.map((subscription) => {
+                  const isActive = selectedSubscriptionUrl === subscription.url
 
                   return (
-                    <section
-                      key={group.category}
-                      className={`feed-dashboard__subscription-group${isSelectedCategory ? ' is-active' : ''}`}
+                    <article
+                      key={subscription.id}
+                      className={`feed-dashboard__subscription-item${isActive ? ' is-active' : ''}`}
                     >
                       <button
                         type="button"
-                        className="feed-dashboard__subscription-group-toggle"
-                        aria-expanded={isExpanded}
-                        onClick={() => {
-                          setCollapsedSubscriptionCategories((currentState) => ({
-                            ...currentState,
-                            [group.category]: isExpanded,
-                          }))
-                        }}
+                        className="feed-dashboard__subscription-main"
+                        onClick={() => onSelectSubscription(subscription)}
                       >
-                        <span className="feed-dashboard__subscription-group-label">
-                          <strong>{group.category}</strong>
-                          <small>{group.subscriptions.length} 个源</small>
-                        </span>
-                        <span className="feed-dashboard__subscription-group-summary">
-                          <span>{group.readLaterCount > 0 ? `${group.readLaterCount} 篇待读` : '暂无待读'}</span>
-                          <span className="feed-dashboard__subscription-group-chevron" aria-hidden="true" />
+                        <strong>{subscription.title || '未命名 feed'}</strong>
+                        <span className="feed-dashboard__subscription-count">
+                          {subscription.articleCount > 0 ? `${subscription.articleCount} 条` : '0 条'}
                         </span>
                       </button>
-                      {isExpanded ? (
-                        <div className="feed-dashboard__subscription-group-list">
-                          {group.subscriptions.map((subscription) => {
-                            const isActive = selectedSubscriptionUrl === subscription.url
-
-                            return (
-                              <article
-                                key={subscription.id}
-                                className={`feed-dashboard__subscription-item${isActive ? ' is-active' : ''}`}
-                              >
-                                <button
-                                  type="button"
-                                  className="feed-dashboard__subscription-main"
-                                  onClick={() => onSelectSubscription(subscription)}
-                                >
-                                  <div className="feed-dashboard__subscription-kicker">
-                                    <span>{readSubscriptionSourceLabel(subscription.sourceType)}</span>
-                                    <span>{subscription.articleCount > 0 ? `${subscription.articleCount} 条` : '待读取'}</span>
-                                  </div>
-                                  <strong>{subscription.title || '未命名 feed'}</strong>
-                                  <p>{subscription.description || readFeedItemHostLabel(subscription.url)}</p>
-                                  <div className="feed-dashboard__subscription-meta">
-                                    <span>{subscription.updatedAt ? `同步 ${formatFeedMetaDate(subscription.updatedAt)}` : '未同步'}</span>
-                                    <span>{subscription.readLaterCount > 0 ? `${subscription.readLaterCount} 篇已入待读` : '未入待读'}</span>
-                                  </div>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="feed-dashboard__subscription-remove-btn"
-                                  onClick={() => onRemoveSubscription(subscription)}
-                                >
-                                  删除
-                                </button>
-                              </article>
-                            )
-                          })}
-                        </div>
-                      ) : null}
-                    </section>
+                      <button
+                        type="button"
+                        className="feed-dashboard__subscription-remove-btn"
+                        onClick={() => onRemoveSubscription(subscription)}
+                      >
+                        删除
+                      </button>
+                    </article>
                   )
                 })}
               </div>
@@ -485,7 +271,7 @@ export default function FeedDashboard({
           <span>
             {normalizedSearch
               ? `${filteredSubscriptions.length} 个匹配源`
-              : `${subscriptions.length} 个源 · ${groupedSubscriptions.length} 组`}
+              : `${subscriptions.length} 个源`}
           </span>
         </div>
       </aside>
@@ -501,7 +287,7 @@ export default function FeedDashboard({
           {isPreviewLoading ? (
             <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
           ) : !previewFeed ? (
-            <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或从共享目录里直接订阅并查看。</div>
+            <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或手动添加新的 feed。</div>
           ) : (
             <div className="feed-dashboard__preview-list">
               {previewFeed.items.map((item) => {

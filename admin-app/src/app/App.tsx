@@ -2883,14 +2883,8 @@ export default function App() {
             previewArticleLoadingByUrl={rssPreviewArticleLoadingByUrl}
             previewArticleErrorsByUrl={rssPreviewArticleErrorsByUrl}
             isPreviewLoading={isRssPreviewLoading}
-            directoryCategories={quickReadLaterDirectory}
-            isDirectoryVisible={isFeedDirectoryVisible}
-            isDirectoryLoading={isQuickReadLaterDirectoryLoading}
-            directoryPendingFeedUrl={quickReadLaterDirectoryPendingFeedUrl}
             onManualFeedUrlChange={setManualFeedUrl}
             onAddManualFeed={() => { void handleAddManualFeedSubscription() }}
-            onToggleDirectory={handleToggleFeedDirectory}
-            onOpenDirectoryFeed={(feed) => { void handleOpenDirectoryFeed(feed) }}
             onPreviewItemChange={(item) => { void handlePreviewFeedItemArticle(item) }}
             onSelectSubscription={(subscription) => { void handlePreviewSubscriptionFeed(subscription) }}
             onRemoveSubscription={(subscription) => { void handleRemoveFeedSubscription(subscription) }}

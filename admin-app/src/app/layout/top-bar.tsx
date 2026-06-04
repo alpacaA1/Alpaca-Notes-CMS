@@ -129,7 +129,7 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
   }
 
   if (adminView === 'feeds') {
-    return '搜索 feed 名称、简介、分类或链接'
+    return '搜索 feed 名称、简介或链接'
   }
 
   if (adminView === 'annotations') {
