@@ -45,6 +45,8 @@ import { useColorMode } from './layout/use-color-mode'
 import LoginGate from './login-gate'
 import { buildReadLaterAnnotationIndex } from './read-later/annotation-index'
 import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
+import { fetchFeedDirectory, type SharedFeedCategory, type SharedFeedSource } from './read-later/feed-directory-client'
+import { FeedImportError, importFeedFromUrl, type ImportedFeed, type ImportedFeedItem } from './read-later/feed-import-client'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
 import { importReadLaterFromUrl } from './read-later/import-client'
@@ -356,6 +358,11 @@ export default function App() {
   const [materialResult, setMaterialResult] = useState<string | null>(null)
   const [selectedMaterialPaths, setSelectedMaterialPaths] = useState<MaterialSelectionState>(createEmptyMaterialSelectionState)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
+  const [quickReadLaterFeed, setQuickReadLaterFeed] = useState<ImportedFeed | null>(null)
+  const [quickReadLaterDirectory, setQuickReadLaterDirectory] = useState<SharedFeedCategory[]>([])
+  const [isQuickReadLaterDirectoryLoading, setIsQuickReadLaterDirectoryLoading] = useState(false)
+  const [quickReadLaterDirectoryPendingFeedUrl, setQuickReadLaterDirectoryPendingFeedUrl] = useState<string | null>(null)
+  const [quickReadLaterPendingItemUrl, setQuickReadLaterPendingItemUrl] = useState<string | null>(null)
   const [previewImageUrls, setPreviewImageUrls] = useState<Record<string, string>>({})
   const [readLaterAnnotationIndex, setReadLaterAnnotationIndex] = useState<ReadLaterAnnotationIndexItem[]>([])
   const [trashEntries, setTrashEntries] = useState<TrashEntry[]>([])
@@ -1881,6 +1888,73 @@ export default function App() {
     }
   }
 
+  const handleQuickReadLaterUrlChange = (value: string) => {
+    setQuickReadLaterUrl(value)
+    setQuickReadLaterFeed(null)
+  }
+
+  const handleLoadQuickReadLaterDirectory = async () => {
+    if (!session || isQuickReadLaterDirectoryLoading || quickReadLaterDirectory.length > 0) {
+      return
+    }
+
+    setIsQuickReadLaterDirectoryLoading(true)
+    setError(null)
+
+    try {
+      const categories = await fetchFeedDirectory(session)
+      setQuickReadLaterDirectory(categories)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '加载共享 RSS 源目录失败。')
+    } finally {
+      setIsQuickReadLaterDirectoryLoading(false)
+    }
+  }
+
+  const openQuickReadLaterDraft = ({
+    externalUrl,
+    imported,
+    fallbackTitle = '',
+    fallbackDesc = '',
+    fallbackSourceName = '',
+    successMessage = null,
+  }: {
+    externalUrl: string
+    imported: Awaited<ReturnType<typeof importReadLaterFromUrl>> | null
+    fallbackTitle?: string
+    fallbackDesc?: string
+    fallbackSourceName?: string
+    successMessage?: string | null
+  }) => {
+    const savedBaseDocument = createNewReadLaterItem()
+    const draftDocument: ParsedReadLaterItem = {
+      ...savedBaseDocument,
+      body: imported?.markdown || savedBaseDocument.body,
+      frontmatter: {
+        ...savedBaseDocument.frontmatter,
+        title: imported?.title || fallbackTitle || savedBaseDocument.frontmatter.title,
+        desc: imported?.desc || fallbackDesc || savedBaseDocument.frontmatter.desc,
+        source_name: imported?.sourceName || fallbackSourceName || savedBaseDocument.frontmatter.source_name,
+        external_url: imported?.finalUrl || imported?.requestedUrl || externalUrl,
+      },
+    }
+
+    openDocument(savedBaseDocument, {
+      draftPost: draftDocument,
+      successMessage,
+    })
+    setEditorNavigationStack([])
+    setQuickReadLaterUrl('')
+    setQuickReadLaterFeed(null)
+    setQuickReadLaterPendingItemUrl(null)
+    setAdminView('editor')
+  }
+
   const handleQuickCollectReadLater = async () => {
     if (!session || isQuickCollectingReadLater) {
       return
@@ -1897,46 +1971,48 @@ export default function App() {
       return
     }
 
-    const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
-    if (
-      duplicatedPost &&
-      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
-    ) {
-      return
-    }
-
     setIsQuickCollectingReadLater(true)
     setError(null)
     setSuccessMessage(null)
+    setQuickReadLaterFeed(null)
 
     try {
-      const imported = await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
-      const savedBaseDocument = createNewReadLaterItem()
-      const draftDocument: ParsedReadLaterItem = {
-        ...savedBaseDocument,
-        body: imported.markdown || savedBaseDocument.body,
-        frontmatter: {
-          ...savedBaseDocument.frontmatter,
-          title: imported.title || savedBaseDocument.frontmatter.title,
-          desc: imported.desc || savedBaseDocument.frontmatter.desc,
-          source_name: imported.sourceName || savedBaseDocument.frontmatter.source_name,
-          external_url: imported.finalUrl || imported.requestedUrl || externalUrl,
-        },
+      try {
+        const importedFeed = await importFeedFromUrl(session, externalUrl)
+        setQuickReadLaterFeed(importedFeed)
+        setSuccessMessage(`已识别《${importedFeed.title || '未命名 RSS'}》，可从最近 ${importedFeed.items.length} 条内容里选择导入。`)
+        return
+      } catch (caughtError) {
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+          return
+        }
+
+        if (!(caughtError instanceof FeedImportError) || caughtError.code !== 'not_feed') {
+          throw caughtError
+        }
       }
 
-      const redirectedDuplicate = findDuplicateReadLaterByUrl(draftDocument.frontmatter.external_url, draftDocument.path)
+      const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
+      if (
+        duplicatedPost &&
+        !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
+      ) {
+        return
+      }
+
+      const imported = await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
+      const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || externalUrl)
       const successMessages = [
         redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
         imported.needsManualPaste ? '未自动识别正文，已创建带元信息的待读草稿，请手动粘贴原文。' : null,
       ].filter((message): message is string => Boolean(message))
 
-      openDocument(savedBaseDocument, {
-        draftPost: draftDocument,
+      openQuickReadLaterDraft({
+        externalUrl,
+        imported,
         successMessage: successMessages.length > 0 ? successMessages.join(' ') : null,
       })
-      setEditorNavigationStack([])
-      setQuickReadLaterUrl('')
-      setAdminView('editor')
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -1946,6 +2022,84 @@ export default function App() {
       setError(caughtError instanceof Error ? caughtError.message : '快速收录失败。')
     } finally {
       setIsQuickCollectingReadLater(false)
+    }
+  }
+
+  const handleQuickCaptureFeedItem = async (item: ImportedFeedItem) => {
+    if (!session || isQuickCollectingReadLater || quickReadLaterPendingItemUrl) {
+      return
+    }
+
+    const duplicatedPost = findDuplicateReadLaterByUrl(item.url)
+    if (
+      duplicatedPost &&
+      !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
+    ) {
+      return
+    }
+
+    setQuickReadLaterPendingItemUrl(item.url)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const imported = await importReadLaterFromUrl(session, item.url, { allowMetadataOnly: true })
+      const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || item.url)
+      const successMessages = [
+        redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
+        imported.needsManualPaste ? '未自动识别正文，已创建带元信息的待读草稿，请手动粘贴原文。' : null,
+      ].filter((message): message is string => Boolean(message))
+
+      openQuickReadLaterDraft({
+        externalUrl: item.url,
+        imported,
+        fallbackTitle: item.title,
+        fallbackDesc: item.summary,
+        fallbackSourceName: item.sourceName || quickReadLaterFeed?.title || '',
+        successMessage: successMessages.length > 0 ? successMessages.join(' ') : null,
+      })
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      openQuickReadLaterDraft({
+        externalUrl: item.url,
+        imported: null,
+        fallbackTitle: item.title,
+        fallbackDesc: item.summary,
+        fallbackSourceName: item.sourceName || quickReadLaterFeed?.title || '',
+        successMessage: '未自动抓取正文，已按 RSS 条目元信息创建待读草稿。',
+      })
+    } finally {
+      setQuickReadLaterPendingItemUrl(null)
+    }
+  }
+
+  const handlePreviewSharedFeed = async (feed: SharedFeedSource) => {
+    if (!session || isQuickCollectingReadLater || quickReadLaterDirectoryPendingFeedUrl || quickReadLaterPendingItemUrl) {
+      return
+    }
+
+    setQuickReadLaterDirectoryPendingFeedUrl(feed.url)
+    setError(null)
+    setSuccessMessage(null)
+    setQuickReadLaterFeed(null)
+
+    try {
+      const importedFeed = await importFeedFromUrl(session, feed.url)
+      setQuickReadLaterFeed(importedFeed)
+      setSuccessMessage(`已打开《${feed.title || importedFeed.title || '未命名 RSS'}》，可从最近 ${importedFeed.items.length} 条内容里选择导入。`)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '加载 RSS 条目失败。')
+    } finally {
+      setQuickReadLaterDirectoryPendingFeedUrl(null)
     }
   }
 
@@ -2312,6 +2466,8 @@ export default function App() {
             setSuccessMessage(null)
             setSearch('')
             setQuickReadLaterUrl('')
+            setQuickReadLaterFeed(null)
+            setQuickReadLaterPendingItemUrl(null)
             setEditorNavigationStack([])
             setContentType(value)
             setAdminView('dashboard')
@@ -2345,6 +2501,11 @@ export default function App() {
             recoverableDrafts={recoverableDrafts}
             quickCaptureUrl={quickReadLaterUrl}
             isQuickCapturing={isQuickCollectingReadLater}
+            quickCaptureFeed={quickReadLaterFeed}
+            quickCaptureDirectoryCategories={quickReadLaterDirectory}
+            isQuickCaptureDirectoryLoading={isQuickReadLaterDirectoryLoading}
+            quickCaptureDirectoryPendingFeedUrl={quickReadLaterDirectoryPendingFeedUrl}
+            quickCaptureImportingItemUrl={quickReadLaterPendingItemUrl}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
@@ -2362,8 +2523,12 @@ export default function App() {
             onOpenPost={handleOpenPost}
             onOpenRecoveredDraft={handleOpenRecoveredDraft}
             onNewPost={handleNewPost}
-            onQuickCaptureUrlChange={setQuickReadLaterUrl}
+            onQuickCaptureUrlChange={handleQuickReadLaterUrlChange}
             onQuickCapture={handleQuickCollectReadLater}
+            onQuickCaptureOpenDirectory={() => { void handleLoadQuickReadLaterDirectory() }}
+            onQuickCapturePreviewDirectoryFeed={(feed) => { void handlePreviewSharedFeed(feed) }}
+            onQuickCaptureDismissFeed={() => setQuickReadLaterFeed(null)}
+            onQuickCaptureImportFeedItem={(item) => { void handleQuickCaptureFeedItem(item) }}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onSelectedMaterialPathsChange={(nextPaths) => {
