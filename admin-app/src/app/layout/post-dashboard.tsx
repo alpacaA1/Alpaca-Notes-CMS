@@ -4,8 +4,6 @@ import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
 import type { ContentType, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
-import type { SharedFeedCategory, SharedFeedSource } from '../read-later/feed-directory-client'
-import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import FilterSelect from './filter-select'
 
 type DashboardViewMode = 'grid' | 'list'
@@ -38,11 +36,6 @@ type PostDashboardProps = {
   recoverableDrafts?: RecoverableDraft[]
   quickCaptureUrl?: string
   isQuickCapturing?: boolean
-  quickCaptureFeed?: ImportedFeed | null
-  quickCaptureDirectoryCategories?: SharedFeedCategory[]
-  isQuickCaptureDirectoryLoading?: boolean
-  quickCaptureDirectoryPendingFeedUrl?: string | null
-  quickCaptureImportingItemUrl?: string | null
   isDeleting?: boolean
   deletingPostPath?: string | null
   isTogglingPinned?: boolean
@@ -56,10 +49,6 @@ type PostDashboardProps = {
   onNewPost: () => void
   onQuickCaptureUrlChange?: (value: string) => void
   onQuickCapture?: () => void
-  onQuickCaptureOpenDirectory?: () => void
-  onQuickCapturePreviewDirectoryFeed?: (feed: SharedFeedSource) => void
-  onQuickCaptureDismissFeed?: () => void
-  onQuickCaptureImportFeedItem?: (item: ImportedFeedItem) => void
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onSelectedMaterialPathsChange?: (paths: string[]) => void
@@ -239,19 +228,6 @@ function formatKnowledgeCardDate(value: string) {
   return value ? value.slice(0, 10) : '无日期'
 }
 
-function formatFeedDirectoryDate(value: string) {
-  if (!value) {
-    return '最近未同步'
-  }
-
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value
-  }
-
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
-
 function formatSelectedMaterialSummary(counts: SelectedMaterialCounts) {
   const parts: string[] = []
   if (counts.diary > 0) {
@@ -365,11 +341,6 @@ export default function PostDashboard({
   recoverableDrafts = [],
   quickCaptureUrl = '',
   isQuickCapturing = false,
-  quickCaptureFeed = null,
-  quickCaptureDirectoryCategories = [],
-  isQuickCaptureDirectoryLoading = false,
-  quickCaptureDirectoryPendingFeedUrl = null,
-  quickCaptureImportingItemUrl = null,
   isDeleting = false,
   deletingPostPath = null,
   isTogglingPinned = false,
@@ -383,10 +354,6 @@ export default function PostDashboard({
   onNewPost,
   onQuickCaptureUrlChange,
   onQuickCapture,
-  onQuickCaptureOpenDirectory,
-  onQuickCapturePreviewDirectoryFeed,
-  onQuickCaptureDismissFeed,
-  onQuickCaptureImportFeedItem,
   onDeletePost,
   onTogglePinned,
   onSelectedMaterialPathsChange,
@@ -401,8 +368,6 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
-  const [isFeedDirectoryVisible, setIsFeedDirectoryVisible] = useState(false)
-  const [activeFeedDirectoryCategory, setActiveFeedDirectoryCategory] = useState<string | null>(null)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -434,29 +399,6 @@ export default function PostDashboard({
     setSort('date-desc')
     setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
   }, [contentType])
-
-  useEffect(() => {
-    if (!isReadLater) {
-      setIsFeedDirectoryVisible(false)
-      setActiveFeedDirectoryCategory(null)
-    }
-  }, [isReadLater])
-
-  useEffect(() => {
-    if (quickCaptureDirectoryCategories.length === 0) {
-      setActiveFeedDirectoryCategory(null)
-      return
-    }
-
-    if (
-      activeFeedDirectoryCategory &&
-      quickCaptureDirectoryCategories.some((category) => category.category === activeFeedDirectoryCategory)
-    ) {
-      return
-    }
-
-    setActiveFeedDirectoryCategory(quickCaptureDirectoryCategories[0].category)
-  }, [activeFeedDirectoryCategory, quickCaptureDirectoryCategories])
 
   const filteredPosts = useMemo(() => {
     const basePosts = filterPostIndex(posts, {
@@ -695,13 +637,6 @@ export default function PostDashboard({
   }
 
   const helperSelectionSummary = formatSelectedMaterialSummary(selectedMaterialCounts)
-  const activeFeedDirectoryGroup = useMemo(
-    () =>
-      quickCaptureDirectoryCategories.find((category) => category.category === activeFeedDirectoryCategory) ||
-      quickCaptureDirectoryCategories[0] ||
-      null,
-    [activeFeedDirectoryCategory, quickCaptureDirectoryCategories],
-  )
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>
@@ -735,7 +670,7 @@ export default function PostDashboard({
         <section className="post-dashboard__quick-capture" aria-label="快速收录">
           <div className="post-dashboard__quick-capture-copy">
             <p className="post-dashboard__filter-label">快速收录</p>
-            <strong>支持单篇文章，也支持 RSS / Atom feed 识别后选条目导入</strong>
+            <strong>粘贴单篇文章链接，直接生成待读草稿</strong>
           </div>
           <div className="post-dashboard__quick-capture-controls">
             <input
@@ -759,128 +694,7 @@ export default function PostDashboard({
             >
               {isQuickCapturing ? '导入中…' : '快速收录'}
             </button>
-            <button
-              type="button"
-              className="post-dashboard__quick-capture-directory-btn"
-              onClick={() => {
-                const nextVisible = !isFeedDirectoryVisible
-                setIsFeedDirectoryVisible(nextVisible)
-                if (nextVisible) {
-                  onQuickCaptureOpenDirectory?.()
-                }
-              }}
-              disabled={isQuickCaptureDirectoryLoading}
-            >
-              {isQuickCaptureDirectoryLoading ? '目录加载中…' : isFeedDirectoryVisible ? '收起共享目录' : '共享 RSS 源目录'}
-            </button>
           </div>
-          {isFeedDirectoryVisible ? (
-            <div className="post-dashboard__feed-directory" aria-label="共享 RSS 源目录">
-              <div className="post-dashboard__feed-directory-header">
-                <div>
-                  <p className="post-dashboard__filter-label">共享目录</p>
-                  <strong>直接选现成 RSS 源，不用再手填 feed URL</strong>
-                </div>
-                <span>{quickCaptureDirectoryCategories.length > 0 ? `${quickCaptureDirectoryCategories.length} 个分类` : '按分类整理的共享 RSS 源'}</span>
-              </div>
-              {isQuickCaptureDirectoryLoading ? (
-                <div className="post-dashboard__feed-directory-empty">正在加载共享 RSS 源目录…</div>
-              ) : quickCaptureDirectoryCategories.length === 0 ? (
-                <div className="post-dashboard__feed-directory-empty">目录暂时为空，稍后再试。</div>
-              ) : (
-                <div className="post-dashboard__feed-directory-body">
-                  <div className="post-dashboard__feed-directory-categories" role="tablist" aria-label="RSS 分类">
-                    {quickCaptureDirectoryCategories.map((category) => (
-                      <button
-                        key={category.category}
-                        type="button"
-                        role="tab"
-                        aria-selected={activeFeedDirectoryGroup?.category === category.category}
-                        className={`post-dashboard__feed-directory-category${activeFeedDirectoryGroup?.category === category.category ? ' is-active' : ''}`}
-                        onClick={() => setActiveFeedDirectoryCategory(category.category)}
-                      >
-                        <strong>{category.category}</strong>
-                        <span>{category.feeds.length} 个源</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="post-dashboard__feed-directory-list">
-                    {(activeFeedDirectoryGroup?.feeds || []).map((feed) => {
-                      const isPreviewingThisFeed = quickCaptureDirectoryPendingFeedUrl === feed.url
-
-                      return (
-                        <article key={feed.id || feed.url} className="post-dashboard__feed-directory-item">
-                          <div className="post-dashboard__feed-directory-item-main">
-                            <div className="post-dashboard__feed-directory-item-title-row">
-                              <strong>{feed.title || '未命名源'}</strong>
-                              <span>{feed.articleCount > 0 ? `${feed.articleCount} 篇` : '已收录'}</span>
-                            </div>
-                            <p>{feed.intro || '这个共享源暂时还没有说明。'}</p>
-                            <div className="post-dashboard__feed-directory-item-meta">
-                              <span>{feed.category || activeFeedDirectoryGroup?.category}</span>
-                              <span>{formatFeedDirectoryDate(feed.lastSuccessAt)}</span>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            className="post-dashboard__feed-directory-preview-btn"
-                            onClick={() => onQuickCapturePreviewDirectoryFeed?.(feed)}
-                            disabled={Boolean(quickCaptureDirectoryPendingFeedUrl) || isQuickCapturing}
-                          >
-                            {isPreviewingThisFeed ? '加载中…' : '查看最近条目'}
-                          </button>
-                        </article>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null}
-          {quickCaptureFeed ? (
-            <div className="post-dashboard__feed-preview" aria-label="RSS 条目列表">
-              <div className="post-dashboard__feed-preview-header">
-                <div>
-                  <p className="post-dashboard__filter-label">已识别 RSS</p>
-                  <strong>{quickCaptureFeed.title || '未命名 RSS'}</strong>
-                  <span>{quickCaptureFeed.description || `共识别 ${quickCaptureFeed.items.length} 条最新内容`}</span>
-                </div>
-                <button
-                  type="button"
-                  className="post-dashboard__feed-preview-close"
-                  onClick={onQuickCaptureDismissFeed}
-                >
-                  收起
-                </button>
-              </div>
-              <div className="post-dashboard__feed-preview-list">
-                {quickCaptureFeed.items.map((item) => {
-                  const isImportingThisItem = quickCaptureImportingItemUrl === item.url
-
-                  return (
-                    <article key={item.id || item.url} className="post-dashboard__feed-preview-item">
-                      <div className="post-dashboard__feed-preview-item-main">
-                        <strong>{item.title || '未命名条目'}</strong>
-                        <p>{item.summary || '这个 RSS 条目没有提供摘要。'}</p>
-                        <div className="post-dashboard__feed-preview-item-meta">
-                          <span>{item.publishedAt || '未标日期'}</span>
-                          <span>{item.url}</span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        className="post-dashboard__feed-preview-import-btn"
-                        onClick={() => onQuickCaptureImportFeedItem?.(item)}
-                        disabled={Boolean(quickCaptureImportingItemUrl)}
-                      >
-                        {isImportingThisItem ? '导入中…' : '导入这条'}
-                      </button>
-                    </article>
-                  )
-                })}
-              </div>
-            </div>
-          ) : null}
         </section>
       ) : null}
 

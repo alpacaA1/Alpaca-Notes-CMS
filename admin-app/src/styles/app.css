@@ -6131,6 +6131,326 @@ textarea {
   opacity: 0.7;
 }
 
+.feed-dashboard {
+  display: grid;
+  gap: 18px;
+}
+
+.feed-dashboard__hero,
+.feed-dashboard__composer,
+.feed-dashboard__directory,
+.feed-dashboard__subscriptions,
+.feed-dashboard__preview {
+  border-radius: 20px;
+  border: 1px solid var(--admin-line);
+  background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(252, 247, 241, 0.92));
+  box-shadow: 0 10px 24px rgba(56, 41, 19, 0.05);
+}
+
+.feed-dashboard__hero,
+.feed-dashboard__composer,
+.feed-dashboard__directory,
+.feed-dashboard__subscriptions,
+.feed-dashboard__preview {
+  padding: 18px;
+}
+
+.feed-dashboard__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.feed-dashboard__eyebrow,
+.feed-dashboard__section-label {
+  margin: 0;
+  color: var(--admin-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.feed-dashboard__hero h1 {
+  margin: 10px 0 0;
+  color: var(--admin-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+  font-size: 1.7rem;
+  line-height: 1.15;
+}
+
+.feed-dashboard__hero-copy p:last-child {
+  margin: 10px 0 0;
+  color: var(--admin-muted);
+  line-height: 1.7;
+}
+
+.feed-dashboard__hero-stats {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.feed-dashboard__hero-stat {
+  min-width: 108px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(203, 167, 119, 0.18);
+}
+
+.feed-dashboard__hero-stat dt {
+  color: var(--admin-soft);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.feed-dashboard__hero-stat dd {
+  margin: 8px 0 0;
+  color: var(--admin-text);
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.feed-dashboard__composer {
+  display: grid;
+  gap: 14px;
+}
+
+.feed-dashboard__composer-copy strong,
+.feed-dashboard__directory-header strong,
+.feed-dashboard__subscriptions-header strong,
+.feed-dashboard__preview-header strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--admin-text);
+}
+
+.feed-dashboard__composer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.feed-dashboard__composer-input {
+  flex: 1 1 360px;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-text);
+}
+
+.feed-dashboard__composer-input:focus,
+.feed-dashboard__composer-input:focus-visible {
+  outline: none;
+  border-color: var(--admin-warm);
+  box-shadow: 0 0 0 3px rgba(203, 167, 119, 0.18);
+}
+
+.feed-dashboard__composer-btn,
+.feed-dashboard__directory-btn,
+.feed-dashboard__preview-import-btn {
+  appearance: none;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-new-post-line);
+  background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), var(--admin-new-post));
+  color: var(--admin-warm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feed-dashboard__composer-secondary-btn,
+.feed-dashboard__subscription-remove-btn {
+  appearance: none;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--admin-text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.feed-dashboard__composer-btn:hover,
+.feed-dashboard__directory-btn:hover,
+.feed-dashboard__preview-import-btn:hover {
+  border-color: var(--admin-warm);
+  background: #f7ecdb;
+}
+
+.feed-dashboard__composer-secondary-btn:hover,
+.feed-dashboard__subscription-remove-btn:hover {
+  border-color: var(--admin-warm);
+  color: var(--admin-warm);
+}
+
+.feed-dashboard__composer-btn:disabled,
+.feed-dashboard__composer-secondary-btn:disabled,
+.feed-dashboard__directory-btn:disabled,
+.feed-dashboard__preview-import-btn:disabled,
+.feed-dashboard__subscription-remove-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.feed-dashboard__directory {
+  display: grid;
+  gap: 16px;
+}
+
+.feed-dashboard__directory-header,
+.feed-dashboard__preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+}
+
+.feed-dashboard__directory-header span,
+.feed-dashboard__preview-header span {
+  color: var(--admin-muted);
+  line-height: 1.6;
+}
+
+.feed-dashboard__directory-empty,
+.feed-dashboard__subscriptions-empty,
+.feed-dashboard__preview-empty {
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px dashed var(--admin-line-strong);
+  color: var(--admin-muted);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.feed-dashboard__directory-groups {
+  display: grid;
+  gap: 16px;
+}
+
+.feed-dashboard__directory-group {
+  display: grid;
+  gap: 10px;
+}
+
+.feed-dashboard__directory-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.feed-dashboard__directory-group-header strong {
+  color: var(--admin-text);
+}
+
+.feed-dashboard__directory-group-header span {
+  color: var(--admin-soft);
+  font-size: 0.82rem;
+}
+
+.feed-dashboard__directory-list,
+.feed-dashboard__preview-list,
+.feed-dashboard__subscription-list {
+  display: grid;
+  gap: 10px;
+}
+
+.feed-dashboard__directory-item,
+.feed-dashboard__preview-item,
+.feed-dashboard__subscription-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.feed-dashboard__directory-item-title-row,
+.feed-dashboard__subscription-main strong + p {
+  min-width: 0;
+}
+
+.feed-dashboard__directory-item-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.feed-dashboard__directory-item-title-row strong,
+.feed-dashboard__preview-item-main strong,
+.feed-dashboard__subscription-main strong {
+  color: var(--admin-text);
+  line-height: 1.45;
+}
+
+.feed-dashboard__directory-item-title-row span {
+  color: var(--admin-warm);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.feed-dashboard__directory-item p,
+.feed-dashboard__preview-item-main p,
+.feed-dashboard__subscription-main p {
+  margin: 8px 0 0;
+  color: var(--admin-muted);
+  font-size: 0.92rem;
+  line-height: 1.65;
+  white-space: pre-line;
+}
+
+.feed-dashboard__directory-item-meta,
+.feed-dashboard__preview-item-meta,
+.feed-dashboard__subscription-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 10px;
+  color: var(--admin-soft);
+  font-size: 0.82rem;
+}
+
+.feed-dashboard__content {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.feed-dashboard__subscriptions,
+.feed-dashboard__preview {
+  display: grid;
+  gap: 14px;
+}
+
+.feed-dashboard__subscription-item.is-active {
+  border-color: rgba(203, 167, 119, 0.4);
+  box-shadow: 0 14px 28px rgba(141, 113, 77, 0.1);
+}
+
+.feed-dashboard__subscription-main {
+  appearance: none;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-dashboard__subscription-main:focus-visible {
+  outline: none;
+}
+
 .post-dashboard__daily-knowledge {
   align-items: stretch;
 }
@@ -7316,6 +7636,17 @@ textarea {
 }
 
 @media (max-width: 900px) {
+  .feed-dashboard__hero,
+  .feed-dashboard__content {
+    grid-template-columns: 1fr;
+  }
+
+  .feed-dashboard__directory-item,
+  .feed-dashboard__preview-item,
+  .feed-dashboard__subscription-item {
+    grid-template-columns: 1fr;
+  }
+
   .post-dashboard__feed-directory-body {
     grid-template-columns: 1fr;
   }
@@ -7369,6 +7700,20 @@ textarea {
 }
 
 @media (max-width: 640px) {
+  .feed-dashboard__hero,
+  .feed-dashboard__composer,
+  .feed-dashboard__directory,
+  .feed-dashboard__subscriptions,
+  .feed-dashboard__preview {
+    padding: 14px;
+  }
+
+  .feed-dashboard__directory-header,
+  .feed-dashboard__preview-header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .post-dashboard__feed-directory,
   .post-dashboard__feed-preview {
     padding: 14px;
@@ -8852,6 +9197,55 @@ textarea {
 
 .admin-shell--dark .post-dashboard__quick-capture-btn:hover {
   background: rgba(228, 163, 88, 0.16);
+}
+
+.admin-shell--dark .feed-dashboard__hero,
+.admin-shell--dark .feed-dashboard__composer,
+.admin-shell--dark .feed-dashboard__directory,
+.admin-shell--dark .feed-dashboard__subscriptions,
+.admin-shell--dark .feed-dashboard__preview {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.admin-shell--dark .feed-dashboard__hero-stat,
+.admin-shell--dark .feed-dashboard__directory-item,
+.admin-shell--dark .feed-dashboard__preview-item,
+.admin-shell--dark .feed-dashboard__subscription-item,
+.admin-shell--dark .feed-dashboard__directory-empty,
+.admin-shell--dark .feed-dashboard__subscriptions-empty,
+.admin-shell--dark .feed-dashboard__preview-empty {
+  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.admin-shell--dark .feed-dashboard__composer-input,
+.admin-shell--dark .feed-dashboard__composer-secondary-btn,
+.admin-shell--dark .feed-dashboard__subscription-remove-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .feed-dashboard__composer-btn,
+.admin-shell--dark .feed-dashboard__directory-btn,
+.admin-shell--dark .feed-dashboard__preview-import-btn {
+  background: rgba(228, 163, 88, 0.1);
+  border-color: rgba(228, 163, 88, 0.25);
+  color: var(--admin-warm);
+}
+
+.admin-shell--dark .feed-dashboard__composer-btn:hover,
+.admin-shell--dark .feed-dashboard__directory-btn:hover,
+.admin-shell--dark .feed-dashboard__preview-import-btn:hover {
+  background: rgba(228, 163, 88, 0.16);
+}
+
+.admin-shell--dark .feed-dashboard__composer-secondary-btn:hover,
+.admin-shell--dark .feed-dashboard__subscription-remove-btn:hover {
+  border-color: var(--admin-warm);
+  color: var(--admin-warm);
 }
 
 .admin-shell--dark .post-dashboard__quick-capture-directory-btn {

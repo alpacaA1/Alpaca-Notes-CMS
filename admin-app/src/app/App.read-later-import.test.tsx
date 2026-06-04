@@ -7,6 +7,7 @@ import * as feedDirectoryClientModule from './read-later/feed-directory-client'
 import * as feedImportClientModule from './read-later/feed-import-client'
 import * as readLaterIndexModule from './read-later/index-items'
 import * as importClientModule from './read-later/import-client'
+import * as feedSubscriptionsModule from './rss/feed-subscriptions'
 import * as sessionModule from './session'
 
 const readLaterPost = {
@@ -242,9 +243,6 @@ describe('App read-later import flow', () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
-    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockRejectedValue(
-      new feedImportClientModule.FeedImportError('该链接不是有效的 RSS/Atom feed。', 400, 'not_feed'),
-    )
     const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
       title: '快速收录标题',
       desc: '快速收录摘要',
@@ -290,9 +288,6 @@ describe('App read-later import flow', () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
-    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockRejectedValue(
-      new feedImportClientModule.FeedImportError('该链接不是有效的 RSS/Atom feed。', 400, 'not_feed'),
-    )
     const importSpy = vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
       title: '上下文主权：AI 时代，什么才算你的想法',
       desc: '上下文不是越多越好。',
@@ -340,10 +335,18 @@ describe('App read-later import flow', () => {
     })
   })
 
-  it('recognizes an RSS feed from quick capture and imports a selected item into a new read-later draft', async () => {
+  it('subscribes a feed from the RSS page and imports a selected item into a new read-later draft', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      subscriptions: [],
+    })
+    vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'feed-sha',
+    }))
     const feedSpy = vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
       title: '设计摘录',
       description: '最近更新的设计文章',
@@ -371,24 +374,19 @@ describe('App read-later import flow', () => {
     })
 
     render(<App />)
-
-    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Import me later')).toBeTruthy()
-    })
-
-    fireEvent.change(screen.getByLabelText('快速收录链接'), { target: { value: 'https://example.com/feed.xml' } })
-    fireEvent.click(screen.getByRole('button', { name: '快速收录' }))
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
+    fireEvent.change(screen.getByLabelText('Feed URL'), { target: { value: 'https://example.com/feed.xml' } })
+    fireEvent.click(screen.getByRole('button', { name: '新增 feed' }))
 
     await waitFor(() => {
       expect(feedSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/feed.xml')
     })
 
-    expect(await screen.findByText('设计摘录')).toBeTruthy()
+    expect(await screen.findAllByText('设计摘录')).toHaveLength(2)
     expect(screen.getByText('新的系统设计文章')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '导入这条' }))
+    fireEvent.click(screen.getByRole('button', { name: '添加到待读' }))
 
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith(
@@ -405,10 +403,18 @@ describe('App read-later import flow', () => {
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('设计摘录')
   })
 
-  it('opens the shared RSS directory and previews a selected feed without manual url input', async () => {
+  it('subscribes a shared RSS feed from the RSS page without manual url input', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      subscriptions: [],
+    })
+    const saveFeedSpy = vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'feed-sha',
+    }))
     const directorySpy = vi.spyOn(feedDirectoryClientModule, 'fetchFeedDirectory').mockResolvedValue([
       {
         category: 'AI 实验室',
@@ -443,13 +449,8 @@ describe('App read-later import flow', () => {
     })
 
     render(<App />)
-
-    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Import me later')).toBeTruthy()
-    })
-
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    await screen.findByRole('heading', { name: '订阅 feed，再把条目加入待读' })
     fireEvent.click(screen.getByRole('button', { name: '共享 RSS 源目录' }))
 
     await waitFor(() => {
@@ -457,11 +458,12 @@ describe('App read-later import flow', () => {
     })
 
     expect(await screen.findByText('Claude Blog')).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '查看最近条目' }))
+    fireEvent.click(screen.getByRole('button', { name: '订阅并查看' }))
 
     await waitFor(() => {
       expect(feedSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/feed.xml')
     })
+    expect(saveFeedSpy).toHaveBeenCalled()
 
     expect(await screen.findByText('Claude 新发布')).toBeTruthy()
     expect(screen.getByText('关于新版本的摘要。')).toBeTruthy()

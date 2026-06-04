@@ -293,7 +293,21 @@ export async function fetchMarkdownFile(
   return fetchPostFile(session, path)
 }
 
+export async function fetchTextFile(
+  session: SessionState,
+  path: string,
+): Promise<{ path: string; sha: string; content: string }> {
+  return fetchRawTextFile(session, path)
+}
+
 export async function saveMarkdownFile(
+  session: SessionState,
+  file: { path: string; content: string; sha?: string },
+): Promise<{ path: string; sha: string; content: string }> {
+  return savePostFile(session, file)
+}
+
+export async function saveTextFile(
   session: SessionState,
   file: { path: string; content: string; sha?: string },
 ): Promise<{ path: string; sha: string; content: string }> {

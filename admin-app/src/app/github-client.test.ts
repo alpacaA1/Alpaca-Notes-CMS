@@ -3,6 +3,7 @@ import { REPO_BRANCH } from './config'
 import {
   clearMarkdownFileCache,
   deletePostFile,
+  fetchTextFile,
   fetchPostFile,
   GitHubAuthError,
   listTrashEntries,
@@ -12,6 +13,7 @@ import {
   readCachedMarkdownFile,
   restoreTrashEntry,
   savePostFile,
+  saveTextFile,
   uploadImageFile,
 } from './github-client'
 
@@ -113,6 +115,49 @@ describe('github client encoding', () => {
     await deletePostFile({ token: 'token' }, { path: 'source/_posts/chinese.md', sha: 'sha-saved' })
 
     expect(readCachedMarkdownFile('source/_posts/chinese.md')).toBeNull()
+  })
+
+  it('reads and writes generic text files', async () => {
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          type: 'file',
+          path: 'source/_data/feed-subscriptions.json',
+          sha: 'sha-text',
+          encoding: 'base64',
+          content: Buffer.from('{"feeds":[]}', 'utf8').toString('base64'),
+        }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          content: {
+            path: 'source/_data/feed-subscriptions.json',
+            sha: 'sha-text-saved',
+          },
+        }),
+      } as Response)
+
+    const fetched = await fetchTextFile({ token: 'token' }, 'source/_data/feed-subscriptions.json')
+    expect(fetched).toEqual({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'sha-text',
+      content: '{"feeds":[]}',
+    })
+
+    const saved = await saveTextFile({ token: 'token' }, {
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'sha-text',
+      content: '{"feeds":[{"id":"1"}]}',
+    })
+    expect(saved).toEqual({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'sha-text-saved',
+      content: '{"feeds":[{"id":"1"}]}',
+    })
   })
 
   it('uploads image files with base64 content from binary bytes', async () => {

@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import type { ContentType } from '../posts/post-types'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds'
 
 function AlpacaLogo() {
   return (
@@ -62,6 +62,7 @@ type TopBarProps = {
   backButtonLabel?: string
   onOpenAnnotations?: () => void
   onOpenTrash?: () => void
+  onOpenFeeds?: () => void
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -127,6 +128,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
     return '搜索标题、原路径或已删除内容'
   }
 
+  if (adminView === 'feeds') {
+    return '搜索 feed 名称、简介、分类或链接'
+  }
+
   if (adminView === 'annotations') {
     return '搜索摘录、批注、来源文章、来源或标签'
   }
@@ -159,6 +164,7 @@ export default function TopBar({
   backButtonLabel = '返回列表',
   onOpenAnnotations,
   onOpenTrash,
+  onOpenFeeds,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -174,9 +180,12 @@ export default function TopBar({
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
-  const isDashboardLike = !isEditor && !isTrashView
+  const isFeedsView = adminView === 'feeds'
+  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView
   const titleText = isTrashView
     ? '回收站'
+    : isFeedsView
+      ? 'RSS 工作台'
     : isAnnotationsView
       ? '批注管理'
       : isDashboardLike
@@ -188,6 +197,7 @@ export default function TopBar({
   const showContentTypeSwitcher = isDashboardLike
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
+  const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
 
@@ -266,6 +276,15 @@ export default function TopBar({
               {isTrashView ? '返回内容' : '回收站'}
             </button>
           ) : null}
+          {showFeedsToggle ? (
+            <button
+              className={`top-bar__button${isFeedsView ? ' top-bar__button--active' : ''}`}
+              type="button"
+              onClick={isFeedsView ? onBackToDashboard : onOpenFeeds}
+            >
+              {isFeedsView ? '返回内容' : 'RSS'}
+            </button>
+          ) : null}
           {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
@@ -284,7 +303,7 @@ export default function TopBar({
               整理素材
             </button>
           ) : null}
-          {!isTrashView ? (
+          {!isTrashView && !isFeedsView ? (
             <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
               {createLabel}
             </button>

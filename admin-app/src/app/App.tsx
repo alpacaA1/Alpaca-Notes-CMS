@@ -31,10 +31,12 @@ import {
   stripGeneratedTopicBacklinks,
 } from './knowledge/wiki-links'
 import { resolveContentFormat } from './content-format'
+import { FEED_SUBSCRIPTIONS_PATH } from './config'
 import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, type WritingMaterialEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
+import FeedDashboard from './layout/feed-dashboard'
 import TrashView from './layout/trash-view'
 import MaterialOrganizerDialog from './layout/material-organizer-dialog'
 import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
@@ -46,13 +48,19 @@ import LoginGate from './login-gate'
 import { buildReadLaterAnnotationIndex } from './read-later/annotation-index'
 import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
 import { fetchFeedDirectory, type SharedFeedCategory, type SharedFeedSource } from './read-later/feed-directory-client'
-import { FeedImportError, importFeedFromUrl, type ImportedFeed, type ImportedFeedItem } from './read-later/feed-import-client'
+import { importFeedFromUrl, type ImportedFeed, type ImportedFeedItem } from './read-later/feed-import-client'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
 import { importReadLaterFromUrl } from './read-later/import-client'
 import { parseReadLaterItem, parseReadLaterSections } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
+import {
+  readFeedSubscriptions,
+  saveFeedSubscriptions,
+  type FeedSubscription,
+  type FeedSubscriptionsState,
+} from './rss/feed-subscriptions'
 import { createNewDiaryEntry, createNewPost } from './posts/new-post'
 import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
@@ -200,6 +208,40 @@ function normalizeUrlForComparison(value: string) {
   }
 }
 
+function createFeedSubscriptionRecord({
+  title,
+  url,
+  description = '',
+  category = '',
+  sourceType,
+  articleCount = 0,
+}: {
+  title: string
+  url: string
+  description?: string
+  category?: string
+  sourceType: FeedSubscription['sourceType']
+  articleCount?: number
+}): FeedSubscription {
+  const normalizedUrl = normalizeUrlForComparison(url) || url.trim()
+  const slug = normalizedUrl
+    .replace(/^https?:\/\//, '')
+    .replace(/[^a-z0-9]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'feed'
+
+  return {
+    id: `feed-${slug}`,
+    title: title.trim() || '未命名 RSS',
+    url: url.trim(),
+    description: description.trim(),
+    category: category.trim(),
+    sourceType,
+    articleCount,
+    createdAt: new Date().toISOString(),
+  }
+}
+
 function hasRecoverableChanges(draft: ParsedPost | null, saved: ParsedPost | null) {
   if (!draft) {
     return false
@@ -327,7 +369,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds'
 
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
@@ -358,7 +400,17 @@ export default function App() {
   const [materialResult, setMaterialResult] = useState<string | null>(null)
   const [selectedMaterialPaths, setSelectedMaterialPaths] = useState<MaterialSelectionState>(createEmptyMaterialSelectionState)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
-  const [quickReadLaterFeed, setQuickReadLaterFeed] = useState<ImportedFeed | null>(null)
+  const [rssSubscriptionsState, setRssSubscriptionsState] = useState<FeedSubscriptionsState>({
+    path: FEED_SUBSCRIPTIONS_PATH,
+    subscriptions: [],
+  })
+  const [selectedRssFeedUrl, setSelectedRssFeedUrl] = useState<string | null>(null)
+  const [rssPreviewFeed, setRssPreviewFeed] = useState<ImportedFeed | null>(null)
+  const [manualFeedUrl, setManualFeedUrl] = useState('')
+  const [isRssSubscriptionsLoading, setIsRssSubscriptionsLoading] = useState(false)
+  const [isSavingRssSubscription, setIsSavingRssSubscription] = useState(false)
+  const [isRssPreviewLoading, setIsRssPreviewLoading] = useState(false)
+  const [isFeedDirectoryVisible, setIsFeedDirectoryVisible] = useState(false)
   const [quickReadLaterDirectory, setQuickReadLaterDirectory] = useState<SharedFeedCategory[]>([])
   const [isQuickReadLaterDirectoryLoading, setIsQuickReadLaterDirectoryLoading] = useState(false)
   const [quickReadLaterDirectoryPendingFeedUrl, setQuickReadLaterDirectoryPendingFeedUrl] = useState<string | null>(null)
@@ -443,6 +495,11 @@ export default function App() {
     const selectedPathSet = new Set(selectedMaterialPaths['read-later'])
     return postsByType['read-later'].filter((post) => selectedPathSet.has(post.path))
   }, [postsByType['read-later'], selectedMaterialPaths['read-later']])
+  const rssSubscriptions = rssSubscriptionsState.subscriptions
+  const selectedRssSubscription = useMemo(
+    () => rssSubscriptions.find((subscription) => subscription.url === selectedRssFeedUrl) || null,
+    [rssSubscriptions, selectedRssFeedUrl],
+  )
 
   useEffect(() => {
     const availablePathsByType: Record<MaterialSourceType, Set<string>> = {
@@ -681,6 +738,62 @@ export default function App() {
   }, [adminView, loadTrashEntries, session])
 
   useEffect(() => {
+    if (!session || adminView !== 'feeds') {
+      return
+    }
+
+    let cancelled = false
+
+    const loadSubscriptions = async () => {
+      setIsRssSubscriptionsLoading(true)
+
+      try {
+        const nextState = await readFeedSubscriptions(session)
+        if (cancelled) {
+          return
+        }
+
+        setRssSubscriptionsState(nextState)
+      } catch (caughtError) {
+        if (cancelled) {
+          return
+        }
+
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+          return
+        }
+
+        setError(caughtError instanceof Error ? caughtError.message : '加载 RSS 订阅失败。')
+      } finally {
+        if (!cancelled) {
+          setIsRssSubscriptionsLoading(false)
+        }
+      }
+    }
+
+    void loadSubscriptions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [adminView, session])
+
+  useEffect(() => {
+    if (rssSubscriptions.length === 0) {
+      setSelectedRssFeedUrl(null)
+      setRssPreviewFeed(null)
+      return
+    }
+
+    if (selectedRssFeedUrl && rssSubscriptions.some((subscription) => subscription.url === selectedRssFeedUrl)) {
+      return
+    }
+
+    setSelectedRssFeedUrl(rssSubscriptions[0].url)
+  }, [rssSubscriptions, selectedRssFeedUrl])
+
+  useEffect(() => {
     if (!document || document.contentType !== 'read-later' || mode !== 'preview') {
       setIsReadLaterTopBarHidden(false)
     }
@@ -851,6 +964,12 @@ export default function App() {
     setIsOpeningPost(false)
     setIsQuickCollectingReadLater(false)
     setQuickReadLaterUrl('')
+    setManualFeedUrl('')
+    setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, subscriptions: [] })
+    setSelectedRssFeedUrl(null)
+    setRssPreviewFeed(null)
+    setIsFeedDirectoryVisible(false)
+    setQuickReadLaterDirectory([])
     setSuccessMessage(null)
     replaceDocument(null)
     setIsImmersive(false)
@@ -1060,6 +1179,204 @@ export default function App() {
     setSuccessMessage(null)
     setError(null)
     setAdminView('trash')
+  }
+
+  const handleOpenFeeds = () => {
+    setSearch('')
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('feeds')
+  }
+
+  const findExistingFeedSubscription = (url: string) =>
+    rssSubscriptions.find((subscription) => normalizeUrlForComparison(subscription.url) === normalizeUrlForComparison(url)) || null
+
+  const persistFeedSubscriptions = async (
+    nextSubscriptions: FeedSubscription[],
+    successMessageText: string,
+  ) => {
+    if (!session) {
+      return null
+    }
+
+    const savedState = await saveFeedSubscriptions(session, {
+      ...rssSubscriptionsState,
+      subscriptions: nextSubscriptions,
+    })
+
+    setRssSubscriptionsState(savedState)
+    setSuccessMessage(successMessageText)
+    return savedState
+  }
+
+  const handlePreviewSubscriptionFeed = async (subscription: FeedSubscription) => {
+    if (!session || isRssPreviewLoading || quickReadLaterDirectoryPendingFeedUrl) {
+      return
+    }
+
+    setSelectedRssFeedUrl(subscription.url)
+    setIsRssPreviewLoading(true)
+    setRssPreviewFeed(null)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const importedFeed = await importFeedFromUrl(session, subscription.url)
+      setRssPreviewFeed(importedFeed)
+      setSuccessMessage(`已加载《${importedFeed.title || subscription.title || '未命名 RSS'}》最近 ${importedFeed.items.length} 条内容。`)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '加载 RSS 条目失败。')
+    } finally {
+      setIsRssPreviewLoading(false)
+    }
+  }
+
+  const handleAddManualFeedSubscription = async () => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const feedUrl = manualFeedUrl.trim()
+    if (!feedUrl) {
+      setError('请先填写 feed URL。')
+      return
+    }
+
+    if (!/^https?:\/\//i.test(feedUrl)) {
+      setError('Feed URL 需以 http:// 或 https:// 开头。')
+      return
+    }
+
+    const duplicatedSubscription = findExistingFeedSubscription(feedUrl)
+    if (duplicatedSubscription) {
+      setSelectedRssFeedUrl(duplicatedSubscription.url)
+      void handlePreviewSubscriptionFeed(duplicatedSubscription)
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setIsRssPreviewLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const importedFeed = await importFeedFromUrl(session, feedUrl)
+      const nextSubscription = createFeedSubscriptionRecord({
+        title: importedFeed.title,
+        url: importedFeed.finalUrl || importedFeed.requestedUrl || feedUrl,
+        description: importedFeed.description,
+        sourceType: 'manual',
+        articleCount: importedFeed.items.length,
+      })
+      await persistFeedSubscriptions(
+        [...rssSubscriptions, nextSubscription],
+        `已订阅《${nextSubscription.title}》。`,
+      )
+
+      setManualFeedUrl('')
+      setSelectedRssFeedUrl(nextSubscription.url)
+      setRssPreviewFeed(importedFeed)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '新增 feed 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+      setIsRssPreviewLoading(false)
+    }
+  }
+
+  const handleOpenDirectoryFeed = async (feed: SharedFeedSource) => {
+    if (!session || isSavingRssSubscription || quickReadLaterDirectoryPendingFeedUrl) {
+      return
+    }
+
+    const existingSubscription = findExistingFeedSubscription(feed.url)
+    if (existingSubscription) {
+      void handlePreviewSubscriptionFeed(existingSubscription)
+      return
+    }
+
+    setQuickReadLaterDirectoryPendingFeedUrl(feed.url)
+    setIsSavingRssSubscription(true)
+    setIsRssPreviewLoading(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const importedFeed = await importFeedFromUrl(session, feed.url)
+      const nextSubscription = createFeedSubscriptionRecord({
+        title: importedFeed.title || feed.title,
+        url: importedFeed.finalUrl || importedFeed.requestedUrl || feed.url,
+        description: importedFeed.description || feed.intro,
+        category: feed.category,
+        sourceType: 'shared',
+        articleCount: importedFeed.items.length || feed.articleCount,
+      })
+      await persistFeedSubscriptions(
+        [...rssSubscriptions, nextSubscription],
+        `已订阅《${nextSubscription.title}》。`,
+      )
+
+      setSelectedRssFeedUrl(nextSubscription.url)
+      setRssPreviewFeed(importedFeed)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '订阅共享 feed 失败。')
+    } finally {
+      setQuickReadLaterDirectoryPendingFeedUrl(null)
+      setIsSavingRssSubscription(false)
+      setIsRssPreviewLoading(false)
+    }
+  }
+
+  const handleRemoveFeedSubscription = async (subscription: FeedSubscription) => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const shouldDelete = window.confirm(`确定删除 feed「${subscription.title || subscription.url}」吗？`)
+    if (!shouldDelete) {
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const nextSubscriptions = rssSubscriptions.filter((item) => item.url !== subscription.url)
+      await persistFeedSubscriptions(
+        nextSubscriptions,
+        `已删除 feed「${subscription.title || subscription.url}」。`,
+      )
+
+      if (selectedRssFeedUrl === subscription.url) {
+        setSelectedRssFeedUrl(null)
+        setRssPreviewFeed(null)
+      }
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '删除 feed 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+    }
   }
 
   const handleDeletePost = (post: PostIndexItem) => {
@@ -1890,7 +2207,6 @@ export default function App() {
 
   const handleQuickReadLaterUrlChange = (value: string) => {
     setQuickReadLaterUrl(value)
-    setQuickReadLaterFeed(null)
   }
 
   const handleLoadQuickReadLaterDirectory = async () => {
@@ -1913,6 +2229,15 @@ export default function App() {
       setError(caughtError instanceof Error ? caughtError.message : '加载共享 RSS 源目录失败。')
     } finally {
       setIsQuickReadLaterDirectoryLoading(false)
+    }
+  }
+
+  const handleToggleFeedDirectory = () => {
+    const nextVisible = !isFeedDirectoryVisible
+    setIsFeedDirectoryVisible(nextVisible)
+
+    if (nextVisible) {
+      void handleLoadQuickReadLaterDirectory()
     }
   }
 
@@ -1948,9 +2273,9 @@ export default function App() {
       draftPost: draftDocument,
       successMessage,
     })
+    setContentType('read-later')
     setEditorNavigationStack([])
     setQuickReadLaterUrl('')
-    setQuickReadLaterFeed(null)
     setQuickReadLaterPendingItemUrl(null)
     setAdminView('editor')
   }
@@ -1974,25 +2299,8 @@ export default function App() {
     setIsQuickCollectingReadLater(true)
     setError(null)
     setSuccessMessage(null)
-    setQuickReadLaterFeed(null)
 
     try {
-      try {
-        const importedFeed = await importFeedFromUrl(session, externalUrl)
-        setQuickReadLaterFeed(importedFeed)
-        setSuccessMessage(`已识别《${importedFeed.title || '未命名 RSS'}》，可从最近 ${importedFeed.items.length} 条内容里选择导入。`)
-        return
-      } catch (caughtError) {
-        if (caughtError instanceof GitHubAuthError) {
-          handleAuthExpiry(caughtError.message)
-          return
-        }
-
-        if (!(caughtError instanceof FeedImportError) || caughtError.code !== 'not_feed') {
-          throw caughtError
-        }
-      }
-
       const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
       if (
         duplicatedPost &&
@@ -2025,7 +2333,7 @@ export default function App() {
     }
   }
 
-  const handleQuickCaptureFeedItem = async (item: ImportedFeedItem) => {
+  const handleImportFeedItemToReadLater = async (item: ImportedFeedItem, fallbackSourceName = '') => {
     if (!session || isQuickCollectingReadLater || quickReadLaterPendingItemUrl) {
       return
     }
@@ -2055,7 +2363,7 @@ export default function App() {
         imported,
         fallbackTitle: item.title,
         fallbackDesc: item.summary,
-        fallbackSourceName: item.sourceName || quickReadLaterFeed?.title || '',
+        fallbackSourceName: item.sourceName || fallbackSourceName,
         successMessage: successMessages.length > 0 ? successMessages.join(' ') : null,
       })
     } catch (caughtError) {
@@ -2069,37 +2377,11 @@ export default function App() {
         imported: null,
         fallbackTitle: item.title,
         fallbackDesc: item.summary,
-        fallbackSourceName: item.sourceName || quickReadLaterFeed?.title || '',
+        fallbackSourceName: item.sourceName || fallbackSourceName,
         successMessage: '未自动抓取正文，已按 RSS 条目元信息创建待读草稿。',
       })
     } finally {
       setQuickReadLaterPendingItemUrl(null)
-    }
-  }
-
-  const handlePreviewSharedFeed = async (feed: SharedFeedSource) => {
-    if (!session || isQuickCollectingReadLater || quickReadLaterDirectoryPendingFeedUrl || quickReadLaterPendingItemUrl) {
-      return
-    }
-
-    setQuickReadLaterDirectoryPendingFeedUrl(feed.url)
-    setError(null)
-    setSuccessMessage(null)
-    setQuickReadLaterFeed(null)
-
-    try {
-      const importedFeed = await importFeedFromUrl(session, feed.url)
-      setQuickReadLaterFeed(importedFeed)
-      setSuccessMessage(`已打开《${feed.title || importedFeed.title || '未命名 RSS'}》，可从最近 ${importedFeed.items.length} 条内容里选择导入。`)
-    } catch (caughtError) {
-      if (caughtError instanceof GitHubAuthError) {
-        handleAuthExpiry(caughtError.message)
-        return
-      }
-
-      setError(caughtError instanceof Error ? caughtError.message : '加载 RSS 条目失败。')
-    } finally {
-      setQuickReadLaterDirectoryPendingFeedUrl(null)
     }
   }
 
@@ -2383,6 +2665,12 @@ export default function App() {
         ? `正在刷新${indexedLabel}… · 共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
         : loadingLabel
       : `共 ${posts.length} ${indexedCountUnit}${indexedLabel}`
+    : adminView === 'feeds'
+      ? isSavingRssSubscription
+        ? '正在更新 feed 订阅…'
+        : isRssPreviewLoading
+          ? '正在加载 feed 条目…'
+          : `共 ${rssSubscriptions.length} 个 feed`
     : adminView === 'annotations'
       ? isAnnotationIndexing
         ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
@@ -2408,6 +2696,7 @@ export default function App() {
   }
 
   const isDashboard = adminView === 'dashboard'
+  const isFeedsView = adminView === 'feeds'
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
@@ -2450,6 +2739,7 @@ export default function App() {
           backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
+          onOpenFeeds={handleOpenFeeds}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -2466,7 +2756,6 @@ export default function App() {
             setSuccessMessage(null)
             setSearch('')
             setQuickReadLaterUrl('')
-            setQuickReadLaterFeed(null)
             setQuickReadLaterPendingItemUrl(null)
             setEditorNavigationStack([])
             setContentType(value)
@@ -2501,10 +2790,6 @@ export default function App() {
             recoverableDrafts={recoverableDrafts}
             quickCaptureUrl={quickReadLaterUrl}
             isQuickCapturing={isQuickCollectingReadLater}
-            quickCaptureFeed={quickReadLaterFeed}
-            quickCaptureDirectoryCategories={quickReadLaterDirectory}
-            isQuickCaptureDirectoryLoading={isQuickReadLaterDirectoryLoading}
-            quickCaptureDirectoryPendingFeedUrl={quickReadLaterDirectoryPendingFeedUrl}
             quickCaptureImportingItemUrl={quickReadLaterPendingItemUrl}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
@@ -2525,10 +2810,6 @@ export default function App() {
             onNewPost={handleNewPost}
             onQuickCaptureUrlChange={handleQuickReadLaterUrlChange}
             onQuickCapture={handleQuickCollectReadLater}
-            onQuickCaptureOpenDirectory={() => { void handleLoadQuickReadLaterDirectory() }}
-            onQuickCapturePreviewDirectoryFeed={(feed) => { void handlePreviewSharedFeed(feed) }}
-            onQuickCaptureDismissFeed={() => setQuickReadLaterFeed(null)}
-            onQuickCaptureImportFeedItem={(item) => { void handleQuickCaptureFeedItem(item) }}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onSelectedMaterialPathsChange={(nextPaths) => {
@@ -2539,6 +2820,33 @@ export default function App() {
             onClearSelectedMaterials={clearSelectedMaterials}
             onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
             onSearchFocus={() => searchInputRef.current?.focus()}
+          />
+        </section>
+      ) : isFeedsView ? (
+        <section className="admin-shell__viewport">
+          {successMessage ? <p className="success-message">{successMessage}</p> : null}
+          {error ? <p className="error-message">{error}</p> : null}
+          <FeedDashboard
+            search={search}
+            manualFeedUrl={manualFeedUrl}
+            isLoading={isRssSubscriptionsLoading}
+            isSavingFeed={isSavingRssSubscription}
+            subscriptions={rssSubscriptions}
+            selectedSubscriptionUrl={selectedRssFeedUrl}
+            previewFeed={rssPreviewFeed}
+            isPreviewLoading={isRssPreviewLoading}
+            previewImportingItemUrl={quickReadLaterPendingItemUrl}
+            directoryCategories={quickReadLaterDirectory}
+            isDirectoryVisible={isFeedDirectoryVisible}
+            isDirectoryLoading={isQuickReadLaterDirectoryLoading}
+            directoryPendingFeedUrl={quickReadLaterDirectoryPendingFeedUrl}
+            onManualFeedUrlChange={setManualFeedUrl}
+            onAddManualFeed={() => { void handleAddManualFeedSubscription() }}
+            onToggleDirectory={handleToggleFeedDirectory}
+            onOpenDirectoryFeed={(feed) => { void handleOpenDirectoryFeed(feed) }}
+            onSelectSubscription={(subscription) => { void handlePreviewSubscriptionFeed(subscription) }}
+            onRemoveSubscription={(subscription) => { void handleRemoveFeedSubscription(subscription) }}
+            onImportFeedItem={(item) => { void handleImportFeedItemToReadLater(item, selectedRssSubscription?.title || rssPreviewFeed?.title || '') }}
           />
         </section>
       ) : isAnnotationsView ? (
