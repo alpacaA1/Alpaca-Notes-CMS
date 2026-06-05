@@ -54,7 +54,7 @@ describe('FeedDashboard', () => {
     window.localStorage.clear()
   })
 
-  it('groups feeds into folders and keeps read feeds visible with empty counts', () => {
+  it('groups feeds into folders and keeps read feeds visible without empty counts', () => {
     renderFeedDashboard({
       folders: [
         {
@@ -87,7 +87,7 @@ describe('FeedDashboard', () => {
     expect(within(sidebar).getByText('有待读 Feed')).toBeTruthy()
     expect(within(sidebar).getByLabelText('20 条待读')).toBeTruthy()
     expect(within(sidebar).getByText('无待读 Feed')).toBeTruthy()
-    expect(within(sidebar).getByLabelText('0 条待读')).toBeTruthy()
+    expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
   })
 
   it('collapses and expands the left subscription sidebar', () => {
@@ -164,7 +164,7 @@ describe('FeedDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /文章二/ }))
     expect(within(sidebar).getByText('设计 Feed')).toBeTruthy()
-    expect(within(sidebar).getByLabelText('0 条待读')).toBeTruthy()
+    expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
   })
 
   it('marks every current preview item as read from the feed item module', () => {
@@ -210,7 +210,7 @@ describe('FeedDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '全部标为已读' }))
 
     expect(within(sidebar).getByText('产品 Feed')).toBeTruthy()
-    expect(within(sidebar).getByLabelText('0 条待读')).toBeTruthy()
+    expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
     expect((screen.getByRole('button', { name: '全部标为已读' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
@@ -235,7 +235,7 @@ describe('FeedDashboard', () => {
     fireEvent.click(within(sidebar).getByRole('button', { name: '设计 Feed 更多操作' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }))
 
-    expect(within(sidebar).getByLabelText('0 条待读')).toBeTruthy()
+    expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
 
     fireEvent.click(within(sidebar).getByRole('button', { name: '设计 Feed 更多操作' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))

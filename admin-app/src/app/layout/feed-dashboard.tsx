@@ -559,12 +559,14 @@ export default function FeedDashboard({
             <strong>{subscription.title || '未命名 feed'}</strong>
             <span>{readFeedItemHostLabel(subscription.url)}</span>
           </span>
-          <span
-            className={`feed-dashboard__subscription-count${unreadCount === 0 ? ' feed-dashboard__subscription-count--empty' : ''}`}
-            aria-label={`${unreadCount} 条待读`}
-          >
-            {unreadCount}
-          </span>
+          {unreadCount > 0 ? (
+            <span
+              className="feed-dashboard__subscription-count"
+              aria-label={`${unreadCount} 条待读`}
+            >
+              {unreadCount}
+            </span>
+          ) : null}
         </button>
         <div
           className="feed-dashboard__subscription-menu-wrap"
@@ -646,12 +648,14 @@ export default function FeedDashboard({
           >
             <span className="feed-dashboard__folder-chevron" aria-hidden="true">{isCollapsed ? '>' : 'v'}</span>
             <span className="feed-dashboard__folder-name">{folderViewModel.name}</span>
-            <span
-              className={`feed-dashboard__subscription-count${folderViewModel.unreadCount === 0 ? ' feed-dashboard__subscription-count--empty' : ''}`}
-              aria-label={`${folderViewModel.unreadCount} 条 folder 待读`}
-            >
-              {folderViewModel.unreadCount}
-            </span>
+            {folderViewModel.unreadCount > 0 ? (
+              <span
+                className="feed-dashboard__subscription-count"
+                aria-label={`${folderViewModel.unreadCount} 条 folder 待读`}
+              >
+                {folderViewModel.unreadCount}
+              </span>
+            ) : null}
           </button>
           {canManageFolder && folderViewModel.folder ? (
             <div
