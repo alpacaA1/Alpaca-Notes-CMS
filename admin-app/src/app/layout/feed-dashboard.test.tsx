@@ -90,6 +90,35 @@ describe('FeedDashboard', () => {
     expect(within(sidebar).getByLabelText('0 条待读')).toBeTruthy()
   })
 
+  it('collapses and expands the left subscription sidebar', () => {
+    renderFeedDashboard({
+      subscriptions: [
+        createSubscription({
+          id: 'design-feed',
+          title: '设计 Feed',
+          url: 'https://example.com/design.xml',
+          articleCount: 3,
+        }),
+      ],
+    })
+
+    expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
+    expect(screen.getByText('阅读列表')).toBeTruthy()
+    expect(screen.getByText('设计 Feed')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '收起 RSS 订阅栏' }))
+
+    expect(screen.queryByLabelText('已订阅 feed')).toBeNull()
+    expect(screen.queryByText('阅读列表')).toBeNull()
+    expect(screen.queryByText('设计 Feed')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '展开 RSS 订阅栏' }))
+
+    expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
+    expect(screen.getByText('阅读列表')).toBeTruthy()
+    expect(screen.getByText('设计 Feed')).toBeTruthy()
+  })
+
   it('removes clicked preview items from the unread count', () => {
     const subscription = createSubscription({
       id: 'design-feed',

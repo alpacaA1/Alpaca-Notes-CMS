@@ -35,6 +35,15 @@ desc: Second desc
 
 Body with product tradeoff analysis.`
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+
+  return { promise, resolve }
+}
+
 describe('read-later index helpers', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -83,6 +92,46 @@ describe('read-later index helpers', () => {
 
     expect(items.map((item) => item.title)).toEqual(['Second article', 'First article'])
     expect(items[0]?.pinned).toBe(true)
+  })
+
+  it('emits a lightweight read-later index after listing files before full content finishes loading', async () => {
+    const deferredFile = createDeferred<{ path: string; sha: string; content: string }>()
+    const onFilesListed = vi.fn()
+
+    vi.spyOn(githubClientModule, 'listReadLaterFiles').mockResolvedValue([
+      {
+        path: 'source/read-later-items/20260506090000.md',
+        sha: 'sha-first',
+        name: '20260506090000.md',
+        type: 'file',
+      },
+    ])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockReturnValue(deferredFile.promise)
+
+    const indexedPromise = buildReadLaterIndex({ token: 'token' }, { onFilesListed })
+    await Promise.resolve()
+
+    expect(onFilesListed).toHaveBeenCalledWith([
+      expect.objectContaining({
+        path: 'source/read-later-items/20260506090000.md',
+        title: '20260506090000',
+        date: '2026-05-06 09:00:00',
+        contentType: 'read-later',
+      }),
+    ])
+
+    deferredFile.resolve({
+      path: 'source/read-later-items/20260506090000.md',
+      sha: 'sha-first',
+      content: firstContent,
+    })
+
+    await expect(indexedPromise).resolves.toEqual([
+      expect.objectContaining({
+        title: 'First article',
+        body: '\nBody with system design highlights.',
+      }),
+    ])
   })
 
   it('builds the read-later index from sha-matched cached markdown without refetching files', async () => {

@@ -43,6 +43,10 @@ type MarkdownFile = {
   content: string
 }
 
+type StoredMarkdownFile = MarkdownFile & {
+  cachedAt: number
+}
+
 type GitHubSaveFileResponse = {
   content?: GitHubSavedContentFile
 }
@@ -60,6 +64,8 @@ export type TrashEntry = {
 }
 
 const markdownFileCache = new Map<string, MarkdownFile>()
+const MARKDOWN_FILE_CACHE_PREFIX = 'alpaca-admin:markdown-file:v1:'
+const MAX_PERSISTED_MARKDOWN_FILES = 160
 
 export class GitHubAuthError extends AuthError {
   constructor(message = 'GitHub 会话已过期，请重新登录。') {
@@ -104,32 +110,167 @@ function decodeBase64(value: string) {
   return new TextDecoder().decode(bytes)
 }
 
+function getMarkdownFileCacheStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage
+  } catch {
+    return null
+  }
+}
+
+function getMarkdownFileCacheKey(path: string) {
+  return `${MARKDOWN_FILE_CACHE_PREFIX}${path}`
+}
+
+function readPersistedMarkdownFile(path: string): StoredMarkdownFile | null {
+  const storage = getMarkdownFileCacheStorage()
+  if (!storage) {
+    return null
+  }
+
+  const key = getMarkdownFileCacheKey(path)
+  const rawValue = storage.getItem(key)
+  if (!rawValue) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue) as Partial<StoredMarkdownFile>
+    if (parsed.path === path && typeof parsed.sha === 'string' && typeof parsed.content === 'string') {
+      return {
+        path: parsed.path,
+        sha: parsed.sha,
+        content: parsed.content,
+        cachedAt: typeof parsed.cachedAt === 'number' ? parsed.cachedAt : 0,
+      }
+    }
+  } catch {
+    // Ignore corrupt cache entries and fall back to the network path.
+  }
+
+  storage.removeItem(key)
+  return null
+}
+
+function removePersistedMarkdownFile(path: string) {
+  getMarkdownFileCacheStorage()?.removeItem(getMarkdownFileCacheKey(path))
+}
+
+function listPersistedMarkdownFileEntries(storage: Storage) {
+  const entries: Array<{ key: string; cachedAt: number }> = []
+
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index)
+    if (!key?.startsWith(MARKDOWN_FILE_CACHE_PREFIX)) {
+      continue
+    }
+
+    let cachedAt = 0
+    try {
+      const parsed = JSON.parse(storage.getItem(key) || '{}') as Partial<StoredMarkdownFile>
+      cachedAt = typeof parsed.cachedAt === 'number' ? parsed.cachedAt : 0
+    } catch {
+      cachedAt = 0
+    }
+
+    entries.push({ key, cachedAt })
+  }
+
+  return entries
+}
+
+function prunePersistedMarkdownFileCache(storage: Storage, minimumEntriesToRemove = 1) {
+  const entries = listPersistedMarkdownFileEntries(storage)
+  const entriesToRemove = Math.max(minimumEntriesToRemove, entries.length - MAX_PERSISTED_MARKDOWN_FILES + 1)
+  const staleEntries = entries
+    .sort((left, right) => left.cachedAt - right.cachedAt)
+    .slice(0, Math.max(0, entriesToRemove))
+
+  staleEntries.forEach((entry) => {
+    storage.removeItem(entry.key)
+  })
+}
+
+function persistMarkdownFile(file: MarkdownFile) {
+  const storage = getMarkdownFileCacheStorage()
+  if (!storage) {
+    return
+  }
+
+  const key = getMarkdownFileCacheKey(file.path)
+  const value = JSON.stringify({
+    ...file,
+    cachedAt: Date.now(),
+  } satisfies StoredMarkdownFile)
+
+  try {
+    storage.setItem(key, value)
+  } catch {
+    try {
+      prunePersistedMarkdownFileCache(storage, 12)
+      storage.setItem(key, value)
+    } catch {
+      // Storage quota is best-effort; the in-memory cache still works.
+    }
+  }
+}
+
 function cacheMarkdownFile(file: MarkdownFile): MarkdownFile {
   const cachedFile = { ...file }
   markdownFileCache.set(file.path, cachedFile)
+  persistMarkdownFile(cachedFile)
   return cachedFile
 }
 
 export function readCachedMarkdownFile(path: string, sha?: string): MarkdownFile | null {
   const cachedFile = markdownFileCache.get(path)
 
-  if (!cachedFile) {
+  if (cachedFile) {
+    if (sha && cachedFile.sha !== sha) {
+      markdownFileCache.delete(path)
+      return null
+    }
+
+    return { ...cachedFile }
+  }
+
+  const persistedFile = readPersistedMarkdownFile(path)
+  if (!persistedFile) {
     return null
   }
 
-  if (sha && cachedFile.sha !== sha) {
+  if (sha && persistedFile.sha !== sha) {
+    removePersistedMarkdownFile(path)
     return null
   }
 
-  return { ...cachedFile }
+  const nextCachedFile = {
+    path: persistedFile.path,
+    sha: persistedFile.sha,
+    content: persistedFile.content,
+  }
+  markdownFileCache.set(path, nextCachedFile)
+  return { ...nextCachedFile }
 }
 
 export function clearMarkdownFileCache() {
   markdownFileCache.clear()
+  const storage = getMarkdownFileCacheStorage()
+  if (!storage) {
+    return
+  }
+
+  for (let index = storage.length - 1; index >= 0; index -= 1) {
+    const key = storage.key(index)
+    if (key?.startsWith(MARKDOWN_FILE_CACHE_PREFIX)) {
+      storage.removeItem(key)
+    }
+  }
 }
 
 function removeCachedMarkdownFile(path: string) {
   markdownFileCache.delete(path)
+  removePersistedMarkdownFile(path)
 }
 
 function normalizeIsoDate(value: string) {

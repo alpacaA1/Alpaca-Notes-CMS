@@ -3,6 +3,10 @@ import { sortPostIndex } from '../posts/index-posts'
 import type { SessionState } from '../session'
 import type { ReadLaterIndexItem } from './item-types'
 
+type BuildReadLaterIndexOptions = {
+  onFilesListed?: (items: ReadLaterIndexItem[]) => void
+}
+
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
 }
@@ -39,6 +43,50 @@ function normalizeSearchText(value: string) {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
+}
+
+function stripContentFileExtension(fileName: string) {
+  return fileName.replace(/\.(md|txt|plaintxt)$/i, '')
+}
+
+function formatTimestampDate(value: string) {
+  const compactMatch = value.match(/(20\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/)
+  if (compactMatch) {
+    return `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]} ${compactMatch[4]}:${compactMatch[5]}:${compactMatch[6]}`
+  }
+
+  const dateMatch = value.match(/(20\d{2})[-_](\d{2})[-_](\d{2})/)
+  if (dateMatch) {
+    return `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]} 00:00:00`
+  }
+
+  return ''
+}
+
+function parseLightweightReadLaterIndexItem(file: { path: string; sha: string; name: string }): ReadLaterIndexItem {
+  const title = stripContentFileExtension(file.name) || file.path
+  const date = formatTimestampDate(file.name)
+
+  return {
+    path: file.path,
+    sha: file.sha,
+    title,
+    date,
+    desc: '',
+    published: false,
+    pinned: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: [],
+    permalink: null,
+    cover: null,
+    searchText: normalizeSearchText([title, date, file.path].join('\n')),
+    bodySearchText: '',
+    contentType: 'read-later',
+    externalUrl: null,
+    sourceName: null,
+    readingStatus: 'unread',
+  }
 }
 
 export function parseReadLaterIndexItem(input: { path: string; sha: string; content: string }): ReadLaterIndexItem {
@@ -89,8 +137,13 @@ export function parseReadLaterIndexItem(input: { path: string; sha: string; cont
   }
 }
 
-export async function buildReadLaterIndex(session: SessionState): Promise<ReadLaterIndexItem[]> {
+export async function buildReadLaterIndex(session: SessionState, options: BuildReadLaterIndexOptions = {}): Promise<ReadLaterIndexItem[]> {
   const files = await listReadLaterFiles(session)
+  options.onFilesListed?.(sortPostIndex(
+    files.map(parseLightweightReadLaterIndexItem),
+    'date-desc',
+  ) as ReadLaterIndexItem[])
+
   const items = await Promise.all(
     files.map(async (file) => parseReadLaterIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchMarkdownFile(session, file.path))),
   )

@@ -128,6 +128,34 @@ describe('App indexing flow', () => {
     })
   })
 
+  it('shows lightweight listed posts before the full index finishes loading', async () => {
+    const fullIndex = createDeferred<PostIndexItem[]>()
+    const lightweightPost: PostIndexItem = {
+      ...indexedPosts[0],
+      title: '20260506090000',
+      date: '2026-05-06 09:00:00',
+      desc: '',
+    }
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockImplementation(async (_session, options) => {
+      options?.onFilesListed?.([lightweightPost])
+      return fullIndex.promise
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('20260506090000')).toBeTruthy()
+    })
+
+    fullIndex.resolve(indexedPosts)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+  })
+
   it('keeps cached list visible while switching back and revalidating in the background', async () => {
     const refreshedPosts: PostIndexItem[] = [
       {

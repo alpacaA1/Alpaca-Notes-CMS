@@ -65,6 +65,15 @@ const defaultView: PostIndexView = {
   sort: 'date-desc',
 }
 
+function createDeferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((nextResolve) => {
+    resolve = nextResolve
+  })
+
+  return { promise, resolve }
+}
+
 describe('post indexing helpers', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -286,6 +295,48 @@ Body`
     expect(indexed.map((post) => post.title)).toEqual(['Cached post'])
     expect(fetchPostFile).not.toHaveBeenCalled()
     expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('emits a lightweight post index after listing files before full content finishes loading', async () => {
+    const fullContent = `---
+title: Full post title
+date: 2026-05-06 09:00:00
+published: true
+---
+
+Full body`
+    const deferredFile = createDeferred<{ path: string; sha: string; content: string }>()
+    const onFilesListed = vi.fn()
+
+    vi.spyOn(githubClientModule, 'listPostFiles').mockResolvedValue([
+      { path: 'source/_posts/20260506090000.md', sha: 'sha-full', name: '20260506090000.md', type: 'file' },
+    ])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockReturnValue(deferredFile.promise)
+
+    const indexedPromise = buildPostIndex({ token: 'token' }, { onFilesListed })
+    await Promise.resolve()
+
+    expect(onFilesListed).toHaveBeenCalledWith([
+      expect.objectContaining({
+        path: 'source/_posts/20260506090000.md',
+        title: '20260506090000',
+        date: '2026-05-06 09:00:00',
+        contentType: 'post',
+      }),
+    ])
+
+    deferredFile.resolve({
+      path: 'source/_posts/20260506090000.md',
+      sha: 'sha-full',
+      content: fullContent,
+    })
+
+    await expect(indexedPromise).resolves.toEqual([
+      expect.objectContaining({
+        title: 'Full post title',
+        body: '\nFull body',
+      }),
+    ])
   })
 
   it('refetches an indexed post when the cached sha is stale', async () => {

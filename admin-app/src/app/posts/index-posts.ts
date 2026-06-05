@@ -4,6 +4,16 @@ import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { SessionState } from '../session'
 import type { ContentType, PostIndexItem, PostIndexView } from './post-types'
 
+type ContentFileEntry = {
+  path: string
+  sha: string
+  name: string
+}
+
+type BuildIndexOptions = {
+  onFilesListed?: (posts: PostIndexItem[]) => void
+}
+
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
 }
@@ -79,6 +89,48 @@ function normalizeSearchText(value: string) {
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase()
+}
+
+function stripContentFileExtension(fileName: string) {
+  return fileName.replace(/\.(md|txt|plaintxt)$/i, '')
+}
+
+function formatTimestampDate(value: string) {
+  const compactMatch = value.match(/(20\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/)
+  if (compactMatch) {
+    return `${compactMatch[1]}-${compactMatch[2]}-${compactMatch[3]} ${compactMatch[4]}:${compactMatch[5]}:${compactMatch[6]}`
+  }
+
+  const dateMatch = value.match(/(20\d{2})[-_](\d{2})[-_](\d{2})/)
+  if (dateMatch) {
+    return `${dateMatch[1]}-${dateMatch[2]}-${dateMatch[3]} 00:00:00`
+  }
+
+  return ''
+}
+
+function parseLightweightPostIndexItem(file: ContentFileEntry, contentType: ContentType): PostIndexItem {
+  const title = stripContentFileExtension(file.name) || file.path
+  const date = formatTimestampDate(file.name)
+  const searchText = normalizeSearchText([title, date, file.path].join('\n'))
+
+  return {
+    path: file.path,
+    sha: file.sha,
+    title,
+    date,
+    desc: '',
+    published: contentType === 'post',
+    pinned: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: [],
+    permalink: null,
+    cover: null,
+    searchText,
+    bodySearchText: '',
+    contentType,
+  }
 }
 
 export function parsePostIndexItem(input: { path: string; sha: string; content: string }): PostIndexItem {
@@ -164,8 +216,15 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
 async function buildIndexForFiles(
   session: SessionState,
   files: Promise<Awaited<ReturnType<typeof listPostFiles>>>,
+  contentType: ContentType,
+  options: BuildIndexOptions = {},
 ): Promise<PostIndexItem[]> {
   const resolvedFiles = await files
+  options.onFilesListed?.(sortPostIndex(
+    resolvedFiles.map((file) => parseLightweightPostIndexItem(file, contentType)),
+    'date-desc',
+  ))
+
   const posts = await Promise.all(
     resolvedFiles.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
   )
@@ -173,16 +232,16 @@ async function buildIndexForFiles(
   return sortPostIndex(posts, 'date-desc')
 }
 
-export async function buildPostIndex(session: SessionState): Promise<PostIndexItem[]> {
-  return buildIndexForFiles(session, listPostFiles(session))
+export async function buildPostIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listPostFiles(session), 'post', options)
 }
 
-export async function buildDiaryIndex(session: SessionState): Promise<PostIndexItem[]> {
-  return buildIndexForFiles(session, listDiaryFiles(session))
+export async function buildDiaryIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listDiaryFiles(session), 'diary', options)
 }
 
-export async function buildKnowledgeIndex(session: SessionState): Promise<PostIndexItem[]> {
-  return buildIndexForFiles(session, listKnowledgeFiles(session))
+export async function buildKnowledgeIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listKnowledgeFiles(session), 'knowledge', options)
 }
 
 export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): PostIndexItem[] {

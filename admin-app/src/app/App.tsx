@@ -361,20 +361,24 @@ function buildIndexItemFromSavedFile(
   return parsePostIndexItem(file)
 }
 
-async function buildIndexByContentType(session: { token: string }, type: ContentType) {
+type BuildIndexByContentTypeOptions = {
+  onFilesListed?: (posts: PostIndexItem[]) => void
+}
+
+async function buildIndexByContentType(session: { token: string }, type: ContentType, options: BuildIndexByContentTypeOptions = {}) {
   if (type === 'read-later') {
-    return buildReadLaterIndex(session)
+    return buildReadLaterIndex(session, options)
   }
 
   if (type === 'diary') {
-    return buildDiaryIndex(session)
+    return buildDiaryIndex(session, options)
   }
 
   if (type === 'knowledge') {
-    return buildKnowledgeIndex(session)
+    return buildKnowledgeIndex(session, options)
   }
 
-  return buildPostIndex(session)
+  return buildPostIndex(session, options)
 }
 
 function EmptyState({ error }: { error: string | null }) {
@@ -888,7 +892,13 @@ export default function App() {
       setIsIndexing(true)
 
       try {
-        const indexedPosts = await buildIndexByContentType(session, indexedContentType)
+        const indexedPosts = await buildIndexByContentType(session, indexedContentType, {
+          onFilesListed: (listedPosts) => {
+            if (!cancelled) {
+              updatePostsForType(indexedContentType, () => listedPosts as PostIndexItem[])
+            }
+          },
+        })
         if (!cancelled) {
           updatePostsForType(indexedContentType, () => indexedPosts as PostIndexItem[])
         }

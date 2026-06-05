@@ -116,7 +116,7 @@ function readViewedFeedItemsByUrl(): Record<string, string[]> {
         .map(([feedUrl, itemUrls]) => [
           feedUrl,
           Array.isArray(itemUrls)
-            ? Array.from(new Set(itemUrls.filter((itemUrl): itemUrl is string => typeof itemUrl === 'string' && itemUrl.trim())))
+            ? Array.from(new Set(itemUrls.filter((itemUrl): itemUrl is string => typeof itemUrl === 'string' && Boolean(itemUrl.trim()))))
             : [],
         ])
         .filter(([, itemUrls]) => itemUrls.length > 0),
@@ -189,6 +189,7 @@ export default function FeedDashboard({
   const [openSubscriptionMenuUrl, setOpenSubscriptionMenuUrl] = useState<string | null>(null)
   const [draggedSubscriptionUrl, setDraggedSubscriptionUrl] = useState<string | null>(null)
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   const filteredSubscriptions = useMemo(() => {
     const matchingSubscriptions = !normalizedSearch
@@ -708,69 +709,92 @@ export default function FeedDashboard({
   }
 
   return (
-    <section className="feed-dashboard">
+    <section className={`feed-dashboard${isSidebarCollapsed ? ' feed-dashboard--sidebar-collapsed' : ''}`}>
       {/* ── Left sidebar ── */}
-      <aside className="feed-dashboard__sidebar">
-        {/* Compact add-feed toolbar */}
-        <div className="feed-dashboard__toolbar" aria-label="新增 feed">
-          <div className="feed-dashboard__toolbar-row">
-            <input
-              aria-label="Feed URL"
-              className="feed-dashboard__composer-input"
-              placeholder="https://example.com/feed.xml"
-              value={manualFeedUrl}
-              onChange={(event) => onManualFeedUrlChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  onAddManualFeed()
-                }
-              }}
-            />
-            <button
-              type="button"
-              className="feed-dashboard__toolbar-add-btn"
-              onClick={onAddManualFeed}
-              disabled={isSavingFeed}
-              aria-label={isSavingFeed ? '订阅中…' : '新增 feed'}
-            >
-              {isSavingFeed ? '…' : '+'}
-            </button>
-          </div>
-          <button
-            type="button"
-            className="feed-dashboard__folder-create-btn"
-            onClick={handleCreateFolderClick}
-            disabled={isSavingFeed}
-          >
-            + New Folder
-          </button>
-        </div>
-
-        <div className="feed-dashboard__sidebar-body">
-          <div className="feed-dashboard__subscriptions" aria-label="已订阅 feed">
-            {isLoading ? (
-              <div className="feed-dashboard__subscriptions-empty">正在读取 feed 订阅…</div>
-            ) : folderViewModels.length === 0 ? (
-              <div className="feed-dashboard__subscriptions-empty">
-                {subscriptions.length === 0 && folders.length === 0 ? '还没有订阅 feed。' : '当前搜索没有匹配的 feed。'}
-              </div>
-            ) : (
-              <div className="feed-dashboard__folder-list">
-                {folderViewModels.map((folderViewModel) => renderFolder(folderViewModel))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Stats footer */}
-        <div className="feed-dashboard__sidebar-footer">
-          <span>
-            {normalizedSearch
-              ? `${totalUnreadFolderCount} 个有待读匹配 folder`
-              : `${totalUnreadFolderCount} 个有待读 folder`}
+      <aside className={`feed-dashboard__sidebar${isSidebarCollapsed ? ' is-collapsed' : ''}`}>
+        <button
+          type="button"
+          className="feed-dashboard__sidebar-toggle"
+          onClick={() => {
+            setOpenFolderMenuId(null)
+            setOpenSubscriptionMenuUrl(null)
+            setIsSidebarCollapsed((currentValue) => !currentValue)
+          }}
+          aria-label={isSidebarCollapsed ? '展开 RSS 订阅栏' : '收起 RSS 订阅栏'}
+          aria-expanded={!isSidebarCollapsed}
+          title={isSidebarCollapsed ? '展开 RSS 订阅栏' : '收起 RSS 订阅栏'}
+        >
+          <span className="feed-dashboard__sidebar-toggle-icon" aria-hidden="true">
+            <span />
+            <span />
           </span>
-        </div>
+          {!isSidebarCollapsed ? <span className="feed-dashboard__sidebar-toggle-label">阅读列表</span> : null}
+        </button>
+
+        {!isSidebarCollapsed ? (
+          <>
+            {/* Compact add-feed toolbar */}
+            <div className="feed-dashboard__toolbar" aria-label="新增 feed">
+              <div className="feed-dashboard__toolbar-row">
+                <input
+                  aria-label="Feed URL"
+                  className="feed-dashboard__composer-input"
+                  placeholder="https://example.com/feed.xml"
+                  value={manualFeedUrl}
+                  onChange={(event) => onManualFeedUrlChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      onAddManualFeed()
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  className="feed-dashboard__toolbar-add-btn"
+                  onClick={onAddManualFeed}
+                  disabled={isSavingFeed}
+                  aria-label={isSavingFeed ? '订阅中…' : '新增 feed'}
+                >
+                  {isSavingFeed ? '…' : '+'}
+                </button>
+              </div>
+              <button
+                type="button"
+                className="feed-dashboard__folder-create-btn"
+                onClick={handleCreateFolderClick}
+                disabled={isSavingFeed}
+              >
+                + New Folder
+              </button>
+            </div>
+
+            <div className="feed-dashboard__sidebar-body">
+              <div className="feed-dashboard__subscriptions" aria-label="已订阅 feed">
+                {isLoading ? (
+                  <div className="feed-dashboard__subscriptions-empty">正在读取 feed 订阅…</div>
+                ) : folderViewModels.length === 0 ? (
+                  <div className="feed-dashboard__subscriptions-empty">
+                    {subscriptions.length === 0 && folders.length === 0 ? '还没有订阅 feed。' : '当前搜索没有匹配的 feed。'}
+                  </div>
+                ) : (
+                  <div className="feed-dashboard__folder-list">
+                    {folderViewModels.map((folderViewModel) => renderFolder(folderViewModel))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Stats footer */}
+            <div className="feed-dashboard__sidebar-footer">
+              <span>
+                {normalizedSearch
+                  ? `${totalUnreadFolderCount} 个有待读匹配 folder`
+                  : `${totalUnreadFolderCount} 个有待读 folder`}
+              </span>
+            </div>
+          </>
+        ) : null}
       </aside>
 
       {/* ── Right main area ── */}

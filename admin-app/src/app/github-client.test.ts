@@ -67,6 +67,27 @@ describe('github client encoding', () => {
     expect(readCachedMarkdownFile('source/_posts/chinese.md', 'sha-mismatch')).toBeNull()
   })
 
+  it('keeps sha-matched markdown content in persistent browser cache across reloads', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        type: 'file',
+        path: 'source/_posts/chinese.md',
+        sha: 'sha-1',
+        encoding: 'base64',
+        content: Buffer.from(chineseMarkdown, 'utf8').toString('base64'),
+      }),
+    } as Response)
+
+    const file = await fetchPostFile({ token: 'token' }, 'source/_posts/chinese.md')
+    vi.resetModules()
+    const reloadedClient = await import('./github-client')
+
+    expect(reloadedClient.readCachedMarkdownFile('source/_posts/chinese.md', 'sha-1')).toEqual(file)
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
   it('bypasses browser caches when fetching a post file after saves', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
