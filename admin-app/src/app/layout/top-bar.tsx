@@ -47,6 +47,28 @@ function MoonIcon() {
   )
 }
 
+function TrashIcon() {
+  return (
+    <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path d="M3 4.5h12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M7 2.75h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M6 7v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M9 7v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M12 7v5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M4.6 4.5l.45 8.2a2 2 0 0 0 2 1.9h3.9a2 2 0 0 0 2-1.9l.45-8.2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function BackIcon() {
+  return (
+    <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+      <path d="M10.5 4.5 6 9l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.25 9H15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 type TopBarProps = {
   search: string
   onSearchChange: (value: string) => void
@@ -270,11 +292,13 @@ export default function TopBar({
           ) : null}
           {showTrashToggle ? (
             <button
-              className={`top-bar__button${isTrashView ? ' top-bar__button--active' : ''}`}
+              className={`top-bar__button top-bar__button--icon${isTrashView ? ' top-bar__button--active' : ''}`}
               type="button"
               onClick={isTrashView ? onBackToDashboard : onOpenTrash}
+              aria-label={isTrashView ? '返回内容' : '打开回收站'}
+              title={isTrashView ? '返回内容' : '回收站'}
             >
-              {isTrashView ? '返回内容' : '回收站'}
+              {isTrashView ? <BackIcon /> : <TrashIcon />}
             </button>
           ) : null}
           {showFeedsToggle ? (

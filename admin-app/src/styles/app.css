@@ -1353,8 +1353,8 @@ textarea {
 
 .top-bar__identity strong {
   display: block;
-  font-size: clamp(1.3rem, 1.5vw, 1.6rem);
-  line-height: 1;
+  font-size: clamp(1.05rem, 1.1vw, 1.22rem);
+  line-height: 1.08;
   white-space: nowrap;
 }
 
@@ -1703,6 +1703,18 @@ textarea {
 
 .top-bar__button--rss {
   position: relative;
+}
+
+.top-bar__button--icon {
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+}
+
+.top-bar__icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
 }
 
 .top-bar__rss-badge {
@@ -10668,6 +10680,12 @@ textarea {
 .admin-shell--dark .feed-dashboard__reader-preview {
   border-color: rgba(255, 255, 255, 0.08);
   background: transparent;
+}
+
+.admin-shell--dark .feed-dashboard__reader {
+  background:
+    linear-gradient(180deg, rgba(26, 24, 22, 0.42), rgba(18, 16, 14, 0) 150px),
+    var(--feed-reader-bg);
 }
 
 .admin-shell--dark .feed-dashboard__reader-meta span {
