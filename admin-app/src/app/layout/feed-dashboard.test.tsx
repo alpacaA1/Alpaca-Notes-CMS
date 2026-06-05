@@ -308,6 +308,62 @@ describe('FeedDashboard', () => {
     expect(onCreateReadLaterFromPreview).toHaveBeenCalledWith(previewItem, previewArticle)
   })
 
+  it('expands the reader by collapsing the subscription and feed item lists', () => {
+    const subscription = createSubscription({
+      id: 'product-feed',
+      title: '产品 Feed',
+      url: 'https://example.com/product.xml',
+      articleCount: 1,
+    })
+    const previewItem = {
+      id: 'item-1',
+      title: '文章一',
+      url: 'https://example.com/posts/one',
+      summary: '第一篇摘要。',
+      publishedAt: '2026-06-04T08:00:00.000Z',
+      sourceName: '产品 Feed',
+    }
+
+    renderFeedDashboard({
+      subscriptions: [subscription],
+      selectedSubscriptionUrl: subscription.url,
+      previewFeed: {
+        title: '产品 Feed',
+        description: '',
+        requestedUrl: subscription.url,
+        finalUrl: subscription.url,
+        items: [previewItem],
+      },
+      previewArticlesByUrl: {
+        [previewItem.url]: {
+          title: '文章一',
+          desc: '第一篇摘要。',
+          sourceName: '产品 Feed',
+          markdown: '# 正文标题',
+          requestedUrl: previewItem.url,
+          finalUrl: previewItem.url,
+          needsManualPaste: false,
+        },
+      },
+    })
+
+    expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
+    expect(screen.getByLabelText('Feed 条目列表')).toBeTruthy()
+    expect(screen.queryByRole('button', { name: '上一条' })).toBeNull()
+    expect(screen.queryByRole('button', { name: '下一条' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '放大阅读区' }))
+
+    expect(screen.queryByLabelText('已订阅 feed')).toBeNull()
+    expect(screen.queryByLabelText('Feed 条目列表')).toBeNull()
+    expect(screen.getByRole('button', { name: '还原阅读布局' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '还原阅读布局' }))
+
+    expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
+    expect(screen.getByLabelText('Feed 条目列表')).toBeTruthy()
+  })
+
   it('marks a single feed as read and deletes it from the feed action menu', () => {
     const onRemoveSubscription = vi.fn()
     const subscription = createSubscription({

@@ -194,6 +194,7 @@ export default function FeedDashboard({
   const [draggedSubscriptionUrl, setDraggedSubscriptionUrl] = useState<string | null>(null)
   const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isReaderExpanded, setIsReaderExpanded] = useState(false)
 
   const filteredSubscriptions = useMemo(() => {
     const matchingSubscriptions = !normalizedSearch
@@ -726,28 +727,6 @@ export default function FeedDashboard({
       <div className="feed-dashboard__reader-actions">
         <button
           type="button"
-          className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
-          onClick={() => {
-            const previousItem = previewFeed.items[selectedPreviewItemIndex - 1]
-            selectPreviewItem(previousItem)
-          }}
-          disabled={selectedPreviewItemIndex <= 0}
-        >
-          上一条
-        </button>
-        <button
-          type="button"
-          className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
-          onClick={() => {
-            const nextItem = previewFeed.items[selectedPreviewItemIndex + 1]
-            selectPreviewItem(nextItem)
-          }}
-          disabled={selectedPreviewItemIndex >= previewFeed.items.length - 1}
-        >
-          下一条
-        </button>
-        <button
-          type="button"
           className="feed-dashboard__composer-btn feed-dashboard__reader-collect-btn"
           onClick={() => onCreateReadLaterFromPreview(selectedPreviewItem, selectedPreviewArticle)}
           disabled={isCreatingReadLaterFromPreview}
@@ -763,12 +742,33 @@ export default function FeedDashboard({
         >
           打开原文
         </a>
+        <button
+          type="button"
+          className="feed-dashboard__reader-expand-btn"
+          onClick={() => {
+            setOpenFolderMenuId(null)
+            setOpenSubscriptionMenuUrl(null)
+            const nextValue = !isReaderExpanded
+            setIsReaderExpanded(nextValue)
+            setIsSidebarCollapsed(nextValue)
+          }}
+          aria-label={isReaderExpanded ? '还原阅读布局' : '放大阅读区'}
+          aria-pressed={isReaderExpanded}
+          title={isReaderExpanded ? '还原阅读布局' : '放大阅读区'}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M8 3H3v5" />
+            <path d="M3 3l7 7" />
+            <path d="M16 21h5v-5" />
+            <path d="M21 21l-7-7" />
+          </svg>
+        </button>
       </div>
     )
   }
 
   return (
-    <section className={`feed-dashboard${isSidebarCollapsed ? ' feed-dashboard--sidebar-collapsed' : ''}`}>
+    <section className={`feed-dashboard${isSidebarCollapsed ? ' feed-dashboard--sidebar-collapsed' : ''}${isReaderExpanded ? ' feed-dashboard--reader-expanded' : ''}`}>
       {/* ── Left sidebar ── */}
       <aside className={`feed-dashboard__sidebar${isSidebarCollapsed ? ' is-collapsed' : ''}`}>
         <button
@@ -859,57 +859,59 @@ export default function FeedDashboard({
       {/* ── Right main area ── */}
       <main className="feed-dashboard__main">
         {/* Feed item list */}
-        <section className="feed-dashboard__preview" aria-label="Feed 条目列表">
-          <div className="feed-dashboard__preview-header">
-            <strong>{selectedSubscription?.title || previewFeed?.title || '选择一个 feed'}</strong>
-            <div className="feed-dashboard__preview-header-actions">
-              <span>{previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
-              {previewFeed ? (
-                <button
-                  type="button"
-                  className="feed-dashboard__composer-secondary-btn feed-dashboard__mark-read-btn"
-                  onClick={markAllPreviewItemsViewed}
-                  disabled={selectedFeedUnreadItemCount === 0}
-                >
-                  全部标为已读
-                </button>
-              ) : null}
-            </div>
-          </div>
-          {isPreviewLoading ? (
-            <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
-          ) : !previewFeed ? (
-            <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或手动添加新的 feed。</div>
-          ) : (
-            <div className="feed-dashboard__preview-list">
-              {previewFeed.items.map((item) => {
-                const isActive = selectedPreviewItem?.url === item.url
-
-                return (
-                  <article
-                    key={item.id || item.url}
-                    className={`feed-dashboard__preview-item${isActive ? ' is-active' : ''}`}
+        {!isReaderExpanded ? (
+          <section className="feed-dashboard__preview" aria-label="Feed 条目列表">
+            <div className="feed-dashboard__preview-header">
+              <strong>{selectedSubscription?.title || previewFeed?.title || '选择一个 feed'}</strong>
+              <div className="feed-dashboard__preview-header-actions">
+                <span>{previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
+                {previewFeed ? (
+                  <button
+                    type="button"
+                    className="feed-dashboard__composer-secondary-btn feed-dashboard__mark-read-btn"
+                    onClick={markAllPreviewItemsViewed}
+                    disabled={selectedFeedUnreadItemCount === 0}
                   >
-                    <button
-                      type="button"
-                      className="feed-dashboard__preview-select"
-                      onClick={() => selectPreviewItem(item)}
-                    >
-                      <div className="feed-dashboard__preview-item-main">
-                        <div className="feed-dashboard__preview-item-meta">
-                          <span>{formatFeedItemDate(item.publishedAt)}</span>
-                          <span>{item.sourceName || readFeedItemHostLabel(item.url)}</span>
-                        </div>
-                        <strong>{item.title || '未命名条目'}</strong>
-                        <p>{item.summary || '这个 RSS 条目没有提供摘要。'}</p>
-                      </div>
-                    </button>
-                  </article>
-                )
-              })}
+                    全部标为已读
+                  </button>
+                ) : null}
+              </div>
             </div>
-          )}
-        </section>
+            {isPreviewLoading ? (
+              <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
+            ) : !previewFeed ? (
+              <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或手动添加新的 feed。</div>
+            ) : (
+              <div className="feed-dashboard__preview-list">
+                {previewFeed.items.map((item) => {
+                  const isActive = selectedPreviewItem?.url === item.url
+
+                  return (
+                    <article
+                      key={item.id || item.url}
+                      className={`feed-dashboard__preview-item${isActive ? ' is-active' : ''}`}
+                    >
+                      <button
+                        type="button"
+                        className="feed-dashboard__preview-select"
+                        onClick={() => selectPreviewItem(item)}
+                      >
+                        <div className="feed-dashboard__preview-item-main">
+                          <div className="feed-dashboard__preview-item-meta">
+                            <span>{formatFeedItemDate(item.publishedAt)}</span>
+                            <span>{item.sourceName || readFeedItemHostLabel(item.url)}</span>
+                          </div>
+                          <strong>{item.title || '未命名条目'}</strong>
+                          <p>{item.summary || '这个 RSS 条目没有提供摘要。'}</p>
+                        </div>
+                      </button>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {/* Reader / article preview */}
         <section className="feed-dashboard__reader" aria-label="Feed 摘要阅读区">

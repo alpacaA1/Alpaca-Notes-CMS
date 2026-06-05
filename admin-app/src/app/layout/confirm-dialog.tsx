@@ -30,7 +30,18 @@ export default function ConfirmDialog({
         aria-describedby="confirm-dialog-message"
         onClick={(event) => event.stopPropagation()}
       >
-        <h3 id="confirm-dialog-title" className="confirm-dialog__title">{title}</h3>
+        <div className="confirm-dialog__header">
+          <span
+            className={`confirm-dialog__mark${isDangerous ? ' confirm-dialog__mark--danger' : ''}`}
+            aria-hidden="true"
+          >
+            !
+          </span>
+          <div>
+            <p className="confirm-dialog__eyebrow">需要确认</p>
+            <h3 id="confirm-dialog-title" className="confirm-dialog__title">{title}</h3>
+          </div>
+        </div>
         <p id="confirm-dialog-message" className="confirm-dialog__message">{message}</p>
 
         {isProcessing && processingMessage ? (

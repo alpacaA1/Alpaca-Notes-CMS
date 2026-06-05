@@ -277,6 +277,20 @@ describe('PreviewPane', () => {
     expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
   })
 
+  it('uses the unified reader body style for post, diary, and read-later previews', () => {
+    const { container, rerender } = render(
+      <PreviewPane title="文档预览" date="2026-05-09 14:27:37" markdown="正文" contentType="post" />,
+    )
+
+    expect(container.querySelector('.preview-content')?.className).toContain('preview-content--reader')
+
+    rerender(<PreviewPane title="日记预览" date="2026-05-09 14:27:37" markdown="正文" contentType="diary" />)
+    expect(container.querySelector('.preview-content')?.className).toContain('preview-content--reader')
+
+    rerender(<PreviewPane title="待读预览" date="2026-05-09 14:27:37" markdown="正文" contentType="read-later" />)
+    expect(container.querySelector('.preview-content')?.className).toContain('preview-content--reader')
+  })
+
   it('renders mermaid fenced code blocks as diagrams when the runtime is available', async () => {
     const initialize = vi.fn()
     const renderMermaid = vi.fn().mockResolvedValue({

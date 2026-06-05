@@ -86,8 +86,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -102,12 +100,14 @@ describe('App read-later import flow', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    expect(screen.getByText('当前正文将被导入内容覆盖，确认继续吗？')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '覆盖并导入' }))
 
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前正文将被导入内容覆盖，确认继续吗？')
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('导入后的标题')
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
@@ -159,8 +159,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -177,7 +175,10 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
 
-    expect(confirmSpy).toHaveBeenCalledWith('当前正文和高亮批注将被导入内容覆盖，确认继续吗？')
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    expect(screen.getByText('当前正文和高亮批注将被导入内容覆盖，确认继续吗？')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '覆盖并导入' }))
+
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
     })
@@ -252,8 +253,6 @@ describe('App read-later import flow', () => {
       finalUrl: 'https://example.com/article',
       needsManualPaste: false,
     })
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '待读' }))
@@ -265,9 +264,10 @@ describe('App read-later import flow', () => {
     fireEvent.change(screen.getByLabelText('快速收录链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.click(screen.getByRole('button', { name: '快速收录' }))
 
-    await waitFor(() => {
-      expect(confirmSpy).toHaveBeenCalledWith('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')
-    })
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    expect(screen.getByText('已存在相同原文链接的待读《Import me later》。仍要继续创建新草稿吗？')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '继续创建' }))
+
     await waitFor(() => {
       expect(importSpy).toHaveBeenCalledWith(
         { token: 'persisted-token' },
@@ -495,14 +495,14 @@ describe('App read-later import flow', () => {
       ...state,
       sha: 'next-feed-sha',
     }))
-    vi.spyOn(window, 'confirm').mockReturnValue(true)
-
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
     const sidebar = await screen.findByLabelText('已订阅 feed')
 
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Newspaper 更多操作' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '确认删除' }))
 
     await waitFor(() => {
       expect(saveSpy).toHaveBeenCalledWith(

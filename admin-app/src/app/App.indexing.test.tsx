@@ -185,7 +185,9 @@ describe('App indexing flow', () => {
 
     fireEvent.click(screen.getByRole('radio', { name: '文章' }))
 
-    expect(buildPostIndex).toHaveBeenCalledTimes(2)
+    await waitFor(() => {
+      expect(buildPostIndex).toHaveBeenCalledTimes(2)
+    })
     expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
     expect(screen.queryByText('正在加载文章…')).toBeNull()
 
@@ -484,12 +486,12 @@ describe('App indexing flow', () => {
       expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toContain('![cover](')
     })
 
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
+    expect(await screen.findByRole('alertdialog')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '丢弃并继续' }))
 
     expect(await screen.findByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
-    expect(confirmSpy).toHaveBeenCalled()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:open-preview-image')
   })
 })

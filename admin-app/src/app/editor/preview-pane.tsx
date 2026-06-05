@@ -2159,6 +2159,7 @@ export default function PreviewPane({
   )
   const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
   const isInlineAnnotationEditing = isReadLater && activeAnnotation?.id === editingAnnotationId
+  const usesReaderBodyStyle = contentType === 'post' || contentType === 'diary' || contentType === 'read-later'
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
     [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
@@ -2677,13 +2678,13 @@ export default function PreviewPane({
         ) : null}
         <article
           ref={articleRef}
-          className={`preview-content${isReadLater ? ' preview-content--reader' : ''}`}
+          className={`preview-content${usesReaderBodyStyle ? ' preview-content--reader' : ''}`}
           id={articleRootId}
           onClick={handleArticleClick}
           onMouseUp={handleSelectionChange}
           onKeyUp={handleSelectionChange}
         >
-          <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
+          <header className={`preview-content__header${usesReaderBodyStyle ? ' preview-content__header--reader' : ''}`}>
             <h1>{title.trim() || '未命名草稿'}</h1>
             {isReadLater ? (
               <div className="preview-content__reader-title-meta">
