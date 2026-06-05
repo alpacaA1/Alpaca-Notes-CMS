@@ -1348,6 +1348,59 @@ export default function App() {
     }
   }
 
+  const handleDeleteFeedFolder = async (folder: FeedFolder) => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const affectedFeedCount = rssSubscriptions.filter(
+      (subscription) => subscription.category.trim() === folder.name,
+    ).length
+    const shouldDelete = window.confirm(
+      affectedFeedCount > 0
+        ? `确定删除 folder「${folder.name}」吗？其中 ${affectedFeedCount} 个 feed 会移入 Uncategorized。`
+        : `确定删除 folder「${folder.name}」吗？`,
+    )
+    if (!shouldDelete) {
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const timestamp = new Date().toISOString()
+      const nextFolders = (rssSubscriptionsState.folders || []).filter((item) => item.id !== folder.id)
+      const nextSubscriptions = rssSubscriptions.map((subscription) =>
+        subscription.category.trim() === folder.name
+          ? {
+              ...subscription,
+              category: '',
+              updatedAt: timestamp,
+            }
+          : subscription,
+      )
+
+      await persistFeedSubscriptions(
+        nextSubscriptions,
+        affectedFeedCount > 0
+          ? `已删除 folder「${folder.name}」，${affectedFeedCount} 个 feed 已移入 Uncategorized。`
+          : `已删除 folder「${folder.name}」。`,
+        nextFolders,
+      )
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '删除 folder 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+    }
+  }
+
   const handleMoveFeedSubscriptionToFolder = async (subscription: FeedSubscription, folderName: string) => {
     if (!session || isSavingRssSubscription) {
       return
@@ -3074,6 +3127,7 @@ export default function App() {
             onRemoveSubscription={(subscription) => { void handleRemoveFeedSubscription(subscription) }}
             onCreateFolder={(name) => { void handleCreateFeedFolder(name) }}
             onRenameFolder={(folder, name) => { void handleRenameFeedFolder(folder, name) }}
+            onDeleteFolder={(folder) => { void handleDeleteFeedFolder(folder) }}
             onMoveSubscriptionToFolder={(subscription, folderName) => { void handleMoveFeedSubscriptionToFolder(subscription, folderName) }}
           />
         </section>

@@ -451,6 +451,66 @@ describe('App read-later import flow', () => {
     expect(container.querySelector('.success-message')).toBeNull()
   })
 
+  it('deletes an RSS folder and moves its feeds into Uncategorized', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'feed-sha',
+      folders: [
+        {
+          id: 'folder-news',
+          name: 'Newspaper',
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+      subscriptions: [
+        {
+          id: 'news-feed',
+          title: 'News Feed',
+          url: 'https://example.com/news.xml',
+          description: '',
+          category: 'Newspaper',
+          sourceType: 'manual',
+          articleCount: 3,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+    })
+    const saveSpy = vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'next-feed-sha',
+    }))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    const sidebar = await screen.findByLabelText('已订阅 feed')
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Newspaper 更多操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(saveSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        expect.objectContaining({
+          folders: [],
+          subscriptions: [
+            expect.objectContaining({
+              id: 'news-feed',
+              category: '',
+            }),
+          ],
+        }),
+      )
+    })
+    expect(await screen.findByText('Uncategorized')).toBeTruthy()
+  })
+
 
 
   it('shows a fallback notice when the RSS article body cannot be extracted automatically', async () => {

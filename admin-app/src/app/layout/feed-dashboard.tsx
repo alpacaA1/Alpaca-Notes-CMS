@@ -27,6 +27,7 @@ type FeedDashboardProps = {
   onRemoveSubscription: (subscription: FeedSubscription) => void
   onCreateFolder: (name: string) => void
   onRenameFolder: (folder: FeedFolder, name: string) => void
+  onDeleteFolder: (folder: FeedFolder) => void
   onMoveSubscriptionToFolder: (subscription: FeedSubscription, folderName: string) => void
 }
 
@@ -177,6 +178,7 @@ export default function FeedDashboard({
   onRemoveSubscription,
   onCreateFolder,
   onRenameFolder,
+  onDeleteFolder,
   onMoveSubscriptionToFolder,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
@@ -394,6 +396,11 @@ export default function FeedDashboard({
     onRenameFolder(folder, nextFolderName)
   }
 
+  const handleDeleteFolderClick = (folder: FeedFolder) => {
+    setOpenFolderMenuId(null)
+    onDeleteFolder(folder)
+  }
+
   const toggleFolderCollapsed = (folderId: string) => {
     setCollapsedFolderIds((currentIds) =>
       currentIds.includes(folderId)
@@ -608,7 +615,7 @@ export default function FeedDashboard({
   const renderFolder = (folderViewModel: FolderViewModel) => {
     const isCollapsed = collapsedFolderIds.includes(folderViewModel.id)
     const hasSubscriptions = folderViewModel.subscriptions.length > 0
-    const canRenameFolder = Boolean(folderViewModel.folder && !folderViewModel.isUncategorized)
+    const canManageFolder = Boolean(folderViewModel.folder && !folderViewModel.isUncategorized)
 
     return (
       <section
@@ -645,7 +652,7 @@ export default function FeedDashboard({
               {folderViewModel.unreadCount}
             </span>
           </button>
-          {canRenameFolder && folderViewModel.folder ? (
+          {canManageFolder && folderViewModel.folder ? (
             <div
               className="feed-dashboard__folder-menu-wrap"
               onBlur={(event) => {
@@ -673,6 +680,14 @@ export default function FeedDashboard({
                     onClick={() => handleRenameFolderClick(folderViewModel.folder as FeedFolder)}
                   >
                     Rename
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="feed-dashboard__folder-menu-danger"
+                    onClick={() => handleDeleteFolderClick(folderViewModel.folder as FeedFolder)}
+                  >
+                    Delete
                   </button>
                 </div>
               ) : null}

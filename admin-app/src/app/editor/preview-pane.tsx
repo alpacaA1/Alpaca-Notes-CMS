@@ -1883,14 +1883,6 @@ export function renderContentBlocks(
     : renderMarkdownContent(text, previewImageUrls, headingIdPrefix, wikiLinkOptions)
 }
 
-function getReadingStatusLabel(status?: ReadingStatus) {
-  return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
-}
-
-function getReadingStatusTone(status?: ReadingStatus) {
-  return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
-}
-
 function getTopicBacklinkTypeLabel(contentType: ContentType) {
   if (contentType === 'diary') {
     return '日记'
@@ -2159,7 +2151,6 @@ export default function PreviewPane({
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
     : false
   const safeExternalUrl = externalUrl?.trim() ? sanitizeLinkHref(externalUrl.trim()) : null
-  const safeCoverUrl = cover?.trim() ? sanitizeImageSrc(cover.trim()) : null
   const safeSourceUrl = sourceUrl?.trim() ? sanitizeLinkHref(sourceUrl.trim()) : null
   const shouldShowTopicBacklinksDrawer = showTopicBacklinksDrawer
   const activeAnnotation = useMemo(
@@ -2694,31 +2685,19 @@ export default function PreviewPane({
         >
           <header className={`preview-content__header${isReadLater ? ' preview-content__header--reader' : ''}`}>
             <h1>{title.trim() || '未命名草稿'}</h1>
-            <p className="preview-content__date">{date}</p>
             {isReadLater ? (
-              <div className="preview-content__read-later-meta">
-                {desc?.trim() ? <p className="preview-content__summary preview-content__summary--reader">{desc.trim()}</p> : null}
-                <div className="preview-content__meta-grid">
-                  {sourceName?.trim() ? (
-                    <span className="preview-content__meta-chip">
-                      <strong>来源</strong>
-                      <span>{sourceName.trim()}</span>
-                    </span>
-                  ) : null}
-                  <span className={`preview-content__meta-chip preview-content__meta-chip--status preview-content__meta-chip--${getReadingStatusTone(readingStatus)}`}>
-                    <strong>状态</strong>
-                    <span>{getReadingStatusLabel(readingStatus)}</span>
-                  </span>
-                  {safeExternalUrl ? (
-                    <a className="preview-content__meta-chip preview-content__meta-chip--link" href={safeExternalUrl} rel="noreferrer" target="_blank">
-                      <strong>原文</strong>
-                      <span>阅读原文</span>
-                    </a>
-                  ) : null}
-                </div>
-                {safeCoverUrl ? <img className="preview-content__cover" src={safeCoverUrl} alt={title.trim() || '待读封面'} referrerPolicy="no-referrer" /> : null}
+              <div className="preview-content__reader-title-meta">
+                <p className="preview-content__date">{date}</p>
+                {safeExternalUrl ? (
+                  <a className="preview-content__reader-original-link" href={safeExternalUrl} rel="noreferrer" target="_blank">
+                    查看原文
+                  </a>
+                ) : null}
               </div>
-            ) : isKnowledge ? (
+            ) : (
+              <p className="preview-content__date">{date}</p>
+            )}
+            {!isReadLater && isKnowledge ? (
               <div className="preview-content__read-later-meta">
                 <div className="preview-content__meta-grid">
                   <span className="preview-content__meta-chip">

@@ -231,6 +231,34 @@ describe('PreviewPane', () => {
     expect(image.getAttribute('src')).toBe('https://example.com/mockup(v2).png')
   })
 
+  it('keeps read-later title metadata to date and original link only', () => {
+    const { container } = render(
+      <PreviewPane
+        title="第268期 - 小河公园"
+        date="5月25日 08:00"
+        markdown="正文内容。"
+        contentType="read-later"
+        desc="这段摘要不应出现在标题模块。"
+        sourceName="潮流周刊"
+        externalUrl="https://weekly.tw93.fun/"
+        readingStatus="unread"
+        cover="https://example.com/cover.jpg"
+      />,
+    )
+
+    const titleMeta = container.querySelector('.preview-content__reader-title-meta')
+    const originalLink = screen.getByRole('link', { name: '查看原文' })
+
+    expect(titleMeta).toBeTruthy()
+    expect(titleMeta?.textContent).toContain('5月25日 08:00')
+    expect(titleMeta?.contains(originalLink)).toBe(true)
+    expect(originalLink.getAttribute('href')).toBe('https://weekly.tw93.fun/')
+    expect(screen.queryByText('潮流周刊')).toBeNull()
+    expect(screen.queryByText('未读')).toBeNull()
+    expect(screen.queryByText('这段摘要不应出现在标题模块。')).toBeNull()
+    expect(screen.queryByRole('img', { name: '第268期 - 小河公园' })).toBeNull()
+  })
+
   it('opens a lightbox when preview images are clicked', () => {
     render(
       <PreviewPane

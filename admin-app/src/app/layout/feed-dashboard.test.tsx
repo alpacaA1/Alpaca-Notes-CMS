@@ -39,6 +39,7 @@ function renderFeedDashboard(overrides: Partial<Parameters<typeof FeedDashboard>
     onRemoveSubscription: vi.fn(),
     onCreateFolder: vi.fn(),
     onRenameFolder: vi.fn(),
+    onDeleteFolder: vi.fn(),
     onMoveSubscriptionToFolder: vi.fn(),
     ...overrides,
   }
@@ -213,9 +214,10 @@ describe('FeedDashboard', () => {
     expect(onRemoveSubscription).toHaveBeenCalledWith(subscription)
   })
 
-  it('creates and renames folders from the sidebar controls', () => {
+  it('creates, renames, and deletes folders from the sidebar controls', () => {
     const onCreateFolder = vi.fn()
     const onRenameFolder = vi.fn()
+    const onDeleteFolder = vi.fn()
     const folder = {
       id: 'folder-news',
       name: 'Newspaper',
@@ -231,6 +233,7 @@ describe('FeedDashboard', () => {
       folders: [folder],
       onCreateFolder,
       onRenameFolder,
+      onDeleteFolder,
     })
 
     fireEvent.click(screen.getByRole('button', { name: '+ New Folder' }))
@@ -239,6 +242,10 @@ describe('FeedDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Newspaper 更多操作' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     expect(onRenameFolder).toHaveBeenCalledWith(folder, 'Magazine')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Newspaper 更多操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    expect(onDeleteFolder).toHaveBeenCalledWith(folder)
   })
 
   it('moves feeds into folders with drag and drop', () => {

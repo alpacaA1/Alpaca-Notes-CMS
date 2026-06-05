@@ -880,6 +880,14 @@ textarea {
   color: var(--admin-muted);
 }
 
+.admin-shell--dark .preview-content__reader-original-link {
+  color: #c99756;
+}
+
+.admin-shell--dark .preview-content__reader-original-link:hover {
+  color: #e0ae6a;
+}
+
 .admin-shell--dark .preview-content__summary {
   color: #d2c8bb;
 }
@@ -4078,6 +4086,26 @@ textarea {
   letter-spacing: 0.02em;
 }
 
+.preview-content__reader-title-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+
+.preview-content__reader-original-link {
+  color: #b78342;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.preview-content__reader-original-link:hover {
+  color: #d39a52;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
 .preview-content__read-later-meta {
   display: grid;
   gap: 16px;
@@ -6524,6 +6552,7 @@ textarea {
   background: transparent;
 }
 
+.feed-dashboard__folder-menu .feed-dashboard__folder-menu-danger,
 .feed-dashboard__subscription-menu .feed-dashboard__subscription-menu-danger {
   color: var(--admin-warm);
 }
