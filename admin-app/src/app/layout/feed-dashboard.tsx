@@ -246,17 +246,21 @@ export default function FeedDashboard({
                         className="feed-dashboard__subscription-main"
                         onClick={() => onSelectSubscription(subscription)}
                       >
-                        <strong>{subscription.title || '未命名 feed'}</strong>
-                        <span className="feed-dashboard__subscription-count">
-                          {subscription.articleCount > 0 ? `${subscription.articleCount} 条` : '0 条'}
+                        <span className="feed-dashboard__subscription-text">
+                          <strong>{subscription.title || '未命名 feed'}</strong>
+                          <span>{readFeedItemHostLabel(subscription.url)}</span>
+                        </span>
+                        <span className="feed-dashboard__subscription-count" aria-label={`${subscription.articleCount} 条文章`}>
+                          {subscription.articleCount > 0 ? subscription.articleCount : 0}
                         </span>
                       </button>
                       <button
                         type="button"
                         className="feed-dashboard__subscription-remove-btn"
                         onClick={() => onRemoveSubscription(subscription)}
+                        aria-label={`删除 ${subscription.title || '未命名 feed'}`}
                       >
-                        删除
+                        ×
                       </button>
                     </article>
                   )

@@ -6134,18 +6134,20 @@ textarea {
 /* ── Feed dashboard: two-panel master-detail layout ── */
 
 .feed-dashboard {
-  --feed-panel-bg: linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(247, 239, 230, 0.94));
-  --feed-panel-strong-bg: linear-gradient(180deg, rgba(255, 254, 251, 0.98), rgba(250, 243, 234, 0.94));
-  --feed-card-bg: rgba(255, 255, 255, 0.86);
-  --feed-card-border: rgba(182, 146, 102, 0.18);
-  --feed-card-hover: rgba(226, 186, 134, 0.12);
-  --feed-card-active-bg: linear-gradient(180deg, rgba(255, 247, 235, 0.98), rgba(244, 228, 205, 0.94));
-  --feed-card-active-border: rgba(203, 167, 119, 0.48);
-  --feed-card-shadow: 0 10px 24px rgba(86, 59, 31, 0.08);
+  --feed-panel-bg: rgba(255, 252, 247, 0.86);
+  --feed-panel-strong-bg: rgba(255, 254, 251, 0.9);
+  --feed-reader-bg: rgba(250, 246, 240, 0.74);
+  --feed-card-bg: transparent;
+  --feed-card-border: transparent;
+  --feed-card-hover: rgba(141, 113, 77, 0.07);
+  --feed-card-active-bg: rgba(141, 113, 77, 0.1);
+  --feed-card-active-border: var(--admin-warm);
+  --feed-card-shadow: none;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* ── Sidebar ── */
@@ -6268,20 +6270,25 @@ textarea {
 
 .feed-dashboard__subscription-list {
   display: grid;
-  gap: 6px;
+  gap: 2px;
 }
 
 .feed-dashboard__subscription-item {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px;
+  position: relative;
+  display: flex;
   align-items: center;
-  padding: 8px 8px 8px 12px;
-  border-radius: 12px;
+  gap: 4px;
+  min-height: 46px;
+  padding: 0 4px 0 0;
+  border-radius: 8px;
   border: 1px solid var(--feed-card-border);
   background: var(--feed-card-bg);
-  box-shadow: 0 6px 18px rgba(86, 59, 31, 0.04);
-  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+  box-shadow: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.feed-dashboard__subscription-item:hover {
+  background: var(--feed-card-hover);
 }
 
 .feed-dashboard__subscription-item.is-active {
@@ -6295,14 +6302,14 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
   border: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
   min-width: 0;
-  padding: 0;
+  padding: 7px 8px 7px 12px;
 }
 
 .feed-dashboard__subscription-main:focus-visible {
@@ -6311,43 +6318,81 @@ textarea {
   border-radius: 8px;
 }
 
-.feed-dashboard__subscription-main strong {
+.feed-dashboard__subscription-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.feed-dashboard__subscription-text strong {
   display: block;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--admin-text);
-  font-size: 0.84rem;
-  font-weight: 700;
+  font-size: 0.86rem;
+  font-weight: 650;
   line-height: 1.3;
 }
 
+.feed-dashboard__subscription-text span {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--admin-soft);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .feed-dashboard__subscription-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
-  color: var(--admin-warm);
-  font-size: 0.74rem;
+  min-width: 28px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: rgba(24, 132, 240, 0.94);
+  color: #ffffff;
+  font-size: 0.72rem;
   font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
 }
 
 .feed-dashboard__subscription-remove-btn {
   appearance: none;
   align-self: center;
-  padding: 4px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--admin-line-strong);
-  background: rgba(255, 255, 255, 0.84);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  padding: 0;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
   color: var(--admin-muted);
-  font-size: 0.74rem;
+  font-size: 1.12rem;
   font-weight: 600;
   line-height: 1;
   cursor: pointer;
-  transition: border-color 180ms ease, color 180ms ease;
+  opacity: 0;
+  transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.feed-dashboard__subscription-item:hover .feed-dashboard__subscription-remove-btn,
+.feed-dashboard__subscription-remove-btn:focus-visible {
+  opacity: 1;
 }
 
 .feed-dashboard__subscription-remove-btn:hover {
-  border-color: var(--admin-warm);
+  background: rgba(193, 108, 95, 0.12);
   color: var(--admin-warm);
 }
 
@@ -6420,24 +6465,29 @@ textarea {
 .feed-dashboard__preview-list {
   overflow-y: auto;
   min-height: 0;
+  padding: 6px 0;
 }
 
 .feed-dashboard__preview-item {
-  border-bottom: 1px solid var(--admin-line);
+  margin: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   transition: background 120ms ease;
 }
 
 .feed-dashboard__preview-item.is-active {
   background: var(--feed-card-active-bg);
-  border-left: 3px solid var(--admin-warm);
+  border-color: rgba(141, 113, 77, 0.18);
+  box-shadow: inset 3px 0 0 var(--feed-card-active-border);
 }
 
 .feed-dashboard__preview-select {
   appearance: none;
   display: block;
   width: 100%;
-  padding: 12px 16px;
+  padding: 11px 12px 11px 14px;
   border: 0;
+  border-radius: inherit;
   background: transparent;
   color: inherit;
   text-align: left;
@@ -6499,7 +6549,8 @@ textarea {
   grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   min-height: 0;
-  background: linear-gradient(180deg, rgba(255, 254, 251, 0.96), rgba(247, 239, 230, 0.9));
+  overflow: hidden;
+  background: var(--feed-reader-bg);
 }
 
 .feed-dashboard__reader-header {
@@ -6527,6 +6578,8 @@ textarea {
 }
 
 .feed-dashboard__reader-empty {
+  min-height: 0;
+  overflow-y: auto;
   padding: 24px 18px;
   color: var(--admin-muted);
   font-size: 0.86rem;
@@ -6536,20 +6589,37 @@ textarea {
 .feed-dashboard__reader-preview {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
   min-height: 0;
   overflow: hidden;
 }
 
 .feed-dashboard__reader-preview .preview-pane {
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .feed-dashboard__reader-preview .preview-pane--reading-canvas {
-  min-height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  padding: 12px;
+  background: transparent;
+}
+
+.feed-dashboard__reader-preview .preview-pane__canvas {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 4px 16px;
 }
 
 .feed-dashboard__reader-preview .preview-content {
-  overflow-y: auto;
+  width: min(100%, 860px);
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 .feed-dashboard__reader-preview .preview-content__header {
@@ -9386,20 +9456,18 @@ textarea {
 }
 
 .admin-shell--dark .feed-dashboard {
-  --feed-panel-bg: linear-gradient(180deg, rgba(31, 27, 23, 0.98), rgba(20, 18, 15, 0.98));
-  --feed-panel-strong-bg: linear-gradient(180deg, rgba(29, 25, 22, 0.98), rgba(18, 16, 14, 0.98));
-  --feed-card-bg: rgba(255, 255, 255, 0.04);
-  --feed-card-border: rgba(255, 255, 255, 0.08);
-  --feed-card-hover: rgba(228, 163, 88, 0.08);
-  --feed-card-active-bg: linear-gradient(180deg, rgba(228, 163, 88, 0.13), rgba(228, 163, 88, 0.06));
-  --feed-card-active-border: rgba(228, 163, 88, 0.28);
-  --feed-card-shadow: 0 18px 32px rgba(0, 0, 0, 0.18);
+  --feed-panel-bg: rgba(22, 20, 18, 0.96);
+  --feed-panel-strong-bg: rgba(26, 24, 22, 0.94);
+  --feed-reader-bg: rgba(18, 16, 14, 0.94);
+  --feed-card-bg: transparent;
+  --feed-card-border: transparent;
+  --feed-card-hover: rgba(255, 255, 255, 0.06);
+  --feed-card-active-bg: rgba(228, 163, 88, 0.12);
+  --feed-card-active-border: var(--admin-warm);
+  --feed-card-shadow: none;
 }
 
 .admin-shell--dark .feed-dashboard__hero-stat,
-.admin-shell--dark .feed-dashboard__preview-item,
-.admin-shell--dark .feed-dashboard__subscription-item,
-.admin-shell--dark .feed-dashboard__reader-article,
 .admin-shell--dark .feed-dashboard__subscriptions-empty,
 .admin-shell--dark .feed-dashboard__preview-empty,
 .admin-shell--dark .feed-dashboard__reader-empty {
@@ -9445,7 +9513,7 @@ textarea {
 .admin-shell--dark .feed-dashboard__preview-item.is-active {
   border-color: var(--feed-card-active-border);
   background: var(--feed-card-active-bg);
-  box-shadow: var(--feed-card-shadow);
+  box-shadow: inset 3px 0 0 var(--feed-card-active-border);
 }
 
 .admin-shell--dark .feed-dashboard__subscription-item.is-active {
