@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
@@ -373,7 +373,7 @@ describe('App read-later import flow', () => {
       needsManualPaste: false,
     })
 
-    render(<App />)
+    const { container } = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
     await screen.findByLabelText('Feed URL')
     fireEvent.change(screen.getByLabelText('Feed URL'), { target: { value: 'https://example.com/feed.xml' } })
@@ -389,9 +389,66 @@ describe('App read-later import flow', () => {
       expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/posts/design-systems')
     })
 
+    expect(await screen.findByRole('status')).toBeTruthy()
+    expect(container.querySelector('.success-message')).toBeNull()
     expect(await screen.findByRole('heading', { name: '正文标题' })).toBeTruthy()
     expect(screen.getByText('正文第一段')).toBeTruthy()
     expect(screen.getByRole('link', { name: '打开原文' }).getAttribute('href')).toBe('https://example.com/posts/design-systems')
+  })
+
+  it('shows RSS load success as a toast without taking layout space', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      subscriptions: [
+        {
+          id: 'anthropic-news',
+          title: 'Anthropic News',
+          url: 'https://www.anthropic.com/news/rss.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 20,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '2026-06-04T12:00:00.000Z',
+        },
+      ],
+    })
+    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
+      title: 'Anthropic News',
+      description: 'Anthropic updates',
+      requestedUrl: 'https://www.anthropic.com/news/rss.xml',
+      finalUrl: 'https://www.anthropic.com/news/rss.xml',
+      items: Array.from({ length: 20 }, (_, index) => ({
+        id: `feed-item-${index + 1}`,
+        title: `Anthropic News ${index + 1}`,
+        url: `https://www.anthropic.com/news/${index + 1}`,
+        summary: 'Latest update.',
+        publishedAt: '2026-06-04T08:00:00.000Z',
+        sourceName: 'Anthropic News',
+      })),
+    })
+    vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: 'Anthropic News 1',
+      desc: 'Latest update.',
+      sourceName: 'Anthropic News',
+      markdown: '# Anthropic News 1',
+      requestedUrl: 'https://www.anthropic.com/news/1',
+      finalUrl: 'https://www.anthropic.com/news/1',
+      needsManualPaste: false,
+    })
+
+    const { container } = render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    const sidebar = await screen.findByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByLabelText('20 条待读').closest('button') as HTMLButtonElement)
+
+    expect(await screen.findByRole('status')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('已加载《Anthropic News》最近 20 条内容。')
+    expect(container.querySelector('.success-message')).toBeNull()
   })
 
 

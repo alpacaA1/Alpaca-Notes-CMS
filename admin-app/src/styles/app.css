@@ -851,6 +851,18 @@ textarea {
   border-color: rgba(98, 227, 140, 0.22);
 }
 
+.admin-shell--dark .admin-shell__toast--success {
+  color: #b7f3c5;
+  background: rgba(20, 75, 41, 0.78);
+  border-color: rgba(98, 227, 140, 0.24);
+}
+
+.admin-shell--dark .admin-shell__toast--error {
+  color: #ffb3a5;
+  background: rgba(98, 28, 20, 0.78);
+  border-color: rgba(255, 122, 92, 0.24);
+}
+
 .admin-shell--dark .preview-content {
   border-color: rgba(255, 255, 255, 0.06);
   background:
@@ -4668,6 +4680,34 @@ textarea {
   margin: 20px auto 0;
 }
 
+.admin-shell__toast {
+  position: fixed;
+  z-index: 120;
+  top: 74px;
+  right: 24px;
+  width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid;
+  box-shadow: 0 18px 42px rgba(36, 30, 24, 0.16);
+  backdrop-filter: blur(14px);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.admin-shell__toast--success {
+  color: #47624d;
+  background: rgba(252, 255, 249, 0.92);
+  border-color: rgba(108, 153, 116, 0.24);
+}
+
+.admin-shell__toast--error {
+  color: #7a443d;
+  background: rgba(255, 249, 247, 0.94);
+  border-color: rgba(193, 108, 95, 0.24);
+}
+
 .top-bar__button:focus-visible,
 .editor-mode-bar button:focus-visible,
 .post-row-button:focus-visible,
@@ -6222,6 +6262,37 @@ textarea {
   opacity: 0.7;
 }
 
+.feed-dashboard__folder-create-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 32px;
+  width: 100%;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.feed-dashboard__folder-create-btn:hover,
+.feed-dashboard__folder-create-btn:focus-visible {
+  border-color: var(--admin-line-strong);
+  background: var(--feed-card-hover);
+  color: var(--admin-text);
+  outline: none;
+}
+
+.feed-dashboard__folder-create-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 /* Sidebar scrollable body */
 
 .feed-dashboard__sidebar-body {
@@ -6268,9 +6339,209 @@ textarea {
   background: rgba(255, 255, 255, 0.74);
 }
 
+.feed-dashboard__folder-list {
+  display: grid;
+  gap: 8px;
+}
+
+.feed-dashboard__folder {
+  display: grid;
+  gap: 3px;
+}
+
+.feed-dashboard__folder-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  transition: background 160ms ease;
+}
+
+.feed-dashboard__folder-header:hover,
+.feed-dashboard__folder:focus-within .feed-dashboard__folder-header,
+.feed-dashboard__folder.is-drop-target .feed-dashboard__folder-header {
+  background: var(--feed-card-hover);
+}
+
+.feed-dashboard__folder.is-drop-target .feed-dashboard__folder-header {
+  box-shadow: inset 0 0 0 1px var(--feed-card-active-border);
+}
+
+.feed-dashboard__folder-toggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 6px 0 8px;
+  border: 0;
+  background: transparent;
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-dashboard__folder-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12);
+  border-radius: 8px;
+}
+
+.feed-dashboard__folder-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex: 0 0 auto;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.feed-dashboard__folder-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--admin-text);
+  font-size: 0.88rem;
+  font-weight: 760;
+  line-height: 1.3;
+}
+
+.feed-dashboard__folder-menu-wrap,
+.feed-dashboard__subscription-menu-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.feed-dashboard__folder-menu-wrap {
+  margin-right: 4px;
+}
+
+.feed-dashboard__subscription-menu-wrap {
+  align-self: center;
+}
+
+.feed-dashboard__folder-menu-btn,
+.feed-dashboard__subscription-menu-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--admin-muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.feed-dashboard__folder-header:hover .feed-dashboard__folder-menu-btn,
+.feed-dashboard__folder-menu-btn:focus-visible,
+.feed-dashboard__folder-menu-btn[aria-expanded="true"],
+.feed-dashboard__subscription-item:hover .feed-dashboard__subscription-menu-btn,
+.feed-dashboard__subscription-menu-btn:focus-visible,
+.feed-dashboard__subscription-menu-btn[aria-expanded="true"] {
+  opacity: 1;
+}
+
+.feed-dashboard__folder-menu-btn:hover,
+.feed-dashboard__folder-menu-btn:focus-visible,
+.feed-dashboard__folder-menu-btn[aria-expanded="true"],
+.feed-dashboard__subscription-menu-btn:hover,
+.feed-dashboard__subscription-menu-btn:focus-visible,
+.feed-dashboard__subscription-menu-btn[aria-expanded="true"] {
+  background: rgba(126, 111, 92, 0.12);
+  color: var(--admin-text);
+  outline: none;
+}
+
+.feed-dashboard__folder-menu,
+.feed-dashboard__subscription-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  min-width: 116px;
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-line-strong);
+  background: #fffefb;
+  box-shadow: 0 12px 28px rgba(43, 35, 25, 0.14);
+}
+
+.feed-dashboard__subscription-menu {
+  min-width: 128px;
+}
+
+.feed-dashboard__folder-menu button,
+.feed-dashboard__subscription-menu button {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--admin-text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.feed-dashboard__folder-menu button:hover,
+.feed-dashboard__folder-menu button:focus-visible,
+.feed-dashboard__subscription-menu button:hover,
+.feed-dashboard__subscription-menu button:focus-visible {
+  background: var(--feed-card-hover);
+  outline: none;
+}
+
+.feed-dashboard__subscription-menu button:disabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.feed-dashboard__subscription-menu button:disabled:hover {
+  background: transparent;
+}
+
+.feed-dashboard__subscription-menu .feed-dashboard__subscription-menu-danger {
+  color: var(--admin-warm);
+}
+
+.feed-dashboard__folder-empty {
+  margin-left: 30px;
+  padding: 7px 8px;
+  color: var(--admin-muted);
+  font-size: 0.74rem;
+}
+
 .feed-dashboard__subscription-list {
   display: grid;
   gap: 2px;
+}
+
+.feed-dashboard__subscription-list--collapsed {
+  margin-top: 4px;
 }
 
 .feed-dashboard__subscription-item {
@@ -6291,10 +6562,18 @@ textarea {
   background: var(--feed-card-hover);
 }
 
+.feed-dashboard__subscription-item.is-dragging {
+  opacity: 0.48;
+}
+
 .feed-dashboard__subscription-item.is-active {
   border-color: var(--feed-card-active-border);
   box-shadow: var(--feed-card-shadow);
   background: var(--feed-card-active-bg);
+}
+
+.feed-dashboard__subscription-item--read {
+  opacity: 0.74;
 }
 
 .feed-dashboard__subscription-main {
@@ -6364,41 +6643,37 @@ textarea {
   white-space: nowrap;
 }
 
-.feed-dashboard__subscription-remove-btn {
+.feed-dashboard__subscription-count--empty {
+  background: rgba(126, 111, 92, 0.12);
+  color: var(--admin-soft);
+}
+
+.feed-dashboard__subscription-collapse {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(126, 111, 92, 0.12);
+}
+
+.feed-dashboard__subscription-collapse-toggle {
   appearance: none;
-  align-self: center;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  padding: 0;
-  border-radius: 7px;
+  justify-content: space-between;
+  width: 100%;
   border: 0;
+  border-radius: 8px;
   background: transparent;
-  color: var(--admin-muted);
-  font-size: 1.12rem;
-  font-weight: 600;
-  line-height: 1;
+  color: var(--admin-soft);
   cursor: pointer;
-  opacity: 0;
-  transition: background 160ms ease, color 160ms ease, opacity 160ms ease;
+  font-size: 0.76rem;
+  font-weight: 650;
+  padding: 7px 10px;
+  text-align: left;
 }
 
-.feed-dashboard__subscription-item:hover .feed-dashboard__subscription-remove-btn,
-.feed-dashboard__subscription-remove-btn:focus-visible {
-  opacity: 1;
-}
-
-.feed-dashboard__subscription-remove-btn:hover {
-  background: rgba(193, 108, 95, 0.12);
-  color: var(--admin-warm);
-}
-
-.feed-dashboard__subscription-remove-btn:disabled {
-  cursor: wait;
-  opacity: 0.7;
+.feed-dashboard__subscription-collapse-toggle:hover {
+  background: var(--feed-card-hover);
+  color: var(--admin-text);
 }
 
 /* Sidebar footer */
@@ -6418,6 +6693,32 @@ textarea {
   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
   height: 100%;
   min-height: 0;
+}
+
+.feed-dashboard * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(126, 111, 92, 0.2) transparent;
+}
+
+.feed-dashboard *::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+.feed-dashboard *::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.feed-dashboard *::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(126, 111, 92, 0.18);
+  background-clip: padding-box;
+}
+
+.feed-dashboard *::-webkit-scrollbar-thumb:hover {
+  background: rgba(126, 111, 92, 0.34);
+  background-clip: padding-box;
 }
 
 /* Feed item list (preview) */
@@ -6441,6 +6742,7 @@ textarea {
 }
 
 .feed-dashboard__preview-header strong {
+  min-width: 0;
   color: var(--admin-text);
   font-size: 0.92rem;
   overflow: hidden;
@@ -6448,11 +6750,24 @@ textarea {
   white-space: nowrap;
 }
 
+.feed-dashboard__preview-header-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
 .feed-dashboard__preview-header span {
   color: var(--admin-soft);
   font-size: 0.76rem;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.feed-dashboard__mark-read-btn {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 0.76rem;
 }
 
 .feed-dashboard__preview-empty {
@@ -9476,27 +9791,44 @@ textarea {
 }
 
 .admin-shell--dark .feed-dashboard__composer-input,
-.admin-shell--dark .feed-dashboard__composer-secondary-btn,
-.admin-shell--dark .feed-dashboard__subscription-remove-btn {
+.admin-shell--dark .feed-dashboard__composer-secondary-btn {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
   color: var(--admin-text);
 }
 
+.admin-shell--dark .feed-dashboard__folder-menu,
+.admin-shell--dark .feed-dashboard__subscription-menu {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #1a1816;
+  color: var(--admin-text);
+}
+
 .admin-shell--dark .feed-dashboard__composer-btn,
-.admin-shell--dark .feed-dashboard__preview-import-btn {
+.admin-shell--dark .feed-dashboard__preview-import-btn,
+.admin-shell--dark .feed-dashboard__folder-create-btn:hover,
+.admin-shell--dark .feed-dashboard__folder-create-btn:focus-visible {
   background: rgba(228, 163, 88, 0.1);
   border-color: rgba(228, 163, 88, 0.25);
   color: var(--admin-warm);
 }
 
 .admin-shell--dark .feed-dashboard__composer-btn:hover,
-.admin-shell--dark .feed-dashboard__preview-import-btn:hover {
+.admin-shell--dark .feed-dashboard__preview-import-btn:hover,
+.admin-shell--dark .feed-dashboard__folder-menu button:hover,
+.admin-shell--dark .feed-dashboard__folder-menu button:focus-visible,
+.admin-shell--dark .feed-dashboard__subscription-menu button:hover,
+.admin-shell--dark .feed-dashboard__subscription-menu button:focus-visible {
   background: rgba(228, 163, 88, 0.16);
 }
 
 .admin-shell--dark .feed-dashboard__composer-secondary-btn:hover,
-.admin-shell--dark .feed-dashboard__subscription-remove-btn:hover {
+.admin-shell--dark .feed-dashboard__folder-menu-btn:hover,
+.admin-shell--dark .feed-dashboard__folder-menu-btn:focus-visible,
+.admin-shell--dark .feed-dashboard__folder-menu-btn[aria-expanded="true"],
+.admin-shell--dark .feed-dashboard__subscription-menu-btn:hover,
+.admin-shell--dark .feed-dashboard__subscription-menu-btn:focus-visible,
+.admin-shell--dark .feed-dashboard__subscription-menu-btn[aria-expanded="true"] {
   border-color: var(--admin-warm);
   color: var(--admin-warm);
 }

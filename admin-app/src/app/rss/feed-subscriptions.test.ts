@@ -1,9 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { parseFeedSubscriptions, serializeFeedSubscriptions, sortFeedSubscriptions } from './feed-subscriptions'
+import { parseFeedSubscriptions, parseFeedSubscriptionsFile, serializeFeedSubscriptions, sortFeedSubscriptions } from './feed-subscriptions'
 
 describe('feed subscriptions store', () => {
   it('parses valid feed subscriptions', () => {
-    const subscriptions = parseFeedSubscriptions(JSON.stringify({
+    const parsed = parseFeedSubscriptionsFile(JSON.stringify({
+      folders: [
+        {
+          id: 'folder-ai',
+          name: 'AI 实验室',
+          createdAt: '2026-06-04T09:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
       feeds: [
         {
           id: 'claude-blog',
@@ -20,7 +28,15 @@ describe('feed subscriptions store', () => {
       ],
     }))
 
-    expect(subscriptions).toEqual([
+    expect(parsed.folders).toEqual([
+      {
+        id: 'folder-ai',
+        name: 'AI 实验室',
+        createdAt: '2026-06-04T09:00:00.000Z',
+        updatedAt: '',
+      },
+    ])
+    expect(parsed.subscriptions).toEqual([
       {
         id: 'claude-blog',
         title: 'Claude Blog',
@@ -34,6 +50,7 @@ describe('feed subscriptions store', () => {
         updatedAt: '',
       },
     ])
+    expect(parseFeedSubscriptions(JSON.stringify({ feeds: [] }))).toEqual([])
   })
 
   it('serializes subscriptions into a stable json document', () => {
@@ -51,11 +68,28 @@ describe('feed subscriptions store', () => {
           createdAt: '2026-06-04T10:00:00.000Z',
           updatedAt: '',
         },
+      ], [
+        {
+          id: 'folder-news',
+          name: 'Newspaper',
+          createdAt: '2026-06-04T09:00:00.000Z',
+          updatedAt: '',
+        },
       ]),
     ).toContain('"id": "claude-blog"')
+    expect(
+      serializeFeedSubscriptions([], [
+        {
+          id: 'folder-news',
+          name: 'Newspaper',
+          createdAt: '2026-06-04T09:00:00.000Z',
+          updatedAt: '',
+        },
+      ]),
+    ).toContain('"folders"')
   })
 
-  it('sorts subscriptions by read-later count first, then updatedAt desc', () => {
+  it('sorts subscriptions by unread count first, then updatedAt desc within each state', () => {
     const sorted = sortFeedSubscriptions([
       {
         id: 'feed-a',
@@ -64,10 +98,10 @@ describe('feed subscriptions store', () => {
         description: '',
         category: '',
         sourceType: 'manual',
-        articleCount: 10,
+        articleCount: 0,
         readLaterCount: 0,
         createdAt: '2026-06-04T10:00:00.000Z',
-        updatedAt: '',
+        updatedAt: '2026-06-04T14:00:00.000Z',
       },
       {
         id: 'feed-b',
@@ -76,7 +110,7 @@ describe('feed subscriptions store', () => {
         description: '',
         category: '',
         sourceType: 'manual',
-        articleCount: 10,
+        articleCount: 2,
         readLaterCount: 2,
         createdAt: '2026-06-04T10:00:00.000Z',
         updatedAt: '2026-06-04T11:00:00.000Z',
@@ -88,13 +122,25 @@ describe('feed subscriptions store', () => {
         description: '',
         category: '',
         sourceType: 'manual',
-        articleCount: 10,
+        articleCount: 1,
         readLaterCount: 1,
         createdAt: '2026-06-04T10:00:00.000Z',
         updatedAt: '2026-06-04T12:00:00.000Z',
       },
+      {
+        id: 'feed-d',
+        title: 'Feed D',
+        url: 'https://example.com/d.xml',
+        description: '',
+        category: '',
+        sourceType: 'manual',
+        articleCount: 0,
+        readLaterCount: 0,
+        createdAt: '2026-06-04T10:00:00.000Z',
+        updatedAt: '2026-06-04T13:00:00.000Z',
+      },
     ])
 
-    expect(sorted.map((subscription) => subscription.id)).toEqual(['feed-c', 'feed-b', 'feed-a'])
+    expect(sorted.map((subscription) => subscription.id)).toEqual(['feed-c', 'feed-b', 'feed-a', 'feed-d'])
   })
 })

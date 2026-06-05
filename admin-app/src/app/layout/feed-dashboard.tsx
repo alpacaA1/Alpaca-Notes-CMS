@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type DragEvent } from 'react'
 import PreviewPane from '../editor/preview-pane'
 import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import type { ImportedReadLaterArticle } from '../read-later/import-client'
-import { sortFeedSubscriptions, type FeedSubscription } from '../rss/feed-subscriptions'
+import { sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '../rss/feed-subscriptions'
+
+const VIEWED_FEED_ITEMS_STORAGE_KEY = 'alpaca-admin-viewed-feed-items'
+const VIEWED_FEED_READ_COUNT_PREFIX = '__alpaca-feed-read-count:'
 
 type FeedDashboardProps = {
   search: string
   manualFeedUrl: string
   isLoading: boolean
   isSavingFeed: boolean
+  folders: FeedFolder[]
   subscriptions: FeedSubscription[]
   selectedSubscriptionUrl: string | null
   previewFeed: ImportedFeed | null
@@ -21,6 +25,23 @@ type FeedDashboardProps = {
   onPreviewItemChange: (item: ImportedFeedItem | null) => void
   onSelectSubscription: (subscription: FeedSubscription) => void
   onRemoveSubscription: (subscription: FeedSubscription) => void
+  onCreateFolder: (name: string) => void
+  onRenameFolder: (folder: FeedFolder, name: string) => void
+  onMoveSubscriptionToFolder: (subscription: FeedSubscription, folderName: string) => void
+}
+
+type SubscriptionViewModel = {
+  subscription: FeedSubscription
+  unreadCount: number
+}
+
+type FolderViewModel = {
+  id: string
+  folder: FeedFolder | null
+  name: string
+  isUncategorized?: boolean
+  subscriptions: SubscriptionViewModel[]
+  unreadCount: number
 }
 
 function formatFeedItemDate(value: string) {
@@ -62,11 +83,86 @@ function isEditableTarget(target: EventTarget | null) {
   return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
 }
 
+function normalizeFeedItemUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  try {
+    const url = new URL(trimmed)
+    url.hash = ''
+    const normalizedPath = url.pathname.replace(/\/+$/, '') || '/'
+    return `${url.protocol}//${url.host}${normalizedPath}${url.search}`.toLowerCase()
+  } catch {
+    return trimmed.toLowerCase()
+  }
+}
+
+function readViewedFeedItemsByUrl(): Record<string, string[]> {
+  if (typeof window === 'undefined') {
+    return {}
+  }
+
+  try {
+    const payload = JSON.parse(window.localStorage.getItem(VIEWED_FEED_ITEMS_STORAGE_KEY) || '{}') as unknown
+    if (!payload || typeof payload !== 'object') {
+      return {}
+    }
+
+    return Object.fromEntries(
+      Object.entries(payload as Record<string, unknown>)
+        .map(([feedUrl, itemUrls]) => [
+          feedUrl,
+          Array.isArray(itemUrls)
+            ? Array.from(new Set(itemUrls.filter((itemUrl): itemUrl is string => typeof itemUrl === 'string' && itemUrl.trim())))
+            : [],
+        ])
+        .filter(([, itemUrls]) => itemUrls.length > 0),
+    )
+  } catch {
+    return {}
+  }
+}
+
+function saveViewedFeedItemsByUrl(viewedItemsByFeedUrl: Record<string, string[]>) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  window.localStorage.setItem(VIEWED_FEED_ITEMS_STORAGE_KEY, JSON.stringify(viewedItemsByFeedUrl))
+}
+
+function createViewedFeedReadCountMarker(articleCount: number) {
+  return `${VIEWED_FEED_READ_COUNT_PREFIX}${Math.max(0, articleCount)}`
+}
+
+function readViewedFeedReadCountMarker(value: string) {
+  if (!value.startsWith(VIEWED_FEED_READ_COUNT_PREFIX)) {
+    return null
+  }
+
+  const count = Number(value.slice(VIEWED_FEED_READ_COUNT_PREFIX.length))
+  return Number.isFinite(count) ? Math.max(0, count) : null
+}
+
+function getViewedFeedItemCount(viewedItemUrls: string[] | undefined, articleCount: number) {
+  const viewedItems = viewedItemUrls || []
+  const viewedUrlCount = new Set(viewedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null)).size
+  const markedReadCount = viewedItems.reduce((count, itemUrl) => {
+    const markerCount = readViewedFeedReadCountMarker(itemUrl)
+    return markerCount === null ? count : Math.max(count, markerCount)
+  }, 0)
+
+  return Math.min(Math.max(viewedUrlCount, markedReadCount), Math.max(0, articleCount))
+}
+
 export default function FeedDashboard({
   search,
   manualFeedUrl,
   isLoading,
   isSavingFeed,
+  folders,
   subscriptions,
   selectedSubscriptionUrl,
   previewFeed,
@@ -79,9 +175,18 @@ export default function FeedDashboard({
   onPreviewItemChange,
   onSelectSubscription,
   onRemoveSubscription,
+  onCreateFolder,
+  onRenameFolder,
+  onMoveSubscriptionToFolder,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const [selectedPreviewItemUrl, setSelectedPreviewItemUrl] = useState<string | null>(null)
+  const [viewedFeedItemsByUrl, setViewedFeedItemsByUrl] = useState<Record<string, string[]>>(readViewedFeedItemsByUrl)
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<string[]>([])
+  const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null)
+  const [openSubscriptionMenuUrl, setOpenSubscriptionMenuUrl] = useState<string | null>(null)
+  const [draggedSubscriptionUrl, setDraggedSubscriptionUrl] = useState<string | null>(null)
+  const [dropTargetFolderId, setDropTargetFolderId] = useState<string | null>(null)
 
   const filteredSubscriptions = useMemo(() => {
     const matchingSubscriptions = !normalizedSearch
@@ -91,11 +196,78 @@ export default function FeedDashboard({
           subscription.title,
           subscription.description,
           subscription.url,
+          subscription.category,
         ].some((value) => value.toLowerCase().includes(normalizedSearch)),
       )
 
     return sortFeedSubscriptions(matchingSubscriptions)
   }, [normalizedSearch, subscriptions])
+
+  const subscriptionViewModels = useMemo(
+    () => filteredSubscriptions.map((subscription) => {
+      const viewedItemCount = getViewedFeedItemCount(viewedFeedItemsByUrl[subscription.url], subscription.articleCount)
+      return {
+        subscription,
+        unreadCount: Math.max(0, subscription.articleCount - viewedItemCount),
+      }
+    }),
+    [filteredSubscriptions, viewedFeedItemsByUrl],
+  )
+
+  const folderViewModels = useMemo<FolderViewModel[]>(() => {
+    const explicitFolders = folders.filter((folder) => folder.name.trim())
+    const explicitFolderNames = new Set(explicitFolders.map((folder) => folder.name))
+    const implicitFolderNames = Array.from(
+      new Set(subscriptionViewModels.map((item) => item.subscription.category.trim()).filter(Boolean)),
+    ).filter((folderName) => !explicitFolderNames.has(folderName))
+    const baseFolders: FolderViewModel[] = [
+      ...explicitFolders.map((folder) => ({
+        id: folder.id,
+        folder,
+        name: folder.name,
+        subscriptions: [] as SubscriptionViewModel[],
+        unreadCount: 0,
+      })),
+      ...implicitFolderNames.map((folderName) => ({
+        id: `implicit-${folderName}`,
+        folder: {
+          id: `implicit-${folderName}`,
+          name: folderName,
+          createdAt: '',
+          updatedAt: '',
+        },
+        name: folderName,
+        subscriptions: [] as SubscriptionViewModel[],
+        unreadCount: 0,
+      })),
+      {
+        id: 'uncategorized',
+        folder: null,
+        name: 'Uncategorized',
+        isUncategorized: true,
+        subscriptions: [],
+        unreadCount: 0,
+      },
+    ]
+    const foldersByName = new Map(baseFolders.map((folder) => [folder.name, folder]))
+    const uncategorizedFolder = baseFolders[baseFolders.length - 1]
+
+    subscriptionViewModels.forEach((item) => {
+      const folderName = item.subscription.category.trim()
+      const targetFolder = folderName ? foldersByName.get(folderName) || uncategorizedFolder : uncategorizedFolder
+      targetFolder.subscriptions.push(item)
+      targetFolder.unreadCount += item.unreadCount
+    })
+
+    return baseFolders.filter((folder) => {
+      if (folder.subscriptions.length > 0) {
+        return true
+      }
+
+      return !normalizedSearch || folder.name.toLowerCase().includes(normalizedSearch)
+    })
+  }, [folders, normalizedSearch, subscriptionViewModels])
+  const totalUnreadFolderCount = folderViewModels.reduce((total, folder) => total + (folder.unreadCount > 0 ? 1 : 0), 0)
 
   const selectedSubscription = useMemo(
     () => subscriptions.find((subscription) => subscription.url === selectedSubscriptionUrl) || null,
@@ -125,12 +297,171 @@ export default function FeedDashboard({
   const selectedPreviewArticle = selectedPreviewItem ? previewArticlesByUrl[selectedPreviewItem.url] || null : null
   const selectedPreviewArticleError = selectedPreviewItem ? previewArticleErrorsByUrl[selectedPreviewItem.url] || null : null
   const isSelectedPreviewArticleLoading = selectedPreviewItem ? Boolean(previewArticleLoadingByUrl[selectedPreviewItem.url]) : false
+  const selectedFeedViewedItemUrls = selectedSubscriptionUrl ? new Set(viewedFeedItemsByUrl[selectedSubscriptionUrl] || []) : new Set<string>()
+  const selectedFeedUnreadItemCount = previewFeed
+    ? getViewedFeedItemCount(
+      selectedSubscriptionUrl ? viewedFeedItemsByUrl[selectedSubscriptionUrl] : undefined,
+      previewFeed.items.length,
+    ) >= previewFeed.items.length
+      ? 0
+      : previewFeed.items.filter((item) => {
+      const normalizedItemUrl = normalizeFeedItemUrl(item.url)
+      return normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl)
+    }).length
+    : 0
+
+  const markPreviewItemViewed = (item: ImportedFeedItem | null) => {
+    if (!selectedSubscriptionUrl || !item?.url) {
+      return
+    }
+
+    const normalizedItemUrl = normalizeFeedItemUrl(item.url)
+    if (!normalizedItemUrl) {
+      return
+    }
+
+    setViewedFeedItemsByUrl((currentState) => {
+      const currentFeedItems = currentState[selectedSubscriptionUrl] || []
+      if (currentFeedItems.includes(normalizedItemUrl)) {
+        return currentState
+      }
+
+      const nextState = {
+        ...currentState,
+        [selectedSubscriptionUrl]: [...currentFeedItems, normalizedItemUrl],
+      }
+      saveViewedFeedItemsByUrl(nextState)
+      return nextState
+    })
+  }
+
+  const markSubscriptionViewed = (subscription: FeedSubscription) => {
+    setViewedFeedItemsByUrl((currentState) => {
+      const currentFeedItems = currentState[subscription.url] || []
+      const nextFeedItems = [
+        ...currentFeedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null),
+        createViewedFeedReadCountMarker(subscription.articleCount),
+      ]
+      const nextState = {
+        ...currentState,
+        [subscription.url]: nextFeedItems,
+      }
+      saveViewedFeedItemsByUrl(nextState)
+      return nextState
+    })
+    setOpenSubscriptionMenuUrl(null)
+  }
+
+  const markAllPreviewItemsViewed = () => {
+    if (!selectedSubscriptionUrl || !previewFeed?.items.length) {
+      return
+    }
+
+    const normalizedItemUrls = previewFeed.items
+      .map((item) => normalizeFeedItemUrl(item.url))
+      .filter((itemUrl): itemUrl is string => Boolean(itemUrl))
+    if (normalizedItemUrls.length === 0) {
+      return
+    }
+
+    setViewedFeedItemsByUrl((currentState) => {
+      const nextFeedItems = Array.from(new Set([...(currentState[selectedSubscriptionUrl] || []), ...normalizedItemUrls]))
+      const nextState = {
+        ...currentState,
+        [selectedSubscriptionUrl]: nextFeedItems,
+      }
+      saveViewedFeedItemsByUrl(nextState)
+      return nextState
+    })
+  }
+
+  const handleCreateFolderClick = () => {
+    const folderName = window.prompt('Folder 名称')
+    if (folderName === null) {
+      return
+    }
+
+    onCreateFolder(folderName)
+  }
+
+  const handleRenameFolderClick = (folder: FeedFolder) => {
+    const nextFolderName = window.prompt('新的 folder 名称', folder.name)
+    setOpenFolderMenuId(null)
+    if (nextFolderName === null) {
+      return
+    }
+
+    onRenameFolder(folder, nextFolderName)
+  }
+
+  const toggleFolderCollapsed = (folderId: string) => {
+    setCollapsedFolderIds((currentIds) =>
+      currentIds.includes(folderId)
+        ? currentIds.filter((currentId) => currentId !== folderId)
+        : [...currentIds, folderId],
+    )
+  }
+
+  const handleSubscriptionDragStart = (event: DragEvent<HTMLElement>, subscription: FeedSubscription) => {
+    if (isSavingFeed) {
+      event.preventDefault()
+      return
+    }
+
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', subscription.url)
+    event.dataTransfer.setData('application/x-alpaca-feed-url', subscription.url)
+    setDraggedSubscriptionUrl(subscription.url)
+  }
+
+  const handleFolderDragOver = (event: DragEvent<HTMLElement>, folderId: string) => {
+    if (!draggedSubscriptionUrl || isSavingFeed) {
+      return
+    }
+
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    setDropTargetFolderId(folderId)
+  }
+
+  const handleFolderDrop = (event: DragEvent<HTMLElement>, folderViewModel: FolderViewModel) => {
+    event.preventDefault()
+
+    const droppedSubscriptionUrl =
+      event.dataTransfer.getData('application/x-alpaca-feed-url')
+      || event.dataTransfer.getData('text/plain')
+      || draggedSubscriptionUrl
+    const subscription = subscriptions.find((item) => item.url === droppedSubscriptionUrl)
+    setDraggedSubscriptionUrl(null)
+    setDropTargetFolderId(null)
+
+    if (!subscription || isSavingFeed) {
+      return
+    }
+
+    const nextFolderName = folderViewModel.isUncategorized ? '' : folderViewModel.name
+    if (subscription.category.trim() === nextFolderName) {
+      return
+    }
+
+    onMoveSubscriptionToFolder(subscription, nextFolderName)
+  }
+
+  const selectPreviewItem = (item: ImportedFeedItem | undefined) => {
+    if (!item) {
+      return
+    }
+
+    markPreviewItemViewed(item)
+    setSelectedPreviewItemUrl(item.url)
+  }
 
   const openPreviewItem = (item: ImportedFeedItem | null) => {
     if (!item?.url || typeof window === 'undefined') {
       return
     }
 
+    markPreviewItemViewed(item)
     window.open(item.url, '_blank', 'noopener,noreferrer')
   }
 
@@ -171,9 +502,7 @@ export default function FeedDashboard({
         const offset = event.key === 'ArrowDown' ? 1 : -1
         const nextIndex = Math.min(previewFeed.items.length - 1, Math.max(0, currentIndex + offset))
         const nextItem = previewFeed.items[nextIndex]
-        if (nextItem) {
-          setSelectedPreviewItemUrl(nextItem.url)
-        }
+        selectPreviewItem(nextItem)
       }
 
       if (event.key === 'Enter') {
@@ -190,6 +519,178 @@ export default function FeedDashboard({
   useEffect(() => {
     onPreviewItemChange(selectedPreviewItem)
   }, [onPreviewItemChange, selectedPreviewItem])
+
+  const renderSubscriptionItem = ({
+    subscription,
+    unreadCount,
+    isCollapsed = false,
+  }: {
+    subscription: FeedSubscription
+    unreadCount: number
+    isCollapsed?: boolean
+  }) => {
+    const isActive = selectedSubscriptionUrl === subscription.url
+
+    return (
+      <article
+        key={subscription.id}
+        className={`feed-dashboard__subscription-item${isActive ? ' is-active' : ''}${isCollapsed ? ' feed-dashboard__subscription-item--read' : ''}${draggedSubscriptionUrl === subscription.url ? ' is-dragging' : ''}`}
+        draggable={!isSavingFeed}
+        onDragStart={(event) => handleSubscriptionDragStart(event, subscription)}
+        onDragEnd={() => {
+          setDraggedSubscriptionUrl(null)
+          setDropTargetFolderId(null)
+        }}
+      >
+        <button
+          type="button"
+          className="feed-dashboard__subscription-main"
+          onClick={() => onSelectSubscription(subscription)}
+        >
+          <span className="feed-dashboard__subscription-text">
+            <strong>{subscription.title || '未命名 feed'}</strong>
+            <span>{readFeedItemHostLabel(subscription.url)}</span>
+          </span>
+          <span
+            className={`feed-dashboard__subscription-count${unreadCount === 0 ? ' feed-dashboard__subscription-count--empty' : ''}`}
+            aria-label={`${unreadCount} 条待读`}
+          >
+            {unreadCount}
+          </span>
+        </button>
+        <div
+          className="feed-dashboard__subscription-menu-wrap"
+          onBlur={(event) => {
+            const nextFocusedElement = event.relatedTarget
+            if (!(nextFocusedElement instanceof Node) || !event.currentTarget.contains(nextFocusedElement)) {
+              setOpenSubscriptionMenuUrl(null)
+            }
+          }}
+        >
+          <button
+            type="button"
+            className="feed-dashboard__subscription-menu-btn"
+            onClick={() => setOpenSubscriptionMenuUrl((currentUrl) => (currentUrl === subscription.url ? null : subscription.url))}
+            aria-label={`${subscription.title || '未命名 feed'} 更多操作`}
+            aria-haspopup="menu"
+            aria-expanded={openSubscriptionMenuUrl === subscription.url}
+          >
+            ...
+          </button>
+          {openSubscriptionMenuUrl === subscription.url ? (
+            <div className="feed-dashboard__subscription-menu" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => markSubscriptionViewed(subscription)}
+                disabled={unreadCount === 0}
+              >
+                Mark as read
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="feed-dashboard__subscription-menu-danger"
+                onClick={() => {
+                  setOpenSubscriptionMenuUrl(null)
+                  onRemoveSubscription(subscription)
+                }}
+              >
+                Delete
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </article>
+    )
+  }
+
+  const renderFolder = (folderViewModel: FolderViewModel) => {
+    const isCollapsed = collapsedFolderIds.includes(folderViewModel.id)
+    const hasSubscriptions = folderViewModel.subscriptions.length > 0
+    const canRenameFolder = Boolean(folderViewModel.folder && !folderViewModel.isUncategorized)
+
+    return (
+      <section
+        key={folderViewModel.id}
+        className={`feed-dashboard__folder${isCollapsed ? ' is-collapsed' : ''}${dropTargetFolderId === folderViewModel.id ? ' is-drop-target' : ''}`}
+        onDragEnter={() => {
+          if (draggedSubscriptionUrl && !isSavingFeed) {
+            setDropTargetFolderId(folderViewModel.id)
+          }
+        }}
+        onDragOver={(event) => handleFolderDragOver(event, folderViewModel.id)}
+        onDragLeave={(event) => {
+          const nextTarget = event.relatedTarget
+          if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+            setDropTargetFolderId(null)
+          }
+        }}
+        onDrop={(event) => handleFolderDrop(event, folderViewModel)}
+      >
+        <div className="feed-dashboard__folder-header">
+          <button
+            type="button"
+            className="feed-dashboard__folder-toggle"
+            onClick={() => toggleFolderCollapsed(folderViewModel.id)}
+            aria-expanded={!isCollapsed}
+            aria-label={`${isCollapsed ? '展开' : '收起'} ${folderViewModel.name}`}
+          >
+            <span className="feed-dashboard__folder-chevron" aria-hidden="true">{isCollapsed ? '>' : 'v'}</span>
+            <span className="feed-dashboard__folder-name">{folderViewModel.name}</span>
+            <span
+              className={`feed-dashboard__subscription-count${folderViewModel.unreadCount === 0 ? ' feed-dashboard__subscription-count--empty' : ''}`}
+              aria-label={`${folderViewModel.unreadCount} 条 folder 待读`}
+            >
+              {folderViewModel.unreadCount}
+            </span>
+          </button>
+          {canRenameFolder && folderViewModel.folder ? (
+            <div
+              className="feed-dashboard__folder-menu-wrap"
+              onBlur={(event) => {
+                const nextFocusedElement = event.relatedTarget
+                if (!(nextFocusedElement instanceof Node) || !event.currentTarget.contains(nextFocusedElement)) {
+                  setOpenFolderMenuId(null)
+                }
+              }}
+            >
+              <button
+                type="button"
+                className="feed-dashboard__folder-menu-btn"
+                onClick={() => setOpenFolderMenuId((currentId) => (currentId === folderViewModel.id ? null : folderViewModel.id))}
+                aria-label={`${folderViewModel.name} 更多操作`}
+                aria-haspopup="menu"
+                aria-expanded={openFolderMenuId === folderViewModel.id}
+              >
+                ...
+              </button>
+              {openFolderMenuId === folderViewModel.id ? (
+                <div className="feed-dashboard__folder-menu" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => handleRenameFolderClick(folderViewModel.folder as FeedFolder)}
+                  >
+                    Rename
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {!isCollapsed ? (
+          hasSubscriptions ? (
+            <div className="feed-dashboard__subscription-list">
+              {folderViewModel.subscriptions.map((item) => renderSubscriptionItem(item))}
+            </div>
+          ) : (
+            <div className="feed-dashboard__folder-empty">空 folder</div>
+          )
+        ) : null}
+      </section>
+    )
+  }
 
   return (
     <section className="feed-dashboard">
@@ -221,50 +722,27 @@ export default function FeedDashboard({
               {isSavingFeed ? '…' : '+'}
             </button>
           </div>
+          <button
+            type="button"
+            className="feed-dashboard__folder-create-btn"
+            onClick={handleCreateFolderClick}
+            disabled={isSavingFeed}
+          >
+            + New Folder
+          </button>
         </div>
 
         <div className="feed-dashboard__sidebar-body">
           <div className="feed-dashboard__subscriptions" aria-label="已订阅 feed">
             {isLoading ? (
               <div className="feed-dashboard__subscriptions-empty">正在读取 feed 订阅…</div>
-            ) : filteredSubscriptions.length === 0 ? (
+            ) : folderViewModels.length === 0 ? (
               <div className="feed-dashboard__subscriptions-empty">
-                {subscriptions.length === 0 ? '还没有订阅 feed。' : '当前搜索没有匹配的 feed。'}
+                {subscriptions.length === 0 && folders.length === 0 ? '还没有订阅 feed。' : '当前搜索没有匹配的 feed。'}
               </div>
             ) : (
-              <div className="feed-dashboard__subscription-list">
-                {filteredSubscriptions.map((subscription) => {
-                  const isActive = selectedSubscriptionUrl === subscription.url
-
-                  return (
-                    <article
-                      key={subscription.id}
-                      className={`feed-dashboard__subscription-item${isActive ? ' is-active' : ''}`}
-                    >
-                      <button
-                        type="button"
-                        className="feed-dashboard__subscription-main"
-                        onClick={() => onSelectSubscription(subscription)}
-                      >
-                        <span className="feed-dashboard__subscription-text">
-                          <strong>{subscription.title || '未命名 feed'}</strong>
-                          <span>{readFeedItemHostLabel(subscription.url)}</span>
-                        </span>
-                        <span className="feed-dashboard__subscription-count" aria-label={`${subscription.articleCount} 条文章`}>
-                          {subscription.articleCount > 0 ? subscription.articleCount : 0}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="feed-dashboard__subscription-remove-btn"
-                        onClick={() => onRemoveSubscription(subscription)}
-                        aria-label={`删除 ${subscription.title || '未命名 feed'}`}
-                      >
-                        ×
-                      </button>
-                    </article>
-                  )
-                })}
+              <div className="feed-dashboard__folder-list">
+                {folderViewModels.map((folderViewModel) => renderFolder(folderViewModel))}
               </div>
             )}
           </div>
@@ -274,8 +752,8 @@ export default function FeedDashboard({
         <div className="feed-dashboard__sidebar-footer">
           <span>
             {normalizedSearch
-              ? `${filteredSubscriptions.length} 个匹配源`
-              : `${subscriptions.length} 个源`}
+              ? `${totalUnreadFolderCount} 个有待读匹配 folder`
+              : `${totalUnreadFolderCount} 个有待读 folder`}
           </span>
         </div>
       </aside>
@@ -286,7 +764,19 @@ export default function FeedDashboard({
         <section className="feed-dashboard__preview" aria-label="Feed 条目列表">
           <div className="feed-dashboard__preview-header">
             <strong>{selectedSubscription?.title || previewFeed?.title || '选择一个 feed'}</strong>
-            <span>{previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
+            <div className="feed-dashboard__preview-header-actions">
+              <span>{previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
+              {previewFeed ? (
+                <button
+                  type="button"
+                  className="feed-dashboard__composer-secondary-btn feed-dashboard__mark-read-btn"
+                  onClick={markAllPreviewItemsViewed}
+                  disabled={selectedFeedUnreadItemCount === 0}
+                >
+                  全部标为已读
+                </button>
+              ) : null}
+            </div>
           </div>
           {isPreviewLoading ? (
             <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
@@ -305,7 +795,7 @@ export default function FeedDashboard({
                     <button
                       type="button"
                       className="feed-dashboard__preview-select"
-                      onClick={() => setSelectedPreviewItemUrl(item.url)}
+                      onClick={() => selectPreviewItem(item)}
                     >
                       <div className="feed-dashboard__preview-item-main">
                         <div className="feed-dashboard__preview-item-meta">
@@ -355,9 +845,7 @@ export default function FeedDashboard({
                   className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
                   onClick={() => {
                     const previousItem = previewFeed.items[selectedPreviewItemIndex - 1]
-                    if (previousItem) {
-                      setSelectedPreviewItemUrl(previousItem.url)
-                    }
+                    selectPreviewItem(previousItem)
                   }}
                   disabled={selectedPreviewItemIndex <= 0}
                 >
@@ -368,9 +856,7 @@ export default function FeedDashboard({
                   className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
                   onClick={() => {
                     const nextItem = previewFeed.items[selectedPreviewItemIndex + 1]
-                    if (nextItem) {
-                      setSelectedPreviewItemUrl(nextItem.url)
-                    }
+                    selectPreviewItem(nextItem)
                   }}
                   disabled={selectedPreviewItemIndex >= previewFeed.items.length - 1}
                 >
@@ -381,6 +867,7 @@ export default function FeedDashboard({
                   href={selectedPreviewArticle.finalUrl || selectedPreviewArticle.requestedUrl || selectedPreviewItem.url}
                   target="_blank"
                   rel="noreferrer"
+                  onClick={() => markPreviewItemViewed(selectedPreviewItem)}
                 >
                   打开原文
                 </a>

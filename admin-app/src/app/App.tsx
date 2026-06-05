@@ -58,6 +58,7 @@ import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item
 import {
   readFeedSubscriptions,
   saveFeedSubscriptions,
+  type FeedFolder,
   type FeedSubscription,
   type FeedSubscriptionsState,
 } from './rss/feed-subscriptions'
@@ -245,6 +246,22 @@ function createFeedSubscriptionRecord({
   }
 }
 
+function createFeedFolderRecord(name: string): FeedFolder {
+  const trimmedName = name.trim()
+  const slug = trimmedName
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/gi, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60) || 'folder'
+
+  return {
+    id: `folder-${slug}-${Date.now().toString(36)}`,
+    name: trimmedName,
+    createdAt: new Date().toISOString(),
+    updatedAt: '',
+  }
+}
+
 function hasRecoverableChanges(draft: ParsedPost | null, saved: ParsedPost | null) {
   if (!draft) {
     return false
@@ -405,6 +422,7 @@ export default function App() {
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
   const [rssSubscriptionsState, setRssSubscriptionsState] = useState<FeedSubscriptionsState>({
     path: FEED_SUBSCRIPTIONS_PATH,
+    folders: [],
     subscriptions: [],
   })
   const [selectedRssFeedUrl, setSelectedRssFeedUrl] = useState<string | null>(null)
@@ -507,6 +525,20 @@ export default function App() {
     () => rssSubscriptions.find((subscription) => subscription.url === selectedRssFeedUrl) || null,
     [rssSubscriptions, selectedRssFeedUrl],
   )
+
+  useEffect(() => {
+    if (adminView !== 'feeds' || !successMessage) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setSuccessMessage(null)
+    }, 3200)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [adminView, successMessage])
 
   useEffect(() => {
     const availablePathsByType: Record<MaterialSourceType, Set<string>> = {
@@ -972,7 +1004,7 @@ export default function App() {
     setIsQuickCollectingReadLater(false)
     setQuickReadLaterUrl('')
     setManualFeedUrl('')
-    setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, subscriptions: [] })
+    setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, folders: [], subscriptions: [] })
     setSelectedRssFeedUrl(null)
     setRssPreviewFeed(null)
     setPendingFeedDraftContext(null)
@@ -1202,6 +1234,7 @@ export default function App() {
   const persistFeedSubscriptions = async (
     nextSubscriptions: FeedSubscription[],
     successMessageText: string,
+    nextFolders = rssSubscriptionsState.folders || [],
   ) => {
     if (!session) {
       return null
@@ -1209,12 +1242,154 @@ export default function App() {
 
     const savedState = await saveFeedSubscriptions(session, {
       ...rssSubscriptionsState,
+      folders: nextFolders,
       subscriptions: nextSubscriptions,
     })
 
     setRssSubscriptionsState(savedState)
     setSuccessMessage(successMessageText)
     return savedState
+  }
+
+  const handleCreateFeedFolder = async (name: string) => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const trimmedName = name.trim()
+    if (!trimmedName) {
+      setError('请先填写 folder 名称。')
+      return
+    }
+
+    const currentFolders = rssSubscriptionsState.folders || []
+    if (currentFolders.some((folder) => folder.name === trimmedName)) {
+      setError(`Folder「${trimmedName}」已存在。`)
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      await persistFeedSubscriptions(
+        rssSubscriptions,
+        `已创建 folder「${trimmedName}」。`,
+        [...currentFolders, createFeedFolderRecord(trimmedName)],
+      )
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '创建 folder 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+    }
+  }
+
+  const handleRenameFeedFolder = async (folder: FeedFolder, nextName: string) => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const trimmedName = nextName.trim()
+    if (!trimmedName || trimmedName === folder.name) {
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const timestamp = new Date().toISOString()
+      const currentFolders = rssSubscriptionsState.folders || []
+      const existingFolder = currentFolders.find(
+        (item) => item.id !== folder.id && item.name === trimmedName,
+      )
+      const nextFolders = existingFolder
+        ? currentFolders.filter((item) => item.id !== folder.id)
+        : currentFolders.map((item) =>
+            item.id === folder.id
+              ? {
+                  ...item,
+                  name: trimmedName,
+                  updatedAt: timestamp,
+                }
+              : item,
+          )
+      const nextSubscriptions = rssSubscriptions.map((subscription) =>
+        subscription.category === folder.name
+          ? {
+              ...subscription,
+              category: trimmedName,
+              updatedAt: timestamp,
+            }
+          : subscription,
+      )
+
+      await persistFeedSubscriptions(
+        nextSubscriptions,
+        `已重命名 folder「${folder.name}」为「${trimmedName}」。`,
+        nextFolders,
+      )
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '重命名 folder 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+    }
+  }
+
+  const handleMoveFeedSubscriptionToFolder = async (subscription: FeedSubscription, folderName: string) => {
+    if (!session || isSavingRssSubscription) {
+      return
+    }
+
+    const trimmedFolderName = folderName.trim()
+    if (subscription.category.trim() === trimmedFolderName) {
+      return
+    }
+
+    setIsSavingRssSubscription(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const timestamp = new Date().toISOString()
+      const nextSubscriptions = rssSubscriptions.map((item) =>
+        item.id === subscription.id
+          ? {
+              ...item,
+              category: trimmedFolderName,
+              updatedAt: timestamp,
+            }
+          : item,
+      )
+
+      await persistFeedSubscriptions(
+        nextSubscriptions,
+        trimmedFolderName
+          ? `已将《${subscription.title || subscription.url}》移动到 folder「${trimmedFolderName}」。`
+          : `已将《${subscription.title || subscription.url}》移出 folder。`,
+      )
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '移动 feed 失败。')
+    } finally {
+      setIsSavingRssSubscription(false)
+    }
   }
 
   const incrementFeedReadLaterCount = async (feedUrl: string) => {
@@ -2869,13 +3044,22 @@ export default function App() {
         </section>
       ) : isFeedsView ? (
         <section className="admin-shell__viewport">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
+          {successMessage ? (
+            <div className="admin-shell__toast admin-shell__toast--success" role="status" aria-live="polite">
+              {successMessage}
+            </div>
+          ) : null}
+          {error ? (
+            <div className="admin-shell__toast admin-shell__toast--error" role="alert">
+              {error}
+            </div>
+          ) : null}
           <FeedDashboard
             search={search}
             manualFeedUrl={manualFeedUrl}
             isLoading={isRssSubscriptionsLoading}
             isSavingFeed={isSavingRssSubscription}
+            folders={rssSubscriptionsState.folders || []}
             subscriptions={rssSubscriptions}
             selectedSubscriptionUrl={selectedRssFeedUrl}
             previewFeed={rssPreviewFeed}
@@ -2888,6 +3072,9 @@ export default function App() {
             onPreviewItemChange={(item) => { void handlePreviewFeedItemArticle(item) }}
             onSelectSubscription={(subscription) => { void handlePreviewSubscriptionFeed(subscription) }}
             onRemoveSubscription={(subscription) => { void handleRemoveFeedSubscription(subscription) }}
+            onCreateFolder={(name) => { void handleCreateFeedFolder(name) }}
+            onRenameFolder={(folder, name) => { void handleRenameFeedFolder(folder, name) }}
+            onMoveSubscriptionToFolder={(subscription, folderName) => { void handleMoveFeedSubscriptionToFolder(subscription, folderName) }}
           />
         </section>
       ) : isAnnotationsView ? (
