@@ -36,7 +36,11 @@ import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, typ
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
-import FeedDashboard from './layout/feed-dashboard'
+import FeedDashboard, {
+  getViewedFeedItemCount,
+  readViewedFeedItemsByUrl,
+  type ViewedFeedItemsByUrl,
+} from './layout/feed-dashboard'
 import TrashView from './layout/trash-view'
 import MaterialOrganizerDialog from './layout/material-organizer-dialog'
 import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
@@ -443,6 +447,7 @@ export default function App() {
   const [rssPreviewArticlesByUrl, setRssPreviewArticlesByUrl] = useState<Record<string, ImportedReadLaterArticle>>({})
   const [rssPreviewArticleLoadingByUrl, setRssPreviewArticleLoadingByUrl] = useState<Record<string, boolean>>({})
   const [rssPreviewArticleErrorsByUrl, setRssPreviewArticleErrorsByUrl] = useState<Record<string, string>>({})
+  const [viewedFeedItemsByUrl, setViewedFeedItemsByUrl] = useState<ViewedFeedItemsByUrl>(readViewedFeedItemsByUrl)
   const [manualFeedUrl, setManualFeedUrl] = useState('')
   const [isRssSubscriptionsLoading, setIsRssSubscriptionsLoading] = useState(false)
   const [isSavingRssSubscription, setIsSavingRssSubscription] = useState(false)
@@ -535,9 +540,12 @@ export default function App() {
     return postsByType['read-later'].filter((post) => selectedPathSet.has(post.path))
   }, [postsByType['read-later'], selectedMaterialPaths['read-later']])
   const rssSubscriptions = rssSubscriptionsState.subscriptions
-  const rssReadLaterCount = useMemo(
-    () => rssSubscriptions.reduce((total, subscription) => total + Math.max(0, subscription.articleCount), 0),
-    [rssSubscriptions],
+  const rssUnreadCount = useMemo(
+    () => rssSubscriptions.reduce((total, subscription) => {
+      const viewedItemCount = getViewedFeedItemCount(viewedFeedItemsByUrl[subscription.url], subscription.articleCount)
+      return total + Math.max(0, subscription.articleCount - viewedItemCount)
+    }, 0),
+    [rssSubscriptions, viewedFeedItemsByUrl],
   )
   const selectedRssSubscription = useMemo(
     () => rssSubscriptions.find((subscription) => subscription.url === selectedRssFeedUrl) || null,
@@ -3150,7 +3158,7 @@ export default function App() {
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
           onOpenFeeds={handleOpenFeeds}
-          rssReadLaterCount={rssReadLaterCount}
+          rssUnreadCount={rssUnreadCount}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -3259,6 +3267,7 @@ export default function App() {
             previewArticlesByUrl={rssPreviewArticlesByUrl}
             previewArticleLoadingByUrl={rssPreviewArticleLoadingByUrl}
             previewArticleErrorsByUrl={rssPreviewArticleErrorsByUrl}
+            viewedFeedItemsByUrl={viewedFeedItemsByUrl}
             isPreviewLoading={isRssPreviewLoading}
             onManualFeedUrlChange={setManualFeedUrl}
             onAddManualFeed={() => { void handleAddManualFeedSubscription() }}
@@ -3269,6 +3278,7 @@ export default function App() {
             onRenameFolder={(folder, name) => { void handleRenameFeedFolder(folder, name) }}
             onDeleteFolder={(folder) => { void handleDeleteFeedFolder(folder) }}
             onMoveSubscriptionToFolder={(subscription, folderName) => { void handleMoveFeedSubscriptionToFolder(subscription, folderName) }}
+            onViewedFeedItemsChange={setViewedFeedItemsByUrl}
             onCreateReadLaterFromPreview={(item, article) => { void handleCreateReadLaterFromFeedPreview(item, article) }}
             isCreatingReadLaterFromPreview={isQuickCollectingReadLater}
           />

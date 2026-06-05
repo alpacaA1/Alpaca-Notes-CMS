@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useState, type Dispatch, type DragEvent, type SetStateAction } from 'react'
 import PreviewPane from '../editor/preview-pane'
 import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import type { ImportedReadLaterArticle } from '../read-later/import-client'
@@ -6,6 +6,8 @@ import { sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '.
 
 const VIEWED_FEED_ITEMS_STORAGE_KEY = 'alpaca-admin-viewed-feed-items'
 const VIEWED_FEED_READ_COUNT_PREFIX = '__alpaca-feed-read-count:'
+
+export type ViewedFeedItemsByUrl = Record<string, string[]>
 
 type FeedDashboardProps = {
   search: string
@@ -19,6 +21,7 @@ type FeedDashboardProps = {
   previewArticlesByUrl: Record<string, ImportedReadLaterArticle>
   previewArticleLoadingByUrl: Record<string, boolean>
   previewArticleErrorsByUrl: Record<string, string>
+  viewedFeedItemsByUrl?: ViewedFeedItemsByUrl
   isPreviewLoading: boolean
   onManualFeedUrlChange: (value: string) => void
   onAddManualFeed: () => void
@@ -29,6 +32,7 @@ type FeedDashboardProps = {
   onRenameFolder: (folder: FeedFolder, name: string) => void
   onDeleteFolder: (folder: FeedFolder) => void
   onMoveSubscriptionToFolder: (subscription: FeedSubscription, folderName: string) => void
+  onViewedFeedItemsChange?: Dispatch<SetStateAction<ViewedFeedItemsByUrl>>
   onCreateReadLaterFromPreview: (item: ImportedFeedItem, article: ImportedReadLaterArticle | null) => void
   isCreatingReadLaterFromPreview?: boolean
 }
@@ -102,7 +106,7 @@ function normalizeFeedItemUrl(value: string) {
   }
 }
 
-function readViewedFeedItemsByUrl(): Record<string, string[]> {
+export function readViewedFeedItemsByUrl(): ViewedFeedItemsByUrl {
   if (typeof window === 'undefined') {
     return {}
   }
@@ -128,7 +132,7 @@ function readViewedFeedItemsByUrl(): Record<string, string[]> {
   }
 }
 
-function saveViewedFeedItemsByUrl(viewedItemsByFeedUrl: Record<string, string[]>) {
+export function saveViewedFeedItemsByUrl(viewedItemsByFeedUrl: ViewedFeedItemsByUrl) {
   if (typeof window === 'undefined') {
     return
   }
@@ -149,7 +153,7 @@ function readViewedFeedReadCountMarker(value: string) {
   return Number.isFinite(count) ? Math.max(0, count) : null
 }
 
-function getViewedFeedItemCount(viewedItemUrls: string[] | undefined, articleCount: number) {
+export function getViewedFeedItemCount(viewedItemUrls: string[] | undefined, articleCount: number) {
   const viewedItems = viewedItemUrls || []
   const viewedUrlCount = new Set(viewedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null)).size
   const markedReadCount = viewedItems.reduce((count, itemUrl) => {
@@ -172,6 +176,7 @@ export default function FeedDashboard({
   previewArticlesByUrl,
   previewArticleLoadingByUrl,
   previewArticleErrorsByUrl,
+  viewedFeedItemsByUrl: controlledViewedFeedItemsByUrl,
   isPreviewLoading,
   onManualFeedUrlChange,
   onAddManualFeed,
@@ -182,12 +187,14 @@ export default function FeedDashboard({
   onRenameFolder,
   onDeleteFolder,
   onMoveSubscriptionToFolder,
+  onViewedFeedItemsChange,
   onCreateReadLaterFromPreview,
   isCreatingReadLaterFromPreview = false,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const [selectedPreviewItemUrl, setSelectedPreviewItemUrl] = useState<string | null>(null)
-  const [viewedFeedItemsByUrl, setViewedFeedItemsByUrl] = useState<Record<string, string[]>>(readViewedFeedItemsByUrl)
+  const [localViewedFeedItemsByUrl, setLocalViewedFeedItemsByUrl] = useState<ViewedFeedItemsByUrl>(readViewedFeedItemsByUrl)
+  const viewedFeedItemsByUrl = controlledViewedFeedItemsByUrl || localViewedFeedItemsByUrl
   const [expandedFolderIds, setExpandedFolderIds] = useState<string[]>([])
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null)
   const [openSubscriptionMenuUrl, setOpenSubscriptionMenuUrl] = useState<string | null>(null)
@@ -318,6 +325,23 @@ export default function FeedDashboard({
     }).length
     : 0
 
+  const updateViewedFeedItemsByUrl = (updater: SetStateAction<ViewedFeedItemsByUrl>) => {
+    const applyUpdater = (currentState: ViewedFeedItemsByUrl) => {
+      const nextState = typeof updater === 'function' ? updater(currentState) : updater
+      if (nextState !== currentState) {
+        saveViewedFeedItemsByUrl(nextState)
+      }
+      return nextState
+    }
+
+    if (onViewedFeedItemsChange) {
+      onViewedFeedItemsChange(applyUpdater)
+      return
+    }
+
+    setLocalViewedFeedItemsByUrl(applyUpdater)
+  }
+
   const markPreviewItemViewed = (item: ImportedFeedItem | null) => {
     if (!selectedSubscriptionUrl || !item?.url) {
       return
@@ -328,7 +352,7 @@ export default function FeedDashboard({
       return
     }
 
-    setViewedFeedItemsByUrl((currentState) => {
+    updateViewedFeedItemsByUrl((currentState) => {
       const currentFeedItems = currentState[selectedSubscriptionUrl] || []
       if (currentFeedItems.includes(normalizedItemUrl)) {
         return currentState
@@ -338,13 +362,12 @@ export default function FeedDashboard({
         ...currentState,
         [selectedSubscriptionUrl]: [...currentFeedItems, normalizedItemUrl],
       }
-      saveViewedFeedItemsByUrl(nextState)
       return nextState
     })
   }
 
   const markSubscriptionViewed = (subscription: FeedSubscription) => {
-    setViewedFeedItemsByUrl((currentState) => {
+    updateViewedFeedItemsByUrl((currentState) => {
       const currentFeedItems = currentState[subscription.url] || []
       const nextFeedItems = [
         ...currentFeedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null),
@@ -354,7 +377,6 @@ export default function FeedDashboard({
         ...currentState,
         [subscription.url]: nextFeedItems,
       }
-      saveViewedFeedItemsByUrl(nextState)
       return nextState
     })
     setOpenSubscriptionMenuUrl(null)
@@ -372,13 +394,12 @@ export default function FeedDashboard({
       return
     }
 
-    setViewedFeedItemsByUrl((currentState) => {
+    updateViewedFeedItemsByUrl((currentState) => {
       const nextFeedItems = Array.from(new Set([...(currentState[selectedSubscriptionUrl] || []), ...normalizedItemUrls]))
       const nextState = {
         ...currentState,
         [selectedSubscriptionUrl]: nextFeedItems,
       }
-      saveViewedFeedItemsByUrl(nextState)
       return nextState
     })
   }

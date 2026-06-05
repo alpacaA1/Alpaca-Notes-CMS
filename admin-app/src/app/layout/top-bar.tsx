@@ -83,7 +83,7 @@ type TopBarProps = {
   onOpenAnnotations?: () => void
   onOpenTrash?: () => void
   onOpenFeeds?: () => void
-  rssReadLaterCount?: number
+  rssUnreadCount?: number
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -186,7 +186,7 @@ export default function TopBar({
   onOpenAnnotations,
   onOpenTrash,
   onOpenFeeds,
-  rssReadLaterCount = 0,
+  rssUnreadCount = 0,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -220,7 +220,7 @@ export default function TopBar({
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
-  const showRssBadge = !isFeedsView && rssReadLaterCount > 1
+  const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
 

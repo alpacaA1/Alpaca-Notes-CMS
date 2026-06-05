@@ -530,7 +530,7 @@ describe('management layout components', () => {
     expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toBe('搜索标题、正文或标签')
   })
 
-  it('shows a red dot on the RSS entry only when RSS read-later count is greater than one', () => {
+  it('shows a red dot on the RSS entry only when RSS unread count is greater than zero', () => {
     const { container, rerender } = render(
       <TopBar
         search=""
@@ -552,7 +552,7 @@ describe('management layout components', () => {
         adminView="dashboard"
         isDarkMode={false}
         onOpenFeeds={vi.fn()}
-        rssReadLaterCount={1}
+        rssUnreadCount={0}
       />,
     )
 
@@ -580,7 +580,7 @@ describe('management layout components', () => {
         adminView="dashboard"
         isDarkMode={false}
         onOpenFeeds={vi.fn()}
-        rssReadLaterCount={2}
+        rssUnreadCount={1}
       />,
     )
 
