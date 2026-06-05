@@ -13,6 +13,15 @@ const FEED_REQUEST_HEADERS = {
   Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, text/plain;q=0.8, text/html;q=0.6',
   'User-Agent': 'alpaca-notes-feed-importer/1.0',
 };
+const FEED_PATH_SUFFIXES = [
+  '/feed/atom',
+  '/rss.xml',
+  '/feed.xml',
+  '/atom.xml',
+  '/index.xml',
+  '/rss',
+  '/feed',
+];
 let dnsLookup = dns.lookup.bind(dns);
 
 class FeedImportError extends Error {
@@ -310,6 +319,132 @@ function parseFeedDocument(xml, baseUrl) {
   };
 }
 
+function isLikelyFeedUrl(value) {
+  const normalized = String(value || '').toLowerCase();
+  return /(^|\/)(rss|atom|feed)(\/|\.xml|$)/.test(normalized) || normalized.endsWith('/index.xml');
+}
+
+function getFeedDiscoveryPageUrls(url) {
+  const candidates = [];
+  const normalizedPath = url.pathname.replace(/\/+$/, '') || '/';
+  const matchedSuffix = FEED_PATH_SUFFIXES.find((suffix) => normalizedPath.toLowerCase().endsWith(suffix));
+
+  if (matchedSuffix) {
+    const pageUrl = new URL(url.toString());
+    const nextPath = normalizedPath.slice(0, -matchedSuffix.length) || '/';
+    pageUrl.pathname = nextPath.endsWith('/') ? nextPath : `${nextPath}/`;
+    pageUrl.search = '';
+    pageUrl.hash = '';
+    candidates.push(pageUrl);
+  }
+
+  const originalPageUrl = new URL(url.toString());
+  originalPageUrl.hash = '';
+  if (!candidates.some((candidate) => candidate.toString() === originalPageUrl.toString())) {
+    candidates.push(originalPageUrl);
+  }
+
+  return candidates;
+}
+
+function discoverFeedUrlFromHtml(html, pageUrl) {
+  let document;
+  try {
+    const dom = new JSDOM(html, {
+      contentType: 'text/html',
+      url: pageUrl,
+    });
+    document = dom.window.document;
+  } catch {
+    return null;
+  }
+
+  const candidates = [
+    ...Array.from(document.querySelectorAll('link[rel~="alternate"]')),
+    ...Array.from(document.querySelectorAll('a[href]')),
+  ];
+
+  for (const element of candidates) {
+    const href = getTextContent(element.getAttribute('href') || '');
+    if (!href) {
+      continue;
+    }
+
+    const type = getTextContent(element.getAttribute('type') || '').toLowerCase();
+    const title = getTextContent(element.getAttribute('title') || '').toLowerCase();
+    const rel = getTextContent(element.getAttribute('rel') || '').toLowerCase();
+    const className = getTextContent(element.getAttribute('class') || '').toLowerCase();
+    const text = getNodeText(element).toLowerCase();
+
+    const looksLikeFeed =
+      /application\/(rss|atom)\+xml|application\/xml|text\/xml/.test(type)
+      || isLikelyFeedUrl(href)
+      || /\b(rss|atom|feed)\b/.test(`${title} ${rel} ${className} ${text}`);
+
+    if (!looksLikeFeed) {
+      continue;
+    }
+
+    try {
+      return validateFeedUrl(new URL(href, pageUrl).toString(), 'RSS 自动发现到的链接无效。');
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+async function discoverFeedUrlFromPage(pageUrl, signal) {
+  const { response, finalUrl } = await fetchFeedResponse(pageUrl, signal);
+  if (!response.ok) {
+    return null;
+  }
+
+  const body = await readBodyWithLimit(response);
+  return discoverFeedUrlFromHtml(body, finalUrl.toString());
+}
+
+async function discoverAlternateFeedUrl(url, signal, body = '') {
+  const directMatch = body ? discoverFeedUrlFromHtml(body, url.toString()) : null;
+  if (directMatch) {
+    return directMatch;
+  }
+
+  for (const pageUrl of getFeedDiscoveryPageUrls(url)) {
+    if (pageUrl.toString() === url.toString() && body) {
+      continue;
+    }
+
+    const discoveredUrl = await discoverFeedUrlFromPage(pageUrl, signal);
+    if (discoveredUrl) {
+      return discoveredUrl;
+    }
+  }
+
+  return null;
+}
+
+async function fetchAndParseFeed(url, signal) {
+  const { response, finalUrl } = await fetchFeedResponse(url, signal);
+  if (!response.ok) {
+    throw new FeedImportError(
+      `RSS 抓取失败（HTTP ${response.status}）。`,
+      response.status >= 400 && response.status < 600 ? response.status : 502,
+      'feed_fetch_failed',
+    );
+  }
+
+  const body = await readBodyWithLimit(response);
+  const parsed = parseFeedDocument(body, finalUrl.toString());
+  return {
+    parsed,
+    response,
+    finalUrl,
+    body,
+  };
+}
+
 async function importFeed(feedUrl) {
   const url = validateFeedUrl(feedUrl);
   const controller = new AbortController();
@@ -318,6 +453,18 @@ async function importFeed(feedUrl) {
   try {
     const { response, finalUrl } = await fetchFeedResponse(url, controller.signal);
     if (!response.ok) {
+      const discoveredUrl = await discoverAlternateFeedUrl(url, controller.signal);
+      if (discoveredUrl) {
+        const retryResult = await fetchAndParseFeed(discoveredUrl, controller.signal);
+        return {
+          title: retryResult.parsed.title,
+          description: retryResult.parsed.description,
+          requestedUrl: url.toString(),
+          finalUrl: retryResult.finalUrl.toString(),
+          items: retryResult.parsed.items,
+        };
+      }
+
       throw new FeedImportError(
         `RSS 抓取失败（HTTP ${response.status}）。`,
         response.status >= 400 && response.status < 600 ? response.status : 502,
@@ -326,7 +473,29 @@ async function importFeed(feedUrl) {
     }
 
     const body = await readBodyWithLimit(response);
-    const parsed = parseFeedDocument(body, finalUrl.toString());
+    let parsed;
+    try {
+      parsed = parseFeedDocument(body, finalUrl.toString());
+    } catch (error) {
+      if (!(error instanceof FeedImportError) || error.code !== 'not_feed') {
+        throw error;
+      }
+
+      const discoveredUrl = await discoverAlternateFeedUrl(finalUrl, controller.signal, body);
+      if (!discoveredUrl) {
+        throw error;
+      }
+
+      const retryResult = await fetchAndParseFeed(discoveredUrl, controller.signal);
+      return {
+        title: retryResult.parsed.title,
+        description: retryResult.parsed.description,
+        requestedUrl: url.toString(),
+        finalUrl: retryResult.finalUrl.toString(),
+        items: retryResult.parsed.items,
+      };
+    }
+
     return {
       title: parsed.title,
       description: parsed.description,

@@ -394,6 +394,15 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('heading', { name: '正文标题' })).toBeTruthy()
     expect(screen.getByText('正文第一段')).toBeTruthy()
     expect(screen.getByRole('link', { name: '打开原文' }).getAttribute('href')).toBe('https://example.com/posts/design-systems')
+
+    fireEvent.click(screen.getByRole('button', { name: '加入待读' }))
+
+    expect(importSpy).toHaveBeenCalledTimes(1)
+    expect(await screen.findByRole('button', { name: '保存' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
+    expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('新的系统设计文章')
+    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('这是一篇关于系统设计取舍的摘要。')
+    expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('设计摘录')
   })
 
   it('shows RSS load success as a toast without taking layout space', async () => {
@@ -444,6 +453,7 @@ describe('App read-later import flow', () => {
     const { container } = render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
     const sidebar = await screen.findByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     fireEvent.click(within(sidebar).getByLabelText('20 条待读').closest('button') as HTMLButtonElement)
 
     expect(await screen.findByRole('status')).toBeTruthy()

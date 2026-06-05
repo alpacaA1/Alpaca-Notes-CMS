@@ -114,6 +114,127 @@ test('importFeed parses an Atom feed and resolves alternate links', async () => 
   assert.equal(feed.items[0].sourceName, 'AI 周报');
 });
 
+test('importFeed discovers an Atom feed from a failed conventional feed URL', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.53', family: 4 }]);
+  const requestedUrls = [];
+  global.fetch = async (url) => {
+    requestedUrls.push(url);
+
+    if (url === 'https://quaily.com/shixingcuowu/rss.xml') {
+      return createMockResponse({
+        url,
+        status: 404,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        body: '<!doctype html><html><head><title>Not found</title></head><body>404</body></html>',
+      });
+    }
+
+    if (url === 'https://quaily.com/shixingcuowu/') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        body: `<!doctype html>
+<html>
+  <body>
+    <a rel="me" href="//quaily.com/shixingcuowu/feed/atom" title="试行错误's Atom Feed" class="feed">Atom</a>
+  </body>
+</html>`,
+      });
+    }
+
+    if (url === 'https://quaily.com/shixingcuowu/feed/atom') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/xml; charset=utf-8',
+        },
+        body: `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>试行错误</title>
+  <subtitle>Quaily 订阅</subtitle>
+  <entry>
+    <id>tag:quaily.com,2026:1</id>
+    <title>第一篇 Quaily 文章</title>
+    <link rel="alternate" href="/shixingcuowu/p/first-post" />
+    <summary>正文摘要。</summary>
+    <updated>2026-06-04T06:00:00Z</updated>
+  </entry>
+</feed>`,
+      });
+    }
+
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+
+  const feed = await importFeed('https://quaily.com/shixingcuowu/rss.xml');
+
+  assert.deepEqual(requestedUrls, [
+    'https://quaily.com/shixingcuowu/rss.xml',
+    'https://quaily.com/shixingcuowu/',
+    'https://quaily.com/shixingcuowu/feed/atom',
+  ]);
+  assert.equal(feed.requestedUrl, 'https://quaily.com/shixingcuowu/rss.xml');
+  assert.equal(feed.finalUrl, 'https://quaily.com/shixingcuowu/feed/atom');
+  assert.equal(feed.title, '试行错误');
+  assert.equal(feed.items[0].url, 'https://quaily.com/shixingcuowu/p/first-post');
+});
+
+test('importFeed discovers a feed link from an HTML homepage', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.54', family: 4 }]);
+  global.fetch = async (url) => {
+    if (url === 'https://example.com/blog') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        body: `<!doctype html>
+<html>
+  <head>
+    <link rel="alternate" type="application/rss+xml" href="/blog/rss.xml" />
+  </head>
+  <body><article>Latest posts</article></body>
+</html>`,
+      });
+    }
+
+    if (url === 'https://example.com/blog/rss.xml') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'application/rss+xml; charset=utf-8',
+        },
+        body: `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Example Blog</title>
+    <description>Posts</description>
+    <item>
+      <guid>post-1</guid>
+      <title>Post One</title>
+      <link>https://example.com/blog/post-one</link>
+      <description>Summary.</description>
+    </item>
+  </channel>
+</rss>`,
+      });
+    }
+
+    throw new Error(`unexpected fetch: ${url}`);
+  };
+
+  const feed = await importFeed('https://example.com/blog');
+
+  assert.equal(feed.requestedUrl, 'https://example.com/blog');
+  assert.equal(feed.finalUrl, 'https://example.com/blog/rss.xml');
+  assert.equal(feed.title, 'Example Blog');
+  assert.equal(feed.items.length, 1);
+});
+
 test('importFeed rejects non-feed pages with a not_feed code', async () => {
   setDnsLookupForTesting(async () => [{ address: '203.0.113.52', family: 4 }]);
   global.fetch = async () => createMockResponse({

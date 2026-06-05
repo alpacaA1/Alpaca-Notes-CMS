@@ -29,6 +29,8 @@ type FeedDashboardProps = {
   onRenameFolder: (folder: FeedFolder, name: string) => void
   onDeleteFolder: (folder: FeedFolder) => void
   onMoveSubscriptionToFolder: (subscription: FeedSubscription, folderName: string) => void
+  onCreateReadLaterFromPreview: (item: ImportedFeedItem, article: ImportedReadLaterArticle | null) => void
+  isCreatingReadLaterFromPreview?: boolean
 }
 
 type SubscriptionViewModel = {
@@ -180,11 +182,13 @@ export default function FeedDashboard({
   onRenameFolder,
   onDeleteFolder,
   onMoveSubscriptionToFolder,
+  onCreateReadLaterFromPreview,
+  isCreatingReadLaterFromPreview = false,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const [selectedPreviewItemUrl, setSelectedPreviewItemUrl] = useState<string | null>(null)
   const [viewedFeedItemsByUrl, setViewedFeedItemsByUrl] = useState<Record<string, string[]>>(readViewedFeedItemsByUrl)
-  const [collapsedFolderIds, setCollapsedFolderIds] = useState<string[]>([])
+  const [expandedFolderIds, setExpandedFolderIds] = useState<string[]>([])
   const [openFolderMenuId, setOpenFolderMenuId] = useState<string | null>(null)
   const [openSubscriptionMenuUrl, setOpenSubscriptionMenuUrl] = useState<string | null>(null)
   const [draggedSubscriptionUrl, setDraggedSubscriptionUrl] = useState<string | null>(null)
@@ -403,7 +407,7 @@ export default function FeedDashboard({
   }
 
   const toggleFolderCollapsed = (folderId: string) => {
-    setCollapsedFolderIds((currentIds) =>
+    setExpandedFolderIds((currentIds) =>
       currentIds.includes(folderId)
         ? currentIds.filter((currentId) => currentId !== folderId)
         : [...currentIds, folderId],
@@ -556,8 +560,7 @@ export default function FeedDashboard({
           onClick={() => onSelectSubscription(subscription)}
         >
           <span className="feed-dashboard__subscription-text">
-            <strong>{subscription.title || '未命名 feed'}</strong>
-            <span>{readFeedItemHostLabel(subscription.url)}</span>
+            <span className="feed-dashboard__subscription-title">{subscription.title || '未命名 feed'}</span>
           </span>
           {unreadCount > 0 ? (
             <span
@@ -616,7 +619,7 @@ export default function FeedDashboard({
   }
 
   const renderFolder = (folderViewModel: FolderViewModel) => {
-    const isCollapsed = collapsedFolderIds.includes(folderViewModel.id)
+    const isCollapsed = !expandedFolderIds.includes(folderViewModel.id)
     const hasSubscriptions = folderViewModel.subscriptions.length > 0
     const canManageFolder = Boolean(folderViewModel.folder && !folderViewModel.isUncategorized)
 
@@ -709,6 +712,58 @@ export default function FeedDashboard({
           )
         ) : null}
       </section>
+    )
+  }
+
+  const renderReaderActions = () => {
+    if (!previewFeed || !selectedPreviewItem) {
+      return null
+    }
+
+    const originalUrl = selectedPreviewArticle?.finalUrl || selectedPreviewArticle?.requestedUrl || selectedPreviewItem.url
+
+    return (
+      <div className="feed-dashboard__reader-actions">
+        <button
+          type="button"
+          className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
+          onClick={() => {
+            const previousItem = previewFeed.items[selectedPreviewItemIndex - 1]
+            selectPreviewItem(previousItem)
+          }}
+          disabled={selectedPreviewItemIndex <= 0}
+        >
+          上一条
+        </button>
+        <button
+          type="button"
+          className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
+          onClick={() => {
+            const nextItem = previewFeed.items[selectedPreviewItemIndex + 1]
+            selectPreviewItem(nextItem)
+          }}
+          disabled={selectedPreviewItemIndex >= previewFeed.items.length - 1}
+        >
+          下一条
+        </button>
+        <button
+          type="button"
+          className="feed-dashboard__composer-btn feed-dashboard__reader-collect-btn"
+          onClick={() => onCreateReadLaterFromPreview(selectedPreviewItem, selectedPreviewArticle)}
+          disabled={isCreatingReadLaterFromPreview}
+        >
+          {isCreatingReadLaterFromPreview ? '加入中…' : '加入待读'}
+        </button>
+        <a
+          className="feed-dashboard__composer-btn feed-dashboard__reader-link"
+          href={originalUrl}
+          target="_blank"
+          rel="noreferrer"
+          onClick={() => markPreviewItemViewed(selectedPreviewItem)}
+        >
+          打开原文
+        </a>
+      </div>
     )
   }
 
@@ -871,50 +926,24 @@ export default function FeedDashboard({
           ) : isSelectedPreviewArticleLoading && !selectedPreviewArticle ? (
             <div className="feed-dashboard__reader-empty">正在抓取正文内容…</div>
           ) : selectedPreviewArticleError ? (
-            <div className="feed-dashboard__reader-empty">
-              {selectedPreviewArticleError}
-              <br />
-              可先通过"打开原文"跳转阅读。
+            <div className="feed-dashboard__reader-preview">
+              {renderReaderActions()}
+              <div className="feed-dashboard__reader-empty">
+                {selectedPreviewArticleError}
+                <br />
+                可先通过"打开原文"跳转阅读。
+              </div>
             </div>
           ) : selectedPreviewArticle?.needsManualPaste && !selectedPreviewArticle.markdown ? (
-            <div className="feed-dashboard__reader-empty">
-              这篇文章暂时没自动识别出正文，可先打开原文。
+            <div className="feed-dashboard__reader-preview">
+              {renderReaderActions()}
+              <div className="feed-dashboard__reader-empty">
+                这篇文章暂时没自动识别出正文，可先打开原文。
+              </div>
             </div>
           ) : selectedPreviewArticle?.markdown ? (
             <div className="feed-dashboard__reader-preview">
-              <div className="feed-dashboard__reader-actions">
-                <button
-                  type="button"
-                  className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
-                  onClick={() => {
-                    const previousItem = previewFeed.items[selectedPreviewItemIndex - 1]
-                    selectPreviewItem(previousItem)
-                  }}
-                  disabled={selectedPreviewItemIndex <= 0}
-                >
-                  上一条
-                </button>
-                <button
-                  type="button"
-                  className="feed-dashboard__composer-secondary-btn feed-dashboard__reader-nav-btn"
-                  onClick={() => {
-                    const nextItem = previewFeed.items[selectedPreviewItemIndex + 1]
-                    selectPreviewItem(nextItem)
-                  }}
-                  disabled={selectedPreviewItemIndex >= previewFeed.items.length - 1}
-                >
-                  下一条
-                </button>
-                <a
-                  className="feed-dashboard__composer-btn feed-dashboard__reader-link"
-                  href={selectedPreviewArticle.finalUrl || selectedPreviewArticle.requestedUrl || selectedPreviewItem.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => markPreviewItemViewed(selectedPreviewItem)}
-                >
-                  打开原文
-                </a>
-              </div>
+              {renderReaderActions()}
               <PreviewPane
                 title={selectedPreviewArticle.title || selectedPreviewItem.title || '未命名条目'}
                 date={formatFeedItemDate(selectedPreviewItem.publishedAt)}

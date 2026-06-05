@@ -2668,6 +2668,61 @@ export default function App() {
     }
   }
 
+  const handleCreateReadLaterFromFeedPreview = async (
+    item: ImportedFeedItem,
+    previewArticle: ImportedReadLaterArticle | null,
+  ) => {
+    if (!session || isQuickCollectingReadLater) {
+      return
+    }
+
+    const externalUrl = (previewArticle?.finalUrl || previewArticle?.requestedUrl || item.url).trim()
+    if (!externalUrl) {
+      setError('缺少原文链接，无法加入待读。')
+      return
+    }
+
+    setIsQuickCollectingReadLater(true)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const duplicatedPost = findDuplicateReadLaterByUrl(externalUrl)
+      if (
+        duplicatedPost &&
+        !window.confirm(`已存在相同原文链接的待读《${duplicatedPost.title}》。仍要继续创建新草稿吗？`)
+      ) {
+        return
+      }
+
+      const imported = previewArticle || await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
+      const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || externalUrl)
+      const successMessages = [
+        redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
+        imported.needsManualPaste ? '未自动识别正文，已创建带元信息的待读草稿，请手动粘贴原文。' : null,
+      ].filter((message): message is string => Boolean(message))
+
+      openQuickReadLaterDraft({
+        externalUrl,
+        imported,
+        fallbackTitle: item.title,
+        fallbackDesc: item.summary,
+        fallbackSourceName: item.sourceName || rssPreviewFeed?.title || '',
+        sourceFeedUrl: selectedRssFeedUrl || '',
+        successMessage: successMessages.length > 0 ? successMessages.join(' ') : '已创建待读草稿。',
+      })
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '加入待读失败。')
+    } finally {
+      setIsQuickCollectingReadLater(false)
+    }
+  }
+
   const handleOrganizeWritingMaterials = async () => {
     if (!session || isOrganizingMaterials) {
       return false
@@ -3139,6 +3194,8 @@ export default function App() {
             onRenameFolder={(folder, name) => { void handleRenameFeedFolder(folder, name) }}
             onDeleteFolder={(folder) => { void handleDeleteFeedFolder(folder) }}
             onMoveSubscriptionToFolder={(subscription, folderName) => { void handleMoveFeedSubscriptionToFolder(subscription, folderName) }}
+            onCreateReadLaterFromPreview={(item, article) => { void handleCreateReadLaterFromFeedPreview(item, article) }}
+            isCreatingReadLaterFromPreview={isQuickCollectingReadLater}
           />
         </section>
       ) : isAnnotationsView ? (

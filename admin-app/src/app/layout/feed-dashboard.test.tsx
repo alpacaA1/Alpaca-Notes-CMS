@@ -41,6 +41,7 @@ function renderFeedDashboard(overrides: Partial<Parameters<typeof FeedDashboard>
     onRenameFolder: vi.fn(),
     onDeleteFolder: vi.fn(),
     onMoveSubscriptionToFolder: vi.fn(),
+    onCreateReadLaterFromPreview: vi.fn(),
     ...overrides,
   }
 
@@ -84,10 +85,54 @@ describe('FeedDashboard', () => {
     const sidebar = screen.getByLabelText('已订阅 feed')
     expect(within(sidebar).getByText('Newspaper')).toBeTruthy()
     expect(within(sidebar).getByText('Uncategorized')).toBeTruthy()
+    expect(within(sidebar).queryByText('有待读 Feed')).toBeNull()
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Newspaper' }))
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+
     expect(within(sidebar).getByText('有待读 Feed')).toBeTruthy()
+    expect(within(sidebar).queryByText('example.com')).toBeNull()
     expect(within(sidebar).getByLabelText('20 条待读')).toBeTruthy()
     expect(within(sidebar).getByText('无待读 Feed')).toBeTruthy()
     expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
+  })
+
+  it('keeps every folder collapsed when entering the feed module', () => {
+    renderFeedDashboard({
+      folders: [
+        {
+          id: 'folder-news',
+          name: 'Newspaper',
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+      subscriptions: [
+        createSubscription({
+          id: 'news-feed',
+          title: '新闻 Feed',
+          url: 'https://example.com/news.xml',
+          category: 'Newspaper',
+        }),
+        createSubscription({
+          id: 'design-feed',
+          title: '设计 Feed',
+          url: 'https://example.com/design.xml',
+        }),
+      ],
+    })
+
+    const sidebar = screen.getByLabelText('已订阅 feed')
+    expect(within(sidebar).getByRole('button', { name: '展开 Newspaper' }).getAttribute('aria-expanded')).toBe('false')
+    expect(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }).getAttribute('aria-expanded')).toBe('false')
+    expect(within(sidebar).queryByText('新闻 Feed')).toBeNull()
+    expect(within(sidebar).queryByText('设计 Feed')).toBeNull()
+
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Newspaper' }))
+
+    expect(within(sidebar).getByRole('button', { name: '收起 Newspaper' }).getAttribute('aria-expanded')).toBe('true')
+    expect(within(sidebar).getByText('新闻 Feed')).toBeTruthy()
+    expect(within(sidebar).queryByText('设计 Feed')).toBeNull()
   })
 
   it('collapses and expands the left subscription sidebar', () => {
@@ -104,7 +149,7 @@ describe('FeedDashboard', () => {
 
     expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
     expect(screen.getByText('阅读列表')).toBeTruthy()
-    expect(screen.getByText('设计 Feed')).toBeTruthy()
+    expect(screen.queryByText('设计 Feed')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '收起 RSS 订阅栏' }))
 
@@ -116,7 +161,7 @@ describe('FeedDashboard', () => {
 
     expect(screen.getByLabelText('已订阅 feed')).toBeTruthy()
     expect(screen.getByText('阅读列表')).toBeTruthy()
-    expect(screen.getByText('设计 Feed')).toBeTruthy()
+    expect(screen.queryByText('设计 Feed')).toBeNull()
   })
 
   it('removes clicked preview items from the unread count', () => {
@@ -157,6 +202,7 @@ describe('FeedDashboard', () => {
     })
 
     const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     expect(within(sidebar).getByLabelText('2 条待读')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: /文章一/ }))
@@ -205,6 +251,7 @@ describe('FeedDashboard', () => {
     })
 
     const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     expect(within(sidebar).getByLabelText('2 条待读')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '全部标为已读' }))
@@ -212,6 +259,53 @@ describe('FeedDashboard', () => {
     expect(within(sidebar).getByText('产品 Feed')).toBeTruthy()
     expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
     expect((screen.getByRole('button', { name: '全部标为已读' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('creates a read-later draft from the selected preview article', () => {
+    const onCreateReadLaterFromPreview = vi.fn()
+    const subscription = createSubscription({
+      id: 'product-feed',
+      title: '产品 Feed',
+      url: 'https://example.com/product.xml',
+      articleCount: 1,
+    })
+    const previewItem = {
+      id: 'item-1',
+      title: '文章一',
+      url: 'https://example.com/posts/one',
+      summary: '第一篇摘要。',
+      publishedAt: '2026-06-04T08:00:00.000Z',
+      sourceName: '产品 Feed',
+    }
+    const previewArticle = {
+      title: '文章一',
+      desc: '第一篇摘要。',
+      sourceName: '产品 Feed',
+      markdown: '# 正文标题',
+      requestedUrl: 'https://example.com/posts/one',
+      finalUrl: 'https://example.com/posts/one',
+      needsManualPaste: false,
+    }
+
+    renderFeedDashboard({
+      subscriptions: [subscription],
+      selectedSubscriptionUrl: subscription.url,
+      previewFeed: {
+        title: '产品 Feed',
+        description: '',
+        requestedUrl: subscription.url,
+        finalUrl: subscription.url,
+        items: [previewItem],
+      },
+      previewArticlesByUrl: {
+        [previewItem.url]: previewArticle,
+      },
+      onCreateReadLaterFromPreview,
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '加入待读' }))
+
+    expect(onCreateReadLaterFromPreview).toHaveBeenCalledWith(previewItem, previewArticle)
   })
 
   it('marks a single feed as read and deletes it from the feed action menu', () => {
@@ -229,6 +323,7 @@ describe('FeedDashboard', () => {
     })
 
     const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     expect(within(sidebar).getByLabelText('3 条待读')).toBeTruthy()
     expect(within(sidebar).queryByRole('button', { name: '删除 设计 Feed' })).toBeNull()
 
@@ -307,6 +402,7 @@ describe('FeedDashboard', () => {
     })
 
     const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     const feedItem = within(sidebar).getByText('设计 Feed').closest('article')
     const targetFolder = within(sidebar).getByText('Newspaper').closest('section')
     if (!feedItem || !targetFolder) {
@@ -359,6 +455,7 @@ describe('FeedDashboard', () => {
     })
 
     const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Newspaper' }))
     const feedItem = within(sidebar).getByText('设计 Feed').closest('article')
     const targetFolder = within(sidebar).getByText('Uncategorized').closest('section')
     if (!feedItem || !targetFolder) {
