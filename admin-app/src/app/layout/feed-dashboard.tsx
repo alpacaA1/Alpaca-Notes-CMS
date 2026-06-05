@@ -956,6 +956,7 @@ export default function FeedDashboard({
                 externalUrl={selectedPreviewArticle.finalUrl || selectedPreviewArticle.requestedUrl || selectedPreviewItem.url}
                 readingStatus="unread"
                 contentType="read-later"
+                showReadLaterOutline
               />
             </div>
           ) : (

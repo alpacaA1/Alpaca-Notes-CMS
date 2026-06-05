@@ -110,6 +110,8 @@ type PreviewPaneProps = {
   onOpenInternalReference?: (targetKey: string) => void
   topicBacklinks?: TopicBacklinkItem[]
   showTopicBacklinksDrawer?: boolean
+  showReadLaterOutline?: boolean
+  showInlineOutline?: boolean
 }
 
 type WikiLinkRenderOptions = {
@@ -2105,6 +2107,8 @@ export default function PreviewPane({
   onOpenInternalReference,
   topicBacklinks = [],
   showTopicBacklinksDrawer = false,
+  showReadLaterOutline = false,
+  showInlineOutline = true,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
@@ -2130,6 +2134,12 @@ export default function PreviewPane({
   const structuredSections = !isReadLater && contentFormat === 'markdown' && (isDiary || isKnowledge)
     ? parseStructuredMarkdownSections(markdown)
     : null
+  const structuredOutlineItems = structuredSections?.sections.map((section) => ({
+    id: section.id,
+    label: section.title,
+    level: 1,
+    kind: 'section' as const,
+  })) ?? []
   const articleRootId = isReadLater ? READ_LATER_ROOT_ID : POST_PREVIEW_ROOT_ID
   const postHeadingIdPrefix = isPreviewPost && contentFormat === 'markdown' ? POST_PREVIEW_HEADING_PREFIX : undefined
   const postOutlineItems = useMemo(
@@ -2141,12 +2151,23 @@ export default function PreviewPane({
     [markdown, postHeadingIdPrefix],
   )
   const shouldShowPostOutline = isPreviewPost && postOutlineItems.length > 0
-  const readLaterOutlineTargetIds = isReadLater ? getReadLaterOutlineTargetIds(markdown, contentFormat) : []
+  const readLaterOutlineItems = useMemo(
+    () => (isReadLater ? getReadLaterOutline(markdown, contentFormat) : []),
+    [contentFormat, isReadLater, markdown],
+  )
+  const shouldShowReadLaterOutline = isReadLater
+    && showReadLaterOutline
+    && readLaterOutlineItems.some((item) => item.id !== articleRootId)
+  const readLaterOutlineTargetIds = isReadLater
+    ? buildOutlineTargetIds(articleRootId, readLaterOutlineItems)
+    : []
   const outlineTargetIds = isReadLater
     ? readLaterOutlineTargetIds
     : shouldShowPostOutline
       ? buildOutlineTargetIds(articleRootId, postOutlineItems)
-      : []
+      : isDiary && structuredOutlineItems.length > 0
+        ? buildOutlineTargetIds(articleRootId, structuredOutlineItems)
+        : []
   const hasStructuredReadLaterSections = isReadLater
     ? Object.values(readLaterSections ?? {}).some((section) => section.trim().length > 0)
     : false
@@ -2223,7 +2244,7 @@ export default function PreviewPane({
 
   useEffect(() => {
     const panel = postOutlinePanelRef.current
-    if (!shouldShowPostOutline || !panel) {
+    if ((!shouldShowPostOutline && !shouldShowReadLaterOutline) || !panel) {
       return
     }
 
@@ -2250,15 +2271,15 @@ export default function PreviewPane({
       panel.classList.remove('is-scrolling')
       panel.removeEventListener('scroll', handleScroll)
     }
-  }, [shouldShowPostOutline])
+  }, [shouldShowPostOutline, shouldShowReadLaterOutline])
 
   useEffect(() => {
     const shouldSyncExternalOutline = isReadLater && Boolean(onActiveOutlineTargetChange)
-    const shouldSyncInternalOutline = !isReadLater && shouldShowPostOutline
+    const shouldSyncInternalOutline = (!isReadLater && outlineTargetIds.length > 0) || shouldShowReadLaterOutline
 
     if (!shouldSyncExternalOutline && !shouldSyncInternalOutline) {
       activeOutlineTargetRef.current = null
-      if (!isReadLater) {
+      if (!isReadLater || showReadLaterOutline) {
         setActivePostOutlineTargetId(null)
       }
       return
@@ -2270,7 +2291,11 @@ export default function PreviewPane({
       return
     }
 
-    const scrollContainer = isReadLater ? pane : findClosestScrollContainer(pane)
+    const scrollContainer = isReadLater && shouldShowReadLaterOutline
+      ? findClosestScrollContainer(article)
+      : isReadLater
+        ? pane
+        : findClosestScrollContainer(pane)
 
     const updateActiveOutlineTarget = () => {
       const nextTargetId = getActiveOutlineTargetId(pane, article, outlineTargetIds, articleRootId, scrollContainer)
@@ -2281,10 +2306,14 @@ export default function PreviewPane({
       activeOutlineTargetRef.current = nextTargetId
       if (isReadLater) {
         onActiveOutlineTargetChange?.(nextTargetId)
+        if (shouldShowReadLaterOutline) {
+          setActivePostOutlineTargetId(nextTargetId)
+        }
         return
       }
 
       setActivePostOutlineTargetId(nextTargetId)
+      onActiveOutlineTargetChange?.(nextTargetId)
     }
 
     updateActiveOutlineTarget()
@@ -2295,7 +2324,7 @@ export default function PreviewPane({
       scrollContainer.removeEventListener('scroll', updateActiveOutlineTarget)
       window.removeEventListener('resize', updateActiveOutlineTarget)
     }
-  }, [articleRootId, isReadLater, onActiveOutlineTargetChange, outlineTargetIds, shouldShowPostOutline])
+  }, [articleRootId, isReadLater, onActiveOutlineTargetChange, outlineTargetIds, shouldShowReadLaterOutline, showReadLaterOutline])
 
   useEffect(() => {
     const article = articleRef.current
@@ -2407,7 +2436,7 @@ export default function PreviewPane({
   }, [activeAnnotation, annotations, isInlineAnnotationEditing, isReadLater, markdown])
 
   useEffect(() => {
-    if (!isReadLater || !navigationRequest) {
+    if (!navigationRequest) {
       return
     }
 
@@ -2418,7 +2447,7 @@ export default function PreviewPane({
     }
 
     scrollToOutlineTarget(pane, article, navigationRequest.targetId, articleRootId, true)
-  }, [articleRootId, isReadLater, markdown, navigationRequest])
+  }, [articleRootId, markdown, navigationRequest])
 
   const handlePostOutlineNavigation = (targetId: string) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
     event.preventDefault()
@@ -2431,16 +2460,26 @@ export default function PreviewPane({
 
     activeOutlineTargetRef.current = targetId
     setActivePostOutlineTargetId(targetId)
-    scrollToOutlineTarget(pane, article, targetId, articleRootId, false, findClosestScrollContainer(pane))
+    scrollToOutlineTarget(
+      pane,
+      article,
+      targetId,
+      articleRootId,
+      false,
+      isReadLater ? findClosestScrollContainer(article) : findClosestScrollContainer(pane),
+    )
   }
+
+  const outlineItems = isReadLater ? readLaterOutlineItems : postOutlineItems
+  const shouldShowInlineOutline = showInlineOutline && (shouldShowPostOutline || shouldShowReadLaterOutline)
 
   const previewCanvasClassName = [
     'preview-pane__canvas',
-    shouldShowPostOutline && shouldShowTopicBacklinksDrawer
+    shouldShowInlineOutline && shouldShowTopicBacklinksDrawer
       ? (isTopicBacklinksDrawerOpen
         ? 'preview-pane__canvas--with-post-outline-and-topic-backlinks'
         : 'preview-pane__canvas--with-post-outline-and-topic-backlinks-collapsed')
-      : shouldShowPostOutline
+      : shouldShowInlineOutline
         ? 'preview-pane__canvas--with-post-outline'
         : shouldShowTopicBacklinksDrawer
           ? `preview-pane__canvas--with-topic-backlinks${!isTopicBacklinksDrawerOpen ? ' preview-pane__canvas--with-topic-backlinks-collapsed' : ''}`
@@ -2641,12 +2680,12 @@ export default function PreviewPane({
         </div>
       ) : null}
       <div className={previewCanvasClassName}>
-        {shouldShowPostOutline ? (
-          <aside className="preview-post-outline" aria-label="文章目录">
+        {shouldShowInlineOutline ? (
+          <aside className={`preview-post-outline${usesReaderBodyStyle ? ' preview-post-outline--reader' : ''}${shouldShowReadLaterOutline ? ' preview-post-outline--read-later' : ''}`} aria-label="文章目录">
             <div ref={postOutlinePanelRef} className="preview-post-outline__panel">
               <div className="preview-post-outline__header">
-                <p className="preview-post-outline__eyebrow">文章预览</p>
-                <h2>当前目录</h2>
+                <p className="preview-post-outline__eyebrow">RSS 正文</p>
+                <h2>导航</h2>
               </div>
               <nav className="preview-post-outline__nav" aria-label="文章目录">
                 <a
@@ -2657,7 +2696,9 @@ export default function PreviewPane({
                 >
                   回到顶部
                 </a>
-                {postOutlineItems.map((item) => {
+                {outlineItems
+                  .filter((item) => item.id !== articleRootId)
+                  .map((item) => {
                   const isActive = activePostOutlineTargetId === item.id
 
                   return (

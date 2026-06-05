@@ -347,6 +347,32 @@ function getFeedDiscoveryPageUrls(url) {
   return candidates;
 }
 
+function hasPathFileExtension(pathname) {
+  return /\/[^/]+\.[a-z0-9]{1,12}$/i.test(String(pathname || ''));
+}
+
+function getConventionalFeedUrls(pageUrl) {
+  if (hasPathFileExtension(pageUrl.pathname)) {
+    return [];
+  }
+
+  const basePath = pageUrl.pathname.replace(/\/+$/, '');
+  const candidates = [];
+
+  for (const suffix of FEED_PATH_SUFFIXES) {
+    const candidate = new URL(pageUrl.toString());
+    candidate.pathname = `${basePath}${suffix}`;
+    candidate.search = '';
+    candidate.hash = '';
+
+    if (candidate.toString() !== pageUrl.toString() && !candidates.some((item) => item.toString() === candidate.toString())) {
+      candidates.push(candidate);
+    }
+  }
+
+  return candidates;
+}
+
 function discoverFeedUrlFromHtml(html, pageUrl) {
   let document;
   try {
@@ -425,6 +451,22 @@ async function discoverAlternateFeedUrl(url, signal, body = '') {
   return null;
 }
 
+async function fetchConventionalFeed(pageUrl, signal) {
+  for (const candidateUrl of getConventionalFeedUrls(pageUrl)) {
+    try {
+      return await fetchAndParseFeed(candidateUrl, signal);
+    } catch (error) {
+      if (error instanceof FeedImportError) {
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return null;
+}
+
 async function fetchAndParseFeed(url, signal) {
   const { response, finalUrl } = await fetchFeedResponse(url, signal);
   if (!response.ok) {
@@ -482,11 +524,22 @@ async function importFeed(feedUrl) {
       }
 
       const discoveredUrl = await discoverAlternateFeedUrl(finalUrl, controller.signal, body);
-      if (!discoveredUrl) {
+      if (discoveredUrl) {
+        const retryResult = await fetchAndParseFeed(discoveredUrl, controller.signal);
+        return {
+          title: retryResult.parsed.title,
+          description: retryResult.parsed.description,
+          requestedUrl: url.toString(),
+          finalUrl: retryResult.finalUrl.toString(),
+          items: retryResult.parsed.items,
+        };
+      }
+
+      const retryResult = await fetchConventionalFeed(finalUrl, controller.signal);
+      if (!retryResult) {
         throw error;
       }
 
-      const retryResult = await fetchAndParseFeed(discoveredUrl, controller.signal);
       return {
         title: retryResult.parsed.title,
         description: retryResult.parsed.description,

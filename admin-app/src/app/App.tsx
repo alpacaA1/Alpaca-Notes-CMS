@@ -535,6 +535,10 @@ export default function App() {
     return postsByType['read-later'].filter((post) => selectedPathSet.has(post.path))
   }, [postsByType['read-later'], selectedMaterialPaths['read-later']])
   const rssSubscriptions = rssSubscriptionsState.subscriptions
+  const rssReadLaterCount = useMemo(
+    () => rssSubscriptions.reduce((total, subscription) => total + Math.max(0, subscription.articleCount), 0),
+    [rssSubscriptions],
+  )
   const selectedRssSubscription = useMemo(
     () => rssSubscriptions.find((subscription) => subscription.url === selectedRssFeedUrl) || null,
     [rssSubscriptions, selectedRssFeedUrl],
@@ -3103,12 +3107,16 @@ export default function App() {
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
-  const isReadLaterPreview = Boolean(isReadLaterDocument && isPreviewing)
-  const hideTopBar = isReadLaterPreview && isReadLaterTopBarHidden
-  const showImmersiveCanvas = Boolean(document) && (isImmersive || (isPreviewing && !isReadLaterDocument))
+  const isReaderPreview = Boolean(
+    document
+    && isPreviewing
+    && (document.contentType === 'post' || document.contentType === 'diary' || document.contentType === 'read-later'),
+  )
+  const hideTopBar = isReaderPreview && isReadLaterTopBarHidden
+  const showImmersiveCanvas = Boolean(document) && isImmersive && !isReaderPreview
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
-  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReadLaterPreview
+  const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReaderPreview
   const canReturnToPreviousDocument = editorNavigationStack.length > 0
   const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
   const readerBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回归档'
@@ -3142,6 +3150,7 @@ export default function App() {
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
           onOpenFeeds={handleOpenFeeds}
+          rssReadLaterCount={rssReadLaterCount}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -3291,7 +3300,7 @@ export default function App() {
           />
         </section>
       ) : (
-        <div className={`admin-layout${isReadLaterPreview ? ' admin-layout--reader' : ''}`}>
+        <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}`}>
           <PostListPane
             posts={filteredPosts}
             hidden={isPostListHidden}
@@ -3299,6 +3308,7 @@ export default function App() {
             activePostPath={activePostPath}
             document={document}
             documentContentFormat={documentContentFormat}
+            isPreviewing={isPreviewing}
             activeOutlineTargetId={activeOutlineTargetId}
             isDeleting={isDeletingPost}
             deletingPostPath={deletingPostPath}
@@ -3314,8 +3324,8 @@ export default function App() {
             isTopBarHidden={hideTopBar}
             onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
           />
-          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReadLaterPreview ? ' editor-layout--reader' : ''}`}>
-            <div className={`editor-stack${isReadLaterPreview ? ' editor-stack--reader' : ''}`}>
+          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReaderPreview ? ' editor-layout--reader' : ''}`}>
+            <div className={`editor-stack${isReaderPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
                   {showDocumentFrame ? (
@@ -3375,6 +3385,7 @@ export default function App() {
                       onOpenInternalReference={handleOpenInternalReference}
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
+                      showInlineOutline={!isReaderPreview}
                     />
                   ) : (
                     <MarkdownEditor
@@ -3411,6 +3422,7 @@ export default function App() {
                 onUploadImage={handleUploadImage}
                 onImportFromUrl={() => { void handleImportFromUrl() }}
                 isImportingFromUrl={isImportingFromUrl}
+                isReaderPreview={isReaderPreview}
                 previewImageUrls={previewImageUrls}
                 readLaterTab={readLaterTab}
                 onReadLaterTabChange={handleReadLaterTabChange}

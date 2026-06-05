@@ -98,6 +98,24 @@ const readLaterDocument: ParsedPost = {
   },
 }
 
+const postDocument: ParsedPost = {
+  path: 'source/_posts/hello-world.md',
+  sha: 'sha-1',
+  body: `# 背景\n正文\n\n## 方案\n细节`,
+  hasExplicitPublished: true,
+  hasExplicitPermalink: true,
+  contentType: 'post',
+  frontmatter: {
+    title: '为什么先把博客搭起来',
+    date: '2026-04-01 20:10:00',
+    desc: 'desc',
+    categories: ['思考'],
+    tags: ['记录'],
+    permalink: 'why-start-this-blog/',
+    published: true,
+  },
+}
+
 const diaryPosts: PostIndexItem[] = [
   {
     path: 'source/diary/20260505010101.md',
@@ -113,6 +131,25 @@ const diaryPosts: PostIndexItem[] = [
     contentType: 'diary',
   },
 ]
+
+const diaryDocument: ParsedPost = {
+  path: 'source/diary/20260505010101.md',
+  sha: 'sha-diary-1',
+  body: `开头记录\n\n## 今日进展\n写完四月月报\n\n## 明日计划\n整理素材`,
+  hasExplicitPublished: true,
+  hasExplicitPermalink: false,
+  contentType: 'diary',
+  frontmatter: {
+    title: '五月第一则日记',
+    date: '2026-05-05 01:01:01',
+    desc: '',
+    categories: [],
+    tags: ['复盘'],
+    permalink: null,
+    published: false,
+    diary: true,
+  },
+}
 
 describe('management layout components', () => {
   afterEach(() => {
@@ -260,6 +297,53 @@ describe('management layout components', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '← 返回归档' }))
     expect(onBackToList).toHaveBeenCalled()
+  })
+
+  it('replaces the post archive with a weak reader outline in preview mode', () => {
+    const onNavigateOutline = vi.fn()
+    render(
+      <PostListPane
+        posts={posts}
+        hidden={false}
+        contentType="post"
+        document={postDocument}
+        isPreviewing
+        activeOutlineTargetId="post-preview-heading-方案"
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onNavigateOutline={onNavigateOutline}
+      />,
+    )
+
+    expect(screen.getByText('内容目录')).toBeTruthy()
+    expect(screen.queryByText('文章归档')).toBeNull()
+    expect(screen.getByRole('link', { name: '回到顶部' }).getAttribute('href')).toBe('#post-preview-content')
+    expect(screen.getByRole('link', { name: '背景' }).getAttribute('href')).toBe('#post-preview-heading-背景')
+    expect(screen.getByRole('link', { name: '方案' }).className).toContain('is-active')
+
+    fireEvent.click(screen.getByRole('link', { name: '背景' }))
+    expect(onNavigateOutline).toHaveBeenCalledWith('post-preview-heading-背景')
+  })
+
+  it('replaces the diary archive with a weak reader outline in preview mode', () => {
+    render(
+      <PostListPane
+        posts={diaryPosts}
+        hidden={false}
+        contentType="diary"
+        document={diaryDocument}
+        isPreviewing
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('内容目录')).toBeTruthy()
+    expect(screen.queryByText('日记归档')).toBeNull()
+    expect(screen.getByRole('link', { name: '今日进展' }).getAttribute('href')).toBe('#structured-section-1')
+    expect(screen.getByRole('link', { name: '明日计划' }).getAttribute('href')).toBe('#structured-section-2')
   })
 
   it('highlights the active reader outline item', () => {
@@ -444,6 +528,63 @@ describe('management layout components', () => {
     expect(screen.getByRole('button', { name: '整理素材' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /新建日记/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toBe('搜索标题、正文或标签')
+  })
+
+  it('shows a red dot on the RSS entry only when RSS read-later count is greater than one', () => {
+    const { container, rerender } = render(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onOrganizeMaterials={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="post"
+        isPreviewing={false}
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+        onOpenFeeds={vi.fn()}
+        rssReadLaterCount={1}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'RSS' })).toBeTruthy()
+    expect(container.querySelector('.top-bar__rss-badge')).toBeNull()
+
+    rerender(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onOrganizeMaterials={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="post"
+        isPreviewing={false}
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+        onOpenFeeds={vi.fn()}
+        rssReadLaterCount={2}
+      />,
+    )
+
+    expect(container.querySelector('.top-bar__rss-badge')).toBeTruthy()
   })
 
   it('does not render diary summaries in the archive list', () => {

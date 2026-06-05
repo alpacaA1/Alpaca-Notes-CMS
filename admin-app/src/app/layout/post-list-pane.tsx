@@ -2,7 +2,8 @@ import type { MouseEvent as ReactMouseEvent } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ParsedPost, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, PostIndexItem } from '../posts/post-types'
-import { getReadLaterOutline } from '../read-later/parse-item'
+import { extractMarkdownHeadings, getReadLaterOutline } from '../read-later/parse-item'
+import type { ReadLaterOutlineItem } from '../read-later/item-types'
 
 function getReadLaterStatusTone(status?: ReadingStatus) {
   return status === 'done' ? 'done' : status === 'reading' ? 'reading' : 'unread'
@@ -35,6 +36,7 @@ type PostListPaneProps = {
   activePostPath?: string | null
   document?: ParsedPost | null
   documentContentFormat?: ResolvedContentFormat
+  isPreviewing?: boolean
   activeOutlineTargetId?: string | null
   isDeleting?: boolean
   deletingPostPath?: string | null
@@ -51,6 +53,75 @@ type PostListPaneProps = {
   onToggleTopBar?: () => void
 }
 
+const POST_PREVIEW_ROOT_ID = 'post-preview-content'
+const READ_LATER_ROOT_ID = 'read-later-content'
+
+function normalizeOutlineLevels(items: ReadLaterOutlineItem[]) {
+  if (items.length === 0) {
+    return items
+  }
+
+  const minLevel = Math.min(...items.map((item) => item.level))
+
+  return items.map((item) => ({
+    ...item,
+    level: Math.max(1, item.level - minLevel + 1),
+  }))
+}
+
+function getDiaryOutline(markdown: string): ReadLaterOutlineItem[] {
+  let sectionIndex = 0
+
+  return markdown.split('\n').flatMap((line) => {
+    const headingMatch = line.match(/^##\s+(.*)$/)
+    if (!headingMatch) {
+      return []
+    }
+
+    const label = headingMatch[1].trim()
+    if (!label) {
+      return []
+    }
+
+    sectionIndex += 1
+
+    return [{
+      id: `structured-section-${sectionIndex}`,
+      label,
+      level: 1,
+      kind: 'section' as const,
+    }]
+  })
+}
+
+function getPreviewOutline(document: ParsedPost, documentContentFormat: ResolvedContentFormat) {
+  if (document.contentType === 'read-later') {
+    return {
+      rootId: READ_LATER_ROOT_ID,
+      outlineItems: getReadLaterOutline(document.body, documentContentFormat),
+    }
+  }
+
+  if (document.contentType === 'post' && documentContentFormat === 'markdown') {
+    return {
+      rootId: POST_PREVIEW_ROOT_ID,
+      outlineItems: normalizeOutlineLevels(extractMarkdownHeadings(document.body, 'post-preview-heading')),
+    }
+  }
+
+  if (document.contentType === 'diary' && documentContentFormat === 'markdown') {
+    return {
+      rootId: POST_PREVIEW_ROOT_ID,
+      outlineItems: getDiaryOutline(document.body),
+    }
+  }
+
+  return {
+    rootId: POST_PREVIEW_ROOT_ID,
+    outlineItems: [] as ReadLaterOutlineItem[],
+  }
+}
+
 export default function PostListPane({
   posts,
   hidden,
@@ -58,6 +129,7 @@ export default function PostListPane({
   activePostPath = null,
   document = null,
   documentContentFormat = 'markdown',
+  isPreviewing = false,
   activeOutlineTargetId = null,
   isDeleting = false,
   deletingPostPath = null,
@@ -77,8 +149,16 @@ export default function PostListPane({
     return null
   }
 
-  if (contentType === 'read-later' && document?.contentType === 'read-later') {
-    const outlineItems = getReadLaterOutline(document.body, documentContentFormat)
+  const shouldShowReaderNav = Boolean(
+    document
+    && (
+      document.contentType === 'read-later'
+      || (isPreviewing && (document.contentType === 'post' || document.contentType === 'diary'))
+    ),
+  )
+
+  if (document && shouldShowReaderNav) {
+    const { rootId, outlineItems } = getPreviewOutline(document, documentContentFormat)
     const handleOutlineNavigation = (targetId: string) => (event: ReactMouseEvent<HTMLAnchorElement>) => {
       if (!onNavigateOutline) {
         return
@@ -114,10 +194,10 @@ export default function PostListPane({
         <nav className="post-outline" aria-label="文章目录">
           <div className="post-outline__list">
             <a
-              className={`post-outline__item post-outline__item--top${activeOutlineTargetId === 'read-later-content' ? ' is-active' : ''}`}
-              href="#read-later-content"
-              onClick={handleOutlineNavigation('read-later-content')}
-              aria-current={activeOutlineTargetId === 'read-later-content' ? 'location' : undefined}
+              className={`post-outline__item post-outline__item--top${activeOutlineTargetId === rootId ? ' is-active' : ''}`}
+              href={`#${rootId}`}
+              onClick={handleOutlineNavigation(rootId)}
+              aria-current={activeOutlineTargetId === rootId ? 'location' : undefined}
             >
               回到顶部
             </a>

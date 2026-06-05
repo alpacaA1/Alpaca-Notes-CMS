@@ -308,6 +308,53 @@ describe('FeedDashboard', () => {
     expect(onCreateReadLaterFromPreview).toHaveBeenCalledWith(previewItem, previewArticle)
   })
 
+  it('shows a subtle outline for the selected RSS article body', () => {
+    const subscription = createSubscription({
+      id: 'product-feed',
+      title: '产品 Feed',
+      url: 'https://example.com/product.xml',
+      articleCount: 1,
+    })
+    const previewItem = {
+      id: 'item-1',
+      title: '文章一',
+      url: 'https://example.com/posts/one',
+      summary: '第一篇摘要。',
+      publishedAt: '2026-06-04T08:00:00.000Z',
+      sourceName: '产品 Feed',
+    }
+
+    const { container } = renderFeedDashboard({
+      subscriptions: [subscription],
+      selectedSubscriptionUrl: subscription.url,
+      previewFeed: {
+        title: '产品 Feed',
+        description: '',
+        requestedUrl: subscription.url,
+        finalUrl: subscription.url,
+        items: [previewItem],
+      },
+      previewArticlesByUrl: {
+        [previewItem.url]: {
+          title: '文章一',
+          desc: '第一篇摘要。',
+          sourceName: '产品 Feed',
+          markdown: '# 正文标题\n\n## 第二节\n\n正文内容。',
+          requestedUrl: previewItem.url,
+          finalUrl: previewItem.url,
+          needsManualPaste: false,
+        },
+      },
+    })
+
+    const outline = container.querySelector('.feed-dashboard__reader-preview .preview-post-outline')
+    expect(outline).toBeTruthy()
+    expect(outline?.className).toContain('preview-post-outline--read-later')
+    expect(within(outline as HTMLElement).getByRole('heading', { name: '导航' })).toBeTruthy()
+    expect(within(outline as HTMLElement).getByRole('link', { name: '正文标题' })).toBeTruthy()
+    expect(within(outline as HTMLElement).getByRole('link', { name: '第二节' })).toBeTruthy()
+  })
+
   it('expands the reader by collapsing the subscription and feed item lists', () => {
     const subscription = createSubscription({
       id: 'product-feed',

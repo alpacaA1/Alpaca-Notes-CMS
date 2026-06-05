@@ -22,29 +22,27 @@ function AlpacaLogo() {
 
 function SunIcon() {
   return (
-    <svg className="top-bar__theme-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8 1.5V3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M8 12.75V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M1.5 8H3.25" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M12.75 8H14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M3.4 3.4L4.65 4.65" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M11.35 11.35L12.6 12.6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M11.35 4.65L12.6 3.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      <path d="M3.4 12.6L4.65 11.35" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg className="top-bar__theme-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="3.7" fill="currentColor" />
+      <path
+        d="M10 1.9V4M10 16v2.1M1.9 10H4M16 10h2.1M4.25 4.25l1.48 1.48M14.27 14.27l1.48 1.48M15.75 4.25l-1.48 1.48M5.73 14.27l-1.48 1.48"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+      />
     </svg>
   )
 }
 
 function MoonIcon() {
   return (
-    <svg className="top-bar__theme-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+    <svg className="top-bar__theme-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <path
-        d="M10.95 1.85a5.85 5.85 0 1 0 3.2 10.56 5.92 5.92 0 0 1-7.6-7.6 5.84 5.84 0 0 0 4.4-2.96Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
+        d="M17.9 12.74A7.56 7.56 0 0 1 11 18.06 7.6 7.6 0 0 1 8.38 2.93a6.2 6.2 0 0 0 6.38 9.3c.99-.18 1.93-.63 2.7-1.28.4-.34 1.08.22.93.72-.07.25-.16.5-.49 1.07Z"
+        fill="currentColor"
       />
+      <path d="M15.65 2.4l.48 1.14 1.13.48-1.13.48-.48 1.14-.48-1.14-1.14-.48 1.14-.48.48-1.14Z" fill="currentColor" opacity="0.72" />
+      <circle cx="17.15" cy="7.35" r="0.82" fill="currentColor" opacity="0.58" />
     </svg>
   )
 }
@@ -63,6 +61,7 @@ type TopBarProps = {
   onOpenAnnotations?: () => void
   onOpenTrash?: () => void
   onOpenFeeds?: () => void
+  rssReadLaterCount?: number
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -165,6 +164,7 @@ export default function TopBar({
   onOpenAnnotations,
   onOpenTrash,
   onOpenFeeds,
+  rssReadLaterCount = 0,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -198,6 +198,7 @@ export default function TopBar({
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
+  const showRssBadge = !isFeedsView && rssReadLaterCount > 1
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
 
@@ -278,11 +279,12 @@ export default function TopBar({
           ) : null}
           {showFeedsToggle ? (
             <button
-              className={`top-bar__button${isFeedsView ? ' top-bar__button--active' : ''}`}
+              className={`top-bar__button top-bar__button--rss${isFeedsView ? ' top-bar__button--active' : ''}`}
               type="button"
               onClick={isFeedsView ? onBackToDashboard : onOpenFeeds}
             >
               {isFeedsView ? '返回内容' : 'RSS'}
+              {showRssBadge ? <span className="top-bar__rss-badge" aria-hidden="true" /> : null}
             </button>
           ) : null}
           {isEditor && onBackToDashboard ? (

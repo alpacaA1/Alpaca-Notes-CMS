@@ -235,6 +235,69 @@ test('importFeed discovers a feed link from an HTML homepage', async () => {
   assert.equal(feed.items.length, 1);
 });
 
+test('importFeed falls back to conventional feed paths from an HTML homepage', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.55', family: 4 }]);
+  const requestedUrls = [];
+
+  global.fetch = async (url) => {
+    requestedUrls.push(url);
+
+    if (url === 'https://song.example/') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        body: '<!doctype html><html><head><title>Simon</title></head><body><article>Latest posts</article></body></html>',
+      });
+    }
+
+    if (url === 'https://song.example/feed.xml') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/xml; charset=utf-8',
+        },
+        body: `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Simon's Blog</title>
+    <description>Posts</description>
+    <item>
+      <guid>https://song.example/onsen</guid>
+      <title>日本温泉完全指南</title>
+      <link>https://song.example/onsen</link>
+      <description>温泉指南摘要。</description>
+    </item>
+  </channel>
+</rss>`,
+      });
+    }
+
+    return createMockResponse({
+      url,
+      status: 404,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+      },
+      body: '<!doctype html><html><body>Not found</body></html>',
+    });
+  };
+
+  const feed = await importFeed('https://song.example/');
+
+  assert.deepEqual(requestedUrls, [
+    'https://song.example/',
+    'https://song.example/feed/atom',
+    'https://song.example/rss.xml',
+    'https://song.example/feed.xml',
+  ]);
+  assert.equal(feed.requestedUrl, 'https://song.example/');
+  assert.equal(feed.finalUrl, 'https://song.example/feed.xml');
+  assert.equal(feed.title, "Simon's Blog");
+  assert.equal(feed.items.length, 1);
+});
+
 test('importFeed rejects non-feed pages with a not_feed code', async () => {
   setDnsLookupForTesting(async () => [{ address: '203.0.113.52', family: 4 }]);
   global.fetch = async () => createMockResponse({

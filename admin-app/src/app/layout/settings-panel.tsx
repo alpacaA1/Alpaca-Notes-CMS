@@ -29,6 +29,7 @@ type SettingsPanelProps = {
   onUploadImage?: (file: File) => Promise<{ markdown: string; publicUrl: string }>
   onImportFromUrl?: () => void
   isImportingFromUrl?: boolean
+  isReaderPreview?: boolean
   previewImageUrls?: Record<string, string>
   readLaterTab?: ReadLaterTab
   onReadLaterTabChange?: (tab: ReadLaterTab) => void
@@ -99,6 +100,7 @@ export default function SettingsPanel({
   onUploadImage,
   onImportFromUrl,
   isImportingFromUrl = false,
+  isReaderPreview = false,
   previewImageUrls,
   readLaterTab: controlledReadLaterTab,
   onReadLaterTabChange,
@@ -168,6 +170,8 @@ export default function SettingsPanel({
   const isTopicDocument = isTopicPost || isLegacyTopicKnowledge
   const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
   const currentDocumentNote = readLaterSections?.commentary || ''
+  const isPostReaderPreview = isPost && isReaderPreview
+  const useReaderLitePanel = isReadLater || isPostReaderPreview
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -266,7 +270,7 @@ export default function SettingsPanel({
   }
 
   return (
-    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}`}>
+    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}${useReaderLitePanel ? ' settings-panel--reader-lite' : ''}`}>
       {!isReadLater ? (
         <div className="settings-panel__header">
           <>
