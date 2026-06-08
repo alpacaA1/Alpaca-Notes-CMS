@@ -450,6 +450,7 @@ export default function App() {
   const [viewedFeedItemsByUrl, setViewedFeedItemsByUrl] = useState<ViewedFeedItemsByUrl>(readViewedFeedItemsByUrl)
   const [manualFeedUrl, setManualFeedUrl] = useState('')
   const [isRssSubscriptionsLoading, setIsRssSubscriptionsLoading] = useState(false)
+  const [hasLoadedRssSubscriptions, setHasLoadedRssSubscriptions] = useState(false)
   const [isSavingRssSubscription, setIsSavingRssSubscription] = useState(false)
   const [isRssPreviewLoading, setIsRssPreviewLoading] = useState(false)
   const [isFeedDirectoryVisible, setIsFeedDirectoryVisible] = useState(false)
@@ -803,7 +804,7 @@ export default function App() {
   }, [adminView, loadTrashEntries, session])
 
   useEffect(() => {
-    if (!session || adminView !== 'feeds') {
+    if (!session || adminView !== 'feeds' || hasLoadedRssSubscriptions) {
       return
     }
 
@@ -819,6 +820,7 @@ export default function App() {
         }
 
         setRssSubscriptionsState(nextState)
+        setHasLoadedRssSubscriptions(true)
       } catch (caughtError) {
         if (cancelled) {
           return
@@ -842,7 +844,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [adminView, session])
+  }, [adminView, hasLoadedRssSubscriptions, session])
 
   useEffect(() => {
     if (rssSubscriptions.length === 0) {
@@ -1054,6 +1056,7 @@ export default function App() {
     setQuickReadLaterUrl('')
     setManualFeedUrl('')
     setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, folders: [], subscriptions: [] })
+    setHasLoadedRssSubscriptions(false)
     setSelectedRssFeedUrl(null)
     setRssPreviewFeed(null)
     setPendingFeedDraftContext(null)
@@ -1071,6 +1074,40 @@ export default function App() {
     resetWorkspace()
     setError(message)
   }
+
+  useEffect(() => {
+    if (!session || hasLoadedRssSubscriptions) {
+      return
+    }
+
+    let cancelled = false
+
+    const preloadSubscriptions = async () => {
+      try {
+        const nextState = await readFeedSubscriptions(session)
+        if (cancelled) {
+          return
+        }
+
+        setRssSubscriptionsState(nextState)
+        setHasLoadedRssSubscriptions(true)
+      } catch (caughtError) {
+        if (cancelled) {
+          return
+        }
+
+        if (caughtError instanceof GitHubAuthError) {
+          handleAuthExpiry(caughtError.message)
+        }
+      }
+    }
+
+    void preloadSubscriptions()
+
+    return () => {
+      cancelled = true
+    }
+  }, [hasLoadedRssSubscriptions, session])
 
   const handleLogout = () => {
     sessionStore.logout()
@@ -1301,6 +1338,7 @@ export default function App() {
     })
 
     setRssSubscriptionsState(savedState)
+    setHasLoadedRssSubscriptions(true)
     setSuccessMessage(successMessageText)
     return savedState
   }
@@ -1524,6 +1562,7 @@ export default function App() {
       subscriptions: nextSubscriptions,
     })
     setRssSubscriptionsState(savedState)
+    setHasLoadedRssSubscriptions(true)
     return savedState
   }
 
@@ -1540,7 +1579,35 @@ export default function App() {
 
     try {
       const importedFeed = await importFeedFromUrl(session, subscription.url)
+      const timestamp = new Date().toISOString()
+      const nextArticleCount = importedFeed.items.length
+      const nextTitle = importedFeed.title.trim() || subscription.title
+      const nextDescription = importedFeed.description.trim() || subscription.description
+      const shouldUpdateSubscription =
+        subscription.articleCount !== nextArticleCount
+        || subscription.title !== nextTitle
+        || subscription.description !== nextDescription
+
       setRssPreviewFeed(importedFeed)
+      if (shouldUpdateSubscription) {
+        const nextSubscriptions = rssSubscriptions.map((item) =>
+          item.url === subscription.url
+            ? {
+                ...item,
+                title: nextTitle,
+                description: nextDescription,
+                articleCount: nextArticleCount,
+                updatedAt: timestamp,
+              }
+            : item,
+        )
+        const savedState = await saveFeedSubscriptions(session, {
+          ...rssSubscriptionsState,
+          subscriptions: nextSubscriptions,
+        })
+        setRssSubscriptionsState(savedState)
+        setHasLoadedRssSubscriptions(true)
+      }
       setSuccessMessage(`已加载《${importedFeed.title || subscription.title || '未命名 RSS'}》最近 ${importedFeed.items.length} 条内容。`)
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {

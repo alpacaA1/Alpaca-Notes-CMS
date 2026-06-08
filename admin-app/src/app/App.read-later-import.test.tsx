@@ -440,6 +440,10 @@ describe('App read-later import flow', () => {
         sourceName: 'Anthropic News',
       })),
     })
+    vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'next-feed-sha',
+    }))
     vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
       title: 'Anthropic News 1',
       desc: 'Latest update.',
@@ -459,6 +463,122 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('status')).toBeTruthy()
     expect(screen.getByRole('status').textContent).toBe('已加载《Anthropic News》最近 20 条内容。')
     expect(container.querySelector('.success-message')).toBeNull()
+  })
+
+  it('preloads RSS subscriptions so the top-bar red dot is visible outside the RSS page', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'feed-sha',
+      folders: [],
+      subscriptions: [
+        {
+          id: 'design-feed',
+          title: 'Design Feed',
+          url: 'https://example.com/design.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 2,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+    })
+
+    const { container } = render(<App />)
+
+    await waitFor(() => {
+      expect(container.querySelector('.top-bar__rss-badge')).toBeTruthy()
+    })
+  })
+
+  it('updates an existing RSS subscription count after loading newer feed items', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'feed-sha',
+      folders: [],
+      subscriptions: [
+        {
+          id: 'design-feed',
+          title: '旧标题',
+          url: 'https://example.com/design.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 1,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+    })
+    const saveSpy = vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'next-feed-sha',
+    }))
+    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
+      title: 'Design Feed',
+      description: '新的简介',
+      requestedUrl: 'https://example.com/design.xml',
+      finalUrl: 'https://example.com/design.xml',
+      items: [
+        {
+          id: 'feed-item-1',
+          title: '旧文章',
+          url: 'https://example.com/posts/old',
+          summary: '旧摘要。',
+          publishedAt: '2026-06-04T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+        {
+          id: 'feed-item-2',
+          title: '新文章',
+          url: 'https://example.com/posts/new',
+          summary: '新摘要。',
+          publishedAt: '2026-06-05T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+      ],
+    })
+    vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '旧文章',
+      desc: '旧摘要。',
+      sourceName: 'Design Feed',
+      markdown: '# 旧文章',
+      requestedUrl: 'https://example.com/posts/old',
+      finalUrl: 'https://example.com/posts/old',
+      needsManualPaste: false,
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    const sidebar = await screen.findByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+    fireEvent.click(within(sidebar).getAllByRole('button', { name: /旧标题/ })[0])
+
+    await waitFor(() => {
+      expect(saveSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        expect.objectContaining({
+          subscriptions: [
+            expect.objectContaining({
+              id: 'design-feed',
+              title: 'Design Feed',
+              description: '新的简介',
+              articleCount: 2,
+            }),
+          ],
+        }),
+      )
+    })
+    expect(await screen.findByLabelText('2 条待读')).toBeTruthy()
   })
 
   it('deletes an RSS folder and moves its feeds into Uncategorized', async () => {
