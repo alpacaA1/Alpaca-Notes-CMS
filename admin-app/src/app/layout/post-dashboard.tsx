@@ -372,7 +372,6 @@ export default function PostDashboard({
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
-  const isMaterialSelectable = isDiary || isReadLater
   const showQuickActions = true
   const hasSelectedMaterials = selectedMaterialCounts.diary > 0 || selectedMaterialCounts['read-later'] > 0
   const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : '新建文章 (N)'
@@ -447,19 +446,6 @@ export default function PostDashboard({
 
     return diaryMonthGroups.find((group) => group.monthKey === activeDiaryMonthKey)?.label || '全部月份'
   }, [activeDiaryMonthKey, diaryMonthGroups])
-  const visibleSelectablePosts = useMemo(
-    () => (isDiary ? visibleDiaryPosts : isReadLater ? filteredPosts : []),
-    [filteredPosts, isDiary, isReadLater, visibleDiaryPosts],
-  )
-  const selectedVisiblePosts = useMemo(
-    () => visibleSelectablePosts.filter((post) => selectedMaterialPathSet.has(post.path)),
-    [selectedMaterialPathSet, visibleSelectablePosts],
-  )
-  const areAllVisibleMaterialsSelected =
-    isMaterialSelectable &&
-    visibleSelectablePosts.length > 0 &&
-    visibleSelectablePosts.every((post) => selectedMaterialPathSet.has(post.path))
-
   useEffect(() => {
     if (!isDiary || activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
       return
@@ -627,13 +613,6 @@ export default function PostDashboard({
 
   const toggleMaterialSelection = (post: PostIndexItem) => {
     setMaterialSelection([post.path], !selectedMaterialPathSet.has(post.path))
-  }
-
-  const toggleAllVisibleMaterialSelection = () => {
-    setMaterialSelection(
-      visibleSelectablePosts.map((post) => post.path),
-      !areAllVisibleMaterialsSelected,
-    )
   }
 
   const helperSelectionSummary = formatSelectedMaterialSummary(selectedMaterialCounts)
@@ -837,25 +816,6 @@ export default function PostDashboard({
         </section>
       ) : null}
 
-      {isReadLater && filteredPosts.length > 0 ? (
-        <div className="post-dashboard__diary-selection-bar post-dashboard__diary-selection-bar--reader">
-          <label className="post-dashboard__diary-check">
-            <input
-              type="checkbox"
-              aria-label="选择全部可见待读"
-              checked={areAllVisibleMaterialsSelected}
-              onChange={toggleAllVisibleMaterialSelection}
-            />
-            <span>选择全部当前结果</span>
-          </label>
-          <span>
-            {selectedVisiblePosts.length > 0
-              ? `当前页已选 ${selectedVisiblePosts.length} 条待读`
-              : `当前显示 ${filteredPosts.length} 条待读`}
-          </span>
-        </div>
-      ) : null}
-
       {isIndexing ? (
         <div className="post-dashboard__loading">
           <div className="post-dashboard__skeleton-grid">
@@ -938,22 +898,6 @@ export default function PostDashboard({
             </div>
           </section>
             <div className="post-dashboard__diary-main-column">
-              <div className="post-dashboard__diary-selection-bar">
-                <label className="post-dashboard__diary-check">
-                  <input
-                    type="checkbox"
-                    aria-label="选择全部可见日记"
-                    checked={areAllVisibleMaterialsSelected}
-                    onChange={toggleAllVisibleMaterialSelection}
-                  />
-                  <span>选择全部可见日记</span>
-                </label>
-                <span>
-                {selectedVisiblePosts.length > 0
-                  ? `已选择 ${selectedVisiblePosts.length} 篇 · ${activeDiaryMonthLabel}`
-                  : `当前显示 ${activeDiaryMonthLabel}`}
-                </span>
-              </div>
             {visibleDiaryMonthGroups.map((group) => {
               const selectedInMonth = group.posts.filter((post) => selectedMaterialPathSet.has(post.path)).length
 

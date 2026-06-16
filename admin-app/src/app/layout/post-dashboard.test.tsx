@@ -428,14 +428,15 @@ describe('post dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
     expect(screen.queryByText('五月第一则日记')).toBeNull()
     expect(screen.getByText('四月最后一则日记')).toBeTruthy()
-    expect(screen.getByText('当前显示 2026 年 04 月')).toBeTruthy()
+    expect(screen.getAllByText('2026 年 04 月').length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText('选择全部可见日记')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '查看全部月份' }))
     expect(screen.getByText('五月第一则日记')).toBeTruthy()
   })
 
-  it('selects all visible diary entries after filtering to a month and renders the material result', () => {
-    render(
+  it('keeps diary item selection without rendering the select-all checkbox', () => {
+    const { container } = render(
       <ControlledDiaryDashboard
         materialResult="# 月报素材整理\n\n## 本月推进 / 发生了什么\n- 博客开发"
       />,
@@ -444,22 +445,25 @@ describe('post dashboard', () => {
     expect(screen.queryByRole('button', { name: '整理素材' })).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
-    fireEvent.click(screen.getByLabelText('选择全部可见日记'))
-    expect(screen.getByText('已选择 1 篇 · 2026 年 04 月')).toBeTruthy()
+    expect(screen.queryByLabelText('选择全部可见日记')).toBeNull()
+    fireEvent.click(screen.getByLabelText('选择日记 四月最后一则日记'))
+    expect(container.querySelectorAll('.post-dashboard__diary-row.is-selected')).toHaveLength(1)
     expect(screen.getByText('整理结果')).toBeTruthy()
     expect(screen.getByText(/博客开发/)).toBeTruthy()
   })
 
   it('supports selecting read-later items without rendering the toolbar organizer module', () => {
-    render(
+    window.localStorage.setItem('alpaca-dashboard-view-mode', 'grid')
+
+    const { container } = render(
       <ControlledReadLaterDashboard
         selectedDiaryCount={2}
       />,
     )
 
     expect(screen.queryByRole('button', { name: '整理素材' })).toBeNull()
-    expect(screen.getByText('当前显示 1 条待读')).toBeTruthy()
+    expect(screen.queryByLabelText('选择全部可见待读')).toBeNull()
     fireEvent.click(screen.getByLabelText(`选择待读 ${readLaterPosts[0].title}`))
-    expect(screen.getByText('当前页已选 1 条待读')).toBeTruthy()
+    expect(container.querySelectorAll('.post-dashboard__card-shell.is-selected')).toHaveLength(1)
   })
 })
