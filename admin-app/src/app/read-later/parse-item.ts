@@ -8,7 +8,23 @@ const READ_LATER_SECTION_OUTLINE = [
 ] as const
 
 function trimQuotes(value: string) {
-  return value.trim().replace(/^['"]|['"]$/g, '').trim()
+  const trimmedValue = value.trim()
+  if (trimmedValue.startsWith('"') && trimmedValue.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(trimmedValue) as unknown
+      if (typeof parsed === 'string') {
+        return parsed.trim()
+      }
+    } catch {
+      return trimmedValue.replace(/^['"]|['"]$/g, '').trim()
+    }
+  }
+
+  if (trimmedValue.startsWith("'") && trimmedValue.endsWith("'")) {
+    return trimmedValue.slice(1, -1).replace(/''/g, "'").trim()
+  }
+
+  return trimmedValue.replace(/^['"]|['"]$/g, '').trim()
 }
 
 function readScalar(frontmatter: string, field: string): string | null {

@@ -136,6 +136,45 @@ test('importArticle normalizes more WeChat image source variants', async () => {
   assert.doesNotMatch(article.markdown, /placeholder\.gif/);
 });
 
+test('importArticle converts WeChat tables without th cells into markdown tables', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.15', family: 4 }]);
+  global.fetch = async () => createMockResponse({
+    url: 'https://mp.weixin.qq.com/s/table-example',
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+    },
+    html: createWeChatHtml(`
+      <table style="border-collapse: collapse;">
+        <tbody>
+          <tr>
+            <td><p><span>用户群</span></p></td>
+            <td><p><span>特征</span></p></td>
+            <td><p><span>痛点/诉求</span></p></td>
+          </tr>
+          <tr>
+            <td><p><strong><span>老板/管理者</span></strong></p></td>
+            <td><p><span>工作的发起者，督办、催办员工完成任务</span></p></td>
+            <td><p><span>需要对接更多的员工，大量的日程，处理审批，给员工布置待办</span></p></td>
+          </tr>
+          <tr>
+            <td><p><strong><span>员工</span></strong></p></td>
+            <td><p><span>承接方和任务的完成方</span></p></td>
+            <td><p><span>打卡考勤，接受任务和监督，完成老板的待办</span></p></td>
+          </tr>
+        </tbody>
+      </table>
+    `),
+  });
+
+  const article = await importArticle('https://mp.weixin.qq.com/s/table-example');
+
+  assert.match(article.markdown, /\| 用户群 \| 特征 \| 痛点\/诉求 \|/);
+  assert.match(article.markdown, /\| --- \| --- \| --- \|/);
+  assert.match(article.markdown, /\| \*\*老板\/管理者\*\* \| 工作的发起者，督办、催办员工完成任务 \| 需要对接更多的员工，大量的日程，处理审批，给员工布置待办 \|/);
+  assert.match(article.markdown, /\| \*\*员工\*\* \| 承接方和任务的完成方 \| 打卡考勤，接受任务和监督，完成老板的待办 \|/);
+  assert.doesNotMatch(article.markdown, /<table/i);
+});
+
 test('importArticle downloads imported images with the article referer when requested', async () => {
   const fetchCalls = [];
   const imageBytes = Uint8Array.of(0x01, 0x02, 0x03, 0x04);

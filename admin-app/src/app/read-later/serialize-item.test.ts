@@ -67,4 +67,15 @@ desc: 值得回看的文章
 
     expect(serializeReadLaterItem(item)).toContain('format: plaintxt')
   })
+
+  it('quotes imported frontmatter scalars that would break yaml', () => {
+    const item = createNewReadLaterItem(new Date(2026, 3, 3, 6, 7, 8))
+    item.frontmatter.title = 'AI Agent: 从入门到落地'
+    item.frontmatter.desc = '第一行\n第二行 # 不是注释'
+    item.frontmatter.source_name = '产品经理: 方法论'
+
+    expect(serializeReadLaterItem(item)).toContain('title: "AI Agent: 从入门到落地"')
+    expect(serializeReadLaterItem(item)).toContain('source_name: "产品经理: 方法论"')
+    expect(serializeReadLaterItem(item)).toContain('desc: "第一行 第二行 # 不是注释"')
+  })
 })

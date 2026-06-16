@@ -9,6 +9,19 @@ function renderList(name: string, values: string[], renderValue: (value: string)
   return `${name}:\n${values.map((value) => `  - ${renderValue(value)}`).join('\n')}`
 }
 
+function renderScalar(name: string, value: string) {
+  const normalizedValue = String(value ?? '').replace(/\r?\n/g, ' ').trim()
+  if (!normalizedValue) {
+    return `${name}:`
+  }
+
+  const needsQuoting =
+    /(^[-?:]\s)|(:\s)|(\s#)|[{}[\],&*|>!%@`]|^['"]|['"]$/.test(normalizedValue) ||
+    /^(?:true|false|null|~)$/i.test(normalizedValue)
+
+  return `${name}: ${needsQuoting ? JSON.stringify(normalizedValue) : normalizedValue}`
+}
+
 export function serializeReadLaterItem(item: ParsedReadLaterItem): string {
   const encodedAnnotations = item.annotations.length > 0
     ? encodeReadLaterAnnotations(item.annotations)
@@ -16,21 +29,21 @@ export function serializeReadLaterItem(item: ParsedReadLaterItem): string {
 
   const lines = [
     '---',
-    `title: ${item.frontmatter.title}`,
-    ...(item.frontmatter.format ? [`format: ${item.frontmatter.format}`] : []),
+    renderScalar('title', item.frontmatter.title),
+    ...(item.frontmatter.format ? [renderScalar('format', item.frontmatter.format)] : []),
     `permalink: ${item.frontmatter.permalink}`,
     `layout: ${item.frontmatter.layout}`,
-    ...(item.frontmatter.cover ? [`cover: ${item.frontmatter.cover}`] : []),
+    ...(item.frontmatter.cover ? [renderScalar('cover', item.frontmatter.cover)] : []),
     `date: ${item.frontmatter.date}`,
     `read_later: true`,
     `nav_exclude: true`,
     ...(item.frontmatter.pinned ? ['pinned: true'] : []),
-    `external_url: ${item.frontmatter.external_url}`,
-    `source_name: ${item.frontmatter.source_name}`,
+    renderScalar('external_url', item.frontmatter.external_url),
+    renderScalar('source_name', item.frontmatter.source_name),
     `reading_status: ${item.frontmatter.reading_status}`,
     ...(encodedAnnotations.length > 0 ? [renderList('reader_annotations', encodedAnnotations, JSON.stringify)] : []),
     renderList('tags', item.frontmatter.tags),
-    `desc: ${item.frontmatter.desc}`,
+    renderScalar('desc', item.frontmatter.desc),
     '---',
   ]
 

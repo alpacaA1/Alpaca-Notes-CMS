@@ -112,4 +112,19 @@ describe('parse read-later item', () => {
 
     expect(item.frontmatter.format).toBe('plaintxt')
   })
+
+  it('parses quoted frontmatter scalars saved after import', () => {
+    const item = parseReadLaterItem({
+      path: 'source/read-later-items/quoted.md',
+      sha: 'sha-quoted',
+      content: readLaterContent
+        .replace('title: Read later article', 'title: "AI Agent: 从入门到落地"')
+        .replace('source_name: Example Source', 'source_name: "产品经理: 方法论"')
+        .replace('desc: 一篇值得回看的文章', 'desc: "第一行 第二行 # 不是注释"'),
+    })
+
+    expect(item.frontmatter.title).toBe('AI Agent: 从入门到落地')
+    expect(item.frontmatter.source_name).toBe('产品经理: 方法论')
+    expect(item.frontmatter.desc).toBe('第一行 第二行 # 不是注释')
+  })
 })

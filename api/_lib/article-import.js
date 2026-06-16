@@ -296,12 +296,81 @@ function applyLazyImageSources(document) {
   });
 }
 
+function normalizeTableHeadings(document) {
+  document.querySelectorAll('table').forEach((table) => {
+    if (table.querySelector('th')) {
+      return;
+    }
+
+    const firstRow = table.querySelector('tr');
+    if (!firstRow) {
+      return;
+    }
+
+    firstRow.querySelectorAll('td').forEach((cell) => {
+      const headingCell = document.createElement('th');
+      for (const attribute of cell.attributes) {
+        headingCell.setAttribute(attribute.name, attribute.value);
+      }
+      headingCell.innerHTML = cell.innerHTML;
+      cell.replaceWith(headingCell);
+    });
+  });
+}
+
+function escapeMarkdownTableCell(value) {
+  return normalizeText(value).replace(/\|/g, '\\|');
+}
+
+function readTableCellMarkdown(cell) {
+  const text = escapeMarkdownTableCell(cell.textContent);
+  if (!text) {
+    return '';
+  }
+
+  const strongText = escapeMarkdownTableCell(cell.querySelector('strong, b')?.textContent);
+  if (strongText && strongText === text) {
+    return `**${text.replace(/\*/g, '\\*')}**`;
+  }
+
+  return text;
+}
+
+function renderMarkdownTableRow(cells) {
+  return `| ${cells.join(' | ')} |`;
+}
+
+function renderMarkdownTable(table) {
+  const rows = Array.from(table.querySelectorAll('tr'))
+    .map((row) => Array.from(row.children).filter((cell) => /^(?:TD|TH)$/.test(cell.nodeName)))
+    .filter((cells) => cells.length > 0);
+
+  if (rows.length === 0) {
+    return '\n\n';
+  }
+
+  const columnCount = Math.max(...rows.map((row) => row.length));
+  const normalizedRows = rows.map((row) => Array.from({ length: columnCount }, (_, index) => readTableCellMarkdown(row[index])));
+  const headerIndex = rows.findIndex((row) => row.some((cell) => cell.nodeName === 'TH'));
+  const safeHeaderIndex = headerIndex >= 0 ? headerIndex : 0;
+  const header = normalizedRows[safeHeaderIndex];
+  const bodyRows = normalizedRows.filter((_, index) => index !== safeHeaderIndex);
+  const tableLines = [
+    renderMarkdownTableRow(header),
+    renderMarkdownTableRow(header.map(() => '---')),
+    ...bodyRows.map(renderMarkdownTableRow),
+  ];
+
+  return `\n\n${tableLines.join('\n')}\n\n`;
+}
+
 function prepareArticleHtml(content, baseUrl) {
   const dom = new JSDOM(`<body>${content}</body>`, { url: baseUrl });
   const { document } = dom.window;
 
   document.querySelectorAll('script, style, iframe, form, noscript').forEach((node) => node.remove());
   applyLazyImageSources(document);
+  normalizeTableHeadings(document);
   document.querySelectorAll('[src]').forEach((element) => absolutizeAttribute(element, 'src', baseUrl));
   document.querySelectorAll('[href]').forEach((element) => absolutizeAttribute(element, 'href', baseUrl));
 
@@ -315,6 +384,14 @@ function createTurndownService() {
     bulletListMarker: '-',
   });
   service.use(gfm);
+  service.addRule('markdownTable', {
+    filter(node) {
+      return node.nodeName === 'TABLE';
+    },
+    replacement(_content, node) {
+      return renderMarkdownTable(node);
+    },
+  });
   service.addRule('mowenCodeblock', {
     filter(node) {
       return node.nodeName === 'CODEBLOCK';
