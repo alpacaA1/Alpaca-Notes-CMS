@@ -55,7 +55,7 @@ import { fetchFeedDirectory, type SharedFeedCategory, type SharedFeedSource } fr
 import { importFeedFromUrl, type ImportedFeed, type ImportedFeedItem } from './read-later/feed-import-client'
 import { buildReadLaterIndex, parseReadLaterIndexItem } from './read-later/index-items'
 import { createNewReadLaterItem } from './read-later/new-item'
-import { importReadLaterFromUrl, type ImportedReadLaterArticle } from './read-later/import-client'
+import { importReadLaterFromUrl, type ImportedReadLaterArticle, type ImportedReadLaterImage } from './read-later/import-client'
 import { parseReadLaterItem, parseReadLaterSections } from './read-later/parse-item'
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
@@ -89,6 +89,32 @@ type TaxonomyConfirmAction =
 type PostDeleteConfirmAction = {
   kind: 'delete-post'
   post: PostIndexItem
+}
+
+function decodeBase64Bytes(value: string) {
+  const binary = atob(value)
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0))
+}
+
+function createImportedImageFile(image: ImportedReadLaterImage, index: number) {
+  const extension = image.extension.replace(/[^a-z0-9]/gi, '').toLowerCase() || 'jpg'
+  const basename = image.basename.replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '') || `imported-image-${index + 1}`
+  const bytes = decodeBase64Bytes(image.contentBase64)
+  const contentType = image.contentType === 'image/jpg' ? 'image/jpeg' : image.contentType
+
+  return new File([bytes], `${basename}.${extension}`, {
+    type: contentType || 'image/jpeg',
+  })
+}
+
+function replaceImportedImageUrls(markdown: string, replacements: Array<{ from: string; to: string }>) {
+  return replacements.reduce((currentMarkdown, replacement) => {
+    if (!replacement.from || !replacement.to || replacement.from === replacement.to) {
+      return currentMarkdown
+    }
+
+    return currentMarkdown.split(replacement.from).join(replacement.to)
+  }, markdown)
 }
 
 type TrashConfirmAction =
@@ -1646,7 +1672,7 @@ export default function App() {
     })
 
     try {
-      const importedArticle = await importReadLaterFromUrl(session, articleUrl)
+      const importedArticle = await importReadLaterFromUrl(session, articleUrl, { includeImages: true })
       setRssPreviewArticlesByUrl((currentState) => ({
         ...currentState,
         [articleUrl]: importedArticle,
@@ -2527,6 +2553,48 @@ export default function App() {
     }
   }
 
+  const transferImportedReadLaterImages = async (imported: ImportedReadLaterArticle): Promise<ImportedReadLaterArticle> => {
+    if (!session || !imported.images?.length) {
+      return imported
+    }
+
+    const replacements: Array<{ from: string; to: string }> = []
+    const nextPreviewImageUrls: Record<string, string> = {}
+
+    for (let index = 0; index < imported.images.length; index += 1) {
+      const image = imported.images[index]
+      const file = createImportedImageFile(image, index)
+      const descriptor = buildImageUploadDescriptor(file, new Date(Date.now() + index))
+
+      await uploadImageFile(session, {
+        path: descriptor.repoPath,
+        file,
+      })
+
+      replacements.push({ from: image.sourceUrl, to: descriptor.publicUrl })
+      replacements.push({ from: image.finalUrl, to: descriptor.publicUrl })
+
+      if (typeof URL.createObjectURL === 'function') {
+        const objectUrl = URL.createObjectURL(file)
+        previewObjectUrlsRef.current.push(objectUrl)
+        nextPreviewImageUrls[descriptor.publicUrl] = objectUrl
+      }
+    }
+
+    if (Object.keys(nextPreviewImageUrls).length > 0) {
+      setPreviewImageUrls((currentUrls) => ({
+        ...currentUrls,
+        ...nextPreviewImageUrls,
+      }))
+    }
+
+    return {
+      ...imported,
+      markdown: replaceImportedImageUrls(imported.markdown, replacements),
+      images: [],
+    }
+  }
+
   const handleImportFromUrl = async () => {
     if (!session || !document || contentType !== 'read-later' || isImportingFromUrl) {
       return
@@ -2560,7 +2628,9 @@ export default function App() {
     setIsImportingFromUrl(true)
 
     try {
-      const imported = await importReadLaterFromUrl(session, externalUrl)
+      const imported = await transferImportedReadLaterImages(
+        await importReadLaterFromUrl(session, externalUrl, { includeImages: true }),
+      )
       updateBody(imported.markdown)
       updateReadLaterAnnotations([])
       setReadLaterTab('info')
@@ -2782,7 +2852,9 @@ export default function App() {
         return
       }
 
-      const imported = await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
+      const imported = await transferImportedReadLaterImages(
+        await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true, includeImages: true }),
+      )
       const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || externalUrl)
       const successMessages = [
         redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,
@@ -2838,7 +2910,11 @@ export default function App() {
         return
       }
 
-      const imported = previewArticle || await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true })
+      const imported = previewArticle
+        ? await transferImportedReadLaterImages(previewArticle)
+        : await transferImportedReadLaterImages(
+          await importReadLaterFromUrl(session, externalUrl, { allowMetadataOnly: true, includeImages: true }),
+        )
       const redirectedDuplicate = findDuplicateReadLaterByUrl(imported.finalUrl || imported.requestedUrl || externalUrl)
       const successMessages = [
         redirectedDuplicate ? `检测到相同链接的待读《${redirectedDuplicate.title}》，已仍然创建新草稿。` : null,

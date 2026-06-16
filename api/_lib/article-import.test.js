@@ -38,6 +38,24 @@ function createMockJsonResponse({ json, url, headers = {}, status = 200 }) {
   });
 }
 
+function createMockBinaryResponse({ bytes, url, headers = {}, status = 200 }) {
+  const normalizedHeaders = new Map(
+    Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value])
+  );
+
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    url,
+    headers: {
+      get(name) {
+        return normalizedHeaders.get(String(name).toLowerCase()) || null;
+      },
+    },
+    arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
+  };
+}
+
 afterEach(() => {
   global.fetch = originalFetch;
   resetDnsLookupForTesting();
@@ -116,6 +134,68 @@ test('importArticle normalizes more WeChat image source variants', async () => {
   assert.match(article.markdown, /!\[备图\]\(https:\/\/mmbiz\.qpic\.cn\/backup\.jpg\)/);
   assert.match(article.markdown, /!\[裁剪图\]\(https:\/\/mmbiz\.qpic\.cn\/crop\.webp\)/);
   assert.doesNotMatch(article.markdown, /placeholder\.gif/);
+});
+
+test('importArticle downloads imported images with the article referer when requested', async () => {
+  const fetchCalls = [];
+  const imageBytes = Uint8Array.of(0x01, 0x02, 0x03, 0x04);
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.14', family: 4 }]);
+  global.fetch = async (url, options = {}) => {
+    fetchCalls.push({ url, options });
+
+    if (url === 'https://www.douban.com/group/topic/490564194/') {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        html: `<!doctype html>
+<html lang="zh-CN">
+  <head><title>豆瓣帖子</title></head>
+  <body>
+    <main>
+      <article>
+        <h1>豆瓣帖子</h1>
+        <p>正文内容。</p>
+        <p><img src="https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg" alt="图1" /></p>
+      </article>
+    </main>
+  </body>
+</html>`,
+      });
+    }
+
+    if (url === 'https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg') {
+      return createMockBinaryResponse({
+        url,
+        headers: {
+          'content-type': 'image/jpeg',
+          'content-length': String(imageBytes.length),
+        },
+        bytes: imageBytes,
+      });
+    }
+
+    throw new Error(`unexpected fetch url: ${url}`);
+  };
+
+  const article = await importArticle('https://www.douban.com/group/topic/490564194/', {
+    includeImages: true,
+  });
+
+  assert.match(article.markdown, /!\[图1\]\(https:\/\/img9\.doubanio\.com\/view\/group_topic\/l\/public\/p735699706\.jpg\)/);
+  assert.deepEqual(article.images, [
+    {
+      sourceUrl: 'https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg',
+      finalUrl: 'https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg',
+      contentType: 'image/jpeg',
+      extension: 'jpg',
+      basename: 'p735699706',
+      contentBase64: Buffer.from(imageBytes).toString('base64'),
+    },
+  ]);
+  assert.equal(fetchCalls[1].options.headers.Referer, 'https://www.douban.com/group/topic/490564194/');
+  assert.match(fetchCalls[1].options.headers['User-Agent'], /Mozilla\/5\.0/);
 });
 
 test('importArticle allows larger WeChat HTML pages', async () => {

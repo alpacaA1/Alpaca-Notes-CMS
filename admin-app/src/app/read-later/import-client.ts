@@ -10,6 +10,16 @@ export type ImportedReadLaterArticle = {
   requestedUrl: string
   finalUrl: string
   needsManualPaste: boolean
+  images?: ImportedReadLaterImage[]
+}
+
+export type ImportedReadLaterImage = {
+  sourceUrl: string
+  finalUrl: string
+  contentType: string
+  extension: string
+  basename: string
+  contentBase64: string
 }
 
 type ImportResponse = Partial<ImportedReadLaterArticle> & {
@@ -27,6 +37,7 @@ function readErrorMessage(payload: unknown) {
 
 type ImportReadLaterOptions = {
   allowMetadataOnly?: boolean
+  includeImages?: boolean
 }
 
 export async function importReadLaterFromUrl(
@@ -37,6 +48,9 @@ export async function importReadLaterFromUrl(
   const params = new URLSearchParams({ url })
   if (options?.allowMetadataOnly) {
     params.set('allowMetadataOnly', '1')
+  }
+  if (options?.includeImages) {
+    params.set('includeImages', '1')
   }
 
   const response = await fetch(`${READ_LATER_IMPORT_URL}?${params.toString()}`, {
@@ -68,6 +82,18 @@ export async function importReadLaterFromUrl(
   const requestedUrl = typeof payload?.requestedUrl === 'string' ? payload.requestedUrl : ''
   const finalUrl = typeof payload?.finalUrl === 'string' ? payload.finalUrl : ''
   const needsManualPaste = payload?.needsManualPaste === true
+  const images = Array.isArray(payload?.images)
+    ? payload.images.filter((image): image is ImportedReadLaterImage => (
+      image &&
+      typeof image === 'object' &&
+      typeof image.sourceUrl === 'string' &&
+      typeof image.finalUrl === 'string' &&
+      typeof image.contentType === 'string' &&
+      typeof image.extension === 'string' &&
+      typeof image.basename === 'string' &&
+      typeof image.contentBase64 === 'string'
+    ))
+    : []
 
   if (!markdown && !needsManualPaste) {
     throw new Error('导入结果不完整，请稍后重试。')
@@ -81,5 +107,6 @@ export async function importReadLaterFromUrl(
     requestedUrl,
     finalUrl,
     needsManualPaste,
+    images,
   }
 }

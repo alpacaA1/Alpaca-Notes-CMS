@@ -9,10 +9,14 @@ const FETCH_TIMEOUT_MS = 12000;
 const MAX_HTML_LENGTH = 2_000_000;
 const WECHAT_MAX_HTML_LENGTH = 12_000_000;
 const MAX_JSON_LENGTH = 2_000_000;
+const MAX_IMPORTED_IMAGES = 12;
+const MAX_IMPORTED_IMAGE_BYTES = 3 * 1024 * 1024;
+const MAX_IMPORTED_IMAGES_TOTAL_BYTES = 3 * 1024 * 1024;
 const MAX_REDIRECTS = 5;
 const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:']);
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const HTML_CONTENT_TYPE_PATTERN = /^(text\/html|application\/xhtml\+xml)\b/i;
+const IMAGE_CONTENT_TYPE_PATTERN = /^image\/(?:png|jpe?g|webp|gif)\b/i;
 const PRIVATE_IPV4_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^169\.254\./, /^0\./];
 const MOWEN_NOTE_HOSTNAME_PATTERN = /^(?:dev-|d-)?note\.mowen\.cn$/i;
 const MOWEN_DETAIL_PATH_PATTERN = /^\/detail\/([^/?#]+)/i;
@@ -28,6 +32,10 @@ const JSON_REQUEST_HEADERS = {
 };
 const WECHAT_BROWSER_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
+const IMAGE_REQUEST_HEADERS = {
+  Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+  'User-Agent': WECHAT_BROWSER_USER_AGENT,
+};
 let dnsLookup = dns.lookup.bind(dns);
 
 class ArticleImportError extends Error {
@@ -169,6 +177,37 @@ async function fetchArticleResponse(initialUrl, signal) {
   throw new ArticleImportError('导入正文失败。', 500);
 }
 
+async function fetchPublicResponse(initialUrl, signal, requestOptions = {}) {
+  let currentUrl = initialUrl;
+
+  for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
+    await assertPublicResolvedAddress(currentUrl);
+
+    const response = await fetch(currentUrl.toString(), {
+      ...requestOptions,
+      redirect: 'manual',
+      signal,
+    });
+
+    if (!isRedirectResponse(response)) {
+      return { response, finalUrl: currentUrl };
+    }
+
+    if (redirectCount === MAX_REDIRECTS) {
+      throw new ArticleImportError('资源跳转次数过多，暂不支持导入。', 508);
+    }
+
+    const location = response.headers.get('location');
+    if (!location) {
+      throw new ArticleImportError('资源跳转后的链接无效。', 502);
+    }
+
+    currentUrl = validateArticleUrl(new URL(location, currentUrl).toString(), '资源跳转后的链接无效。');
+  }
+
+  throw new ArticleImportError('导入资源失败。', 500);
+}
+
 function getMaxHtmlLength(url) {
   return isWeChatArticleUrl(url) ? WECHAT_MAX_HTML_LENGTH : MAX_HTML_LENGTH;
 }
@@ -299,6 +338,176 @@ function normalizeMarkdown(markdown) {
     .replace(/\r\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+}
+
+function parseMarkdownDestination(markdown, openingParenIndex) {
+  let index = openingParenIndex + 1;
+  let depth = 1;
+  let value = '';
+
+  while (index < markdown.length) {
+    const character = markdown[index];
+    if (character === '\\') {
+      value += markdown.slice(index, index + 2);
+      index += 2;
+      continue;
+    }
+
+    if (character === '(') {
+      depth += 1;
+    }
+
+    if (character === ')') {
+      depth -= 1;
+      if (depth === 0) {
+        return value.trim();
+      }
+    }
+
+    value += character;
+    index += 1;
+  }
+
+  return '';
+}
+
+function extractMarkdownImageUrls(markdown) {
+  const urls = [];
+  let searchIndex = 0;
+
+  while (searchIndex < markdown.length) {
+    const imageStart = markdown.indexOf('![', searchIndex);
+    if (imageStart === -1) {
+      break;
+    }
+
+    const altEnd = markdown.indexOf(']', imageStart + 2);
+    if (altEnd === -1 || markdown[altEnd + 1] !== '(') {
+      searchIndex = imageStart + 2;
+      continue;
+    }
+
+    const imageUrl = parseMarkdownDestination(markdown, altEnd + 1);
+    if (imageUrl) {
+      urls.push(imageUrl);
+    }
+
+    searchIndex = altEnd + 2;
+  }
+
+  return [...new Set(urls)];
+}
+
+function resolveImageExtension(contentType, imageUrl) {
+  const normalizedContentType = String(contentType || '').toLowerCase();
+  if (normalizedContentType.includes('png')) return 'png';
+  if (normalizedContentType.includes('webp')) return 'webp';
+  if (normalizedContentType.includes('gif')) return 'gif';
+  if (normalizedContentType.includes('jpeg') || normalizedContentType.includes('jpg')) return 'jpg';
+
+  try {
+    const pathname = new URL(imageUrl).pathname.toLowerCase();
+    const match = pathname.match(/\.([a-z0-9]+)$/);
+    if (match && ['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(match[1])) {
+      return match[1] === 'jpeg' ? 'jpg' : match[1];
+    }
+  } catch {
+    // Fall back below.
+  }
+
+  return 'jpg';
+}
+
+function sanitizeImportedImageBasename(imageUrl, index) {
+  try {
+    const pathname = new URL(imageUrl).pathname;
+    const filename = pathname.split('/').filter(Boolean).pop() || '';
+    const basename = filename.replace(/\.[^.]+$/, '');
+    const sanitized = basename
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (sanitized) {
+      return sanitized;
+    }
+  } catch {
+    // Fall back below.
+  }
+
+  return `imported-image-${index + 1}`;
+}
+
+async function downloadImportedImage(imageUrl, refererUrl, signal, index) {
+  const validatedUrl = validateArticleUrl(imageUrl, '图片链接格式无效。');
+  const { response, finalUrl } = await fetchPublicResponse(validatedUrl, signal, {
+    headers: {
+      ...IMAGE_REQUEST_HEADERS,
+      Referer: refererUrl,
+    },
+  });
+
+  if (!response.ok) {
+    throw new ArticleImportError(`抓取图片失败（${response.status}）。`, 502);
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!IMAGE_CONTENT_TYPE_PATTERN.test(contentType)) {
+    throw new ArticleImportError('图片资源格式暂不支持。', 415);
+  }
+
+  const contentLength = Number(response.headers.get('content-length') || 0);
+  if (contentLength > MAX_IMPORTED_IMAGE_BYTES) {
+    throw new ArticleImportError('图片过大，暂不支持自动转存。', 413);
+  }
+
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.length > MAX_IMPORTED_IMAGE_BYTES) {
+    throw new ArticleImportError('图片过大，暂不支持自动转存。', 413);
+  }
+
+  return {
+    sourceUrl: imageUrl,
+    finalUrl: finalUrl.toString(),
+    contentType: contentType.split(';')[0].trim().toLowerCase(),
+    extension: resolveImageExtension(contentType, finalUrl.toString()),
+    basename: sanitizeImportedImageBasename(imageUrl, index),
+    bytes,
+  };
+}
+
+async function downloadImportedImages(markdown, refererUrl, signal) {
+  const imageUrls = extractMarkdownImageUrls(markdown)
+    .filter((imageUrl) => /^https?:\/\//i.test(imageUrl))
+    .slice(0, MAX_IMPORTED_IMAGES);
+  const images = [];
+  let totalBytes = 0;
+
+  for (let index = 0; index < imageUrls.length; index += 1) {
+    let image;
+    try {
+      image = await downloadImportedImage(imageUrls[index], refererUrl, signal, index);
+    } catch {
+      continue;
+    }
+
+    if (totalBytes + image.bytes.length > MAX_IMPORTED_IMAGES_TOTAL_BYTES) {
+      break;
+    }
+
+    totalBytes += image.bytes.length;
+    images.push({
+      sourceUrl: image.sourceUrl,
+      finalUrl: image.finalUrl,
+      contentType: image.contentType,
+      extension: image.extension,
+      basename: image.basename,
+      contentBase64: image.bytes.toString('base64'),
+    });
+  }
+
+  return images;
 }
 
 function normalizeHeadingComparisonText(value) {
@@ -578,6 +787,7 @@ async function importArticle(requestedUrl, options = {}) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   const allowMetadataOnly = options.allowMetadataOnly === true;
+  const includeImages = options.includeImages === true;
 
   try {
     const { response, finalUrl: finalArticleUrl } = await fetchArticleResponse(validatedRequestedUrl, controller.signal);
@@ -594,6 +804,9 @@ async function importArticle(requestedUrl, options = {}) {
         desc: extractedArticle.desc,
         sourceName: extractedArticle.sourceName,
         markdown: extractedArticle.markdown,
+        images: includeImages
+          ? await downloadImportedImages(extractedArticle.markdown, finalUrl, controller.signal)
+          : [],
         requestedUrl: validatedRequestedUrl.toString(),
         finalUrl,
       };
@@ -643,6 +856,9 @@ async function importArticle(requestedUrl, options = {}) {
         desc: extractedArticle.desc,
         sourceName: extractedArticle.sourceName || finalArticleUrl.hostname.replace(/^www\./, ''),
         markdown: extractedArticle.markdown,
+        images: includeImages
+          ? await downloadImportedImages(extractedArticle.markdown, finalUrl, controller.signal)
+          : [],
         requestedUrl: validatedRequestedUrl.toString(),
         finalUrl,
         needsManualPaste: false,

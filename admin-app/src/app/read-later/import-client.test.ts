@@ -20,6 +20,16 @@ describe('importReadLaterFromUrl', () => {
         requestedUrl: 'https://example.com/requested',
         finalUrl: 'https://example.com/final',
         needsManualPaste: false,
+        images: [
+          {
+            sourceUrl: 'https://example.com/image.jpg',
+            finalUrl: 'https://cdn.example.com/image.jpg',
+            contentType: 'image/jpeg',
+            extension: 'jpg',
+            basename: 'image',
+            contentBase64: 'aGVsbG8=',
+          },
+        ],
       }),
     } as Response)
 
@@ -33,9 +43,49 @@ describe('importReadLaterFromUrl', () => {
       requestedUrl: 'https://example.com/requested',
       finalUrl: 'https://example.com/final',
       needsManualPaste: false,
+      images: [
+        {
+          sourceUrl: 'https://example.com/image.jpg',
+          finalUrl: 'https://cdn.example.com/image.jpg',
+          contentType: 'image/jpeg',
+          extension: 'jpg',
+          basename: 'image',
+          contentBase64: 'aGVsbG8=',
+        },
+      ],
     })
     expect(fetchSpy).toHaveBeenCalledWith(
       `${READ_LATER_IMPORT_URL}?url=${encodeURIComponent('https://example.com/requested')}`,
+      {
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Bearer token-1',
+        },
+      },
+    )
+  })
+
+  it('requests imported images when enabled', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        title: '导入标题',
+        markdown: '正文内容',
+        requestedUrl: 'https://example.com/requested',
+        finalUrl: 'https://example.com/final',
+        needsManualPaste: false,
+      }),
+    } as Response)
+
+    await importReadLaterFromUrl(
+      { token: 'token-1' },
+      'https://example.com/requested',
+      { includeImages: true },
+    )
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      `${READ_LATER_IMPORT_URL}?url=${encodeURIComponent('https://example.com/requested')}&includeImages=1`,
       {
         headers: {
           Accept: 'application/json',
@@ -112,6 +162,7 @@ describe('importReadLaterFromUrl', () => {
       requestedUrl: 'https://example.com/requested',
       finalUrl: 'https://example.com/final',
       needsManualPaste: true,
+      images: [],
     })
     expect(fetchSpy).toHaveBeenCalledWith(
       `${READ_LATER_IMPORT_URL}?url=${encodeURIComponent('https://example.com/requested')}&allowMetadataOnly=1`,

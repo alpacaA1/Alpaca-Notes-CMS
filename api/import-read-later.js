@@ -58,11 +58,12 @@ module.exports = async function handler(req, res) {
     const requestUrl = getRequestUrl(req);
     const requestedUrl = requestUrl.searchParams.get('url') || '';
     const allowMetadataOnly = /^(?:1|true)$/i.test(requestUrl.searchParams.get('allowMetadataOnly') || '');
+    const includeImages = /^(?:1|true)$/i.test(requestUrl.searchParams.get('includeImages') || '');
     if (!requestedUrl.trim()) {
       throw new ArticleImportError('请先填写原文链接。', 400);
     }
 
-    const result = await importArticle(requestedUrl, { allowMetadataOnly });
+    const result = await importArticle(requestedUrl, { allowMetadataOnly, includeImages });
     sendJson(req, res, 200, result);
   } catch (error) {
     if (error instanceof ArticleImportError) {

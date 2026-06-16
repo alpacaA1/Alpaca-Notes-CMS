@@ -105,7 +105,11 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '覆盖并导入' }))
 
     await waitFor(() => {
-      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
+      expect(importSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        'https://example.com/article',
+        { includeImages: true },
+      )
     })
 
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
@@ -113,6 +117,66 @@ describe('App read-later import flow', () => {
     expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('导入来源')
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
+  })
+
+  it('uploads imported remote images and rewrites read-later markdown to site image paths', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: readLaterPost.path,
+      sha: readLaterPost.sha,
+      content: readLaterContent,
+    })
+    const uploadSpy = vi.spyOn(githubClientModule, 'uploadImageFile').mockResolvedValue({
+      path: 'source/images/2026/06/1-p735699706.jpg',
+      sha: 'image-sha',
+    })
+    vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '豆瓣帖子',
+      desc: '摘要',
+      sourceName: 'douban.com',
+      markdown: '导入正文\n\n![图1](https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg)',
+      requestedUrl: 'https://www.douban.com/group/topic/490564194/',
+      finalUrl: 'https://www.douban.com/group/topic/490564194/',
+      needsManualPaste: false,
+      images: [
+        {
+          sourceUrl: 'https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg',
+          finalUrl: 'https://img9.doubanio.com/view/group_topic/l/public/p735699706.jpg',
+          contentType: 'image/jpeg',
+          extension: 'jpg',
+          basename: 'p735699706',
+          contentBase64: 'aGVsbG8=',
+        },
+      ],
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+    await waitFor(() => {
+      expect(screen.getByText('Import me later')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /import me later/i }))
+    await screen.findByRole('link', { name: '原文摘录' })
+    fireEvent.click(screen.getByRole('tab', { name: '信息' }))
+    fireEvent.click(screen.getByRole('button', { name: '从链接导入正文' }))
+    fireEvent.click(await screen.findByRole('button', { name: '覆盖并导入' }))
+
+    await waitFor(() => {
+      expect(uploadSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        expect.objectContaining({
+          path: expect.stringMatching(/^source\/images\/\d{4}\/\d{2}\/\d+-p735699706\.jpg$/),
+          file: expect.any(File),
+        }),
+      )
+    })
+
+    const image = await screen.findByAltText('图1') as HTMLImageElement
+    expect(image.getAttribute('src')).toMatch(/^\/Alpaca-Notes-CMS\/images\/\d{4}\/\d{2}\/\d+-p735699706\.jpg$/)
   })
 
   it('confirms before overwriting annotated content and clears highlights after import', async () => {
@@ -180,7 +244,11 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '覆盖并导入' }))
 
     await waitFor(() => {
-      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/article')
+      expect(importSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        'https://example.com/article',
+        { includeImages: true },
+      )
     })
 
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
@@ -272,7 +340,7 @@ describe('App read-later import flow', () => {
       expect(importSpy).toHaveBeenCalledWith(
         { token: 'persisted-token' },
         'https://example.com/article',
-        { allowMetadataOnly: true },
+        { allowMetadataOnly: true, includeImages: true },
       )
     })
 
@@ -315,7 +383,7 @@ describe('App read-later import flow', () => {
       expect(importSpy).toHaveBeenCalledWith(
         { token: 'persisted-token' },
         'https://www.superlinear.academy/c/posts/ai-5eb938',
-        { allowMetadataOnly: true },
+        { allowMetadataOnly: true, includeImages: true },
       )
     })
 
@@ -386,7 +454,11 @@ describe('App read-later import flow', () => {
     expect((await screen.findAllByText('设计摘录')).length).toBeGreaterThan(0)
 
     await waitFor(() => {
-      expect(importSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/posts/design-systems')
+      expect(importSpy).toHaveBeenCalledWith(
+        { token: 'persisted-token' },
+        'https://example.com/posts/design-systems',
+        { includeImages: true },
+      )
     })
 
     expect(await screen.findByRole('status')).toBeTruthy()
