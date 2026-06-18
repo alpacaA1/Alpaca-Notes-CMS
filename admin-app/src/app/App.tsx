@@ -3258,13 +3258,9 @@ export default function App() {
   const isTrashView = adminView === 'trash'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
-  const isReaderPreview = Boolean(
-    document
-    && isPreviewing
-    && (document.contentType === 'post' || document.contentType === 'diary' || document.contentType === 'read-later'),
-  )
+  const isReaderPreview = Boolean(document && isPreviewing && document.contentType === 'read-later')
   const hideTopBar = isReaderPreview && isReadLaterTopBarHidden
-  const showImmersiveCanvas = Boolean(document) && isImmersive && !isReaderPreview
+  const showImmersiveCanvas = Boolean(document) && !isReaderPreview && (isImmersive || isPreviewing)
   const isPostListHidden = showImmersiveCanvas
   const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReaderPreview

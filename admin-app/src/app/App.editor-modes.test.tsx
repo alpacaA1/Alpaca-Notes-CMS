@@ -774,11 +774,11 @@ describe('App editor modes', () => {
     expect(screen.getByText(/Edited body before preview/)).toBeTruthy()
     expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
-    expect(screen.getByText('内容目录')).toBeTruthy()
-    expect(screen.getByText('发布设置')).toBeTruthy()
-    expect(container.querySelector('.admin-layout--reader')).toBeTruthy()
-    expect(container.querySelector('.editor-layout--reader')).toBeTruthy()
-    expect(container.querySelector('.settings-panel--reader-lite')).toBeTruthy()
+    expect(screen.queryByText('发布设置')).toBeNull()
+    expect(container.querySelector('.admin-shell--immersive')).toBeTruthy()
+    expect(container.querySelector('.admin-layout--reader')).toBeNull()
+    expect(container.querySelector('.editor-layout--reader')).toBeNull()
+    expect(container.querySelector('.settings-panel--reader-lite')).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: '继续编辑' }))
 
