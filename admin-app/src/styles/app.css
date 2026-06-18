@@ -1719,14 +1719,22 @@ textarea {
 
 .top-bar__rss-badge {
   position: absolute;
-  top: 7px;
-  right: 7px;
-  width: 8px;
-  height: 8px;
+  top: -7px;
+  right: -7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
   border: 2px solid rgba(255, 252, 247, 0.96);
   border-radius: 999px;
   background: #e53232;
   box-shadow: 0 0 0 1px rgba(180, 31, 31, 0.12);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .top-bar__button--theme {

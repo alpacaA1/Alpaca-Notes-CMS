@@ -537,10 +537,16 @@ describe('App read-later import flow', () => {
     expect(container.querySelector('.success-message')).toBeNull()
   })
 
-  it('preloads RSS subscriptions so the top-bar red dot is visible outside the RSS page', async () => {
+  it('refreshes RSS items after entering the system so the top-bar badge uses current item URLs', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    window.localStorage.setItem('alpaca-admin-viewed-feed-items', JSON.stringify({
+      'https://example.com/design.xml': [
+        'https://example.com/posts/old-one',
+        'https://example.com/posts/old-two',
+      ],
+    }))
     vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
       path: 'source/_data/feed-subscriptions.json',
       sha: 'feed-sha',
@@ -560,11 +566,38 @@ describe('App read-later import flow', () => {
         },
       ],
     })
+    const feedSpy = vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
+      title: 'Design Feed',
+      description: '',
+      requestedUrl: 'https://example.com/design.xml',
+      finalUrl: 'https://example.com/design.xml',
+      items: [
+        {
+          id: 'feed-item-2',
+          title: '旧文章二',
+          url: 'https://example.com/posts/old-two',
+          summary: '旧摘要。',
+          publishedAt: '2026-06-04T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+        {
+          id: 'feed-item-3',
+          title: '新文章三',
+          url: 'https://example.com/posts/new-three',
+          summary: '新摘要。',
+          publishedAt: '2026-06-05T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+      ],
+    })
 
     const { container } = render(<App />)
 
     await waitFor(() => {
-      expect(container.querySelector('.top-bar__rss-badge')).toBeTruthy()
+      expect(feedSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/design.xml')
+    })
+    await waitFor(() => {
+      expect(container.querySelector('.top-bar__rss-badge')?.textContent).toBe('1')
     })
   })
 
@@ -633,7 +666,6 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
     const sidebar = await screen.findByLabelText('已订阅 feed')
     fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
-    fireEvent.click(within(sidebar).getAllByRole('button', { name: /旧标题/ })[0])
 
     await waitFor(() => {
       expect(saveSpy).toHaveBeenCalledWith(
@@ -651,6 +683,76 @@ describe('App read-later import flow', () => {
       )
     })
     expect(await screen.findByLabelText('2 条待读')).toBeTruthy()
+  })
+
+  it('refreshes RSS items on entry and shows unread count when newer items replace old ones', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    window.localStorage.setItem('alpaca-admin-viewed-feed-items', JSON.stringify({
+      'https://example.com/design.xml': [
+        'https://example.com/posts/old-one',
+        'https://example.com/posts/old-two',
+      ],
+    }))
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'feed-sha',
+      folders: [],
+      subscriptions: [
+        {
+          id: 'design-feed',
+          title: 'Design Feed',
+          url: 'https://example.com/design.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 2,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+    })
+    vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'next-feed-sha',
+    }))
+    const feedSpy = vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockResolvedValue({
+      title: 'Design Feed',
+      description: '',
+      requestedUrl: 'https://example.com/design.xml',
+      finalUrl: 'https://example.com/design.xml',
+      items: [
+        {
+          id: 'feed-item-2',
+          title: '旧文章二',
+          url: 'https://example.com/posts/old-two',
+          summary: '旧摘要。',
+          publishedAt: '2026-06-04T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+        {
+          id: 'feed-item-3',
+          title: '新文章三',
+          url: 'https://example.com/posts/new-three',
+          summary: '新摘要。',
+          publishedAt: '2026-06-05T08:00:00.000Z',
+          sourceName: 'Design Feed',
+        },
+      ],
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+
+    await waitFor(() => {
+      expect(feedSpy).toHaveBeenCalledWith({ token: 'persisted-token' }, 'https://example.com/design.xml')
+    })
+
+    const sidebar = await screen.findByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+    expect(await within(sidebar).findByLabelText('1 条待读')).toBeTruthy()
   })
 
   it('deletes an RSS folder and moves its feeds into Uncategorized', async () => {

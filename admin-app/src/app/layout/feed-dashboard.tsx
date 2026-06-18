@@ -18,6 +18,7 @@ type FeedDashboardProps = {
   subscriptions: FeedSubscription[]
   selectedSubscriptionUrl: string | null
   previewFeed: ImportedFeed | null
+  feedItemsByUrl?: Record<string, ImportedFeedItem[]>
   previewArticlesByUrl: Record<string, ImportedReadLaterArticle>
   previewArticleLoadingByUrl: Record<string, boolean>
   previewArticleErrorsByUrl: Record<string, string>
@@ -90,7 +91,7 @@ function isEditableTarget(target: EventTarget | null) {
   return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
 }
 
-function normalizeFeedItemUrl(value: string) {
+export function normalizeFeedItemUrl(value: string) {
   const trimmed = value.trim()
   if (!trimmed) {
     return ''
@@ -153,8 +154,20 @@ function readViewedFeedReadCountMarker(value: string) {
   return Number.isFinite(count) ? Math.max(0, count) : null
 }
 
-export function getViewedFeedItemCount(viewedItemUrls: string[] | undefined, articleCount: number) {
+export function getViewedFeedItemCount(
+  viewedItemUrls: string[] | undefined,
+  articleCount: number,
+  currentItemUrls?: string[],
+) {
   const viewedItems = viewedItemUrls || []
+  const normalizedCurrentItemUrls = Array.from(
+    new Set((currentItemUrls || []).map((itemUrl) => normalizeFeedItemUrl(itemUrl)).filter(Boolean)),
+  )
+  if (normalizedCurrentItemUrls.length > 0) {
+    const viewedUrlSet = new Set(viewedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null))
+    return normalizedCurrentItemUrls.filter((itemUrl) => viewedUrlSet.has(itemUrl)).length
+  }
+
   const viewedUrlCount = new Set(viewedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null)).size
   const markedReadCount = viewedItems.reduce((count, itemUrl) => {
     const markerCount = readViewedFeedReadCountMarker(itemUrl)
@@ -173,6 +186,7 @@ export default function FeedDashboard({
   subscriptions,
   selectedSubscriptionUrl,
   previewFeed,
+  feedItemsByUrl = {},
   previewArticlesByUrl,
   previewArticleLoadingByUrl,
   previewArticleErrorsByUrl,
@@ -220,13 +234,17 @@ export default function FeedDashboard({
 
   const subscriptionViewModels = useMemo(
     () => filteredSubscriptions.map((subscription) => {
-      const viewedItemCount = getViewedFeedItemCount(viewedFeedItemsByUrl[subscription.url], subscription.articleCount)
+      const viewedItemCount = getViewedFeedItemCount(
+        viewedFeedItemsByUrl[subscription.url],
+        subscription.articleCount,
+        feedItemsByUrl[subscription.url]?.map((item) => item.url),
+      )
       return {
         subscription,
         unreadCount: Math.max(0, subscription.articleCount - viewedItemCount),
       }
     }),
-    [filteredSubscriptions, viewedFeedItemsByUrl],
+    [feedItemsByUrl, filteredSubscriptions, viewedFeedItemsByUrl],
   )
 
   const folderViewModels = useMemo<FolderViewModel[]>(() => {
@@ -314,12 +332,7 @@ export default function FeedDashboard({
   const isSelectedPreviewArticleLoading = selectedPreviewItem ? Boolean(previewArticleLoadingByUrl[selectedPreviewItem.url]) : false
   const selectedFeedViewedItemUrls = selectedSubscriptionUrl ? new Set(viewedFeedItemsByUrl[selectedSubscriptionUrl] || []) : new Set<string>()
   const selectedFeedUnreadItemCount = previewFeed
-    ? getViewedFeedItemCount(
-      selectedSubscriptionUrl ? viewedFeedItemsByUrl[selectedSubscriptionUrl] : undefined,
-      previewFeed.items.length,
-    ) >= previewFeed.items.length
-      ? 0
-      : previewFeed.items.filter((item) => {
+    ? previewFeed.items.filter((item) => {
       const normalizedItemUrl = normalizeFeedItemUrl(item.url)
       return normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl)
     }).length
@@ -369,10 +382,18 @@ export default function FeedDashboard({
   const markSubscriptionViewed = (subscription: FeedSubscription) => {
     updateViewedFeedItemsByUrl((currentState) => {
       const currentFeedItems = currentState[subscription.url] || []
-      const nextFeedItems = [
-        ...currentFeedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null),
-        createViewedFeedReadCountMarker(subscription.articleCount),
-      ]
+      const currentFeedItemUrls = (feedItemsByUrl[subscription.url] || [])
+        .map((item) => normalizeFeedItemUrl(item.url))
+        .filter((itemUrl): itemUrl is string => Boolean(itemUrl))
+      const nextFeedItems = currentFeedItemUrls.length > 0
+        ? Array.from(new Set([
+            ...currentFeedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null),
+            ...currentFeedItemUrls,
+          ]))
+        : [
+            ...currentFeedItems.filter((itemUrl) => readViewedFeedReadCountMarker(itemUrl) === null),
+            createViewedFeedReadCountMarker(subscription.articleCount),
+          ]
       const nextState = {
         ...currentState,
         [subscription.url]: nextFeedItems,

@@ -221,6 +221,7 @@ export default function TopBar({
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
+  const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
 
@@ -308,7 +309,7 @@ export default function TopBar({
               onClick={isFeedsView ? onBackToDashboard : onOpenFeeds}
             >
               {isFeedsView ? '返回内容' : 'RSS'}
-              {showRssBadge ? <span className="top-bar__rss-badge" aria-hidden="true" /> : null}
+              {showRssBadge ? <span className="top-bar__rss-badge" aria-hidden="true" title={`${rssUnreadCount} 条 RSS 未读`}>{rssBadgeLabel}</span> : null}
             </button>
           ) : null}
           {isEditor && onBackToDashboard ? (

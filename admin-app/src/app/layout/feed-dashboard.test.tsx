@@ -213,6 +213,50 @@ describe('FeedDashboard', () => {
     expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
   })
 
+  it('counts unread items from current feed URLs when the total article count stays the same', () => {
+    const subscription = createSubscription({
+      id: 'stable-feed',
+      title: '稳定数量 Feed',
+      url: 'https://example.com/stable.xml',
+      articleCount: 2,
+    })
+
+    renderFeedDashboard({
+      subscriptions: [subscription],
+      feedItemsByUrl: {
+        [subscription.url]: [
+          {
+            id: 'item-2',
+            title: '旧文章二',
+            url: 'https://example.com/posts/two',
+            summary: '旧摘要。',
+            publishedAt: '2026-06-04T09:00:00.000Z',
+            sourceName: '稳定数量 Feed',
+          },
+          {
+            id: 'item-3',
+            title: '新文章三',
+            url: 'https://example.com/posts/three',
+            summary: '新摘要。',
+            publishedAt: '2026-06-05T09:00:00.000Z',
+            sourceName: '稳定数量 Feed',
+          },
+        ],
+      },
+      viewedFeedItemsByUrl: {
+        [subscription.url]: [
+          'https://example.com/posts/one',
+          'https://example.com/posts/two',
+          '__alpaca-feed-read-count:2',
+        ],
+      },
+    })
+
+    const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+    expect(within(sidebar).getByLabelText('1 条待读')).toBeTruthy()
+  })
+
   it('marks every current preview item as read from the feed item module', () => {
     const subscription = createSubscription({
       id: 'product-feed',
@@ -439,6 +483,50 @@ describe('FeedDashboard', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
 
     expect(onRemoveSubscription).toHaveBeenCalledWith(subscription)
+  })
+
+  it('stores current item URLs instead of a read-count marker when marking a loaded feed as read', () => {
+    const subscription = createSubscription({
+      id: 'loaded-feed',
+      title: '已加载 Feed',
+      url: 'https://example.com/loaded.xml',
+      articleCount: 2,
+    })
+
+    renderFeedDashboard({
+      subscriptions: [subscription],
+      feedItemsByUrl: {
+        [subscription.url]: [
+          {
+            id: 'item-1',
+            title: '文章一',
+            url: 'https://example.com/posts/one#comments',
+            summary: '第一篇摘要。',
+            publishedAt: '2026-06-04T08:00:00.000Z',
+            sourceName: '已加载 Feed',
+          },
+          {
+            id: 'item-2',
+            title: '文章二',
+            url: 'https://example.com/posts/two',
+            summary: '第二篇摘要。',
+            publishedAt: '2026-06-04T09:00:00.000Z',
+            sourceName: '已加载 Feed',
+          },
+        ],
+      },
+    })
+
+    const sidebar = screen.getByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+    fireEvent.click(within(sidebar).getByRole('button', { name: '已加载 Feed 更多操作' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }))
+
+    const stored = JSON.parse(window.localStorage.getItem('alpaca-admin-viewed-feed-items') || '{}') as Record<string, string[]>
+    expect(stored[subscription.url]).toEqual([
+      'https://example.com/posts/one',
+      'https://example.com/posts/two',
+    ])
   })
 
   it('creates, renames, and deletes folders from the sidebar controls', () => {
