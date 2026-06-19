@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@mozilla/readability": "^0.6.0",
-    "hexo": "^8.0.0",
+    "hexo": "^8.1.2",
     "hexo-generator-archive": "^2.0.0",
     "hexo-generator-category-enhance": "^0.1.6",
     "hexo-generator-feed": "^4.0.0",
