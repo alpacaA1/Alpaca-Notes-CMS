@@ -91,6 +91,8 @@ type PostDeleteConfirmAction = {
   post: PostIndexItem
 }
 
+const RSS_AUTO_REFRESH_CONCURRENCY = 3
+
 function decodeBase64Bytes(value: string) {
   const binary = atob(value)
   return Uint8Array.from(binary, (character) => character.charCodeAt(0))
@@ -307,6 +309,36 @@ function applyImportedFeedToSubscription(
         updatedAt: timestamp,
       }
     : null
+}
+
+function createCachedImportedFeed(subscription: FeedSubscription, items: ImportedFeedItem[]): ImportedFeed {
+  return {
+    title: subscription.title,
+    description: subscription.description,
+    requestedUrl: subscription.url,
+    finalUrl: subscription.url,
+    items,
+  }
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+) {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const workerCount = Math.min(Math.max(1, concurrency), items.length)
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex)
+    }
+  }))
+
+  return results
 }
 
 function createFeedFolderRecord(name: string): FeedFolder {
@@ -1187,15 +1219,23 @@ export default function App() {
     const refreshSubscriptions = async () => {
       try {
         const timestamp = new Date().toISOString()
-        const results: FeedRefreshResult[] = await Promise.all(
-          rssSubscriptions.map(async (subscription) => {
+        const subscriptionsByRefreshPriority = selectedRssFeedUrl
+          ? [
+              ...rssSubscriptions.filter((subscription) => subscription.url === selectedRssFeedUrl),
+              ...rssSubscriptions.filter((subscription) => subscription.url !== selectedRssFeedUrl),
+            ]
+          : rssSubscriptions
+        const results = await mapWithConcurrency(
+          subscriptionsByRefreshPriority,
+          RSS_AUTO_REFRESH_CONCURRENCY,
+          async (subscription): Promise<FeedRefreshResult> => {
             try {
               const importedFeed = await importFeedFromUrl(session, subscription.url)
               return { subscription, importedFeed }
             } catch (caughtError) {
               return { subscription, caughtError }
             }
-          }),
+          },
         )
         if (cancelled) {
           return
@@ -1265,7 +1305,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [adminView, hasLoadedRssSubscriptions, rssSubscriptions, rssSubscriptionsState, session])
+  }, [adminView, hasLoadedRssSubscriptions, rssSubscriptions, rssSubscriptionsState, selectedRssFeedUrl, session])
 
   const handleLogout = () => {
     sessionStore.logout()
@@ -1730,9 +1770,10 @@ export default function App() {
       return
     }
 
+    const cachedFeedItems = rssFeedItemsByUrl[subscription.url] || []
     setSelectedRssFeedUrl(subscription.url)
     setIsRssPreviewLoading(true)
-    setRssPreviewFeed(null)
+    setRssPreviewFeed(cachedFeedItems.length > 0 ? createCachedImportedFeed(subscription, cachedFeedItems) : null)
     setError(null)
     setSuccessMessage(null)
 

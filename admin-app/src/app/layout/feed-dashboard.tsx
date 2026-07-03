@@ -919,7 +919,7 @@ export default function FeedDashboard({
                 ) : null}
               </div>
             </div>
-            {isPreviewLoading ? (
+            {isPreviewLoading && !previewFeed ? (
               <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
             ) : !previewFeed ? (
               <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或手动添加新的 feed。</div>
@@ -961,7 +961,7 @@ export default function FeedDashboard({
             <strong>{selectedPreviewArticle?.title || selectedPreviewItem?.title || previewFeed?.title || selectedSubscription?.title || '选择一条摘要'}</strong>
             <span>{selectedPreviewItem ? `第 ${selectedPreviewItemIndex + 1} 条 · ↑↓ 切换` : ''}</span>
           </div>
-          {isPreviewLoading ? (
+          {isPreviewLoading && !previewFeed ? (
             <div className="feed-dashboard__reader-empty">正在准备正文预览区…</div>
           ) : !previewFeed ? (
             <div className="feed-dashboard__reader-empty">选中 feed 后，这里显示当前条目的正文预览。</div>

@@ -164,6 +164,40 @@ describe('FeedDashboard', () => {
     expect(screen.queryByText('设计 Feed')).toBeNull()
   })
 
+  it('keeps cached preview items visible while a feed refresh is loading', () => {
+    const subscription = createSubscription({
+      id: 'design-feed',
+      title: '设计 Feed',
+      url: 'https://example.com/design.xml',
+      articleCount: 1,
+    })
+
+    renderFeedDashboard({
+      subscriptions: [subscription],
+      selectedSubscriptionUrl: subscription.url,
+      isPreviewLoading: true,
+      previewFeed: {
+        title: '设计 Feed',
+        description: '',
+        requestedUrl: subscription.url,
+        finalUrl: subscription.url,
+        items: [
+          {
+            id: 'item-1',
+            title: '缓存文章',
+            url: 'https://example.com/posts/cached',
+            summary: '缓存摘要。',
+            publishedAt: '2026-06-04T08:00:00.000Z',
+            sourceName: '设计 Feed',
+          },
+        ],
+      },
+    })
+
+    expect(screen.queryByText('正在读取最近条目…')).toBeNull()
+    expect(screen.getByRole('button', { name: /缓存文章/ })).toBeTruthy()
+  })
+
   it('removes clicked preview items from the unread count', () => {
     const subscription = createSubscription({
       id: 'design-feed',
