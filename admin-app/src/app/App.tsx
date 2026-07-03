@@ -548,6 +548,7 @@ export default function App() {
   const previewObjectUrlsRef = useRef<string[]>([])
   const preloadAttemptedRef = useRef<Partial<Record<ContentType, boolean>>>({})
   const rssAutoRefreshAttemptedRef = useRef(false)
+  const rssPreviewRequestIdRef = useRef(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
   const [postDeleteConfirm, setPostDeleteConfirm] = useState<PostDeleteConfirmAction | null>(null)
@@ -1766,14 +1767,18 @@ export default function App() {
   }
 
   const handlePreviewSubscriptionFeed = async (subscription: FeedSubscription) => {
-    if (!session || isRssPreviewLoading || quickReadLaterDirectoryPendingFeedUrl) {
+    if (!session || quickReadLaterDirectoryPendingFeedUrl) {
       return
     }
 
+    const requestId = rssPreviewRequestIdRef.current + 1
+    rssPreviewRequestIdRef.current = requestId
     const cachedFeedItems = rssFeedItemsByUrl[subscription.url] || []
     setSelectedRssFeedUrl(subscription.url)
     setIsRssPreviewLoading(true)
-    setRssPreviewFeed(cachedFeedItems.length > 0 ? createCachedImportedFeed(subscription, cachedFeedItems) : null)
+    if (cachedFeedItems.length > 0) {
+      setRssPreviewFeed(createCachedImportedFeed(subscription, cachedFeedItems))
+    }
     setError(null)
     setSuccessMessage(null)
 
@@ -1781,6 +1786,10 @@ export default function App() {
       const importedFeed = await importFeedFromUrl(session, subscription.url)
       const timestamp = new Date().toISOString()
       const updatedSubscription = applyImportedFeedToSubscription(subscription, importedFeed, timestamp)
+
+      if (requestId !== rssPreviewRequestIdRef.current) {
+        return
+      }
 
       setRssPreviewFeed(importedFeed)
       setRssFeedItemsByUrl((currentItemsByUrl) => ({
@@ -1795,6 +1804,9 @@ export default function App() {
           ...rssSubscriptionsState,
           subscriptions: nextSubscriptions,
         })
+        if (requestId !== rssPreviewRequestIdRef.current) {
+          return
+        }
         setRssSubscriptionsState(savedState)
         setHasLoadedRssSubscriptions(true)
       }
@@ -1807,7 +1819,9 @@ export default function App() {
 
       setError(caughtError instanceof Error ? caughtError.message : '加载 RSS 条目失败。')
     } finally {
-      setIsRssPreviewLoading(false)
+      if (requestId === rssPreviewRequestIdRef.current) {
+        setIsRssPreviewLoading(false)
+      }
     }
   }
 

@@ -537,6 +537,92 @@ describe('App read-later import flow', () => {
     expect(container.querySelector('.success-message')).toBeNull()
   })
 
+  it('keeps the current RSS item list visible while switching to an uncached feed', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([readLaterPost])
+    vi.spyOn(feedSubscriptionsModule, 'readFeedSubscriptions').mockResolvedValue({
+      path: 'source/_data/feed-subscriptions.json',
+      sha: 'feed-sha',
+      folders: [],
+      subscriptions: [
+        {
+          id: 'first-feed',
+          title: 'First Feed',
+          url: 'https://example.com/first.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 1,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+        {
+          id: 'second-feed',
+          title: 'Second Feed',
+          url: 'https://example.com/second.xml',
+          description: '',
+          category: '',
+          sourceType: 'manual',
+          articleCount: 1,
+          readLaterCount: 0,
+          createdAt: '2026-06-04T10:00:00.000Z',
+          updatedAt: '',
+        },
+      ],
+    })
+    vi.spyOn(feedSubscriptionsModule, 'saveFeedSubscriptions').mockImplementation(async (_session, state) => ({
+      ...state,
+      sha: 'next-feed-sha',
+    }))
+    vi.spyOn(feedImportClientModule, 'importFeedFromUrl').mockImplementation(async (_session, url) => {
+      if (url === 'https://example.com/first.xml') {
+        return {
+          title: 'First Feed',
+          description: '',
+          requestedUrl: 'https://example.com/first.xml',
+          finalUrl: 'https://example.com/first.xml',
+          items: [
+            {
+              id: 'first-item',
+              title: '第一频道文章',
+              url: 'https://example.com/posts/first',
+              summary: '第一频道摘要。',
+              publishedAt: '2026-06-04T08:00:00.000Z',
+              sourceName: 'First Feed',
+            },
+          ],
+        }
+      }
+
+      return new Promise(() => {})
+    })
+    vi.spyOn(importClientModule, 'importReadLaterFromUrl').mockResolvedValue({
+      title: '第一频道文章',
+      desc: '第一频道摘要。',
+      sourceName: 'First Feed',
+      markdown: '# 第一频道正文',
+      requestedUrl: 'https://example.com/posts/first',
+      finalUrl: 'https://example.com/posts/first',
+      needsManualPaste: false,
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
+    const sidebar = await screen.findByLabelText('已订阅 feed')
+    fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
+    fireEvent.click(within(sidebar).getByText('First Feed').closest('button') as HTMLButtonElement)
+
+    expect(await screen.findByRole('button', { name: /第一频道文章/ })).toBeTruthy()
+
+    fireEvent.click(within(sidebar).getByText('Second Feed').closest('button') as HTMLButtonElement)
+
+    expect(screen.queryByText('正在读取最近条目…')).toBeNull()
+    expect(screen.getByText('更新中…')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /第一频道文章/ })).toBeTruthy()
+  })
+
   it('refreshes RSS items after entering the system so the top-bar badge uses current item URLs', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])

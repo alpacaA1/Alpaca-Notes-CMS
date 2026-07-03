@@ -82,6 +82,14 @@ function readFeedItemHostLabel(value: string) {
   }
 }
 
+function getPreviewFeedSourceUrls(previewFeed: ImportedFeed | null) {
+  if (!previewFeed) {
+    return []
+  }
+
+  return [previewFeed.requestedUrl, previewFeed.finalUrl].map((value) => value.trim()).filter(Boolean)
+}
+
 function isEditableTarget(target: EventTarget | null) {
   if (!(target instanceof HTMLElement)) {
     return false
@@ -306,6 +314,19 @@ export default function FeedDashboard({
     () => subscriptions.find((subscription) => subscription.url === selectedSubscriptionUrl) || null,
     [selectedSubscriptionUrl, subscriptions],
   )
+  const previewFeedSubscriptionUrl = useMemo(() => {
+    const previewFeedSourceUrls = getPreviewFeedSourceUrls(previewFeed)
+    if (previewFeedSourceUrls.length === 0) {
+      return selectedSubscriptionUrl
+    }
+
+    return subscriptions.find((subscription) => previewFeedSourceUrls.includes(subscription.url))?.url || selectedSubscriptionUrl
+  }, [previewFeed, selectedSubscriptionUrl, subscriptions])
+  const isPreviewFeedForSelectedSubscription = Boolean(
+    previewFeed
+    && selectedSubscriptionUrl
+    && previewFeedSubscriptionUrl === selectedSubscriptionUrl,
+  )
 
   useEffect(() => {
     setSelectedPreviewItemUrl(previewFeed?.items[0]?.url || null)
@@ -330,7 +351,7 @@ export default function FeedDashboard({
   const selectedPreviewArticle = selectedPreviewItem ? previewArticlesByUrl[selectedPreviewItem.url] || null : null
   const selectedPreviewArticleError = selectedPreviewItem ? previewArticleErrorsByUrl[selectedPreviewItem.url] || null : null
   const isSelectedPreviewArticleLoading = selectedPreviewItem ? Boolean(previewArticleLoadingByUrl[selectedPreviewItem.url]) : false
-  const selectedFeedViewedItemUrls = selectedSubscriptionUrl ? new Set(viewedFeedItemsByUrl[selectedSubscriptionUrl] || []) : new Set<string>()
+  const selectedFeedViewedItemUrls = previewFeedSubscriptionUrl ? new Set(viewedFeedItemsByUrl[previewFeedSubscriptionUrl] || []) : new Set<string>()
   const selectedFeedUnreadItemCount = previewFeed
     ? previewFeed.items.filter((item) => {
       const normalizedItemUrl = normalizeFeedItemUrl(item.url)
@@ -356,7 +377,7 @@ export default function FeedDashboard({
   }
 
   const markPreviewItemViewed = (item: ImportedFeedItem | null) => {
-    if (!selectedSubscriptionUrl || !item?.url) {
+    if (!previewFeedSubscriptionUrl || !item?.url) {
       return
     }
 
@@ -366,14 +387,14 @@ export default function FeedDashboard({
     }
 
     updateViewedFeedItemsByUrl((currentState) => {
-      const currentFeedItems = currentState[selectedSubscriptionUrl] || []
+      const currentFeedItems = currentState[previewFeedSubscriptionUrl] || []
       if (currentFeedItems.includes(normalizedItemUrl)) {
         return currentState
       }
 
       const nextState = {
         ...currentState,
-        [selectedSubscriptionUrl]: [...currentFeedItems, normalizedItemUrl],
+        [previewFeedSubscriptionUrl]: [...currentFeedItems, normalizedItemUrl],
       }
       return nextState
     })
@@ -404,7 +425,7 @@ export default function FeedDashboard({
   }
 
   const markAllPreviewItemsViewed = () => {
-    if (!selectedSubscriptionUrl || !previewFeed?.items.length) {
+    if (!previewFeedSubscriptionUrl || !previewFeed?.items.length) {
       return
     }
 
@@ -416,10 +437,10 @@ export default function FeedDashboard({
     }
 
     updateViewedFeedItemsByUrl((currentState) => {
-      const nextFeedItems = Array.from(new Set([...(currentState[selectedSubscriptionUrl] || []), ...normalizedItemUrls]))
+      const nextFeedItems = Array.from(new Set([...(currentState[previewFeedSubscriptionUrl] || []), ...normalizedItemUrls]))
       const nextState = {
         ...currentState,
-        [selectedSubscriptionUrl]: nextFeedItems,
+        [previewFeedSubscriptionUrl]: nextFeedItems,
       }
       return nextState
     })
@@ -904,9 +925,13 @@ export default function FeedDashboard({
         {!isReaderExpanded ? (
           <section className="feed-dashboard__preview" aria-label="Feed 条目列表">
             <div className="feed-dashboard__preview-header">
-              <strong>{selectedSubscription?.title || previewFeed?.title || '选择一个 feed'}</strong>
+              <strong>
+                {isPreviewFeedForSelectedSubscription
+                  ? selectedSubscription?.title || previewFeed?.title || '选择一个 feed'
+                  : previewFeed?.title || selectedSubscription?.title || '选择一个 feed'}
+              </strong>
               <div className="feed-dashboard__preview-header-actions">
-                <span>{previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
+                <span>{isPreviewLoading ? '更新中…' : previewFeed ? `${previewFeed.items.length} 条` : ''}</span>
                 {previewFeed ? (
                   <button
                     type="button"
