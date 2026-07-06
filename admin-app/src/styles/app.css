@@ -6333,6 +6333,7 @@ textarea {
 .post-dashboard__recovery,
 .post-dashboard__quick-capture,
 .post-dashboard__daily-knowledge {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -6345,6 +6346,39 @@ textarea {
   background: var(--admin-surface);
   backdrop-filter: blur(12px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+}
+
+.post-dashboard__recovery {
+  padding-right: 56px;
+}
+
+.post-dashboard__recovery-close {
+  appearance: none;
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--admin-muted);
+  cursor: pointer;
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+}
+
+.post-dashboard__recovery-close:hover {
+  border-color: var(--admin-line);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--admin-text);
+}
+
+.post-dashboard__recovery-close:focus-visible {
+  outline: 2px solid var(--admin-warm);
+  outline-offset: 2px;
 }
 
 .post-dashboard__recovery-header,
@@ -10570,6 +10604,11 @@ textarea {
 
 .admin-shell--dark .post-dashboard__recovery-item:hover {
   border-color: var(--admin-warm);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .post-dashboard__recovery-close:hover {
+  border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.06);
 }
 

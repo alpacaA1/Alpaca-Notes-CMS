@@ -198,6 +198,14 @@ function DeleteIcon() {
   )
 }
 
+function CloseIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4.2 4.2 11.8 11.8M11.8 4.2 4.2 11.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function EmptyIllustration() {
   return (
     <svg className="post-dashboard__empty-svg" width="120" height="100" viewBox="0 0 120 100" fill="none" aria-hidden="true">
@@ -368,6 +376,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
+  const [dismissedRecoveryKey, setDismissedRecoveryKey] = useState<string | null>(null)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -376,6 +385,11 @@ export default function PostDashboard({
   const hasSelectedMaterials = selectedMaterialCounts.diary > 0 || selectedMaterialCounts['read-later'] > 0
   const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : '新建文章 (N)'
   const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : '+ 新建文章'
+  const recoverableDraftKey = useMemo(
+    () => recoverableDrafts.map((draft) => `${draft.path}:${draft.updatedAt}`).sort().join('|'),
+    [recoverableDrafts],
+  )
+  const shouldShowRecoverableDrafts = recoverableDrafts.length > 0 && dismissedRecoveryKey !== recoverableDraftKey
 
   const { categories, tags: availableTags } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)
@@ -619,8 +633,17 @@ export default function PostDashboard({
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>
-      {recoverableDrafts.length > 0 ? (
+      {shouldShowRecoverableDrafts ? (
         <section className="post-dashboard__recovery" aria-label="本地草稿恢复">
+          <button
+            type="button"
+            className="post-dashboard__recovery-close"
+            aria-label="关闭本地草稿提示"
+            title="关闭本地草稿提示"
+            onClick={() => setDismissedRecoveryKey(recoverableDraftKey)}
+          >
+            <CloseIcon />
+          </button>
           <div className="post-dashboard__recovery-header">
             <div>
               <p className="post-dashboard__filter-label">本地草稿</p>

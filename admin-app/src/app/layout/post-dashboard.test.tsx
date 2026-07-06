@@ -111,6 +111,15 @@ const diaryPosts: PostIndexItem[] = [
   },
 ]
 
+const recoverableDrafts = [
+  {
+    path: 'source/_posts/local-only.md',
+    title: 'Local-only draft',
+    updatedAt: '2026-05-06T09:10:00.000Z',
+    hasSavedBaseline: false,
+  },
+]
+
 function ControlledDiaryDashboard({
   onOrganizeMaterials = vi.fn(),
   materialResult = null,
@@ -201,6 +210,32 @@ describe('post dashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: '删除文章' }))
     expect(onDeletePost).toHaveBeenCalledWith(posts[0])
     expect(onOpenPost).not.toHaveBeenCalled()
+  })
+
+  it('dismisses the recoverable local draft panel from the top-right close button', () => {
+    const onOpenRecoveredDraft = vi.fn()
+
+    render(
+      <PostDashboard
+        posts={posts}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        recoverableDrafts={recoverableDrafts}
+        onOpenPost={vi.fn()}
+        onOpenRecoveredDraft={onOpenRecoveredDraft}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('检测到 1 条未恢复的本地草稿')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭本地草稿提示' }))
+
+    expect(screen.queryByText('检测到 1 条未恢复的本地草稿')).toBeNull()
+    expect(onOpenRecoveredDraft).not.toHaveBeenCalled()
   })
 
   it('renders pin and delete actions for read-later items', () => {
