@@ -530,7 +530,7 @@ describe('App read-later import flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'RSS' }))
     const sidebar = await screen.findByLabelText('已订阅 feed')
     fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
-    fireEvent.click(within(sidebar).getByLabelText('20 条待读').closest('button') as HTMLButtonElement)
+    fireEvent.click(within(sidebar).getByRole('button', { name: 'Anthropic News' }))
 
     expect(await screen.findByRole('status')).toBeTruthy()
     expect(screen.getByRole('status').textContent).toBe('已加载《Anthropic News》最近 20 条内容。')
@@ -647,6 +647,9 @@ describe('App read-later import flow', () => {
           sourceType: 'manual',
           articleCount: 2,
           readLaterCount: 0,
+          latestItemKeys: ['guid:feed-item-1', 'guid:feed-item-2'],
+          unreadItemKeys: [],
+          lastSuccessfulFetchAt: '2026-06-04T10:00:00.000Z',
           createdAt: '2026-06-04T10:00:00.000Z',
           updatedAt: '',
         },
@@ -705,6 +708,9 @@ describe('App read-later import flow', () => {
           sourceType: 'manual',
           articleCount: 1,
           readLaterCount: 0,
+          latestItemKeys: ['guid:legacy-item'],
+          unreadItemKeys: [],
+          lastSuccessfulFetchAt: '2026-06-04T10:00:00.000Z',
           createdAt: '2026-06-04T10:00:00.000Z',
           updatedAt: '',
         },
@@ -795,6 +801,9 @@ describe('App read-later import flow', () => {
           sourceType: 'manual',
           articleCount: 2,
           readLaterCount: 0,
+          latestItemKeys: ['guid:feed-item-1', 'guid:feed-item-2'],
+          unreadItemKeys: [],
+          lastSuccessfulFetchAt: '2026-06-04T10:00:00.000Z',
           createdAt: '2026-06-04T10:00:00.000Z',
           updatedAt: '',
         },

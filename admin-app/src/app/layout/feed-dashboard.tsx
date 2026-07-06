@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type DragEvent, type SetSt
 import PreviewPane from '../editor/preview-pane'
 import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import type { ImportedReadLaterArticle } from '../read-later/import-client'
-import { sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '../rss/feed-subscriptions'
+import { normalizeFeedItemUrl, sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '../rss/feed-subscriptions'
 
 const VIEWED_FEED_ITEMS_STORAGE_KEY = 'alpaca-admin-viewed-feed-items'
 const VIEWED_FEED_READ_COUNT_PREFIX = '__alpaca-feed-read-count:'
@@ -34,6 +34,9 @@ type FeedDashboardProps = {
   onDeleteFolder: (folder: FeedFolder) => void
   onMoveSubscriptionToFolder: (subscription: FeedSubscription, folderName: string) => void
   onViewedFeedItemsChange?: Dispatch<SetStateAction<ViewedFeedItemsByUrl>>
+  onMarkFeedItemRead?: (feedUrl: string, item: ImportedFeedItem) => void
+  onMarkFeedItemsRead?: (feedUrl: string, items: ImportedFeedItem[]) => void
+  onMarkFeedRead?: (subscription: FeedSubscription) => void
   onCreateReadLaterFromPreview: (item: ImportedFeedItem, article: ImportedReadLaterArticle | null) => void
   isCreatingReadLaterFromPreview?: boolean
 }
@@ -97,22 +100,6 @@ function isEditableTarget(target: EventTarget | null) {
 
   const tagName = target.tagName
   return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
-}
-
-export function normalizeFeedItemUrl(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return ''
-  }
-
-  try {
-    const url = new URL(trimmed)
-    url.hash = ''
-    const normalizedPath = url.pathname.replace(/\/+$/, '') || '/'
-    return `${url.protocol}//${url.host}${normalizedPath}${url.search}`.toLowerCase()
-  } catch {
-    return trimmed.toLowerCase()
-  }
 }
 
 export function readViewedFeedItemsByUrl(): ViewedFeedItemsByUrl {
@@ -210,6 +197,9 @@ export default function FeedDashboard({
   onDeleteFolder,
   onMoveSubscriptionToFolder,
   onViewedFeedItemsChange,
+  onMarkFeedItemRead,
+  onMarkFeedItemsRead,
+  onMarkFeedRead,
   onCreateReadLaterFromPreview,
   isCreatingReadLaterFromPreview = false,
 }: FeedDashboardProps) {
@@ -242,14 +232,16 @@ export default function FeedDashboard({
 
   const subscriptionViewModels = useMemo(
     () => filteredSubscriptions.map((subscription) => {
-      const viewedItemCount = getViewedFeedItemCount(
+      const fallbackViewedItemCount = getViewedFeedItemCount(
         viewedFeedItemsByUrl[subscription.url],
         subscription.articleCount,
         feedItemsByUrl[subscription.url]?.map((item) => item.url),
       )
       return {
         subscription,
-        unreadCount: Math.max(0, subscription.articleCount - viewedItemCount),
+        unreadCount: Array.isArray(subscription.unreadItemKeys)
+          ? subscription.unreadItemKeys.length
+          : Math.max(0, subscription.articleCount - fallbackViewedItemCount),
       }
     }),
     [feedItemsByUrl, filteredSubscriptions, viewedFeedItemsByUrl],
@@ -352,12 +344,14 @@ export default function FeedDashboard({
   const selectedPreviewArticleError = selectedPreviewItem ? previewArticleErrorsByUrl[selectedPreviewItem.url] || null : null
   const isSelectedPreviewArticleLoading = selectedPreviewItem ? Boolean(previewArticleLoadingByUrl[selectedPreviewItem.url]) : false
   const selectedFeedViewedItemUrls = previewFeedSubscriptionUrl ? new Set(viewedFeedItemsByUrl[previewFeedSubscriptionUrl] || []) : new Set<string>()
-  const selectedFeedUnreadItemCount = previewFeed
-    ? previewFeed.items.filter((item) => {
-      const normalizedItemUrl = normalizeFeedItemUrl(item.url)
-      return normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl)
-    }).length
-    : 0
+  const selectedFeedUnreadItemCount = selectedSubscription && Array.isArray(selectedSubscription.unreadItemKeys)
+    ? selectedSubscription.unreadItemKeys.length
+    : previewFeed
+      ? previewFeed.items.filter((item) => {
+        const normalizedItemUrl = normalizeFeedItemUrl(item.url)
+        return normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl)
+      }).length
+      : 0
 
   const updateViewedFeedItemsByUrl = (updater: SetStateAction<ViewedFeedItemsByUrl>) => {
     const applyUpdater = (currentState: ViewedFeedItemsByUrl) => {
@@ -386,6 +380,11 @@ export default function FeedDashboard({
       return
     }
 
+    if (onMarkFeedItemRead) {
+      onMarkFeedItemRead(previewFeedSubscriptionUrl, item)
+      return
+    }
+
     updateViewedFeedItemsByUrl((currentState) => {
       const currentFeedItems = currentState[previewFeedSubscriptionUrl] || []
       if (currentFeedItems.includes(normalizedItemUrl)) {
@@ -401,6 +400,12 @@ export default function FeedDashboard({
   }
 
   const markSubscriptionViewed = (subscription: FeedSubscription) => {
+    if (onMarkFeedRead) {
+      onMarkFeedRead(subscription)
+      setOpenSubscriptionMenuUrl(null)
+      return
+    }
+
     updateViewedFeedItemsByUrl((currentState) => {
       const currentFeedItems = currentState[subscription.url] || []
       const currentFeedItemUrls = (feedItemsByUrl[subscription.url] || [])
@@ -433,6 +438,11 @@ export default function FeedDashboard({
       .map((item) => normalizeFeedItemUrl(item.url))
       .filter((itemUrl): itemUrl is string => Boolean(itemUrl))
     if (normalizedItemUrls.length === 0) {
+      return
+    }
+
+    if (onMarkFeedItemsRead) {
+      onMarkFeedItemsRead(previewFeedSubscriptionUrl, previewFeed.items)
       return
     }
 
@@ -791,7 +801,10 @@ export default function FeedDashboard({
         <button
           type="button"
           className="feed-dashboard__composer-btn feed-dashboard__reader-collect-btn"
-          onClick={() => onCreateReadLaterFromPreview(selectedPreviewItem, selectedPreviewArticle)}
+          onClick={() => {
+            markPreviewItemViewed(selectedPreviewItem)
+            onCreateReadLaterFromPreview(selectedPreviewItem, selectedPreviewArticle)
+          }}
           disabled={isCreatingReadLaterFromPreview}
         >
           {isCreatingReadLaterFromPreview ? '加入中…' : '加入待读'}

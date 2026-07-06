@@ -11,6 +11,11 @@ export type FeedSubscription = {
   sourceType: 'manual' | 'shared'
   articleCount: number
   readLaterCount: number
+  latestItemKeys?: string[]
+  unreadItemKeys?: string[]
+  lastFetchedAt?: string
+  lastSuccessfulFetchAt?: string
+  lastError?: string | null
   createdAt: string
   updatedAt: string
 }
@@ -26,6 +31,22 @@ type FeedSubscriptionFile = {
   folders?: unknown
   feeds?: unknown
 }
+
+type FeedItemKeyInput = {
+  id?: string
+  title?: string
+  url?: string
+  publishedAt?: string
+}
+
+type ImportedFeedLike = {
+  title?: string
+  description?: string
+  items: FeedItemKeyInput[]
+}
+
+const MAX_LATEST_ITEM_KEYS = 50
+const MAX_UNREAD_ITEM_KEYS = 200
 
 export type FeedSubscriptionsState = {
   path: string
@@ -64,6 +85,18 @@ function normalizeFolder(record: unknown, index: number): FeedFolder | null {
   }
 }
 
+function normalizeStringList(value: unknown, maxItems: number) {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const items = Array.from(
+    new Set(value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).map((item) => item.trim())),
+  )
+
+  return items.slice(0, maxItems)
+}
+
 function normalizeSubscription(record: unknown, index: number): FeedSubscription | null {
   if (!record || typeof record !== 'object') {
     return null
@@ -75,7 +108,7 @@ function normalizeSubscription(record: unknown, index: number): FeedSubscription
     return null
   }
 
-  return {
+  const subscription: FeedSubscription = {
     id: typeof candidate.id === 'string' && candidate.id.trim() ? candidate.id : `feed-${index + 1}`,
     title: typeof candidate.title === 'string' ? candidate.title : '',
     url,
@@ -87,6 +120,25 @@ function normalizeSubscription(record: unknown, index: number): FeedSubscription
     createdAt: typeof candidate.createdAt === 'string' ? candidate.createdAt : '',
     updatedAt: typeof candidate.updatedAt === 'string' ? candidate.updatedAt : '',
   }
+  const latestItemKeys = normalizeStringList(candidate.latestItemKeys, MAX_LATEST_ITEM_KEYS)
+  const unreadItemKeys = normalizeStringList(candidate.unreadItemKeys, MAX_UNREAD_ITEM_KEYS)
+  if (latestItemKeys) {
+    subscription.latestItemKeys = latestItemKeys
+  }
+  if (unreadItemKeys) {
+    subscription.unreadItemKeys = unreadItemKeys
+  }
+  if (typeof candidate.lastFetchedAt === 'string') {
+    subscription.lastFetchedAt = candidate.lastFetchedAt
+  }
+  if (typeof candidate.lastSuccessfulFetchAt === 'string') {
+    subscription.lastSuccessfulFetchAt = candidate.lastSuccessfulFetchAt
+  }
+  if (typeof candidate.lastError === 'string' || candidate.lastError === null) {
+    subscription.lastError = candidate.lastError
+  }
+
+  return subscription
 }
 
 export function parseFeedSubscriptionsFile(content: string): Pick<FeedSubscriptionsState, 'folders' | 'subscriptions'> {
@@ -122,8 +174,14 @@ export function sortFeedSubscriptions(subscriptions: FeedSubscription[]) {
   return subscriptions
     .map((subscription, index) => ({ subscription, index }))
     .sort((left, right) => {
-      const leftHasReadLater = left.subscription.articleCount > 0
-      const rightHasReadLater = right.subscription.articleCount > 0
+      const leftUnreadCount = Array.isArray(left.subscription.unreadItemKeys)
+        ? left.subscription.unreadItemKeys.length
+        : left.subscription.articleCount
+      const rightUnreadCount = Array.isArray(right.subscription.unreadItemKeys)
+        ? right.subscription.unreadItemKeys.length
+        : right.subscription.articleCount
+      const leftHasReadLater = leftUnreadCount > 0
+      const rightHasReadLater = rightUnreadCount > 0
 
       if (leftHasReadLater !== rightHasReadLater) {
         return leftHasReadLater ? -1 : 1
@@ -138,6 +196,129 @@ export function sortFeedSubscriptions(subscriptions: FeedSubscription[]) {
       return left.index - right.index
     })
     .map(({ subscription }) => subscription)
+}
+
+export function normalizeFeedItemUrl(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  try {
+    const url = new URL(trimmed)
+    url.hash = ''
+    const normalizedPath = url.pathname.replace(/\/+$/, '') || '/'
+    return `${url.protocol}//${url.host.toLowerCase()}${normalizedPath}${url.search}`
+  } catch {
+    return trimmed.toLowerCase()
+  }
+}
+
+function normalizeFeedItemIdentifier(value: string) {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    return ''
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    return normalizeFeedItemUrl(trimmed)
+  }
+
+  return trimmed.toLowerCase()
+}
+
+function hashFeedItemFallback(value: string) {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+export function createFeedItemKey(item: FeedItemKeyInput) {
+  const normalizedId = item.id ? normalizeFeedItemIdentifier(item.id) : ''
+  if (normalizedId) {
+    return `guid:${normalizedId}`
+  }
+
+  const normalizedUrl = item.url ? normalizeFeedItemUrl(item.url) : ''
+  if (normalizedUrl) {
+    return `url:${normalizedUrl}`
+  }
+
+  const fallback = [item.title || '', item.url || '', item.publishedAt || ''].join('|').trim()
+  return fallback ? `hash:${hashFeedItemFallback(fallback)}` : ''
+}
+
+function uniqueFeedItemKeys(items: FeedItemKeyInput[], maxItems = MAX_LATEST_ITEM_KEYS) {
+  return Array.from(new Set(items.map((item) => createFeedItemKey(item)).filter(Boolean))).slice(0, maxItems)
+}
+
+function areStringListsEqual(left: string[] | undefined, right: string[] | undefined) {
+  const leftItems = left || []
+  const rightItems = right || []
+  return leftItems.length === rightItems.length && leftItems.every((item, index) => item === rightItems[index])
+}
+
+export function applyFeedRefreshSuccessToSubscription(
+  subscription: FeedSubscription,
+  importedFeed: ImportedFeedLike,
+  timestamp: string,
+) {
+  const latestItemKeys = uniqueFeedItemKeys(importedFeed.items)
+  const latestItemKeySet = new Set(latestItemKeys)
+  const hasExistingBaseline = Array.isArray(subscription.latestItemKeys)
+  const previousKnownKeySet = new Set(subscription.latestItemKeys || [])
+  const newItemKeys = hasExistingBaseline
+    ? latestItemKeys.filter((itemKey) => !previousKnownKeySet.has(itemKey))
+    : []
+  const unreadItemKeys = Array.from(new Set([...(subscription.unreadItemKeys || []), ...newItemKeys]))
+    .filter((itemKey) => latestItemKeySet.has(itemKey))
+    .slice(0, MAX_UNREAD_ITEM_KEYS)
+  const nextTitle = importedFeed.title?.trim() || subscription.title
+  const nextDescription = importedFeed.description?.trim() || subscription.description
+  const nextSubscription: FeedSubscription = {
+    ...subscription,
+    title: nextTitle,
+    description: nextDescription,
+    articleCount: importedFeed.items.length,
+    latestItemKeys,
+    unreadItemKeys,
+    lastFetchedAt: timestamp,
+    lastSuccessfulFetchAt: timestamp,
+    lastError: null,
+    updatedAt: timestamp,
+  }
+  const shouldUpdate =
+    subscription.title !== nextTitle
+    || subscription.description !== nextDescription
+    || subscription.articleCount !== importedFeed.items.length
+    || !areStringListsEqual(subscription.latestItemKeys, latestItemKeys)
+    || !areStringListsEqual(subscription.unreadItemKeys, unreadItemKeys)
+    || subscription.lastError
+    || !subscription.lastSuccessfulFetchAt
+
+  return shouldUpdate ? nextSubscription : null
+}
+
+export function applyFeedRefreshErrorToSubscription(
+  subscription: FeedSubscription,
+  message: string,
+  timestamp: string,
+) {
+  const nextError = message.trim() || 'RSS 抓取失败。'
+  if (subscription.lastError === nextError) {
+    return null
+  }
+
+  return {
+    ...subscription,
+    lastFetchedAt: timestamp,
+    lastError: nextError,
+    updatedAt: timestamp,
+  }
 }
 
 export async function readFeedSubscriptions(session: SessionState): Promise<FeedSubscriptionsState> {

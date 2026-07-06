@@ -1,5 +1,29 @@
 import { describe, expect, it } from 'vitest'
-import { parseFeedSubscriptions, parseFeedSubscriptionsFile, serializeFeedSubscriptions, sortFeedSubscriptions } from './feed-subscriptions'
+import {
+  applyFeedRefreshSuccessToSubscription,
+  createFeedItemKey,
+  parseFeedSubscriptions,
+  parseFeedSubscriptionsFile,
+  serializeFeedSubscriptions,
+  sortFeedSubscriptions,
+  type FeedSubscription,
+} from './feed-subscriptions'
+
+function createSubscription(overrides: Partial<FeedSubscription> = {}): FeedSubscription {
+  return {
+    id: 'feed-a',
+    title: 'Feed A',
+    url: 'https://example.com/feed.xml',
+    description: '',
+    category: '',
+    sourceType: 'manual',
+    articleCount: 0,
+    readLaterCount: 0,
+    createdAt: '2026-06-04T10:00:00.000Z',
+    updatedAt: '',
+    ...overrides,
+  }
+}
 
 describe('feed subscriptions store', () => {
   it('parses valid feed subscriptions', () => {
@@ -87,6 +111,72 @@ describe('feed subscriptions store', () => {
         },
       ]),
     ).toContain('"folders"')
+  })
+
+  it('preserves persisted unread state fields when parsing subscriptions', () => {
+    const parsed = parseFeedSubscriptionsFile(JSON.stringify({
+      feeds: [
+        {
+          id: 'feed-a',
+          title: 'Feed A',
+          url: 'https://example.com/feed.xml',
+          articleCount: 2,
+          readLaterCount: 0,
+          latestItemKeys: ['url:https://example.com/new', 'url:https://example.com/old'],
+          unreadItemKeys: ['url:https://example.com/new'],
+          lastFetchedAt: '2026-07-06T10:00:00.000Z',
+          lastSuccessfulFetchAt: '2026-07-06T10:00:00.000Z',
+          lastError: null,
+        },
+      ],
+    }))
+
+    expect(parsed.subscriptions[0].latestItemKeys).toEqual(['url:https://example.com/new', 'url:https://example.com/old'])
+    expect(parsed.subscriptions[0].unreadItemKeys).toEqual(['url:https://example.com/new'])
+    expect(parsed.subscriptions[0].lastError).toBeNull()
+  })
+
+  it('creates a stable item key from guid before url', () => {
+    expect(createFeedItemKey({
+      id: 'Item-1',
+      url: 'https://Example.com/post/#comments',
+      title: 'Post',
+      publishedAt: '2026-07-06T10:00:00.000Z',
+    })).toBe('guid:item-1')
+  })
+
+  it('uses the first refresh as a baseline without creating unread items', () => {
+    const updated = applyFeedRefreshSuccessToSubscription(createSubscription(), {
+      title: 'Feed A',
+      description: '',
+      items: [
+        { id: 'old-1', title: 'Old 1', url: 'https://example.com/old-1', publishedAt: '2026-07-05T10:00:00.000Z' },
+        { id: 'old-2', title: 'Old 2', url: 'https://example.com/old-2', publishedAt: '2026-07-05T11:00:00.000Z' },
+      ],
+    }, '2026-07-06T10:00:00.000Z')
+
+    expect(updated?.latestItemKeys).toEqual(['guid:old-1', 'guid:old-2'])
+    expect(updated?.unreadItemKeys).toEqual([])
+  })
+
+  it('marks new item keys unread even when the feed item count stays the same', () => {
+    const updated = applyFeedRefreshSuccessToSubscription(createSubscription({
+      articleCount: 2,
+      latestItemKeys: ['guid:old-1', 'guid:old-2'],
+      unreadItemKeys: [],
+      lastSuccessfulFetchAt: '2026-07-06T09:00:00.000Z',
+    }), {
+      title: 'Feed A',
+      description: '',
+      items: [
+        { id: 'new-1', title: 'New 1', url: 'https://example.com/new-1', publishedAt: '2026-07-06T10:00:00.000Z' },
+        { id: 'old-1', title: 'Old 1', url: 'https://example.com/old-1', publishedAt: '2026-07-05T10:00:00.000Z' },
+      ],
+    }, '2026-07-06T10:00:00.000Z')
+
+    expect(updated?.articleCount).toBe(2)
+    expect(updated?.latestItemKeys).toEqual(['guid:new-1', 'guid:old-1'])
+    expect(updated?.unreadItemKeys).toEqual(['guid:new-1'])
   })
 
   it('sorts subscriptions by unread count first, then updatedAt desc within each state', () => {

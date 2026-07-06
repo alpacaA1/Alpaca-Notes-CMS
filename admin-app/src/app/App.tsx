@@ -37,7 +37,6 @@ import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
 import FeedDashboard, {
-  getViewedFeedItemCount,
   readViewedFeedItemsByUrl,
   type ViewedFeedItemsByUrl,
 } from './layout/feed-dashboard'
@@ -60,6 +59,9 @@ import { parseReadLaterItem, parseReadLaterSections } from './read-later/parse-i
 import { serializeReadLaterItem } from './read-later/serialize-item'
 import type { ParsedReadLaterItem, ReadLaterAnnotation } from './read-later/item-types'
 import {
+  applyFeedRefreshErrorToSubscription,
+  applyFeedRefreshSuccessToSubscription,
+  createFeedItemKey,
   readFeedSubscriptions,
   saveFeedSubscriptions,
   type FeedFolder,
@@ -92,6 +94,9 @@ type PostDeleteConfirmAction = {
 }
 
 const RSS_AUTO_REFRESH_CONCURRENCY = 3
+const RSS_AUTO_REFRESH_INTERVAL_MS = 30 * 60 * 1000
+const RSS_VISIBLE_REFRESH_STALE_MS = 15 * 60 * 1000
+const RSS_READ_SAVE_DEBOUNCE_MS = 2500
 
 function decodeBase64Bytes(value: string) {
   const binary = atob(value)
@@ -285,30 +290,6 @@ function createFeedSubscriptionRecord({
     createdAt: new Date().toISOString(),
     updatedAt: '',
   }
-}
-
-function applyImportedFeedToSubscription(
-  subscription: FeedSubscription,
-  importedFeed: ImportedFeed,
-  timestamp: string,
-) {
-  const nextArticleCount = importedFeed.items.length
-  const nextTitle = importedFeed.title.trim() || subscription.title
-  const nextDescription = importedFeed.description.trim() || subscription.description
-  const shouldUpdate =
-    subscription.articleCount !== nextArticleCount
-    || subscription.title !== nextTitle
-    || subscription.description !== nextDescription
-
-  return shouldUpdate
-    ? {
-        ...subscription,
-        title: nextTitle,
-        description: nextDescription,
-        articleCount: nextArticleCount,
-        updatedAt: timestamp,
-      }
-    : null
 }
 
 function createCachedImportedFeed(subscription: FeedSubscription, items: ImportedFeedItem[]): ImportedFeed {
@@ -536,6 +517,7 @@ export default function App() {
   const [hasLoadedRssSubscriptions, setHasLoadedRssSubscriptions] = useState(false)
   const [isSavingRssSubscription, setIsSavingRssSubscription] = useState(false)
   const [isRssPreviewLoading, setIsRssPreviewLoading] = useState(false)
+  const [isRssBackgroundRefreshing, setIsRssBackgroundRefreshing] = useState(false)
   const [isFeedDirectoryVisible, setIsFeedDirectoryVisible] = useState(false)
   const [quickReadLaterDirectory, setQuickReadLaterDirectory] = useState<SharedFeedCategory[]>([])
   const [isQuickReadLaterDirectoryLoading, setIsQuickReadLaterDirectoryLoading] = useState(false)
@@ -548,6 +530,11 @@ export default function App() {
   const previewObjectUrlsRef = useRef<string[]>([])
   const preloadAttemptedRef = useRef<Partial<Record<ContentType, boolean>>>({})
   const rssAutoRefreshAttemptedRef = useRef(false)
+  const rssBackgroundRefreshInFlightRef = useRef(false)
+  const rssLastRefreshAtRef = useRef(0)
+  const rssReadSaveTimerRef = useRef<number | null>(null)
+  const pendingRssReadKeysByUrlRef = useRef<Record<string, Set<string>>>({})
+  const rssSubscriptionsStateRef = useRef(rssSubscriptionsState)
   const rssPreviewRequestIdRef = useRef(0)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [taxonomyConfirm, setTaxonomyConfirm] = useState<TaxonomyConfirmAction | null>(null)
@@ -626,16 +613,13 @@ export default function App() {
     return postsByType['read-later'].filter((post) => selectedPathSet.has(post.path))
   }, [postsByType['read-later'], selectedMaterialPaths['read-later']])
   const rssSubscriptions = rssSubscriptionsState.subscriptions
+  useEffect(() => {
+    rssSubscriptionsStateRef.current = rssSubscriptionsState
+  }, [rssSubscriptionsState])
+
   const rssUnreadCount = useMemo(
-    () => rssSubscriptions.reduce((total, subscription) => {
-      const viewedItemCount = getViewedFeedItemCount(
-        viewedFeedItemsByUrl[subscription.url],
-        subscription.articleCount,
-        rssFeedItemsByUrl[subscription.url]?.map((item) => item.url),
-      )
-      return total + Math.max(0, subscription.articleCount - viewedItemCount)
-    }, 0),
-    [rssFeedItemsByUrl, rssSubscriptions, viewedFeedItemsByUrl],
+    () => rssSubscriptions.reduce((total, subscription) => total + (subscription.unreadItemKeys?.length || 0), 0),
+    [rssSubscriptions],
   )
   const selectedRssSubscription = useMemo(
     () => rssSubscriptions.find((subscription) => subscription.url === selectedRssFeedUrl) || null,
@@ -1145,8 +1129,16 @@ export default function App() {
     setQuickReadLaterUrl('')
     setManualFeedUrl('')
     setRssSubscriptionsState({ path: FEED_SUBSCRIPTIONS_PATH, folders: [], subscriptions: [] })
+    rssSubscriptionsStateRef.current = { path: FEED_SUBSCRIPTIONS_PATH, folders: [], subscriptions: [] }
     setRssFeedItemsByUrl({})
     rssAutoRefreshAttemptedRef.current = false
+    rssBackgroundRefreshInFlightRef.current = false
+    rssLastRefreshAtRef.current = 0
+    if (rssReadSaveTimerRef.current !== null) {
+      window.clearTimeout(rssReadSaveTimerRef.current)
+      rssReadSaveTimerRef.current = null
+    }
+    pendingRssReadKeysByUrlRef.current = {}
     setHasLoadedRssSubscriptions(false)
     setSelectedRssFeedUrl(null)
     setRssPreviewFeed(null)
@@ -1164,6 +1156,155 @@ export default function App() {
     setSession(null)
     resetWorkspace()
     setError(message)
+  }
+
+  type RssSubscriptionsPatch = (state: FeedSubscriptionsState) => FeedSubscriptionsState
+
+  const applyRssSubscriptionsPatchLocally = (patcher: RssSubscriptionsPatch) => {
+    const currentState = rssSubscriptionsStateRef.current
+    const nextState = patcher(currentState)
+    if (nextState === currentState) {
+      return currentState
+    }
+
+    rssSubscriptionsStateRef.current = nextState
+    setRssSubscriptionsState(nextState)
+    setHasLoadedRssSubscriptions(true)
+    return nextState
+  }
+
+  const saveRssSubscriptionsPatch = async (patcher: RssSubscriptionsPatch) => {
+    if (!session) {
+      return null
+    }
+
+    const currentState = rssSubscriptionsStateRef.current
+    const nextState = patcher(currentState)
+    if (nextState === currentState) {
+      return currentState
+    }
+
+    rssSubscriptionsStateRef.current = nextState
+    setRssSubscriptionsState(nextState)
+
+    try {
+      const savedState = await saveFeedSubscriptions(session, nextState)
+      rssSubscriptionsStateRef.current = savedState
+      setRssSubscriptionsState(savedState)
+      setHasLoadedRssSubscriptions(true)
+      return savedState
+    } catch (caughtError) {
+      if (!(caughtError instanceof GitHubConflictError)) {
+        throw caughtError
+      }
+
+      const latestState = await readFeedSubscriptions(session)
+      const mergedState = patcher(latestState)
+      const savedState = await saveFeedSubscriptions(session, mergedState)
+      rssSubscriptionsStateRef.current = savedState
+      setRssSubscriptionsState(savedState)
+      setHasLoadedRssSubscriptions(true)
+      return savedState
+    }
+  }
+
+  const createRemoveUnreadKeysPatch = (keysByUrl: Record<string, Set<string>>): RssSubscriptionsPatch => (state) => {
+    let changed = false
+    const nextSubscriptions = state.subscriptions.map((subscription) => {
+      const keysToRemove = keysByUrl[subscription.url]
+      if (!keysToRemove || keysToRemove.size === 0 || !subscription.unreadItemKeys?.length) {
+        return subscription
+      }
+
+      const nextUnreadItemKeys = subscription.unreadItemKeys.filter((itemKey) => !keysToRemove.has(itemKey))
+      if (nextUnreadItemKeys.length === subscription.unreadItemKeys.length) {
+        return subscription
+      }
+
+      changed = true
+      return {
+        ...subscription,
+        unreadItemKeys: nextUnreadItemKeys,
+        updatedAt: new Date().toISOString(),
+      }
+    })
+
+    return changed ? { ...state, subscriptions: nextSubscriptions } : state
+  }
+
+  const flushPendingRssReadKeys = async () => {
+    const pendingKeysByUrl = pendingRssReadKeysByUrlRef.current
+    pendingRssReadKeysByUrlRef.current = {}
+    if (Object.keys(pendingKeysByUrl).length === 0 || !session) {
+      return
+    }
+
+    const patcher = createRemoveUnreadKeysPatch(pendingKeysByUrl)
+    try {
+      const currentState = rssSubscriptionsStateRef.current
+      const savedState = await saveFeedSubscriptions(session, currentState)
+      rssSubscriptionsStateRef.current = savedState
+      setRssSubscriptionsState(savedState)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubConflictError) {
+        const latestState = await readFeedSubscriptions(session)
+        const mergedState = patcher(latestState)
+        const savedState = await saveFeedSubscriptions(session, mergedState)
+        rssSubscriptionsStateRef.current = savedState
+        setRssSubscriptionsState(savedState)
+        return
+      }
+
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '保存 RSS 已读状态失败。')
+    }
+  }
+
+  const scheduleRssReadStateSave = () => {
+    if (rssReadSaveTimerRef.current !== null) {
+      window.clearTimeout(rssReadSaveTimerRef.current)
+    }
+
+    rssReadSaveTimerRef.current = window.setTimeout(() => {
+      rssReadSaveTimerRef.current = null
+      void flushPendingRssReadKeys()
+    }, RSS_READ_SAVE_DEBOUNCE_MS)
+  }
+
+  const markRssFeedItemsRead = (feedUrl: string, items: ImportedFeedItem[]) => {
+    const itemKeys = items.map((item) => createFeedItemKey(item)).filter(Boolean)
+    if (itemKeys.length === 0) {
+      return
+    }
+
+    const patcher = createRemoveUnreadKeysPatch({ [feedUrl]: new Set(itemKeys) })
+    const currentState = rssSubscriptionsStateRef.current
+    const nextState = applyRssSubscriptionsPatchLocally(patcher)
+    if (nextState === currentState) {
+      return
+    }
+
+    const pendingKeys = pendingRssReadKeysByUrlRef.current[feedUrl] || new Set<string>()
+    itemKeys.forEach((itemKey) => pendingKeys.add(itemKey))
+    pendingRssReadKeysByUrlRef.current[feedUrl] = pendingKeys
+    scheduleRssReadStateSave()
+  }
+
+  const markRssFeedRead = (subscription: FeedSubscription) => {
+    const itemKeys = subscription.unreadItemKeys || []
+    if (itemKeys.length === 0) {
+      return
+    }
+
+    const pendingKeys = pendingRssReadKeysByUrlRef.current[subscription.url] || new Set<string>()
+    itemKeys.forEach((itemKey) => pendingKeys.add(itemKey))
+    pendingRssReadKeysByUrlRef.current[subscription.url] = pendingKeys
+    applyRssSubscriptionsPatchLocally(createRemoveUnreadKeysPatch({ [subscription.url]: new Set(itemKeys) }))
+    scheduleRssReadStateSave()
   }
 
   useEffect(() => {
@@ -1200,113 +1341,142 @@ export default function App() {
     }
   }, [hasLoadedRssSubscriptions, session])
 
+  const refreshRssSubscriptionsInBackground = async () => {
+    const currentDocument = typeof document === 'undefined' ? null : document
+    if (
+      !session
+      || !hasLoadedRssSubscriptions
+      || rssBackgroundRefreshInFlightRef.current
+      || currentDocument?.visibilityState === 'hidden'
+    ) {
+      return
+    }
+
+    const currentSubscriptions = rssSubscriptionsStateRef.current.subscriptions
+    if (currentSubscriptions.length === 0) {
+      return
+    }
+
+    rssBackgroundRefreshInFlightRef.current = true
+    setIsRssBackgroundRefreshing(true)
+
+    type FeedRefreshResult =
+      | { subscriptionUrl: string; importedFeed: ImportedFeed; timestamp: string }
+      | { subscriptionUrl: string; caughtError: unknown; timestamp: string }
+
+    try {
+      const subscriptionsByRefreshPriority = selectedRssFeedUrl
+        ? [
+            ...currentSubscriptions.filter((subscription) => subscription.url === selectedRssFeedUrl),
+            ...currentSubscriptions.filter((subscription) => subscription.url !== selectedRssFeedUrl),
+          ]
+        : currentSubscriptions
+      const results = await mapWithConcurrency(
+        subscriptionsByRefreshPriority,
+        RSS_AUTO_REFRESH_CONCURRENCY,
+        async (subscription): Promise<FeedRefreshResult> => {
+          const timestamp = new Date().toISOString()
+          try {
+            const importedFeed = await importFeedFromUrl(session, subscription.url)
+            setRssFeedItemsByUrl((currentItemsByUrl) => ({
+              ...currentItemsByUrl,
+              [subscription.url]: importedFeed.items,
+            }))
+            return { subscriptionUrl: subscription.url, importedFeed, timestamp }
+          } catch (caughtError) {
+            return { subscriptionUrl: subscription.url, caughtError, timestamp }
+          }
+        },
+      )
+
+      const authError = results.find(
+        (result) => 'caughtError' in result && result.caughtError instanceof GitHubAuthError,
+      )
+      if (authError && 'caughtError' in authError && authError.caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(authError.caughtError.message)
+        return
+      }
+
+      const resultsByUrl = new Map(results.map((result) => [result.subscriptionUrl, result]))
+      const patcher: RssSubscriptionsPatch = (state) => {
+        let changed = false
+        const nextSubscriptions = state.subscriptions.map((subscription) => {
+          const result = resultsByUrl.get(subscription.url)
+          if (!result) {
+            return subscription
+          }
+
+          const nextSubscription = 'importedFeed' in result
+            ? applyFeedRefreshSuccessToSubscription(subscription, result.importedFeed, result.timestamp)
+            : applyFeedRefreshErrorToSubscription(
+                subscription,
+                result.caughtError instanceof Error ? result.caughtError.message : 'RSS 抓取失败。',
+                result.timestamp,
+              )
+          if (!nextSubscription) {
+            return subscription
+          }
+
+          changed = true
+          return nextSubscription
+        })
+
+        return changed ? { ...state, subscriptions: nextSubscriptions } : state
+      }
+
+      const nextState = patcher(rssSubscriptionsStateRef.current)
+      if (nextState !== rssSubscriptionsStateRef.current) {
+        await saveRssSubscriptionsPatch(patcher)
+      }
+      rssLastRefreshAtRef.current = Date.now()
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      if (adminView === 'feeds') {
+        setError(caughtError instanceof Error ? caughtError.message : '刷新 RSS 未读失败。')
+      }
+    } finally {
+      rssBackgroundRefreshInFlightRef.current = false
+      setIsRssBackgroundRefreshing(false)
+    }
+  }
+
   useEffect(() => {
     if (
       !session
       || !hasLoadedRssSubscriptions
       || rssSubscriptions.length === 0
-      || rssAutoRefreshAttemptedRef.current
     ) {
       return
     }
 
-    let cancelled = false
-    rssAutoRefreshAttemptedRef.current = true
+    if (!rssAutoRefreshAttemptedRef.current) {
+      rssAutoRefreshAttemptedRef.current = true
+      void refreshRssSubscriptionsInBackground()
+    }
 
-    type FeedRefreshResult =
-      | { subscription: FeedSubscription; importedFeed: ImportedFeed }
-      | { subscription: FeedSubscription; caughtError: unknown }
-
-    const refreshSubscriptions = async () => {
-      try {
-        const timestamp = new Date().toISOString()
-        const subscriptionsByRefreshPriority = selectedRssFeedUrl
-          ? [
-              ...rssSubscriptions.filter((subscription) => subscription.url === selectedRssFeedUrl),
-              ...rssSubscriptions.filter((subscription) => subscription.url !== selectedRssFeedUrl),
-            ]
-          : rssSubscriptions
-        const results = await mapWithConcurrency(
-          subscriptionsByRefreshPriority,
-          RSS_AUTO_REFRESH_CONCURRENCY,
-          async (subscription): Promise<FeedRefreshResult> => {
-            try {
-              const importedFeed = await importFeedFromUrl(session, subscription.url)
-              return { subscription, importedFeed }
-            } catch (caughtError) {
-              return { subscription, caughtError }
-            }
-          },
-        )
-        if (cancelled) {
-          return
-        }
-
-        const authError = results.find(
-          (result) => 'caughtError' in result && result.caughtError instanceof GitHubAuthError,
-        )
-        if (authError && 'caughtError' in authError && authError.caughtError instanceof GitHubAuthError) {
-          handleAuthExpiry(authError.caughtError.message)
-          return
-        }
-
-        const refreshedItemsByUrl: Record<string, ImportedFeedItem[]> = {}
-        const updatedSubscriptionsByUrl = new Map<string, FeedSubscription>()
-
-        results.forEach((result) => {
-          if (!('importedFeed' in result)) {
-            return
-          }
-
-          refreshedItemsByUrl[result.subscription.url] = result.importedFeed.items
-          const updatedSubscription = applyImportedFeedToSubscription(result.subscription, result.importedFeed, timestamp)
-          if (updatedSubscription) {
-            updatedSubscriptionsByUrl.set(result.subscription.url, updatedSubscription)
-          }
-        })
-
-        if (Object.keys(refreshedItemsByUrl).length > 0) {
-          setRssFeedItemsByUrl((currentItemsByUrl) => ({
-            ...currentItemsByUrl,
-            ...refreshedItemsByUrl,
-          }))
-        }
-
-        if (updatedSubscriptionsByUrl.size > 0) {
-          const nextSubscriptions = rssSubscriptions.map((subscription) =>
-            updatedSubscriptionsByUrl.get(subscription.url) || subscription,
-          )
-          const savedState = await saveFeedSubscriptions(session, {
-            ...rssSubscriptionsState,
-            subscriptions: nextSubscriptions,
-          })
-          if (cancelled) {
-            return
-          }
-
-          setRssSubscriptionsState(savedState)
-          setHasLoadedRssSubscriptions(true)
-        }
-      } catch (caughtError) {
-        if (cancelled) {
-          return
-        }
-
-        if (caughtError instanceof GitHubAuthError) {
-          handleAuthExpiry(caughtError.message)
-          return
-        }
-
-        setError(caughtError instanceof Error ? caughtError.message : '刷新 RSS 未读失败。')
+    const currentDocument = typeof document === 'undefined' ? null : document
+    const intervalId = window.setInterval(() => {
+      void refreshRssSubscriptionsInBackground()
+    }, RSS_AUTO_REFRESH_INTERVAL_MS)
+    const handleVisibilityChange = () => {
+      if (
+        currentDocument?.visibilityState === 'visible'
+        && Date.now() - rssLastRefreshAtRef.current > RSS_VISIBLE_REFRESH_STALE_MS
+      ) {
+        void refreshRssSubscriptionsInBackground()
       }
     }
 
-    void refreshSubscriptions()
-
+    currentDocument?.addEventListener?.('visibilitychange', handleVisibilityChange)
     return () => {
-      cancelled = true
+      window.clearInterval(intervalId)
+      currentDocument?.removeEventListener?.('visibilitychange', handleVisibilityChange)
     }
-  }, [adminView, hasLoadedRssSubscriptions, rssSubscriptions, rssSubscriptionsState, selectedRssFeedUrl, session])
+  }, [adminView, hasLoadedRssSubscriptions, rssSubscriptions.length, selectedRssFeedUrl, session])
 
   const handleLogout = () => {
     sessionStore.logout()
@@ -1785,7 +1955,7 @@ export default function App() {
     try {
       const importedFeed = await importFeedFromUrl(session, subscription.url)
       const timestamp = new Date().toISOString()
-      const updatedSubscription = applyImportedFeedToSubscription(subscription, importedFeed, timestamp)
+      const updatedSubscription = applyFeedRefreshSuccessToSubscription(subscription, importedFeed, timestamp)
 
       if (requestId !== rssPreviewRequestIdRef.current) {
         return
@@ -1797,18 +1967,31 @@ export default function App() {
         [subscription.url]: importedFeed.items,
       }))
       if (updatedSubscription) {
-        const nextSubscriptions = rssSubscriptions.map((item) =>
-          item.url === subscription.url ? updatedSubscription : item,
-        )
-        const savedState = await saveFeedSubscriptions(session, {
-          ...rssSubscriptionsState,
-          subscriptions: nextSubscriptions,
+        const savedState = await saveRssSubscriptionsPatch((state) => {
+          let changed = false
+          const nextSubscriptions = state.subscriptions.map((item) => {
+            if (item.url !== subscription.url) {
+              return item
+            }
+
+            const nextSubscription = applyFeedRefreshSuccessToSubscription(item, importedFeed, timestamp)
+            if (!nextSubscription) {
+              return item
+            }
+
+            changed = true
+            return nextSubscription
+          })
+
+          return changed ? { ...state, subscriptions: nextSubscriptions } : state
         })
         if (requestId !== rssPreviewRequestIdRef.current) {
           return
         }
-        setRssSubscriptionsState(savedState)
-        setHasLoadedRssSubscriptions(true)
+        if (savedState) {
+          setRssSubscriptionsState(savedState)
+          setHasLoadedRssSubscriptions(true)
+        }
       }
       setSuccessMessage(`已加载《${importedFeed.title || subscription.title || '未命名 RSS'}》最近 ${importedFeed.items.length} 条内容。`)
     } catch (caughtError) {
@@ -1915,17 +2098,19 @@ export default function App() {
         sourceType: 'manual',
         articleCount: importedFeed.items.length,
       })
+      const timestamp = new Date().toISOString()
+      const baselinedSubscription = applyFeedRefreshSuccessToSubscription(nextSubscription, importedFeed, timestamp) || nextSubscription
       await persistFeedSubscriptions(
-        [...rssSubscriptions, nextSubscription],
-        `已订阅《${nextSubscription.title}》。`,
+        [...rssSubscriptions, baselinedSubscription],
+        `已订阅《${baselinedSubscription.title}》。`,
       )
 
       setManualFeedUrl('')
-      setSelectedRssFeedUrl(nextSubscription.url)
+      setSelectedRssFeedUrl(baselinedSubscription.url)
       setRssPreviewFeed(importedFeed)
       setRssFeedItemsByUrl((currentItemsByUrl) => ({
         ...currentItemsByUrl,
-        [nextSubscription.url]: importedFeed.items,
+        [baselinedSubscription.url]: importedFeed.items,
       }))
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -1967,16 +2152,18 @@ export default function App() {
         sourceType: 'shared',
         articleCount: importedFeed.items.length || feed.articleCount,
       })
+      const timestamp = new Date().toISOString()
+      const baselinedSubscription = applyFeedRefreshSuccessToSubscription(nextSubscription, importedFeed, timestamp) || nextSubscription
       await persistFeedSubscriptions(
-        [...rssSubscriptions, nextSubscription],
-        `已订阅《${nextSubscription.title}》。`,
+        [...rssSubscriptions, baselinedSubscription],
+        `已订阅《${baselinedSubscription.title}》。`,
       )
 
-      setSelectedRssFeedUrl(nextSubscription.url)
+      setSelectedRssFeedUrl(baselinedSubscription.url)
       setRssPreviewFeed(importedFeed)
       setRssFeedItemsByUrl((currentItemsByUrl) => ({
         ...currentItemsByUrl,
-        [nextSubscription.url]: importedFeed.items,
+        [baselinedSubscription.url]: importedFeed.items,
       }))
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
@@ -3413,6 +3600,8 @@ export default function App() {
         ? '正在更新 feed 订阅…'
         : isRssPreviewLoading
           ? '正在加载 feed 条目…'
+          : isRssBackgroundRefreshing
+            ? '正在后台刷新 RSS…'
           : `共 ${rssSubscriptions.length} 个 feed`
     : adminView === 'annotations'
       ? isAnnotationIndexing
@@ -3605,6 +3794,9 @@ export default function App() {
             onDeleteFolder={(folder) => { void handleDeleteFeedFolder(folder) }}
             onMoveSubscriptionToFolder={(subscription, folderName) => { void handleMoveFeedSubscriptionToFolder(subscription, folderName) }}
             onViewedFeedItemsChange={setViewedFeedItemsByUrl}
+            onMarkFeedItemRead={(feedUrl, item) => markRssFeedItemsRead(feedUrl, [item])}
+            onMarkFeedItemsRead={markRssFeedItemsRead}
+            onMarkFeedRead={markRssFeedRead}
             onCreateReadLaterFromPreview={(item, article) => { void handleCreateReadLaterFromFeedPreview(item, article) }}
             isCreatingReadLaterFromPreview={isQuickCollectingReadLater}
           />
