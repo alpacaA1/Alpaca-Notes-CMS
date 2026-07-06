@@ -215,7 +215,7 @@ describe('post dashboard', () => {
   it('dismisses the recoverable local draft panel from the top-right close button', () => {
     const onOpenRecoveredDraft = vi.fn()
 
-    render(
+    const firstRender = render(
       <PostDashboard
         posts={posts}
         search=""
@@ -236,6 +236,62 @@ describe('post dashboard', () => {
 
     expect(screen.queryByText('检测到 1 条未恢复的本地草稿')).toBeNull()
     expect(onOpenRecoveredDraft).not.toHaveBeenCalled()
+
+    firstRender.unmount()
+
+    render(
+      <PostDashboard
+        posts={posts}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        recoverableDrafts={recoverableDrafts}
+        onOpenPost={vi.fn()}
+        onOpenRecoveredDraft={onOpenRecoveredDraft}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('检测到 1 条未恢复的本地草稿')).toBeNull()
+  })
+
+  it('shows the recoverable local draft panel again when a dismissed draft changes', () => {
+    const firstRender = render(
+      <PostDashboard
+        posts={posts}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        recoverableDrafts={recoverableDrafts}
+        onOpenPost={vi.fn()}
+        onOpenRecoveredDraft={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭本地草稿提示' }))
+    firstRender.unmount()
+
+    render(
+      <PostDashboard
+        posts={posts}
+        search=""
+        isIndexing={false}
+        contentType="post"
+        recoverableDrafts={[{ ...recoverableDrafts[0], updatedAt: '2026-05-06T09:11:00.000Z' }]}
+        onOpenPost={vi.fn()}
+        onOpenRecoveredDraft={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('检测到 1 条未恢复的本地草稿')).toBeTruthy()
   })
 
   it('renders pin and delete actions for read-later items', () => {

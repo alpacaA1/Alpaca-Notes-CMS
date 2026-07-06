@@ -85,6 +85,7 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 ]
 
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
+const RECOVERY_DISMISS_STORAGE_PREFIX = 'alpaca-dashboard-dismissed-recovery:'
 const DIARY_ALL_MONTHS_KEY = 'all-months'
 
 function readStoredViewMode(): DashboardViewMode {
@@ -97,6 +98,26 @@ function readStoredViewMode(): DashboardViewMode {
     // Ignore storage errors
   }
   return 'list'
+}
+
+function getRecoveryDismissStorageKey(contentType: ContentType) {
+  return `${RECOVERY_DISMISS_STORAGE_PREFIX}${contentType}`
+}
+
+function readDismissedRecoveryKey(contentType: ContentType) {
+  try {
+    return localStorage.getItem(getRecoveryDismissStorageKey(contentType))
+  } catch {
+    return null
+  }
+}
+
+function saveDismissedRecoveryKey(contentType: ContentType, recoveryKey: string) {
+  try {
+    localStorage.setItem(getRecoveryDismissStorageKey(contentType), recoveryKey)
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 function normalizeReadLaterStatus(status?: ReadingStatus): ReadingStatus {
@@ -376,7 +397,6 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
-  const [dismissedRecoveryKey, setDismissedRecoveryKey] = useState<string | null>(null)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -389,7 +409,14 @@ export default function PostDashboard({
     () => recoverableDrafts.map((draft) => `${draft.path}:${draft.updatedAt}`).sort().join('|'),
     [recoverableDrafts],
   )
+  const [dismissedRecoveryKey, setDismissedRecoveryKey] = useState<string | null>(() =>
+    readDismissedRecoveryKey(contentType),
+  )
   const shouldShowRecoverableDrafts = recoverableDrafts.length > 0 && dismissedRecoveryKey !== recoverableDraftKey
+
+  useEffect(() => {
+    setDismissedRecoveryKey(readDismissedRecoveryKey(contentType))
+  }, [contentType])
 
   const { categories, tags: availableTags } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)
@@ -537,6 +564,11 @@ export default function PostDashboard({
     })
   }, [isDiary, isKnowledge])
 
+  const dismissRecoverableDrafts = useCallback(() => {
+    setDismissedRecoveryKey(recoverableDraftKey)
+    saveDismissedRecoveryKey(contentType, recoverableDraftKey)
+  }, [contentType, recoverableDraftKey])
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented) {
@@ -640,7 +672,7 @@ export default function PostDashboard({
             className="post-dashboard__recovery-close"
             aria-label="关闭本地草稿提示"
             title="关闭本地草稿提示"
-            onClick={() => setDismissedRecoveryKey(recoverableDraftKey)}
+            onClick={dismissRecoverableDrafts}
           >
             <CloseIcon />
           </button>
