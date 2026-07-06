@@ -24,6 +24,7 @@ type FeedDashboardProps = {
   previewArticleErrorsByUrl: Record<string, string>
   viewedFeedItemsByUrl?: ViewedFeedItemsByUrl
   isPreviewLoading: boolean
+  isBackgroundRefreshing?: boolean
   onManualFeedUrlChange: (value: string) => void
   onAddManualFeed: () => void
   onPreviewItemChange: (item: ImportedFeedItem | null) => void
@@ -187,6 +188,7 @@ export default function FeedDashboard({
   previewArticleErrorsByUrl,
   viewedFeedItemsByUrl: controlledViewedFeedItemsByUrl,
   isPreviewLoading,
+  isBackgroundRefreshing = false,
   onManualFeedUrlChange,
   onAddManualFeed,
   onPreviewItemChange,
@@ -923,7 +925,9 @@ export default function FeedDashboard({
             {/* Stats footer */}
             <div className="feed-dashboard__sidebar-footer">
               <span>
-                {normalizedSearch
+                {isBackgroundRefreshing
+                  ? 'RSS 获取中…'
+                  : normalizedSearch
                   ? `${totalUnreadFolderCount} 个有待读匹配 folder`
                   : `${totalUnreadFolderCount} 个有待读 folder`}
               </span>

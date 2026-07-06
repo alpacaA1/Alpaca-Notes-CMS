@@ -198,6 +198,21 @@ describe('FeedDashboard', () => {
     expect(screen.getByRole('button', { name: /缓存文章/ })).toBeTruthy()
   })
 
+  it('shows a background refresh status in the sidebar footer', () => {
+    renderFeedDashboard({
+      isBackgroundRefreshing: true,
+      subscriptions: [
+        createSubscription({
+          id: 'design-feed',
+          title: '设计 Feed',
+          url: 'https://example.com/design.xml',
+        }),
+      ],
+    })
+
+    expect(screen.getByText('RSS 获取中…')).toBeTruthy()
+  })
+
   it('keeps the previous preview visible while an uncached selected feed is loading', () => {
     const previousSubscription = createSubscription({
       id: 'design-feed',

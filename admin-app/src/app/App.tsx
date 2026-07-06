@@ -3673,6 +3673,7 @@ export default function App() {
           onOpenTrash={handleOpenTrash}
           onOpenFeeds={handleOpenFeeds}
           rssUnreadCount={rssUnreadCount}
+          isRssRefreshing={isRssBackgroundRefreshing}
           onContentTypeChange={(value) => {
             if (value === contentType) {
               return
@@ -3784,6 +3785,7 @@ export default function App() {
             previewArticleErrorsByUrl={rssPreviewArticleErrorsByUrl}
             viewedFeedItemsByUrl={viewedFeedItemsByUrl}
             isPreviewLoading={isRssPreviewLoading}
+            isBackgroundRefreshing={isRssBackgroundRefreshing}
             onManualFeedUrlChange={setManualFeedUrl}
             onAddManualFeed={() => { void handleAddManualFeedSubscription() }}
             onPreviewItemChange={(item) => { void handlePreviewFeedItemArticle(item) }}

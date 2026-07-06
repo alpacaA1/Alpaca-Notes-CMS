@@ -558,6 +558,7 @@ describe('management layout components', () => {
 
     expect(screen.getByRole('button', { name: 'RSS' })).toBeTruthy()
     expect(container.querySelector('.top-bar__rss-badge')).toBeNull()
+    expect(container.querySelector('.top-bar__rss-loading')).toBeNull()
 
     rerender(
       <TopBar
@@ -585,6 +586,35 @@ describe('management layout components', () => {
     )
 
     expect(container.querySelector('.top-bar__rss-badge')).toBeTruthy()
+
+    rerender(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onOrganizeMaterials={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="post"
+        isPreviewing={false}
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+        onOpenFeeds={vi.fn()}
+        rssUnreadCount={0}
+        isRssRefreshing
+      />,
+    )
+
+    expect(container.querySelector('.top-bar__rss-badge')).toBeNull()
+    expect(container.querySelector('.top-bar__rss-loading')).toBeTruthy()
   })
 
   it('does not render diary summaries in the archive list', () => {

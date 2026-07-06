@@ -84,6 +84,7 @@ type TopBarProps = {
   onOpenTrash?: () => void
   onOpenFeeds?: () => void
   rssUnreadCount?: number
+  isRssRefreshing?: boolean
   onContentTypeChange: (value: ContentType) => void
   contentType: ContentType
   searchInputRef?: Ref<HTMLInputElement>
@@ -187,6 +188,7 @@ export default function TopBar({
   onOpenTrash,
   onOpenFeeds,
   rssUnreadCount = 0,
+  isRssRefreshing = false,
   onContentTypeChange,
   contentType,
   searchInputRef,
@@ -221,6 +223,7 @@ export default function TopBar({
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
+  const showRssRefreshing = !isFeedsView && isRssRefreshing && !showRssBadge
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
@@ -310,6 +313,7 @@ export default function TopBar({
             >
               {isFeedsView ? '返回内容' : 'RSS'}
               {showRssBadge ? <span className="top-bar__rss-badge" aria-hidden="true" title={`${rssUnreadCount} 条 RSS 未读`}>{rssBadgeLabel}</span> : null}
+              {showRssRefreshing ? <span className="top-bar__rss-loading" aria-hidden="true" title="RSS 正在获取" /> : null}
             </button>
           ) : null}
           {isEditor && onBackToDashboard ? (
