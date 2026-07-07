@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type DragEvent, type SetSt
 import PreviewPane from '../editor/preview-pane'
 import type { ImportedFeed, ImportedFeedItem } from '../read-later/feed-import-client'
 import type { ImportedReadLaterArticle } from '../read-later/import-client'
-import { normalizeFeedItemUrl, sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '../rss/feed-subscriptions'
+import { createFeedItemKey, normalizeFeedItemUrl, sortFeedSubscriptions, type FeedFolder, type FeedSubscription } from '../rss/feed-subscriptions'
 
 const VIEWED_FEED_ITEMS_STORAGE_KEY = 'alpaca-admin-viewed-feed-items'
 const VIEWED_FEED_READ_COUNT_PREFIX = '__alpaca-feed-read-count:'
@@ -354,6 +354,17 @@ export default function FeedDashboard({
         return normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl)
       }).length
       : 0
+  const selectedFeedUnreadItemKeys = new Set(selectedSubscription?.unreadItemKeys || [])
+
+  const isPreviewItemUnread = (item: ImportedFeedItem) => {
+    if (selectedSubscription && Array.isArray(selectedSubscription.unreadItemKeys)) {
+      const itemKey = createFeedItemKey(item)
+      return Boolean(itemKey && selectedFeedUnreadItemKeys.has(itemKey))
+    }
+
+    const normalizedItemUrl = normalizeFeedItemUrl(item.url)
+    return Boolean(normalizedItemUrl && !selectedFeedViewedItemUrls.has(normalizedItemUrl))
+  }
 
   const updateViewedFeedItemsByUrl = (updater: SetStateAction<ViewedFeedItemsByUrl>) => {
     const applyUpdater = (currentState: ViewedFeedItemsByUrl) => {
@@ -969,11 +980,12 @@ export default function FeedDashboard({
               <div className="feed-dashboard__preview-list">
                 {previewFeed.items.map((item) => {
                   const isActive = selectedPreviewItem?.url === item.url
+                  const isUnread = isPreviewItemUnread(item)
 
                   return (
                     <article
                       key={item.id || item.url}
-                      className={`feed-dashboard__preview-item${isActive ? ' is-active' : ''}`}
+                      className={`feed-dashboard__preview-item${isActive ? ' is-active' : ''}${isUnread ? ' is-unread' : ''}`}
                     >
                       <button
                         type="button"
@@ -983,7 +995,8 @@ export default function FeedDashboard({
                         <div className="feed-dashboard__preview-item-main">
                           <div className="feed-dashboard__preview-item-meta">
                             <span>{formatFeedItemDate(item.publishedAt)}</span>
-                            <span>{item.sourceName || readFeedItemHostLabel(item.url)}</span>
+                            <span className="feed-dashboard__preview-source-label">{item.sourceName || readFeedItemHostLabel(item.url)}</span>
+                            {isUnread ? <span className="feed-dashboard__preview-unread-badge">未读</span> : null}
                           </div>
                           <strong>{item.title || '未命名条目'}</strong>
                           <p>{item.summary || '这个 RSS 条目没有提供摘要。'}</p>

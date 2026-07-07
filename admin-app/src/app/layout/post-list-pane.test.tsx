@@ -530,7 +530,7 @@ describe('management layout components', () => {
     expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toBe('搜索标题、正文或标签')
   })
 
-  it('shows a red dot on the RSS entry only when RSS unread count is greater than zero', () => {
+  it('shows RSS unread count and refresh indicator independently', () => {
     const { container, rerender } = render(
       <TopBar
         search=""
@@ -615,6 +615,35 @@ describe('management layout components', () => {
 
     expect(container.querySelector('.top-bar__rss-badge')).toBeNull()
     expect(container.querySelector('.top-bar__rss-loading')).toBeTruthy()
+
+    rerender(
+      <TopBar
+        search=""
+        onSearchChange={vi.fn()}
+        onNewPost={vi.fn()}
+        onOrganizeMaterials={vi.fn()}
+        onSave={vi.fn()}
+        onTogglePreview={vi.fn()}
+        onLogout={vi.fn()}
+        onContentTypeChange={vi.fn()}
+        contentType="post"
+        isPreviewing={false}
+        hasActiveDocument={false}
+        saveLabel="保存"
+        isSaveDisabled
+        isSaveQuiet={false}
+        status="已就绪"
+        onToggleColorMode={vi.fn()}
+        adminView="dashboard"
+        isDarkMode={false}
+        onOpenFeeds={vi.fn()}
+        rssUnreadCount={1}
+        isRssRefreshing
+      />,
+    )
+
+    expect(container.querySelector('.top-bar__rss-badge')).toBeTruthy()
+    expect(container.querySelector('.top-bar__rss-loading--with-badge')).toBeTruthy()
   })
 
   it('does not render diary summaries in the archive list', () => {

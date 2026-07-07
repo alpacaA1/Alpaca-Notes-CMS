@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import FeedDashboard from './feed-dashboard'
-import type { FeedSubscription } from '../rss/feed-subscriptions'
+import { createFeedItemKey, type FeedSubscription } from '../rss/feed-subscriptions'
 
 function createSubscription(overrides: Partial<FeedSubscription>): FeedSubscription {
   return {
@@ -301,6 +301,51 @@ describe('FeedDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: /文章二/ }))
     expect(within(sidebar).getByText('设计 Feed')).toBeTruthy()
     expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
+  })
+
+  it('shows unread badges on unread preview items', () => {
+    const subscription = createSubscription({
+      id: 'design-feed',
+      title: '设计 Feed',
+      url: 'https://example.com/design.xml',
+      articleCount: 2,
+    })
+    const unreadItem = {
+      id: 'item-1',
+      title: '未读文章',
+      url: 'https://example.com/posts/one',
+      summary: '第一篇摘要。',
+      publishedAt: '2026-06-04T08:00:00.000Z',
+      sourceName: '设计 Feed',
+    }
+    const readItem = {
+      id: 'item-2',
+      title: '已读文章',
+      url: 'https://example.com/posts/two',
+      summary: '第二篇摘要。',
+      publishedAt: '2026-06-04T09:00:00.000Z',
+      sourceName: '设计 Feed',
+    }
+
+    renderFeedDashboard({
+      subscriptions: [
+        {
+          ...subscription,
+          unreadItemKeys: [createFeedItemKey(unreadItem)],
+        },
+      ],
+      selectedSubscriptionUrl: subscription.url,
+      previewFeed: {
+        title: '设计 Feed',
+        description: '',
+        requestedUrl: subscription.url,
+        finalUrl: subscription.url,
+        items: [unreadItem, readItem],
+      },
+    })
+
+    expect(within(screen.getByRole('button', { name: /未读文章/ })).getByText('未读')).toBeTruthy()
+    expect(within(screen.getByRole('button', { name: /已读文章/ })).queryByText('未读')).toBeNull()
   })
 
   it('counts unread items from current feed URLs when the total article count stays the same', () => {
