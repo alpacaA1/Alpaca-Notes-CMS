@@ -52,6 +52,7 @@ export function serializePost(post: ParsedPost): string {
     ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
     ...(post.frontmatter.read_later || isDiary ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
+    ...(!isDiary && !isKnowledge && !post.frontmatter.read_later && post.frontmatter.series ? [`series: ${post.frontmatter.series}`] : []),
     `desc: ${post.frontmatter.desc}`,
     '---',
   ]

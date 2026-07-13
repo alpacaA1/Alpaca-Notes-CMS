@@ -165,6 +165,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const aliases = readList(frontmatter, 'aliases')
   const categories = readList(frontmatter, 'categories')
   const tags = readList(frontmatter, 'tags')
+  const series = readScalar(frontmatter, 'series')
   const body = stripGeneratedTopicBacklinks(stripFrontmatter(input.content))
   const knowledgePreview = contentType === 'knowledge' ? extractKnowledgePreview(body) : ''
   const bodySearchText = normalizeSearchText(body)
@@ -180,6 +181,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     ...aliases,
     ...categories,
     ...tags,
+    series || '',
   ].join('\n'))
 
   return {
@@ -210,6 +212,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
       : {}),
     ...(nodeKey ? { nodeKey } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
+    ...(series ? { series } : {}),
   }
 }
 
@@ -282,6 +285,10 @@ export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): Po
       return false
     }
 
+    if (view.series && post.series !== view.series) {
+      return false
+    }
+
     return true
   })
 }
@@ -315,6 +322,9 @@ export function collectPostIndexFacets(posts: PostIndexItem[]) {
   const tags = Array.from(new Set(posts.flatMap((post) => post.tags))).sort((left, right) =>
     left.localeCompare(right, 'zh-CN'),
   )
+  const seriesList = Array.from(new Set(posts.map((post) => post.series).filter((value): value is string => Boolean(value)))).sort((left, right) =>
+    left.localeCompare(right, 'zh-CN'),
+  )
 
-  return { categories, tags }
+  return { categories, tags, seriesList }
 }

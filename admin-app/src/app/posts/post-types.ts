@@ -35,6 +35,7 @@ export type PostIndexItem = {
   topicType?: TopicNodeType | null
   nodeKey?: string | null
   aliases?: string[]
+  series?: string | null
 }
 
 export type PostPublishState = 'all' | 'draft' | 'published'
@@ -45,5 +46,6 @@ export type PostIndexView = {
   publishState: PostPublishState
   category: string | null
   tag: string | null
+  series: string | null
   sort: PostSort
 }

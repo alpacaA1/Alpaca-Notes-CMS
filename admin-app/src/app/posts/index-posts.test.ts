@@ -62,6 +62,7 @@ const defaultView: PostIndexView = {
   publishState: 'all',
   category: null,
   tag: null,
+  series: null,
   sort: 'date-desc',
 }
 
@@ -121,6 +122,7 @@ describe('post indexing helpers', () => {
     expect(collectPostIndexFacets(posts)).toEqual({
       categories: ['生活', '专业'],
       tags: ['产品', '观察', '信息架构'],
+      seriesList: [],
     })
   })
 

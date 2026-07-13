@@ -46,6 +46,7 @@ export type PostFrontmatter = {
   topic_type?: TopicNodeType
   node_key?: string
   aliases?: string[]
+  series?: string
 }
 
 export type ParsedPost = {
@@ -113,6 +114,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const topicTypeRaw = readScalar(frontmatterBlock, 'topic_type')
   const nodeKeyRaw = readScalar(frontmatterBlock, 'node_key')
   const aliasesRaw = readList(frontmatterBlock, 'aliases')
+  const seriesRaw = readScalar(frontmatterBlock, 'series')
   const contentType: ContentType =
     readLaterRaw === 'true'
       ? 'read-later'
@@ -164,6 +166,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
         : {}),
       ...(nodeKeyRaw && nodeKeyRaw.length > 0 ? { node_key: nodeKeyRaw } : {}),
       ...(aliasesRaw.length > 0 ? { aliases: aliasesRaw } : {}),
+      ...(seriesRaw && seriesRaw.length > 0 ? { series: seriesRaw } : {}),
     },
   }
 }

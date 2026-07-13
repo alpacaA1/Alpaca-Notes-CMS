@@ -36,6 +36,7 @@ import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, typ
 import TopBar from './layout/top-bar'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
+import SeriesCollection from './layout/series-collection'
 import FeedDashboard, {
   readViewedFeedItemsByUrl,
   type ViewedFeedItemsByUrl,
@@ -389,6 +390,7 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
             topicType: document.frontmatter.topic_type || null,
             nodeKey: document.frontmatter.node_key || null,
             aliases: document.frontmatter.aliases || [],
+            series: document.frontmatter.series || null,
           }
       : {}),
   }
@@ -469,7 +471,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series'
 
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
@@ -580,11 +582,12 @@ export default function App() {
         publishState: 'all',
         category: null,
         tag: null,
+        series: null,
         sort: 'date-desc',
       }),
     [posts, search],
   )
-  const { categories: availableCategories, tags: availableTags } = useMemo(() => {
+  const { categories: availableCategories, tags: availableTags, seriesList: availableSeries } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)
     if (contentType !== 'knowledge' || facets.categories.includes(KNOWLEDGE_RANDOM_CATEGORY)) {
       return facets
@@ -1687,6 +1690,16 @@ export default function App() {
     setError(null)
     rssAutoRefreshAttemptedRef.current = false
     setAdminView('feeds')
+  }
+
+  const handleOpenSeries = () => {
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('series')
+  }
+
+  const handleBackFromSeries = () => {
+    setAdminView('dashboard')
   }
 
   const findExistingFeedSubscription = (url: string) =>
@@ -3607,6 +3620,8 @@ export default function App() {
       ? isAnnotationIndexing
         ? `正在聚合批注… · 已识别 ${readLaterAnnotationIndex.length} 条`
         : `共 ${readLaterAnnotationIndex.length} 条批注`
+    : adminView === 'series'
+      ? '合集视图'
       : isOrganizingMaterials
         ? '正在整理月报素材…'
       : isSaving && document
@@ -3631,6 +3646,7 @@ export default function App() {
   const isFeedsView = adminView === 'feeds'
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
+  const isSeriesView = adminView === 'series'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
   const isReaderPreview = Boolean(document && isPreviewing && document.contentType === 'read-later')
@@ -3756,6 +3772,7 @@ export default function App() {
             onClearSelectedMaterials={clearSelectedMaterials}
             onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
             onSearchFocus={() => searchInputRef.current?.focus()}
+            onOpenSeriesCollection={contentType === 'post' ? handleOpenSeries : undefined}
           />
         </section>
       ) : isFeedsView ? (
@@ -3827,6 +3844,17 @@ export default function App() {
             processingTrashPath={processingTrashPath}
             onRestore={handleRestoreTrashEntry}
             onDelete={handleDeleteTrashEntry}
+          />
+        </section>
+      ) : isSeriesView ? (
+        <section className="admin-shell__viewport">
+          {successMessage ? <p className="success-message">{successMessage}</p> : null}
+          {error ? <p className="error-message">{error}</p> : null}
+          <SeriesCollection
+            posts={postsByType.post || []}
+            contentType={contentType}
+            onOpenPost={handleOpenPost}
+            onBack={handleBackFromSeries}
           />
         </section>
       ) : (
@@ -3944,6 +3972,7 @@ export default function App() {
                 contentType={contentType}
                 availableCategories={availableCategories}
                 availableTags={availableTags}
+                availableSeries={availableSeries}
                 onFieldChange={handleFrontmatterChange}
                 onBodyChange={handleEditorChange}
                 onTaxonomyCreate={handleTaxonomyCreate}

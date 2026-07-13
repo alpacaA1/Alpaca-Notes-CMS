@@ -18,6 +18,7 @@ type SettingsPanelProps = {
   contentType?: ContentType
   availableCategories: string[]
   availableTags: string[]
+  availableSeries?: string[]
   onFieldChange: <K extends keyof ParsedPost['frontmatter']>(
     field: K,
     value: ParsedPost['frontmatter'][K],
@@ -92,6 +93,7 @@ export default function SettingsPanel({
   contentType = 'post',
   availableCategories,
   availableTags,
+  availableSeries = [],
   onFieldChange,
   onBodyChange,
   onTaxonomyCreate,
@@ -441,6 +443,26 @@ export default function SettingsPanel({
                     onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('categories', name) : undefined}
                   />
                 </div>
+              ) : null}
+
+              {isPost ? (
+                <label className="settings-panel__field">
+                  <span>系列</span>
+                  <input
+                    type="text"
+                    list="series-options"
+                    aria-label="系列"
+                    value={frontmatter.series || ''}
+                    onChange={(event) => onFieldChange('series', event.target.value || undefined)}
+                    placeholder="填写系列名称，留空则不归属任何系列"
+                  />
+                  <datalist id="series-options">
+                    {availableSeries.map((name) => (
+                      <option key={name} value={name} />
+                    ))}
+                  </datalist>
+                  <p className="settings-panel__field-note">同名系列的多篇文章会在合集页中归到一起。</p>
+                </label>
               ) : null}
             </>
           )}

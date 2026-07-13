@@ -55,6 +55,7 @@ type PostDashboardProps = {
   onClearSelectedMaterials?: () => void
   onOrganizeMaterials?: () => void
   onSearchFocus?: () => void
+  onOpenSeriesCollection?: () => void
 }
 
 const POST_STATUS_OPTIONS: { value: PostPublishState; label: string }[] = [
@@ -192,6 +193,16 @@ function GridIcon() {
       <rect x="9" y="1" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
       <rect x="9" y="9" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function SeriesIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <rect x="1" y="2.5" width="12" height="2.2" rx="1" fill="currentColor" opacity="0.45" />
+      <rect x="1" y="5.9" width="12" height="2.2" rx="1" fill="currentColor" opacity="0.7" />
+      <rect x="1" y="9.3" width="12" height="2.2" rx="1" fill="currentColor" />
     </svg>
   )
 }
@@ -389,10 +400,12 @@ export default function PostDashboard({
   onClearSelectedMaterials,
   onOrganizeMaterials,
   onSearchFocus,
+  onOpenSeriesCollection,
 }: PostDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>('all')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [selectedSeries, setSelectedSeries] = useState<string | null>(null)
   const [sort, setSort] = useState<PostSort>('date-desc')
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
@@ -418,7 +431,7 @@ export default function PostDashboard({
     setDismissedRecoveryKey(readDismissedRecoveryKey(contentType))
   }, [contentType])
 
-  const { categories, tags: availableTags } = useMemo(() => {
+  const { categories, tags: availableTags, seriesList } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)
     if (!isKnowledge || facets.categories.includes(KNOWLEDGE_RANDOM_CATEGORY)) {
       return facets
@@ -436,6 +449,7 @@ export default function PostDashboard({
     setStatusFilter('all')
     setSelectedCategory(null)
     setSelectedTag(null)
+    setSelectedSeries(null)
     setSort('date-desc')
     setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
   }, [contentType])
@@ -446,6 +460,7 @@ export default function PostDashboard({
       publishState: isReadLater || isDiary || isKnowledge ? 'all' : (statusFilter as PostPublishState),
       category: isReadLater || isDiary ? null : selectedCategory,
       tag: selectedTag,
+      series: selectedSeries,
       sort,
     })
 
@@ -455,7 +470,7 @@ export default function PostDashboard({
         : basePosts
 
     return sortPostIndex(statusFilteredPosts, sort)
-  }, [posts, search, isDiary, isKnowledge, isReadLater, statusFilter, selectedCategory, selectedTag, sort])
+  }, [posts, search, isDiary, isKnowledge, isReadLater, statusFilter, selectedCategory, selectedTag, selectedSeries, sort])
 
   const diaryMonthGroups = useMemo(
     () => (isDiary ? groupDiaryPostsByMonth(filteredPosts) : []),
@@ -612,6 +627,7 @@ export default function PostDashboard({
     statusFilter !== 'all' ||
     (!isReadLater && !isDiary && selectedCategory !== null) ||
     selectedTag !== null ||
+    selectedSeries !== null ||
     search.trim().length > 0
   const filteredKnowledgeKey = useMemo(
     () => (isKnowledge ? filteredPosts.map((post) => post.path).join('|') : ''),
@@ -642,6 +658,7 @@ export default function PostDashboard({
     setStatusFilter('all')
     setSelectedCategory(null)
     setSelectedTag(null)
+    setSelectedSeries(null)
   }
 
   const setMaterialSelection = (paths: string[], shouldSelect: boolean) => {
@@ -732,33 +749,33 @@ export default function PostDashboard({
         </section>
       ) : null}
 
-      <div className="post-dashboard__stats-bar">
-        <div className="post-dashboard__stats">
-          {statCards.map((card) => (
+      {seriesList.length > 0 ? (
+        <div className="post-dashboard__series-bar">
+          <div className="post-dashboard__series-chips">
+            {seriesList.map((name) => (
+              <button
+                key={name}
+                type="button"
+                className={`post-dashboard__series-chip${selectedSeries === name ? ' is-active' : ''}`}
+                onClick={() => setSelectedSeries(selectedSeries === name ? null : name)}
+                title={name}
+              >
+                <SeriesIcon />
+                <span className="post-dashboard__series-chip-name">{name}</span>
+              </button>
+            ))}
+          </div>
+          {onOpenSeriesCollection ? (
             <button
-              key={card.value}
               type="button"
-              className={`post-dashboard__stat-card${card.tone ? ` post-dashboard__stat-card--${card.tone}` : ''}${statusFilter === card.value ? ' post-dashboard__stat-card--active' : ''}`}
-              onClick={() => {
-                setStatusFilter(statusFilter === card.value && card.value !== 'all' ? 'all' : card.value)
-                if (card.value === 'all') {
-                  setSelectedCategory(null)
-                  setSelectedTag(null)
-                }
-              }}
+              className="post-dashboard__series-more"
+              onClick={onOpenSeriesCollection}
             >
-              <span className="post-dashboard__stat-value">{card.count}</span>
-              <span className="post-dashboard__stat-label">{card.label}</span>
+              更多
             </button>
-          ))}
+          ) : null}
         </div>
-
-        <div className="post-dashboard__kbd-hints" aria-label="快捷键">
-          <span><kbd>N</kbd> 新建</span>
-          <span><kbd>/</kbd> 搜索</span>
-          {!isKnowledge && !isDiary ? <span><kbd>G</kbd> 切换视图</span> : null}
-        </div>
-      </div>
+      ) : null}
 
       <div className="post-dashboard__toolbar">
         <div className="post-dashboard__filter-group">

@@ -1,7 +1,7 @@
 import type { Ref } from 'react'
 import type { ContentType } from '../posts/post-types'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series'
 
 function AlpacaLogo() {
   return (

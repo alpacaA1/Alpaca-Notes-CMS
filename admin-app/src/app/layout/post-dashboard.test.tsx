@@ -319,7 +319,7 @@ describe('post dashboard', () => {
     expect(onDeletePost).toHaveBeenCalledWith(readLaterPosts[0])
   })
 
-  it('renders keyboard hints in the stats row and highlights pinned posts in list view', () => {
+  it('highlights pinned posts in list view', () => {
     window.localStorage.setItem('alpaca-dashboard-view-mode', 'list')
     const pinnedPost = { ...posts[0], path: 'source/_posts/pinned.md', pinned: true, title: '置顶文章' }
     const { container } = render(
@@ -334,9 +334,6 @@ describe('post dashboard', () => {
         onTogglePinned={vi.fn()}
       />,
     )
-
-    const kbdHints = screen.getByLabelText('快捷键')
-    expect(kbdHints.closest('.post-dashboard__stats-bar')).toBeTruthy()
 
     const pinnedRow = container.querySelector('.post-dashboard__list-row--pinned')
     expect(pinnedRow).toBeTruthy()
