@@ -91,6 +91,7 @@ function samePost(left: EditableDocument | null, right: EditableDocument | null)
     left.frontmatter.knowledge_kind === right.frontmatter.knowledge_kind &&
     left.frontmatter.topic_type === right.frontmatter.topic_type &&
     left.frontmatter.node_key === right.frontmatter.node_key &&
+    left.frontmatter.series === right.frontmatter.series &&
     sameStringArray(left.frontmatter.categories, right.frontmatter.categories) &&
     sameStringArray(left.frontmatter.tags, right.frontmatter.tags) &&
     sameStringArray(left.frontmatter.aliases || [], right.frontmatter.aliases || []) &&
