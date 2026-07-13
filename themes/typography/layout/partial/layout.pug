@@ -7,7 +7,7 @@ html(lang="zh-CN")
         div#stage.container
             div.row
                 include sidebar
-                div#main-container.col-sm-9.col-xs-12.main-container.invisible
+                div#main-container.col-sm-9.col-xs-12.main-container.fadeInTop
 
                     block content
                     div.visible-xs.site-bottom-footer
@@ -16,9 +16,8 @@ html(lang="zh-CN")
         button#back-to-top.back-to-top(type="button", aria-label="返回顶部", title="返回顶部")
             i.fa.fa-angle-up(aria-hidden="true")
 
-        script(src= url_for('js/jquery-3.1.0.min.js'))
-        script(src= url_for('js/bootstrap.min.js'))
-        script(src= url_for('js/jquery-migrate-1.2.1.min.js'))
-        script(src= url_for('js/jquery.appear.js'))
-        script(src= url_for('js/google-analytics.js'))
-        script(src= url_for('js/typography.js'))
+        script(src= url_for('js/jquery-3.1.0.min.js'), defer)
+        script(src= url_for('js/jquery-migrate-1.2.1.min.js'), defer)
+        script(src= url_for('js/bootstrap.min.js'), defer)
+        script(src= url_for('js/jquery.appear.js'), defer)
+        script(src= url_for('js/typography.js'), defer)
