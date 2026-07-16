@@ -1501,9 +1501,12 @@ export default function App() {
 
     let cancelInitialRefresh = () => {}
 
-    if (!rssAutoRefreshAttemptedRef.current) {
+    if (!rssAutoRefreshAttemptedRef.current && adminView === 'feeds') {
       rssAutoRefreshAttemptedRef.current = true
+      void refreshRssSubscriptionsInBackground()
+    } else if (!rssAutoRefreshAttemptedRef.current) {
       cancelInitialRefresh = scheduleBackgroundTask(() => {
+        rssAutoRefreshAttemptedRef.current = true
         void refreshRssSubscriptionsInBackground()
       }, RSS_INITIAL_REFRESH_DELAY_MS)
     }
