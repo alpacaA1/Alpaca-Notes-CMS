@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { TopicBacklinkItem } from '../knowledge/wiki-links'
 import type { ParsedPost } from '../posts/parse-post'
 import type { ContentType, PostIndexItem } from '../posts/post-types'
@@ -85,6 +86,18 @@ function getLinkedPostTypeLabel(contentType: ContentType | undefined) {
   }
 
   return '文章'
+}
+
+function MetadataSection({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="settings-panel__metadata-section" open={defaultOpen || undefined}>
+      <summary className="settings-panel__metadata-section-summary">
+        <span>{title}</span>
+        <span className="settings-panel__metadata-section-chevron" aria-hidden="true">⌄</span>
+      </summary>
+      <div className="settings-panel__metadata-section-content">{children}</div>
+    </details>
+  )
 }
 
 export default function SettingsPanel({
@@ -277,7 +290,7 @@ export default function SettingsPanel({
         <div className="settings-panel__header">
           <>
             <p className="settings-panel__eyebrow">元信息</p>
-            <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '发布设置'}</h2>
+            <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '文章设置'}</h2>
             <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : isKnowledge ? '保留正文与来源上下文，快速沉淀知识点。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
           </>
         </div>
@@ -308,32 +321,61 @@ export default function SettingsPanel({
 
       {showInfoFields ? (
         <div className={`settings-panel__section-stack${isReadLater ? ' settings-panel__section-stack--reader' : ''}`}>
-          <label>
-            <span>标题</span>
-            <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
-            {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
-          </label>
-
-          <label>
-            <span>日期</span>
-            <input
-              aria-label="日期"
-              type="datetime-local"
-              step="1"
-              value={toPostDateTimeInputValue(frontmatter.date)}
-              onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
-            />
-            <p className="settings-panel__field-note">直接选择日期与时间，保存时会保留秒级时间。</p>
-            {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
-          </label>
-
-          {showSummaryField ? (
-            <label>
-              <span>摘要</span>
-              <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
-              {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
-            </label>
-          ) : null}
+          {!isReadLater ? (
+            <MetadataSection title="基础信息" defaultOpen>
+              <label>
+                <span>标题</span>
+                <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
+                {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
+              </label>
+              <label>
+                <span>日期</span>
+                <input
+                  aria-label="日期"
+                  type="datetime-local"
+                  step="1"
+                  value={toPostDateTimeInputValue(frontmatter.date)}
+                  onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
+                />
+                <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
+                {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
+              </label>
+              {showSummaryField ? (
+                <label>
+                  <span>摘要</span>
+                  <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
+                  {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
+                </label>
+              ) : null}
+            </MetadataSection>
+          ) : (
+            <>
+              <label>
+                <span>标题</span>
+                <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
+                {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
+              </label>
+              <label>
+                <span>日期</span>
+                <input
+                  aria-label="日期"
+                  type="datetime-local"
+                  step="1"
+                  value={toPostDateTimeInputValue(frontmatter.date)}
+                  onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
+                />
+                <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
+                {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
+              </label>
+              {showSummaryField ? (
+                <label>
+                  <span>摘要</span>
+                  <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
+                  {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
+                </label>
+              ) : null}
+            </>
+          )}
 
           {isReadLater ? (
             <>
@@ -404,9 +446,27 @@ export default function SettingsPanel({
                   onChange={(event) => onFieldChange('pinned', event.target.checked)}
                 />
               </label>
+
+              <div className="settings-panel__field settings-panel__taxonomy">
+                <span>标签</span>
+                <TaxonomyMultiSelect
+                  label="标签"
+                  value={frontmatter.tags}
+                  availableOptions={availableTags}
+                  onChange={(value) => onFieldChange('tags', value)}
+                  onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
+                  onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
+                  onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
+                />
+              </div>
+
+              <label>
+                <span>站内详情链接</span>
+                <input aria-label="站内详情链接" value={frontmatter.permalink || ''} readOnly disabled />
+              </label>
             </>
           ) : (
-            <>
+            <MetadataSection title="发布设置" defaultOpen>
               <label className="settings-panel__toggle">
                 <span>置顶</span>
                 <input
@@ -464,23 +524,22 @@ export default function SettingsPanel({
                   <p className="settings-panel__field-note">同名系列的多篇文章会在合集页中归到一起。</p>
                 </label>
               ) : null}
-            </>
+              <div className="settings-panel__field settings-panel__taxonomy">
+                <span>标签</span>
+                <TaxonomyMultiSelect
+                  label="标签"
+                  value={frontmatter.tags}
+                  availableOptions={availableTags}
+                  onChange={(value) => onFieldChange('tags', value)}
+                  onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
+                  onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
+                  onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
+                />
+              </div>
+            </MetadataSection>
           )}
 
-          <div className="settings-panel__field settings-panel__taxonomy">
-            <span>标签</span>
-            <p className="settings-panel__field-note">搜索并选择已创建标签；已选标签会保留在下方。</p>
-            <TaxonomyMultiSelect
-              label="标签"
-              value={frontmatter.tags}
-              availableOptions={availableTags}
-              onChange={(value) => onFieldChange('tags', value)}
-              onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
-              onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
-              onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
-            />
-          </div>
-
+          {!isReadLater ? <MetadataSection title="高级设置">
           {isPost ? (
             <label className="settings-panel__field">
               <span>文章类型</span>
@@ -690,17 +749,7 @@ export default function SettingsPanel({
             </label>
           ) : null}
 
-          {isReadLater ? (
-            <label>
-              <span>站内详情链接</span>
-              <input
-                aria-label="站内详情链接"
-                value={frontmatter.permalink || ''}
-                readOnly
-                disabled
-              />
-            </label>
-          ) : !isDiary && !isKnowledge ? (
+          {!isDiary && !isKnowledge ? (
             <label>
               <span>永久链接</span>
               <input
@@ -712,6 +761,7 @@ export default function SettingsPanel({
               {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
             </label>
           ) : null}
+          </MetadataSection> : null}
         </div>
       ) : null}
 

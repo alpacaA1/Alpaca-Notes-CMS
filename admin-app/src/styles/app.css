@@ -3401,6 +3401,68 @@ textarea {
   gap: 16px;
 }
 
+.settings-panel__metadata-section {
+  overflow: hidden;
+  border: 1px solid var(--admin-line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.settings-panel__metadata-section-summary {
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 14px;
+  color: var(--admin-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-panel__metadata-section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel__metadata-section-summary:hover {
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.settings-panel__metadata-section-chevron {
+  color: var(--admin-soft);
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+
+.settings-panel__metadata-section[open] .settings-panel__metadata-section-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-panel__metadata-section-content {
+  display: grid;
+  gap: 16px;
+  padding: 4px 14px 16px;
+  border-top: 1px solid var(--admin-line);
+}
+
+.admin-shell--dark .settings-panel__metadata-section {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.admin-shell--dark .settings-panel__metadata-section-summary:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-panel__metadata-section-chevron {
+    transition: none;
+  }
+}
+
 .settings-panel__section-stack--reader {
   padding-top: 14px;
   border-top: 1px solid var(--admin-line);
