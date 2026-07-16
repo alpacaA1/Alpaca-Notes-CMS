@@ -14,6 +14,28 @@ type BuildIndexOptions = {
   onFilesListed?: (posts: PostIndexItem[]) => void
 }
 
+const CONTENT_INDEX_CONCURRENCY = 4
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+) {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const workerCount = Math.min(Math.max(1, concurrency), items.length)
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex)
+    }
+  }))
+
+  return results
+}
+
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
 }
@@ -228,8 +250,10 @@ async function buildIndexForFiles(
     'date-desc',
   ))
 
-  const posts = await Promise.all(
-    resolvedFiles.map(async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path))),
+  const posts = await mapWithConcurrency(
+    resolvedFiles,
+    CONTENT_INDEX_CONCURRENCY,
+    async (file) => parsePostIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchPostFile(session, file.path)),
   )
 
   return sortPostIndex(posts, 'date-desc')

@@ -7,6 +7,28 @@ type BuildReadLaterIndexOptions = {
   onFilesListed?: (items: ReadLaterIndexItem[]) => void
 }
 
+const READ_LATER_INDEX_CONCURRENCY = 4
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T, index: number) => Promise<R>,
+) {
+  const results = new Array<R>(items.length)
+  let nextIndex = 0
+  const workerCount = Math.min(Math.max(1, concurrency), items.length)
+
+  await Promise.all(Array.from({ length: workerCount }, async () => {
+    while (nextIndex < items.length) {
+      const currentIndex = nextIndex
+      nextIndex += 1
+      results[currentIndex] = await mapper(items[currentIndex], currentIndex)
+    }
+  }))
+
+  return results
+}
+
 function trimQuotes(value: string) {
   return value.trim().replace(/^['"]|['"]$/g, '').trim()
 }
@@ -144,8 +166,10 @@ export async function buildReadLaterIndex(session: SessionState, options: BuildR
     'date-desc',
   ) as ReadLaterIndexItem[])
 
-  const items = await Promise.all(
-    files.map(async (file) => parseReadLaterIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchMarkdownFile(session, file.path))),
+  const items = await mapWithConcurrency(
+    files,
+    READ_LATER_INDEX_CONCURRENCY,
+    async (file) => parseReadLaterIndexItem(readCachedMarkdownFile(file.path, file.sha) ?? await fetchMarkdownFile(session, file.path)),
   )
 
   return sortPostIndex(items, 'date-desc') as ReadLaterIndexItem[]

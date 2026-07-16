@@ -14,10 +14,7 @@ html(lang="zh-CN")
                         include footer
 
         button#back-to-top.back-to-top(type="button", aria-label="返回顶部", title="返回顶部")
-            i.fa.fa-angle-up(aria-hidden="true")
+            include icons
+            +icon('angle-up')
 
-        script(src= url_for('js/jquery-3.1.0.min.js'), defer)
-        script(src= url_for('js/jquery-migrate-1.2.1.min.js'), defer)
-        script(src= url_for('js/bootstrap.min.js'), defer)
-        script(src= url_for('js/jquery.appear.js'), defer)
         script(src= url_for('js/typography.js'), defer)

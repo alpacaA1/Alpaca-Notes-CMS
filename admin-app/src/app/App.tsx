@@ -98,6 +98,42 @@ const RSS_AUTO_REFRESH_CONCURRENCY = 3
 const RSS_AUTO_REFRESH_INTERVAL_MS = 30 * 60 * 1000
 const RSS_VISIBLE_REFRESH_STALE_MS = 15 * 60 * 1000
 const RSS_READ_SAVE_DEBOUNCE_MS = 2500
+const BACKGROUND_PRELOAD_DELAY_MS = 1200
+const RSS_INITIAL_REFRESH_DELAY_MS = 4000
+
+function scheduleBackgroundTask(callback: () => void, delayMs = BACKGROUND_PRELOAD_DELAY_MS) {
+  if (typeof window === 'undefined') {
+    return () => {}
+  }
+
+  let timeoutId: number | null = null
+  let idleId: number | null = null
+  const requestIdleCallback = window.requestIdleCallback
+
+  timeoutId = window.setTimeout(() => {
+    timeoutId = null
+
+    if (requestIdleCallback) {
+      idleId = requestIdleCallback(() => {
+        idleId = null
+        callback()
+      }, { timeout: delayMs })
+      return
+    }
+
+    callback()
+  }, delayMs)
+
+  return () => {
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId)
+    }
+
+    if (idleId !== null && window.cancelIdleCallback) {
+      window.cancelIdleCallback(idleId)
+    }
+  }
+}
 
 function decodeBase64Bytes(value: string) {
   const binary = atob(value)
@@ -1044,21 +1080,28 @@ export default function App() {
       preloadAttemptedRef.current[type] = true
     })
 
-    void Promise.all(
-      preloadTypes.map(async (type) => {
-        try {
-          const indexedPosts = await buildIndexByContentType(session, type)
-          if (!cancelled) {
-            updatePostsForType(type, () => indexedPosts as PostIndexItem[])
+    const cancelPreload = scheduleBackgroundTask(() => {
+      void (async () => {
+        for (const type of preloadTypes) {
+          if (cancelled) {
+            return
           }
-        } catch {
-          // Keep the focused editing flow responsive even if background preload fails.
+
+          try {
+            const indexedPosts = await buildIndexByContentType(session, type)
+            if (!cancelled) {
+              updatePostsForType(type, () => indexedPosts as PostIndexItem[])
+            }
+          } catch {
+            // Keep the focused editing flow responsive even if background preload fails.
+          }
         }
-      }),
-    )
+      })()
+    })
 
     return () => {
       cancelled = true
+      cancelPreload()
     }
   }, [contentType, postsByType.diary.length, postsByType.knowledge.length, postsByType.post.length, session, updatePostsForType])
 
@@ -1456,9 +1499,13 @@ export default function App() {
       return
     }
 
+    let cancelInitialRefresh = () => {}
+
     if (!rssAutoRefreshAttemptedRef.current) {
       rssAutoRefreshAttemptedRef.current = true
-      void refreshRssSubscriptionsInBackground()
+      cancelInitialRefresh = scheduleBackgroundTask(() => {
+        void refreshRssSubscriptionsInBackground()
+      }, RSS_INITIAL_REFRESH_DELAY_MS)
     }
 
     const currentDocument = typeof document === 'undefined' ? null : document
@@ -1476,6 +1523,7 @@ export default function App() {
 
     currentDocument?.addEventListener?.('visibilitychange', handleVisibilityChange)
     return () => {
+      cancelInitialRefresh()
       window.clearInterval(intervalId)
       currentDocument?.removeEventListener?.('visibilitychange', handleVisibilityChange)
     }

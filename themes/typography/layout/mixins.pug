@@ -1,3 +1,5 @@
+include partial/icons
+
 mixin make_post(item, is_detail)
     div.post-container.clearfix
         if !is_detail && item.cover
@@ -11,14 +13,14 @@ mixin make_post(item, is_detail)
             span.date.meta-item!=__("posted_at")+"&nbsp;" + date(item.date, 'YYYY-MM-DD')
             if theme.duoshuo || theme.disqus
                 span.meta-item
-                    i.fa.fa-comment-o
+                    +icon('comment-o')
                     span &nbsp;
                     a(href= url_for(item.path + "#comments"))= __('Comments')
             if theme.showCategories
                 if item.categories
                     if item.categories.length > 0
                         span.meta-item
-                            i.fa.fa-folder
+                            +icon('folder')
                             span &nbsp;
                             - item.categories.sort('posts').each(function(item) {
                             a.a-tag(href=config.root + item.path, title= item.name)= item.name
@@ -28,7 +30,7 @@ mixin make_post(item, is_detail)
                 if item.tags
                     if item.tags.length > 0
                         span.meta-item
-                            i.fa.fa-tag
+                            +icon('tag')
                             span &nbsp;
                             - item.tags.sort('posts').each(function(item) {
                             a.a-tag(href=config.root + item.path, title= item.name)= item.name
@@ -65,7 +67,7 @@ mixin make_pager()
             p
                 if page.prev
                 span.pre.pagbuttons
-                    i.fa.fa-angle-double-left
+                    +icon('angle-double-left')
                     | &nbsp;
                     a(role="navigation",href=url_for(prev),aria-label= __('prev'))= __('prev')
 
@@ -74,7 +76,7 @@ mixin make_pager()
                 span.next.pagbuttons
                     a(role="navigation",href=url_for(next),aria-label=__('next'))= __('next')
                     | &nbsp;
-                    i.fa.fa-angle-double-right
+                    +icon('angle-double-right')
 
 mixin postList()
     - var year = 0;
