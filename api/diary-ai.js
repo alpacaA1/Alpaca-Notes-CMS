@@ -252,7 +252,8 @@ async function callDiaryModel(entries) {
   }
 
   const baseUrl = (process.env.DIARY_AI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const model = process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const defaultModel = baseUrl.toLowerCase().includes('deepseek') ? 'deepseek-chat' : 'gpt-4o-mini';
+  const model = process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || defaultModel;
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
