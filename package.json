@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "build": "npm run build:admin && npm run sync:private-content && hexo generate",
+    "vercel-build": "mkdir -p .vercel-static && printf '<!doctype html><meta charset=\"utf-8\"><title>Alpaca Notes API</title><p>Alpaca Notes API</p>' > .vercel-static/index.html",
     "build:admin": "npm run build --workspace admin-app",
     "clean": "hexo clean",
     "deploy": "hexo deploy",
