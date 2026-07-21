@@ -42,7 +42,7 @@ export async function translateReadLaterContent(
       body: JSON.stringify(payloadData),
     })
   } catch {
-    throw new Error('网络连接失败，无法连接翻译服务。')
+    throw new Error('无法连接翻译接口（接口未部署或 404 预检失败），请检查 Vercel 部署。')
   }
 
   let payload: TranslateReadLaterResponse | null = null
