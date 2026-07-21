@@ -188,7 +188,14 @@ function syncPrivateContent(options = {}) {
   const publicKnowledgeDir = path.join(publicSourceDir, '_knowledge');
 
   if (!fs.existsSync(contentSourceDir)) {
-    throw new Error(`未找到私有内容目录：${contentSourceDir}`);
+    console.warn(`未找到私有内容目录：${contentSourceDir}，跳过私有内容同步。`);
+    return {
+      contentRoot,
+      copiedPosts: 0,
+      copiedReadLater: 0,
+      copiedKnowledge: 0,
+      copiedImages: 0,
+    };
   }
 
   if (!fs.existsSync(contentPostsDir)) {
