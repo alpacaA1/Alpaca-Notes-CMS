@@ -1,5 +1,10 @@
-import type { Ref } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type Ref } from 'react'
 import type { ContentType } from '../posts/post-types'
+import {
+  READING_FONT_SIZE_MAX,
+  READING_FONT_SIZE_MIN,
+  READING_FONT_WEIGHTS,
+} from './use-reading-font'
 
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series'
 
@@ -43,6 +48,15 @@ function MoonIcon() {
       />
       <path d="M15.65 2.4l.48 1.14 1.13.48-1.13.48-.48 1.14-.48-1.14-1.14-.48 1.14-.48.48-1.14Z" fill="currentColor" opacity="0.72" />
       <circle cx="17.15" cy="7.35" r="0.82" fill="currentColor" opacity="0.58" />
+    </svg>
+  )
+}
+
+function FontSizeIcon() {
+  return (
+    <svg className="top-bar__font-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M3.7 15 7.4 5.6h1.2L12.3 15h-1.6l-0.95-2.6H6.2L5.3 15H3.7Zm2.92-3.9h2.96l-1.46-4.05-1.5 4.05Z" fill="currentColor" />
+      <path d="M13.4 13.4h4.2v1.18h-5.5v-1.06l1.62-1.74c.66-.72 1.06-1.18 1.2-1.4.18-.28.27-.55.27-.82 0-.32-.1-.58-.3-.78-.2-.2-.46-.3-.8-.3-.3 0-.55.08-.78.25-.22.16-.4.4-.52.7l-1.18-.4c.18-.55.5-.98.92-1.28.43-.3.94-.45 1.54-.45.7 0 1.27.2 1.7.6.43.4.64.93.64 1.6 0 .4-.1.78-.3 1.14-.18.36-.6.87-1.24 1.54l-1.46 1.56Z" fill="currentColor" opacity="0.92" />
     </svg>
   )
 }
@@ -92,6 +106,10 @@ type TopBarProps = {
   isPreviewing: boolean
   isDarkMode: boolean
   hasActiveDocument: boolean
+  previewFontSize?: number
+  previewFontWeightIndex?: number
+  onPreviewFontSizeChange?: (next: number) => void
+  onPreviewFontWeightIndexChange?: (next: number) => void
   saveLabel: string
   isSaveDisabled: boolean
   isSaveQuiet: boolean
@@ -196,6 +214,10 @@ export default function TopBar({
   isPreviewing,
   isDarkMode,
   hasActiveDocument,
+  previewFontSize = 16,
+  previewFontWeightIndex = 1,
+  onPreviewFontSizeChange,
+  onPreviewFontWeightIndexChange,
   saveLabel,
   isSaveDisabled,
   isSaveQuiet,
@@ -218,6 +240,63 @@ export default function TopBar({
   const createLabel = getCreateLabel(contentType)
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
+  const showReadingFontButton = isEditor && isPreviewing
+  const [isReadingFontOpen, setIsReadingFontOpen] = useState(false)
+  const readingFontButtonRef = useRef<HTMLButtonElement | null>(null)
+  const readingFontPopoverRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!isReadingFontOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) {
+        return
+      }
+
+      if (readingFontPopoverRef.current?.contains(target)) {
+        return
+      }
+
+      if (readingFontButtonRef.current?.contains(target)) {
+        return
+      }
+
+      setIsReadingFontOpen(false)
+    }
+
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsReadingFontOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeydown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeydown)
+    }
+  }, [isReadingFontOpen])
+
+  const toggleReadingFontOpen = () => {
+    setIsReadingFontOpen((current) => !current)
+  }
+
+  const handleFontSizeSliderChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onPreviewFontSizeChange?.(Number.parseInt(event.target.value, 10))
+  }
+
+  const handleFontSizeStep = (delta: number) => {
+    onPreviewFontSizeChange?.(previewFontSize + delta)
+  }
+
+  const handleFontWeightSliderChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onPreviewFontWeightIndexChange?.(Number.parseInt(event.target.value, 10))
+  }
   const showContentTypeSwitcher = isDashboardLike
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
@@ -364,6 +443,79 @@ export default function TopBar({
           ) : null}
         </div>
         <div className="top-bar__utility-actions">
+          {showReadingFontButton ? (
+            <div className="top-bar__reading-font">
+              <button
+                ref={readingFontButtonRef}
+                className={`top-bar__button top-bar__button--icon top-bar__button--reading-font${isReadingFontOpen ? ' is-active' : ''}`}
+                type="button"
+                onClick={toggleReadingFontOpen}
+                aria-label="调整阅读字体"
+                aria-haspopup="true"
+                aria-expanded={isReadingFontOpen}
+                title="调整阅读字体"
+              >
+                <FontSizeIcon />
+              </button>
+              {isReadingFontOpen ? (
+                <div ref={readingFontPopoverRef} className="top-bar__reading-font-popover" role="dialog" aria-label="调整阅读字体">
+                  <div className="top-bar__reading-font-row">
+                    <span className="top-bar__reading-font-name">阅读字号</span>
+                    <span className="top-bar__reading-font-value">{previewFontSize}</span>
+                  </div>
+                  <div className="top-bar__reading-font-controls">
+                    <button
+                      type="button"
+                      className="top-bar__reading-font-step"
+                      onClick={() => handleFontSizeStep(-1)}
+                      disabled={previewFontSize <= READING_FONT_SIZE_MIN}
+                      aria-label="减小字号"
+                    >
+                      A-
+                    </button>
+                    <input
+                      type="range"
+                      className="top-bar__reading-font-slider"
+                      min={READING_FONT_SIZE_MIN}
+                      max={READING_FONT_SIZE_MAX}
+                      step={1}
+                      value={previewFontSize}
+                      onChange={handleFontSizeSliderChange}
+                      aria-label="阅读字号"
+                    />
+                    <button
+                      type="button"
+                      className="top-bar__reading-font-step top-bar__reading-font-step--plus"
+                      onClick={() => handleFontSizeStep(1)}
+                      disabled={previewFontSize >= READING_FONT_SIZE_MAX}
+                      aria-label="增大字号"
+                    >
+                      A+
+                    </button>
+                  </div>
+                  <div className="top-bar__reading-font-divider" />
+                  <div className="top-bar__reading-font-row">
+                    <span className="top-bar__reading-font-name">字体粗细</span>
+                    <span className="top-bar__reading-font-value">{READING_FONT_WEIGHTS[previewFontWeightIndex]?.label ?? '常规'}</span>
+                  </div>
+                  <div className="top-bar__reading-font-controls">
+                    <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--light" aria-hidden="true">A</span>
+                    <input
+                      type="range"
+                      className="top-bar__reading-font-slider"
+                      min={0}
+                      max={READING_FONT_WEIGHTS.length - 1}
+                      step={1}
+                      value={previewFontWeightIndex}
+                      onChange={handleFontWeightSliderChange}
+                      aria-label="字体粗细"
+                    />
+                    <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--bold" aria-hidden="true">A</span>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <button
             className={`top-bar__button top-bar__button--theme${isDarkMode ? ' is-dark' : ' is-light'}`}
             type="button"
@@ -376,6 +528,7 @@ export default function TopBar({
               {isDarkMode ? <MoonIcon /> : <SunIcon />}
             </span>
           </button>
+          <span className="top-bar__utility-divider" aria-hidden="true" />
           <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
             退出登录
           </button>

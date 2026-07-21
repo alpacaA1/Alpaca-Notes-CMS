@@ -112,6 +112,8 @@ type PreviewPaneProps = {
   showTopicBacklinksDrawer?: boolean
   showReadLaterOutline?: boolean
   showInlineOutline?: boolean
+  readingFontSize?: number
+  readingFontWeight?: number
 }
 
 type WikiLinkRenderOptions = {
@@ -2109,6 +2111,8 @@ export default function PreviewPane({
   showTopicBacklinksDrawer = false,
   showReadLaterOutline = false,
   showInlineOutline = true,
+  readingFontSize,
+  readingFontWeight,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
@@ -2181,6 +2185,21 @@ export default function PreviewPane({
   const currentAnnotationNoteDraft = annotationNoteDraft ?? internalAnnotationNoteDraft
   const isInlineAnnotationEditing = isReadLater && activeAnnotation?.id === editingAnnotationId
   const usesReaderBodyStyle = contentType === 'post' || contentType === 'diary' || contentType === 'read-later'
+  const readingFontStyle = useMemo<CSSProperties | undefined>(() => {
+    const customProperties: Record<string, string> = {}
+    if (readingFontSize !== undefined) {
+      customProperties['--preview-font-size'] = `${readingFontSize}px`
+    }
+    if (readingFontWeight !== undefined) {
+      customProperties['--preview-font-weight'] = String(readingFontWeight)
+    }
+
+    if (Object.keys(customProperties).length === 0) {
+      return undefined
+    }
+
+    return customProperties as CSSProperties
+  }, [readingFontSize, readingFontWeight])
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
     [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
@@ -2721,6 +2740,7 @@ export default function PreviewPane({
           ref={articleRef}
           className={`preview-content${usesReaderBodyStyle ? ' preview-content--reader' : ''}`}
           id={articleRootId}
+          style={readingFontStyle}
           onClick={handleArticleClick}
           onMouseUp={handleSelectionChange}
           onKeyUp={handleSelectionChange}

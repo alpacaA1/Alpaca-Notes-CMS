@@ -48,6 +48,7 @@ import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import { useColorMode } from './layout/use-color-mode'
+import { useReadingFont } from './layout/use-reading-font'
 import LoginGate from './login-gate'
 import { buildReadLaterAnnotationIndex } from './read-later/annotation-index'
 import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
@@ -513,6 +514,13 @@ export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
   const [session, setSession] = useState(() => sessionStore.getSession())
   const { isDark, toggle: toggleColorMode } = useColorMode()
+  const {
+    fontSize: previewReadingFontSize,
+    fontWeight: previewReadingFontWeight,
+    fontWeightIndex: previewReadingFontWeightIndex,
+    setFontSize: setPreviewReadingFontSize,
+    setFontWeightIndex: setPreviewReadingFontWeightIndex,
+  } = useReadingFont()
   const [contentType, setContentType] = useState<ContentType>('post')
   const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
   const posts = postsByType[contentType]
@@ -3727,6 +3735,10 @@ export default function App() {
           hasActiveDocument={Boolean(document)}
           isPreviewing={isPreviewing}
           isDarkMode={isDark}
+          previewFontSize={previewReadingFontSize}
+          previewFontWeightIndex={previewReadingFontWeightIndex}
+          onPreviewFontSizeChange={setPreviewReadingFontSize}
+          onPreviewFontWeightIndexChange={setPreviewReadingFontWeightIndex}
           saveLabel={saveLabel}
           isSaveDisabled={isSaveDisabled}
           isSaveQuiet={isSaveQuiet}
@@ -3995,6 +4007,8 @@ export default function App() {
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                       showInlineOutline={!isReaderPreview}
+                      readingFontSize={previewReadingFontSize}
+                      readingFontWeight={previewReadingFontWeight}
                     />
                   ) : (
                     <MarkdownEditor
