@@ -47,6 +47,7 @@ type SettingsPanelProps = {
   topicBacklinks?: TopicBacklinkItem[]
   onOpenLinkedPost?: (post: PostIndexItem) => void
   isDrawer?: boolean
+  isOpen?: boolean
   onClose?: () => void
   focusTitle?: boolean
 }
@@ -134,6 +135,7 @@ export default function SettingsPanel({
   topicBacklinks = [],
   onOpenLinkedPost,
   isDrawer = false,
+  isOpen = true,
   onClose,
   focusTitle = false,
 }: SettingsPanelProps) {
@@ -301,7 +303,7 @@ export default function SettingsPanel({
   }
 
   return (
-    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}${useReaderLitePanel ? ' settings-panel--reader-lite' : ''}${isDrawer ? ' settings-panel--drawer' : ''}`}>
+    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}${useReaderLitePanel ? ' settings-panel--reader-lite' : ''}${isDrawer ? ' settings-panel--drawer' : ''}${isDrawer && !isOpen ? ' is-closed' : ''}`}>
       {!isReadLater ? (
         <div className="settings-panel__header">
           {isDrawer ? <div className="settings-panel__drawer-top"><strong>文章设置</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章设置">×</button></div> : null}

@@ -3120,6 +3120,7 @@ textarea {
   overscroll-behavior: contain;
   animation: editor-drawer-in 180ms ease-out;
 }
+.admin-layout--drawers .settings-panel--drawer.is-closed { transform: translateX(calc(100% + 30px)); }
 
 .admin-layout--drawers .post-pane--drawer { left: 24px; }
 .admin-layout--drawers .settings-panel--drawer { right: 24px; }

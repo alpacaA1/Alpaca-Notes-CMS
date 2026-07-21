@@ -722,7 +722,6 @@ describe('App editor modes', () => {
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
     expect(screen.getByText(/已发布 · 已保存/)).toBeTruthy()
     expect(screen.queryByText('文章归档')).toBeNull()
-    expect(screen.queryByText('发布设置')).toBeNull()
 
     expect(screen.queryByRole('button', { name: '沉浸模式' })).toBeTruthy()
     expect(screen.queryAllByRole('button', { name: '沉浸模式' })).toHaveLength(1)
@@ -735,14 +734,12 @@ describe('App editor modes', () => {
 
     expect(screen.queryByText('当前稿件')).toBeNull()
     expect(screen.queryByText('文章归档')).toBeNull()
-    expect(screen.queryByText('发布设置')).toBeNull()
     expect(screen.getByRole('button', { name: '退出沉浸' }).closest('.markdown-editor__toolbar')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 
     expect(await screen.findByText(/已发布 · 已保存/)).toBeTruthy()
     expect(screen.queryByText('文章归档')).toBeNull()
-    expect(screen.queryByText('发布设置')).toBeNull()
   })
 
   it('renders unsaved title and body edits in preview and returns to markdown mode on exit', async () => {

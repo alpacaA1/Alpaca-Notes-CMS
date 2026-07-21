@@ -4140,7 +4140,7 @@ export default function App() {
                 <EmptyState error={error} />
               )}
             </div>
-            {showSettingsPanel && (isReadLaterDocument || isSettingsDrawerOpen) ? (
+            {showSettingsPanel ? (
               <SettingsPanel
                 document={document}
                 validationErrors={validationErrors}
@@ -4172,6 +4172,7 @@ export default function App() {
                 topicBacklinks={activeTopicBacklinks}
                 onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
                 isDrawer={!isReadLaterDocument}
+                isOpen={isSettingsDrawerOpen}
                 onClose={() => { setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }}
                 focusTitle={shouldFocusSettingsTitle}
               />

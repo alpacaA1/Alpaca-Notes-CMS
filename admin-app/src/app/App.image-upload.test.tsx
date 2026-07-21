@@ -200,6 +200,7 @@ describe('App image upload flow', () => {
     expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
     expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('![cover](/Alpaca-Notes-CMS/images/')
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByRole('button', { name: /image upload post/i }))
     await waitFor(() => {
       expect(fetchMarkdownFile).toHaveBeenCalledTimes(2)

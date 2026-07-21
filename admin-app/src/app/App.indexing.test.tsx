@@ -381,8 +381,10 @@ describe('App indexing flow', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click((container.querySelector('.post-list-item__pin-btn') as HTMLButtonElement))
 
     await waitFor(() => {
@@ -391,10 +393,12 @@ describe('App indexing flow', () => {
 
     expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('pinned: true')
 
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     await waitFor(() => {
       expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(true)
     })
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     expect(screen.getAllByRole('button', { name: '取消置顶文章' }).length).toBeGreaterThan(0)
   })
 
@@ -421,6 +425,7 @@ describe('App indexing flow', () => {
 
     const editor = (await screen.findByLabelText('Markdown 编辑器')) as HTMLTextAreaElement
     fireEvent.change(editor, { target: { value: 'Changed body.' } })
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
 
     await waitFor(() => {
       expect(screen.getAllByRole('button', { name: '置顶文章' }).every((button) => (button as HTMLButtonElement).disabled)).toBe(true)
@@ -486,6 +491,7 @@ describe('App indexing flow', () => {
       expect((screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement).value).toContain('![cover](')
     })
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByRole('button', { name: /为什么先把博客搭起来/i }))
     expect(await screen.findByRole('alertdialog')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '丢弃并继续' }))

@@ -58,6 +58,7 @@ describe('App local draft recovery', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /recover me/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Recovered after crash' } })
 
@@ -74,7 +75,8 @@ describe('App local draft recovery', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /recover me/i }))
-
+    await screen.findByLabelText('Markdown 编辑器')
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     expect(await screen.findByDisplayValue('Recovered after crash')).toBeTruthy()
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
     expect(screen.getByText(/未保存修改/)).toBeTruthy()
@@ -92,6 +94,7 @@ describe('App local draft recovery', () => {
 
     fireEvent.click(screen.getAllByRole('button', { name: '+ 新建文章' })[0] as HTMLButtonElement)
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Local-only draft' } })
 
@@ -108,7 +111,8 @@ describe('App local draft recovery', () => {
     })
 
     fireEvent.click(screen.getByRole('button', { name: /local-only draft/i }))
-
+    await screen.findByLabelText('Markdown 编辑器')
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     expect(await screen.findByDisplayValue('Local-only draft')).toBeTruthy()
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
     expect(screen.getByText(/未保存修改/)).toBeTruthy()

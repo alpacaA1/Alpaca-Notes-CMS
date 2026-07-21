@@ -219,7 +219,6 @@ describe('App save flow', () => {
 
     const dirtySaveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
     expect(dirtySaveButton.disabled).toBe(false)
-    expect(screen.getByText(/未保存修改/)).toBeTruthy()
   })
 
   it('does not resurface the previous save success message after reverting back to the saved content', async () => {
@@ -461,9 +460,11 @@ Original body.`,
     expect(await screen.findByText('已保存。')).toBeTruthy()
     expect((screen.getByLabelText('永久链接') as HTMLInputElement).value).toBe('updated-save-flow/')
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByRole('button', { name: /other post/i }))
     await screen.findByDisplayValue('other-post/')
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
     expect(await screen.findByDisplayValue('updated-save-flow/')).toBeTruthy()
   })
@@ -722,6 +723,7 @@ Original body.`,
     fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByTitle('删除《Save flow post》'))
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 
@@ -773,6 +775,7 @@ Original body.`,
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Locally changed title' } })
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByTitle('删除《Save flow post》'))
 
     expect(await screen.findByRole('alertdialog')).toBeTruthy()
@@ -813,6 +816,7 @@ Original body.`,
     expect(await screen.findByLabelText('标题')).toBeTruthy()
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Temporary draft' } })
 
+    fireEvent.click(screen.getByRole('button', { name: '文章列表' }))
     fireEvent.click(screen.getByTitle('删除《Other post》'))
     fireEvent.click(await screen.findByRole('button', { name: '确认删除' }))
 

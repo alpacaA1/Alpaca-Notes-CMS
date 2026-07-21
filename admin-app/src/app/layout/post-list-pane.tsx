@@ -147,6 +147,7 @@ export default function PostListPane({
   isTopBarHidden = false,
   onToggleTopBar,
   isDrawer = false,
+  isOpen = true,
   onClose,
 }: PostListPaneProps) {
   const [drawerSearch, setDrawerSearch] = useState('')

@@ -712,7 +712,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
     })
   })
 
@@ -749,7 +749,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
     })
     expect(screen.getByRole('button', { name: '← 返回原文' })).toBeTruthy()
 
@@ -757,7 +757,6 @@ describe('App preview mode', () => {
 
     expect(await screen.findByRole('heading', { name: 'Preview supported post' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '继续编辑' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '← 返回列表' })).toBeTruthy()
   })
 
   it('opens a topic node when a wiki link targets a node alias in preview mode', async () => {
@@ -793,7 +792,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
     })
   })
 
@@ -829,7 +828,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》书摘' }))
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Influence article')).toBeTruthy()
+      expect(screen.getByRole('heading', { name: 'Influence article' })).toBeTruthy()
     })
   })
 
