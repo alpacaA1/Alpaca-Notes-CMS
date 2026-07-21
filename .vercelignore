@@ -1,0 +1,3 @@
+# Exclude API test files — Vercel deploys every .js in api/ as a Serverless Function.
+# Including *.test.js would push the function count over the Hobby plan limit (12).
+api/*.test.js
