@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
 import {
   buildInternalReferenceMarkdown,
   getInternalReferenceTypeLabel,
@@ -21,6 +22,8 @@ type MarkdownEditorProps = {
   isImmersive?: boolean
   onUploadImage?: (file: File) => Promise<{ markdown: string }>
   internalReferenceCandidates?: InternalReferenceCandidate[]
+  editorFontSize?: number
+  editorFontWeight?: number
 }
 
 type SelectionRange = {
@@ -556,6 +559,8 @@ export default function MarkdownEditor({
   isImmersive = false,
   onUploadImage,
   internalReferenceCandidates = [],
+  editorFontSize,
+  editorFontWeight,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1104,8 +1109,24 @@ export default function MarkdownEditor({
     dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
   }
 
+  const editorFontStyle = useMemo<CSSProperties | undefined>(() => {
+    const customProperties: Record<string, string> = {}
+    if (editorFontSize !== undefined) {
+      customProperties['--md-editor-font-size'] = `${editorFontSize}px`
+    }
+    if (editorFontWeight !== undefined) {
+      customProperties['--md-editor-font-weight'] = String(editorFontWeight)
+    }
+
+    if (Object.keys(customProperties).length === 0) {
+      return undefined
+    }
+
+    return customProperties as CSSProperties
+  }, [editorFontSize, editorFontWeight])
+
   return (
-    <section className="editor-surface editor-surface--editor-canvas">
+    <section className="editor-surface editor-surface--editor-canvas" style={editorFontStyle}>
       <div className="markdown-editor__toolbar">
         <div className="markdown-editor__meta">
           <label className="editor-surface__label" htmlFor={textareaId}>

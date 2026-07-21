@@ -266,7 +266,7 @@ export default function TopBar({
   const createLabel = getCreateLabel(contentType)
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
-  const showReadingFontButton = isEditor && isPreviewing
+  const showReadingFontButton = isEditor
   const [isReadingFontOpen, setIsReadingFontOpen] = useState(false)
   const readingFontButtonRef = useRef<HTMLButtonElement | null>(null)
   const readingFontPopoverRef = useRef<HTMLDivElement | null>(null)
@@ -363,6 +363,17 @@ export default function TopBar({
     return (
       <header className="top-bar top-bar--editor top-bar--editor-workspace" ref={editorMenuRef}>
         <div className="top-bar__editor-left">
+          {onBackToDashboard ? (
+            <button
+              type="button"
+              className="top-bar__button top-bar__button--icon top-bar__button--back-icon"
+              onClick={onBackToDashboard}
+              aria-label={backButtonLabel}
+              title={backButtonLabel}
+            >
+              <BackIcon />
+            </button>
+          ) : null}
           <div className="top-bar__editor-product-menu">
             <button
               type="button"
@@ -401,9 +412,6 @@ export default function TopBar({
               </div>
             ) : null}
           </div>
-          {onBackToDashboard && backButtonLabel !== '← 返回列表' ? (
-            <button className="top-bar__button top-bar__button--back" type="button" onClick={onBackToDashboard}>{backButtonLabel}</button>
-          ) : null}
           <button
             type="button"
             className={`top-bar__button${isPostListOpen ? ' top-bar__button--active' : ''}`}

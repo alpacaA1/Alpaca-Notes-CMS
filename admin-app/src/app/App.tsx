@@ -4066,7 +4066,7 @@ export default function App() {
                       <div className="editor-frame__header">
                         <div>
                           <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>{document.frontmatter.published ? '已发布' : '草稿'} · {lastSavedAt ? `已保存于 ${lastSavedAt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : isDirty ? '有未保存修改' : '已保存'}</p>
-                          <div className="editor-frame__title-row"><h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>{document.frontmatter.title?.trim() || '未命名草稿'}</h1><button type="button" className="editor-frame__title-edit" aria-label="编辑标题" onClick={() => { setIsSettingsDrawerOpen(true); setIsPostListDrawerOpen(false); setShouldFocusSettingsTitle(true) }}>编辑</button></div>
+                          <div className="editor-frame__title-row"><input type="text" className={`editor-frame__title-input${!document.frontmatter.title?.trim() ? ' editor-frame__title-input--untitled' : ''}`} aria-label="标题" placeholder="未命名草稿" value={document.frontmatter.title} onChange={(event) => handleFrontmatterChange('title', event.target.value)} />{validationErrors.title ? <span className="error-message editor-frame__title-error">{validationErrors.title}</span> : null}</div>
                         </div>
                       </div>
                       <div className="editor-frame__meta">
@@ -4128,6 +4128,8 @@ export default function App() {
                       isImmersive={isImmersive}
                       onUploadImage={handleUploadImage}
                       internalReferenceCandidates={internalReferenceCandidates}
+                      editorFontSize={previewReadingFontSize}
+                      editorFontWeight={previewReadingFontWeight}
                     />
                   )}
                 </>

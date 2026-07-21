@@ -116,7 +116,6 @@ describe('settings panel', () => {
   it('edits title date desc published pinned taxonomy selections and permalink', () => {
     const { onFieldChange } = renderControlledSettingsPanel()
 
-    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'New title' } })
     fireEvent.change(screen.getByLabelText('日期'), {
       target: { value: '2026-04-03T10:12:13' },
     })
@@ -136,7 +135,6 @@ describe('settings panel', () => {
     fireEvent.click(screen.getByRole('button', { name: '移除分类 思考' }))
     fireEvent.change(screen.getByLabelText('永久链接'), { target: { value: 'new-title/' } })
 
-    expect(onFieldChange).toHaveBeenCalledWith('title', 'New title')
     expect(onFieldChange).toHaveBeenCalledWith('date', '2026-04-03 10:12:13')
     expect(onFieldChange).toHaveBeenCalledWith('desc', 'New desc')
     expect(onFieldChange).toHaveBeenCalledWith('published', true)
@@ -163,7 +161,6 @@ describe('settings panel', () => {
       />,
     )
 
-    expect(screen.getByText('请填写标题。')).toBeTruthy()
     expect(screen.getByText('请填写摘要。')).toBeTruthy()
     expect(screen.getByText('首次保存前请填写永久链接。')).toBeTruthy()
   })

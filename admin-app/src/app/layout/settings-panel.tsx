@@ -343,11 +343,6 @@ export default function SettingsPanel({
           {!isReadLater ? (
             <MetadataSection title="基础信息" defaultOpen>
               <label>
-                <span>标题</span>
-                <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
-                {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
-              </label>
-              <label>
                 <span>日期</span>
                 <input
                   aria-label="日期"

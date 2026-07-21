@@ -759,8 +759,6 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
     const markdownEditor = await screen.findByLabelText('Markdown 编辑器')
-    fireEvent.click(screen.getByRole('button', { name: '编辑标题' }))
-
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Edited title before preview' } })
     fireEvent.change(markdownEditor, {
       target: { value: 'Edited body before preview with **bold** text.' },
@@ -841,7 +839,6 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
     const markdownEditor = await screen.findByLabelText('Markdown 编辑器')
-    fireEvent.click(screen.getByRole('button', { name: '编辑标题' }))
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Markdown preview title' } })
     fireEvent.change(markdownEditor, {
       target: { value: 'Markdown preview body with [draft link](https://example.com).' },

@@ -712,7 +712,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
+      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
     })
   })
 
@@ -749,7 +749,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
+      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
     })
     expect(screen.getByRole('button', { name: '← 返回原文' })).toBeTruthy()
 
@@ -792,7 +792,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: '影响力' })).toBeTruthy()
+      expect(screen.getByDisplayValue('影响力')).toBeTruthy()
     })
   })
 
@@ -828,7 +828,7 @@ describe('App preview mode', () => {
     fireEvent.click(await screen.findByRole('button', { name: '《影响力》书摘' }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Influence article' })).toBeTruthy()
+      expect(screen.getByDisplayValue('Influence article')).toBeTruthy()
     })
   })
 
