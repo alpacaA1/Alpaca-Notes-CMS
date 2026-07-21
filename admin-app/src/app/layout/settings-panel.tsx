@@ -46,6 +46,9 @@ type SettingsPanelProps = {
   onCancelAnnotationEdit?: () => void
   topicBacklinks?: TopicBacklinkItem[]
   onOpenLinkedPost?: (post: PostIndexItem) => void
+  isDrawer?: boolean
+  onClose?: () => void
+  focusTitle?: boolean
 }
 
 function getAnnotationPreviewText(annotation: ReadLaterAnnotation) {
@@ -130,6 +133,9 @@ export default function SettingsPanel({
   onCancelAnnotationEdit,
   topicBacklinks = [],
   onOpenLinkedPost,
+  isDrawer = false,
+  onClose,
+  focusTitle = false,
 }: SettingsPanelProps) {
   const [internalReadLaterTab, setInternalReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isDocumentNoteEditing, setIsDocumentNoteEditing] = useState(false)
@@ -172,6 +178,16 @@ export default function SettingsPanel({
 
     setInternalAnnotationNoteDraft(annotations.find((annotation) => annotation.id === editingAnnotationId)?.note || '')
   }, [annotations, editingAnnotationId])
+
+  useEffect(() => {
+    if (!focusTitle) {
+      return
+    }
+
+    const titleInput = window.document.querySelector<HTMLInputElement>('.settings-panel--drawer input[aria-label="标题"]')
+    titleInput?.focus()
+    titleInput?.select()
+  }, [focusTitle])
 
   if (!document) {
     return null
@@ -285,9 +301,10 @@ export default function SettingsPanel({
   }
 
   return (
-    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}${useReaderLitePanel ? ' settings-panel--reader-lite' : ''}`}>
+    <aside className={`settings-panel${isReadLater ? ' settings-panel--reader' : ''}${useReaderLitePanel ? ' settings-panel--reader-lite' : ''}${isDrawer ? ' settings-panel--drawer' : ''}`}>
       {!isReadLater ? (
         <div className="settings-panel__header">
+          {isDrawer ? <div className="settings-panel__drawer-top"><strong>文章设置</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章设置">×</button></div> : null}
           <>
             <p className="settings-panel__eyebrow">元信息</p>
             <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '文章设置'}</h2>

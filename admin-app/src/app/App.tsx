@@ -597,6 +597,10 @@ export default function App() {
   const [batchProgress, setBatchProgress] = useState('')
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
+  const [isPostListDrawerOpen, setIsPostListDrawerOpen] = useState(false)
+  const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false)
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
+  const [shouldFocusSettingsTitle, setShouldFocusSettingsTitle] = useState(false)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
   const [editingAnnotationId, setEditingAnnotationId] = useState<string | null>(null)
   const [annotationNoteDraft, setAnnotationNoteDraft] = useState('')
@@ -618,6 +622,22 @@ export default function App() {
     validate,
     markSaved,
   } = useEditorDocument()
+
+  useEffect(() => {
+    if (!isPostListDrawerOpen && !isSettingsDrawerOpen) {
+      return
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPostListDrawerOpen(false)
+        setIsSettingsDrawerOpen(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isPostListDrawerOpen, isSettingsDrawerOpen])
 
   const filteredPosts = useMemo(
     () =>
@@ -1119,6 +1139,10 @@ export default function App() {
     setMode(options?.mode ?? (nextPost.contentType === 'read-later' ? 'preview' : 'markdown'))
     setActivePostPath(nextPost.path)
     setIsImmersive(false)
+    setLastSavedAt(null)
+    setIsPostListDrawerOpen(false)
+    setIsSettingsDrawerOpen(false)
+    setShouldFocusSettingsTitle(false)
     setSuccessMessage(options?.successMessage || null)
     setError(null)
   }
@@ -2560,6 +2584,7 @@ export default function App() {
       setActivePostPath(syncResult.savedDocument.path)
       setPostsByType(syncResult.postsByType)
       setSuccessMessage(SAVE_SUCCESS_MESSAGE)
+      setLastSavedAt(new Date())
     } catch (caughtError) {
       if (caughtError instanceof GitHubAuthError) {
         handleAuthExpiry(caughtError.message)
@@ -2583,6 +2608,75 @@ export default function App() {
     }
 
     setMode(mode === 'preview' ? 'markdown' : 'preview')
+  }
+
+  const handleCopyCurrentPath = async () => {
+    if (!document?.path) {
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(document.path)
+      setError(null)
+      setSuccessMessage('文件路径已复制。')
+    } catch {
+      setSuccessMessage(null)
+      setError(`文件路径：${document.path}`)
+    }
+  }
+
+  const handleExportCurrent = () => {
+    if (!document) {
+      return
+    }
+
+    const content = document.contentType === 'read-later'
+      ? serializeReadLaterItem(document as ParsedReadLaterItem)
+      : serializePost(document)
+    const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' })
+    const objectUrl = URL.createObjectURL(blob)
+    const anchor = window.document.createElement('a')
+    anchor.href = objectUrl
+    anchor.download = document.path.split('/').pop() || 'article.md'
+    anchor.click()
+    URL.revokeObjectURL(objectUrl)
+  }
+
+  const handleDuplicateCurrent = () => {
+    if (!document || document.contentType === 'read-later') {
+      return
+    }
+
+    const targetContentType = getContentTypeFromPostLike(document)
+    const baseDocument = targetContentType === 'diary'
+      ? createNewDiaryEntry()
+      : targetContentType === 'knowledge'
+        ? createNewKnowledgeItem()
+        : createNewPost()
+    const duplicatedDocument: ParsedPost = {
+      ...baseDocument,
+      body: document.body,
+      frontmatter: {
+        ...document.frontmatter,
+        title: `${document.frontmatter.title.trim() || '未命名稿件'} 副本`,
+        date: baseDocument.frontmatter.date,
+        published: false,
+        pinned: false,
+        permalink: undefined,
+      },
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      contentType: targetContentType,
+    }
+
+    replaceDocument(baseDocument, duplicatedDocument)
+    setActivePostPath(duplicatedDocument.path)
+    setMode('markdown')
+    setLastSavedAt(null)
+    setIsPostListDrawerOpen(false)
+    setIsSettingsDrawerOpen(false)
+    setError(null)
+    setSuccessMessage('已创建文章副本草稿。')
   }
 
   const clearSuccessMessageOnDirty = () => {
@@ -3791,6 +3885,21 @@ export default function App() {
           isDeletingCurrent={Boolean(activeDocumentPost && isDeletingPost && deletingPostPath === activeDocumentPost.path)}
           isDeleteActionDisabled={!activeDocumentPost?.sha || isDeletingPost || isTogglingPinned}
           onDeleteCurrent={activeDocumentPost ? () => handleDeletePost(activeDocumentPost) : undefined}
+          isPostListOpen={isPostListDrawerOpen}
+          isSettingsPanelOpen={isSettingsDrawerOpen}
+          onTogglePostList={() => {
+            setIsPostListDrawerOpen((current) => !current)
+            setIsSettingsDrawerOpen(false)
+            setShouldFocusSettingsTitle(false)
+          }}
+          onToggleSettingsPanel={() => {
+            setIsSettingsDrawerOpen((current) => !current)
+            setIsPostListDrawerOpen(false)
+            setShouldFocusSettingsTitle(false)
+          }}
+          onCopyCurrentPath={() => { void handleCopyCurrentPath() }}
+          onExportCurrent={handleExportCurrent}
+          onDuplicateCurrent={handleDuplicateCurrent}
         />
       ) : null}
       {isDashboard ? (
@@ -3921,10 +4030,10 @@ export default function App() {
           />
         </section>
       ) : (
-        <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}`}>
+        <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReadLaterDocument ? ' admin-layout--drawers' : ''}`}>
           <PostListPane
             posts={filteredPosts}
-            hidden={isPostListHidden}
+            hidden={isPostListHidden || (!isReadLaterDocument && !isPostListDrawerOpen)}
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
@@ -3936,7 +4045,7 @@ export default function App() {
             isTogglingPinned={isTogglingPinned}
             togglingPinnedPostPath={togglingPinnedPostPath}
             disabledPinnedPostPath={document?.path && !canNavigateAway ? document.path : null}
-            onOpenPost={handleOpenPost}
+            onOpenPost={(post) => { void handleOpenPost(post) }}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
             onBackToList={() => { void handleBackNavigation() }}
@@ -3944,8 +4053,11 @@ export default function App() {
             onNavigateOutline={handleNavigateOutline}
             isTopBarHidden={hideTopBar}
             onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
+            isDrawer={!isReadLaterDocument}
+            onClose={() => setIsPostListDrawerOpen(false)}
           />
-          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReaderPreview ? ' editor-layout--reader' : ''}`}>
+          {!isReadLaterDocument && (isPostListDrawerOpen || isSettingsDrawerOpen) ? <button type="button" className="editor-drawer-backdrop" aria-label="关闭抽屉" onClick={() => { setIsPostListDrawerOpen(false); setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }} /> : null}
+          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReaderPreview ? ' editor-layout--reader' : ''}${!isReadLaterDocument ? ' editor-layout--drawers' : ''}`}>
             <div className={`editor-stack${isReaderPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
@@ -3953,10 +4065,8 @@ export default function App() {
                     <section className="editor-frame">
                       <div className="editor-frame__header">
                         <div>
-                          <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>当前稿件</p>
-                          <h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>
-                            {document.frontmatter.title?.trim() || '未命名草稿'}
-                          </h1>
+                          <p className={`editor-frame__eyebrow${!document.frontmatter.title?.trim() ? ' editor-frame__eyebrow--untitled' : ''}`}>{document.frontmatter.published ? '已发布' : '草稿'} · {lastSavedAt ? `已保存于 ${lastSavedAt.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}` : isDirty ? '有未保存修改' : '已保存'}</p>
+                          <div className="editor-frame__title-row"><h1 className={!document.frontmatter.title?.trim() ? 'editor-frame__title--untitled' : ''}>{document.frontmatter.title?.trim() || '未命名草稿'}</h1><button type="button" className="editor-frame__title-edit" aria-label="编辑标题" onClick={() => { setIsSettingsDrawerOpen(true); setIsPostListDrawerOpen(false); setShouldFocusSettingsTitle(true) }}>编辑</button></div>
                         </div>
                       </div>
                       <div className="editor-frame__meta">
@@ -4030,7 +4140,7 @@ export default function App() {
                 <EmptyState error={error} />
               )}
             </div>
-            {showSettingsPanel ? (
+            {showSettingsPanel && (isReadLaterDocument || isSettingsDrawerOpen) ? (
               <SettingsPanel
                 document={document}
                 validationErrors={validationErrors}
@@ -4061,6 +4171,9 @@ export default function App() {
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                 topicBacklinks={activeTopicBacklinks}
                 onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
+                isDrawer={!isReadLaterDocument}
+                onClose={() => { setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }}
+                focusTitle={shouldFocusSettingsTitle}
               />
             ) : null}
           </section>

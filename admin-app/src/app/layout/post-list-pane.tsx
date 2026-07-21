@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent } from 'react'
+import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ParsedPost, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, PostIndexItem } from '../posts/post-types'
@@ -51,6 +51,8 @@ type PostListPaneProps = {
   onNavigateOutline?: (targetId: string) => void
   isTopBarHidden?: boolean
   onToggleTopBar?: () => void
+  isDrawer?: boolean
+  onClose?: () => void
 }
 
 const POST_PREVIEW_ROOT_ID = 'post-preview-content'
@@ -144,7 +146,10 @@ export default function PostListPane({
   onNavigateOutline,
   isTopBarHidden = false,
   onToggleTopBar,
+  isDrawer = false,
+  onClose,
 }: PostListPaneProps) {
+  const [drawerSearch, setDrawerSearch] = useState('')
   if (hidden) {
     return null
   }
@@ -222,9 +227,55 @@ export default function PostListPane({
     )
   }
 
+  const normalizedDrawerSearch = drawerSearch.trim().toLowerCase()
+  const visiblePosts = !isDrawer || !normalizedDrawerSearch
+    ? posts
+    : posts.filter((post) => [post.title, post.desc, post.categories.join(' '), post.tags.join(' ')].join(' ').toLowerCase().includes(normalizedDrawerSearch))
+  const draftPosts = visiblePosts.filter((post) => !post.published)
+  const publishedPosts = visiblePosts.filter((post) => post.published)
+  const renderPosts = (items: PostIndexItem[]) => items.map((post) => {
+          const isActive = post.path === activePostPath
+          const isDeletingThisPost = deletingPostPath === post.path
+          const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
+          const isPinnedToggleDisabled = isTogglingPinned || isDeleting || disabledPinnedPostPath === post.path
+          const statusTone = contentType === 'read-later' ? getReadLaterStatusTone(post.readingStatus) : post.published ? 'published' : 'draft'
+          const statusLabel =
+            contentType === 'read-later'
+              ? getReadLaterStatusLabel(post.readingStatus)
+              : contentType === 'diary'
+                ? '日记'
+                : contentType === 'knowledge'
+                  ? '知识点'
+                : post.published
+                  ? '已发布'
+                  : '草稿'
+
+          return (
+            <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
+              <div className="post-list-item__actions">
+                <button type="button" className="post-row-button" onClick={() => onOpenPost(post)}>
+                  <div className="post-row-button__meta">
+                    <span className={`post-status-badge post-status-badge--${statusTone}`}>{statusLabel}</span>
+                    {post.pinned ? <span className="post-status-badge post-status-badge--pinned">置顶</span> : null}
+                    <span>{post.date}</span>
+                  </div>
+                  <strong>{post.title}</strong>
+                  {contentType !== 'diary' ? <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span> : null}
+                  <div className="post-row-button__footer"><span>{contentType === 'read-later' ? (post.sourceName || '未填写来源') : contentType === 'diary' ? (post.tags[0] || '内部记录') : contentType === 'knowledge' ? (post.sourceTitle || '手动新增') : (post.permalink || '旧链接')}</span><span>{contentType === 'read-later' ? (post.externalUrl || '未填写原文链接') : contentType === 'diary' ? post.path.replace(/^source\/diary\//, '') : contentType === 'knowledge' ? (post.sourceUrl || post.sourcePath || '内部知识库') : (post.categories[0] || '未分类')}</span></div>
+                </button>
+                <div className="post-list-item__side-actions">
+                  <button type="button" className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`} onClick={() => onTogglePinned(post)} disabled={isPinnedToggleDisabled} aria-label={getPinActionLabel(contentType, post.pinned)}>{isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}</button>
+                  <button type="button" className="post-list-item__delete-btn" onClick={() => onDeletePost(post)} disabled={isDeleting} aria-label="删除文章" title={`删除《${post.title}》`}>{isDeletingThisPost ? '删除中…' : '删除'}</button>
+                </div>
+              </div>
+            </li>
+          )
+        })
+
   return (
-    <aside className="post-pane">
+    <aside className={`post-pane${isDrawer ? ' post-pane--drawer' : ''}`}>
       <div className="post-pane__header">
+        {isDrawer ? <div className="post-pane__drawer-top"><strong>文章列表</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章列表">×</button></div> : null}
         <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : '文章归档'}</p>
         <div className="post-pane__title-row">
           <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : '文章'}</h2>
@@ -239,9 +290,14 @@ export default function PostListPane({
                 ? '优先看来源、摘录与标签，快速回到你要复习的点。'
               : '先看标题、链接和元信息，再打开对应稿件。'}
         </p>
+        {isDrawer ? <label className="post-pane__drawer-search"><span className="sr-only">搜索文章</span><input value={drawerSearch} onChange={(event) => setDrawerSearch(event.target.value)} placeholder="搜索标题、分类或标签" autoFocus /></label> : null}
       </div>
-
-      <ul className="post-list">
+      {isDrawer ? (
+        <div className="post-pane__drawer-groups">
+          <section><div className="post-pane__group-label"><span>草稿</span><span>{draftPosts.length}</span></div><ul className="post-list">{renderPosts(draftPosts)}</ul></section>
+          <section><div className="post-pane__group-label"><span>已发布</span><span>{publishedPosts.length}</span></div><ul className="post-list">{renderPosts(publishedPosts)}</ul></section>
+        </div>
+      ) : <ul className="post-list">
         {posts.map((post) => {
           const isActive = post.path === activePostPath
           const isDeletingThisPost = deletingPostPath === post.path
@@ -322,6 +378,7 @@ export default function PostListPane({
           )
         })}
       </ul>
+      }
     </aside>
   )
 }

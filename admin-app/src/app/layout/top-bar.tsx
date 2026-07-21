@@ -122,6 +122,13 @@ type TopBarProps = {
   isDeletingCurrent?: boolean
   isDeleteActionDisabled?: boolean
   onDeleteCurrent?: () => void
+  isPostListOpen?: boolean
+  isSettingsPanelOpen?: boolean
+  onTogglePostList?: () => void
+  onToggleSettingsPanel?: () => void
+  onCopyCurrentPath?: () => void
+  onExportCurrent?: () => void
+  onDuplicateCurrent?: () => void
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
@@ -161,6 +168,10 @@ function getCreateLabel(contentType: ContentType) {
   }
 
   return '新建文章'
+}
+
+function getContentTypeLabel(contentType: ContentType) {
+  return CONTENT_TYPE_OPTIONS.find((option) => option.value === contentType)?.label || '文章'
 }
 
 function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
@@ -222,6 +233,21 @@ export default function TopBar({
   isSaveDisabled,
   isSaveQuiet,
   status,
+  currentActionContentType,
+  isCurrentPinned = false,
+  isPinningCurrent = false,
+  isPinActionDisabled = false,
+  onTogglePinnedCurrent,
+  isDeletingCurrent = false,
+  isDeleteActionDisabled = false,
+  onDeleteCurrent,
+  isPostListOpen = false,
+  isSettingsPanelOpen = false,
+  onTogglePostList,
+  onToggleSettingsPanel,
+  onCopyCurrentPath,
+  onExportCurrent,
+  onDuplicateCurrent,
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
@@ -244,6 +270,8 @@ export default function TopBar({
   const [isReadingFontOpen, setIsReadingFontOpen] = useState(false)
   const readingFontButtonRef = useRef<HTMLButtonElement | null>(null)
   const readingFontPopoverRef = useRef<HTMLDivElement | null>(null)
+  const editorMenuRef = useRef<HTMLElement | null>(null)
+  const [openEditorMenu, setOpenEditorMenu] = useState<'content' | 'more' | null>(null)
 
   useEffect(() => {
     if (!isReadingFontOpen) {
@@ -282,6 +310,30 @@ export default function TopBar({
     }
   }, [isReadingFontOpen])
 
+  useEffect(() => {
+    if (!openEditorMenu) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!editorMenuRef.current?.contains(event.target as Node)) {
+        setOpenEditorMenu(null)
+      }
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setOpenEditorMenu(null)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [openEditorMenu])
+
   const toggleReadingFontOpen = () => {
     setIsReadingFontOpen((current) => !current)
   }
@@ -306,6 +358,127 @@ export default function TopBar({
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
   const showMaterialOrganizer = isDashboardLike && contentType === 'diary' && Boolean(onOrganizeMaterials)
   const searchPlaceholder = getSearchPlaceholder(adminView, contentType)
+
+  if (isEditor && contentType !== 'read-later') {
+    return (
+      <header className="top-bar top-bar--editor top-bar--editor-workspace" ref={editorMenuRef}>
+        <div className="top-bar__editor-left">
+          <div className="top-bar__editor-product-menu">
+            <button
+              type="button"
+              className="top-bar__editor-product-button"
+              onClick={() => setOpenEditorMenu((current) => current === 'content' ? null : 'content')}
+              aria-haspopup="menu"
+              aria-expanded={openEditorMenu === 'content'}
+            >
+              <AlpacaLogo />
+              <span>内容编辑</span>
+              <span aria-hidden="true">⌄</span>
+            </button>
+            {openEditorMenu === 'content' ? (
+              <div className="top-bar__editor-menu top-bar__editor-menu--content" role="menu">
+                {CONTENT_TYPE_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={contentType === option.value}
+                    className={contentType === option.value ? 'is-active' : ''}
+                    onClick={() => {
+                      setOpenEditorMenu(null)
+                      onContentTypeChange(option.value)
+                    }}
+                  >
+                    <span>{option.label}</span>
+                    {contentType === option.value ? <span aria-hidden="true">✓</span> : null}
+                  </button>
+                ))}
+                <div className="top-bar__editor-menu-divider" />
+                <button type="button" role="menuitem" onClick={onToggleColorMode}>
+                  {isDarkMode ? '切换浅色模式' : '切换深色模式'}
+                </button>
+                <button type="button" role="menuitem" onClick={onLogout}>退出登录</button>
+              </div>
+            ) : null}
+          </div>
+          {onBackToDashboard && backButtonLabel !== '← 返回列表' ? (
+            <button className="top-bar__button top-bar__button--back" type="button" onClick={onBackToDashboard}>{backButtonLabel}</button>
+          ) : null}
+          <button
+            type="button"
+            className={`top-bar__button${isPostListOpen ? ' top-bar__button--active' : ''}`}
+            onClick={onTogglePostList}
+            aria-pressed={isPostListOpen}
+          >
+            文章列表
+          </button>
+          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
+            {createLabel}
+          </button>
+        </div>
+
+        <div className="top-bar__editor-actions">
+          <button
+            type="button"
+            className={`top-bar__button${isSettingsPanelOpen ? ' top-bar__button--active' : ''}`}
+            onClick={onToggleSettingsPanel}
+            aria-pressed={isSettingsPanelOpen}
+          >
+            <span aria-hidden="true">⚙</span>
+            文章设置
+          </button>
+          {showPreviewToggle ? (
+            <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
+              <span aria-hidden="true">◉</span>
+              {previewToggleLabel}
+            </button>
+          ) : null}
+          <button
+            className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
+            type="button"
+            onClick={onSave}
+            disabled={isSaveDisabled}
+          >
+            {saveLabel}
+          </button>
+          <div className="top-bar__editor-more">
+            <button
+              type="button"
+              className="top-bar__button top-bar__button--icon"
+              aria-label="更多文章操作"
+              aria-haspopup="menu"
+              aria-expanded={openEditorMenu === 'more'}
+              onClick={() => setOpenEditorMenu((current) => current === 'more' ? null : 'more')}
+            >
+              •••
+            </button>
+            {openEditorMenu === 'more' ? (
+              <div className="top-bar__editor-menu top-bar__editor-menu--more" role="menu">
+                <button type="button" role="menuitem" onClick={onDuplicateCurrent} disabled={!onDuplicateCurrent}>复制文章</button>
+                <button type="button" role="menuitem" onClick={onCopyCurrentPath} disabled={!onCopyCurrentPath}>复制文件路径</button>
+                <button type="button" role="menuitem" onClick={onExportCurrent} disabled={!onExportCurrent}>导出 Markdown</button>
+                {onTogglePinnedCurrent ? (
+                  <button type="button" role="menuitem" onClick={onTogglePinnedCurrent} disabled={isPinActionDisabled || isPinningCurrent}>
+                    {isPinningCurrent ? '正在更新置顶…' : isCurrentPinned ? '取消置顶' : '置顶文章'}
+                  </button>
+                ) : null}
+                <div className="top-bar__editor-menu-divider" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="top-bar__editor-menu-danger"
+                  onClick={onDeleteCurrent}
+                  disabled={!onDeleteCurrent || isDeleteActionDisabled || isDeletingCurrent}
+                >
+                  {isDeletingCurrent ? '正在删除…' : `删除${getContentTypeLabel(currentActionContentType || contentType)}`}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>

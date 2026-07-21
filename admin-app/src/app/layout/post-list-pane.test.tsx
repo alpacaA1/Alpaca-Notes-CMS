@@ -390,9 +390,9 @@ describe('management layout components', () => {
       />,
     )
 
-    expect(screen.getByText('内容编辑台')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '内容编辑' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /新建文章/ })).toBeTruthy()
-    expect(screen.getByRole('textbox', { name: '搜索' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '文章列表' })).toBeTruthy()
     expect(screen.queryByRole('radio', { name: '文章' })).toBeNull()
     expect(screen.queryByRole('radio', { name: '待读' })).toBeNull()
     expect(screen.queryByRole('button', { name: '筛选' })).toBeNull()
@@ -400,12 +400,10 @@ describe('management layout components', () => {
     const saveButton = screen.getByRole('button', { name: '保存' }) as HTMLButtonElement
     expect(saveButton.disabled).toBe(true)
     expect(screen.getByRole('button', { name: '预览' })).toBeTruthy()
-    const themeButton = screen.getByRole('button', { name: '切换深色模式' })
-    expect(themeButton.getAttribute('aria-pressed')).toBe('false')
+    fireEvent.click(screen.getByRole('button', { name: '内容编辑' }))
+    const themeButton = screen.getByRole('menuitem', { name: '切换深色模式' })
     fireEvent.click(themeButton)
     expect(onToggleColorMode).toHaveBeenCalledTimes(1)
-    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
-    expect(screen.getByText('已就绪')).toBeTruthy()
   })
 
   it('hides the preview toggle for read-later editor mode', () => {
