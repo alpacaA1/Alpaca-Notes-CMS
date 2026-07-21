@@ -441,6 +441,77 @@ export default function TopBar({
               {previewToggleLabel}
             </button>
           ) : null}
+          <div className="top-bar__reading-font">
+            <button
+              ref={readingFontButtonRef}
+              className={`top-bar__button top-bar__button--icon top-bar__button--reading-font${isReadingFontOpen ? ' is-active' : ''}`}
+              type="button"
+              onClick={toggleReadingFontOpen}
+              aria-label="调整阅读字体"
+              aria-haspopup="true"
+              aria-expanded={isReadingFontOpen}
+              title="调整阅读字体"
+            >
+              <FontSizeIcon />
+            </button>
+            {isReadingFontOpen ? (
+              <div ref={readingFontPopoverRef} className="top-bar__reading-font-popover" role="dialog" aria-label="调整阅读字体">
+                <div className="top-bar__reading-font-row">
+                  <span className="top-bar__reading-font-name">阅读字号</span>
+                  <span className="top-bar__reading-font-value">{previewFontSize}</span>
+                </div>
+                <div className="top-bar__reading-font-controls">
+                  <button
+                    type="button"
+                    className="top-bar__reading-font-step"
+                    onClick={() => handleFontSizeStep(-1)}
+                    disabled={previewFontSize <= READING_FONT_SIZE_MIN}
+                    aria-label="减小字号"
+                  >
+                    A-
+                  </button>
+                  <input
+                    type="range"
+                    className="top-bar__reading-font-slider"
+                    min={READING_FONT_SIZE_MIN}
+                    max={READING_FONT_SIZE_MAX}
+                    step={1}
+                    value={previewFontSize}
+                    onChange={handleFontSizeSliderChange}
+                    aria-label="阅读字号"
+                  />
+                  <button
+                    type="button"
+                    className="top-bar__reading-font-step top-bar__reading-font-step--plus"
+                    onClick={() => handleFontSizeStep(1)}
+                    disabled={previewFontSize >= READING_FONT_SIZE_MAX}
+                    aria-label="增大字号"
+                  >
+                    A+
+                  </button>
+                </div>
+                <div className="top-bar__reading-font-divider" />
+                <div className="top-bar__reading-font-row">
+                  <span className="top-bar__reading-font-name">字体粗细</span>
+                  <span className="top-bar__reading-font-value">{READING_FONT_WEIGHTS[previewFontWeightIndex]?.label ?? '常规'}</span>
+                </div>
+                <div className="top-bar__reading-font-controls">
+                  <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--light" aria-hidden="true">A</span>
+                  <input
+                    type="range"
+                    className="top-bar__reading-font-slider"
+                    min={0}
+                    max={READING_FONT_WEIGHTS.length - 1}
+                    step={1}
+                    value={previewFontWeightIndex}
+                    onChange={handleFontWeightSliderChange}
+                    aria-label="字体粗细"
+                  />
+                  <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--bold" aria-hidden="true">A</span>
+                </div>
+              </div>
+            ) : null}
+          </div>
           <button
             className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
             type="button"

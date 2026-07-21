@@ -16,3 +16,4 @@ _multiconfig.yml
 .worktrees/
 .claude/settings.local.json
 .local-preview/
+.tmp-preview/

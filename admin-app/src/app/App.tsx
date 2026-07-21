@@ -18,6 +18,7 @@ import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-u
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
+import { translateReadLaterContent } from './read-later/translate-client'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
 import { buildInternalReferenceCandidates, buildInternalReferenceLookup } from './internal-links'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
@@ -3003,6 +3004,17 @@ export default function App() {
     setEditingAnnotationId(action === 'note' ? annotation.id : null)
   }
 
+  const handleTranslateReadLater = useCallback(
+    async (text: string, title?: string) => {
+      if (!session) {
+        throw new GitHubAuthError('请先登录账号。')
+      }
+      const result = await translateReadLaterContent(session, { text, title })
+      return result.translatedText
+    },
+    [session],
+  )
+
   const handleCreateKnowledgeFromSelection = (quote: string) => {
     if (!document || !session) {
       return
@@ -4103,6 +4115,7 @@ export default function App() {
                       onActiveOutlineTargetChange={setActiveOutlineTargetId}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onCreateKnowledge={handleCreateKnowledgeFromSelection}
+                      onTranslateReadLater={handleTranslateReadLater}
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}
                       onAnnotationNoteDraftChange={setAnnotationNoteDraft}

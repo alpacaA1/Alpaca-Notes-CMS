@@ -894,6 +894,17 @@ textarea {
   color: #e0ae6a;
 }
 
+.admin-shell--dark .preview-content__reader-translate-btn {
+  border-color: rgba(201, 151, 86, 0.4);
+  color: #c99756;
+}
+
+.admin-shell--dark .preview-content__reader-translate-btn:hover:not(:disabled) {
+  background: rgba(201, 151, 86, 0.15);
+  color: #e0ae6a;
+  border-color: rgba(224, 174, 106, 0.7);
+}
+
 .admin-shell--dark .preview-content__summary {
   color: #d2c8bb;
 }
@@ -5247,6 +5258,34 @@ textarea {
   color: #d39a52;
   text-decoration: underline;
   text-underline-offset: 4px;
+}
+
+.preview-content__reader-translate-btn {
+  background: transparent;
+  border: 1px solid rgba(183, 131, 66, 0.4);
+  border-radius: 4px;
+  color: #b78342;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  transition: all 0.15s ease;
+}
+
+.preview-content__reader-translate-btn:hover:not(:disabled) {
+  background: rgba(183, 131, 66, 0.1);
+  color: #d39a52;
+  border-color: rgba(211, 154, 82, 0.7);
+}
+
+.preview-content__reader-translate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.preview-content__reader-translate-error {
+  color: #d9534f;
+  font-size: 0.85rem;
 }
 
 .preview-content__read-later-meta {

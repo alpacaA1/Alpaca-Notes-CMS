@@ -97,6 +97,7 @@ type PreviewPaneProps = {
   onActiveOutlineTargetChange?: (targetId: string) => void
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onCreateKnowledge?: (quote: string) => void
+  onTranslateReadLater?: (text: string, title?: string) => Promise<string>
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
   onAnnotationNoteDraftChange?: (note: string) => void
@@ -2096,6 +2097,7 @@ export default function PreviewPane({
   onActiveOutlineTargetChange,
   onCreateAnnotation,
   onCreateKnowledge,
+  onTranslateReadLater,
   onSelectAnnotation,
   onClearActiveAnnotation,
   onAnnotationNoteDraftChange,
@@ -2122,6 +2124,50 @@ export default function PreviewPane({
   const [isTopicBacklinksDrawerOpen, setIsTopicBacklinksDrawerOpen] = useState(false)
   const [previewImage, setPreviewImage] = useState<PreviewImageState | null>(null)
   const [internalAnnotationNoteDraft, setInternalAnnotationNoteDraft] = useState('')
+  const [translatedMarkdown, setTranslatedMarkdown] = useState<string | null>(null)
+  const [isTranslating, setIsTranslating] = useState(false)
+  const [isShowingTranslation, setIsShowingTranslation] = useState(false)
+  const [translationError, setTranslationError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setTranslatedMarkdown(null)
+    setIsTranslating(false)
+    setIsShowingTranslation(false)
+    setTranslationError(null)
+  }, [markdown])
+
+  const activeMarkdown = isShowingTranslation && translatedMarkdown ? translatedMarkdown : markdown
+
+  const handleToggleTranslate = async () => {
+    if (!onTranslateReadLater || isTranslating) {
+      return
+    }
+
+    if (isShowingTranslation) {
+      setIsShowingTranslation(false)
+      return
+    }
+
+    if (translatedMarkdown) {
+      setIsShowingTranslation(true)
+      return
+    }
+
+    setIsTranslating(true)
+    setTranslationError(null)
+
+    try {
+      const translated = await onTranslateReadLater(markdown, title)
+      setTranslatedMarkdown(translated)
+      setIsShowingTranslation(true)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '翻译失败，请稍后重试。'
+      setTranslationError(message)
+    } finally {
+      setIsTranslating(false)
+    }
+  }
+
   const paneRef = useRef<HTMLElement | null>(null)
   const articleRef = useRef<HTMLElement | null>(null)
   const postOutlinePanelRef = useRef<HTMLDivElement | null>(null)
@@ -2134,9 +2180,9 @@ export default function PreviewPane({
   const isKnowledge = contentType === 'knowledge'
   const isPreviewPost = contentType === 'post'
   const canCreateKnowledge = (contentType === 'post' || contentType === 'read-later' || contentType === 'diary') && Boolean(onCreateKnowledge)
-  const readLaterSections = isReadLater ? parseReadLaterSections(markdown) : null
+  const readLaterSections = isReadLater ? parseReadLaterSections(activeMarkdown) : null
   const structuredSections = !isReadLater && contentFormat === 'markdown' && (isDiary || isKnowledge)
-    ? parseStructuredMarkdownSections(markdown)
+    ? parseStructuredMarkdownSections(activeMarkdown)
     : null
   const structuredOutlineItems = structuredSections?.sections.map((section) => ({
     id: section.id,
@@ -2149,15 +2195,15 @@ export default function PreviewPane({
   const postOutlineItems = useMemo(
     () => (
       postHeadingIdPrefix
-        ? normalizeOutlineLevels(extractMarkdownHeadings(markdown, postHeadingIdPrefix))
+        ? normalizeOutlineLevels(extractMarkdownHeadings(activeMarkdown, postHeadingIdPrefix))
         : []
     ),
-    [markdown, postHeadingIdPrefix],
+    [activeMarkdown, postHeadingIdPrefix],
   )
   const shouldShowPostOutline = isPreviewPost && postOutlineItems.length > 0
   const readLaterOutlineItems = useMemo(
-    () => (isReadLater ? getReadLaterOutline(markdown, contentFormat) : []),
-    [contentFormat, isReadLater, markdown],
+    () => (isReadLater ? getReadLaterOutline(activeMarkdown, contentFormat) : []),
+    [activeMarkdown, contentFormat, isReadLater],
   )
   const shouldShowReadLaterOutline = isReadLater
     && showReadLaterOutline
@@ -2755,6 +2801,21 @@ export default function PreviewPane({
                     查看原文
                   </a>
                 ) : null}
+                {onTranslateReadLater ? (
+                  <button
+                    type="button"
+                    className="preview-content__reader-translate-btn"
+                    disabled={isTranslating}
+                    onClick={handleToggleTranslate}
+                  >
+                    {isTranslating ? '翻译中...' : isShowingTranslation ? '显示原文' : 'AI 翻译'}
+                  </button>
+                ) : null}
+                {translationError ? (
+                  <span className="preview-content__reader-translate-error" title={translationError}>
+                    {translationError}
+                  </span>
+                ) : null}
               </div>
             ) : (
               <p className="preview-content__date">{date}</p>
@@ -2791,6 +2852,15 @@ export default function PreviewPane({
           {isReadLater && hasStructuredReadLaterSections ? (
             <div className="preview-content__sections">
               {renderReadLaterSection(
+                '正文',
+                readLaterSections?.content || '',
+                contentFormat,
+                previewImageUrls,
+                getReadLaterSectionAnchorId('content'),
+                'content',
+                wikiLinkOptions,
+              )}
+              {renderReadLaterSection(
                 '原文摘录',
                 readLaterSections?.articleExcerpt || '',
                 contentFormat,
@@ -2819,7 +2889,7 @@ export default function PreviewPane({
               )}
             </div>
           ) : isReadLater ? (
-            renderPlainReadLaterContent(markdown, contentFormat, previewImageUrls, wikiLinkOptions)
+            renderPlainReadLaterContent(activeMarkdown, contentFormat, previewImageUrls, wikiLinkOptions)
           ) : structuredSections && structuredSections.sections.length > 0 ? (
             <>
               {structuredSections.lead ? (
@@ -2836,7 +2906,7 @@ export default function PreviewPane({
               </div>
             </>
           ) : (
-            renderContentBlocks(markdown, contentFormat, previewImageUrls, postHeadingIdPrefix, wikiLinkOptions)
+            renderContentBlocks(activeMarkdown, contentFormat, previewImageUrls, postHeadingIdPrefix, wikiLinkOptions)
           )}
         </article>
         {shouldShowTopicBacklinksDrawer ? (
