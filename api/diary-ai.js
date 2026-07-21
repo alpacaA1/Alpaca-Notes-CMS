@@ -252,7 +252,7 @@ async function callDiaryModel(entries) {
   }
 
   const baseUrl = (process.env.DIARY_AI_BASE_URL || process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, '');
-  const model = process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  const model = process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {

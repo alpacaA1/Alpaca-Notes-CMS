@@ -115,7 +115,7 @@ async function callTranslationModel(params) {
     'https://api.openai.com/v1'
   ).replace(/\/+$/, '');
 
-  const model = process.env.TRANSLATE_AI_MODEL || process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4.1-mini';
+  const model = process.env.TRANSLATE_AI_MODEL || process.env.DIARY_AI_MODEL || process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
