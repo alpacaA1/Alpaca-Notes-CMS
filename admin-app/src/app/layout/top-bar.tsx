@@ -366,12 +366,13 @@ export default function TopBar({
           {onBackToDashboard ? (
             <button
               type="button"
-              className="top-bar__button top-bar__button--icon top-bar__button--back-icon"
+              className="top-bar__button top-bar__button--back"
               onClick={onBackToDashboard}
               aria-label={backButtonLabel}
               title={backButtonLabel}
             >
               <BackIcon />
+              <span>{backButtonLabel}</span>
             </button>
           ) : null}
           <div className="top-bar__editor-product-menu">

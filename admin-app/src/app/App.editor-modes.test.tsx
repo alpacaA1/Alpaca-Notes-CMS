@@ -879,4 +879,35 @@ describe('App editor modes', () => {
 
     expect(screen.queryByRole('button', { name: '放大编辑框' })).toBeNull()
   })
+
+  it('renders a 返回列表 button in post editor top bar and allows toggling settings panel in preview mode', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([supportedPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: supportedPost.path,
+      sha: supportedPost.sha,
+      content: supportedContent,
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Supported post')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
+    await screen.findByLabelText('Markdown 编辑器')
+
+    // Verify "返回列表" button is present in the editor top bar
+    const backBtn = screen.getByRole('button', { name: /返回列表/i })
+    expect(backBtn).toBeTruthy()
+
+    // Switch to preview mode
+    fireEvent.click(screen.getByRole('button', { name: '预览' }))
+    expect(await screen.findByRole('heading', { name: 'Supported post' })).toBeTruthy()
+
+    // Click "文章设置" in top bar during preview mode
+    fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
+    expect(screen.getByRole('heading', { name: '文章设置' })).toBeTruthy()
+  })
 })

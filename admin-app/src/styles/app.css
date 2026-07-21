@@ -3129,9 +3129,14 @@ textarea {
   width: min(380px, calc(100vw - 48px));
   overflow-y: auto;
   overscroll-behavior: contain;
-  animation: editor-drawer-in 180ms ease-out;
+  transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease, visibility 220ms ease;
 }
-.admin-layout--drawers .settings-panel--drawer.is-closed { transform: translateX(calc(100% + 30px)); }
+.admin-layout--drawers .settings-panel--drawer.is-closed {
+  transform: translateX(calc(100% + 40px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 
 .admin-layout--drawers .post-pane--drawer { left: 24px; }
 .admin-layout--drawers .settings-panel--drawer { right: 24px; }
@@ -10304,6 +10309,9 @@ textarea {
 /* ---- Back button ---- */
 
 .top-bar__button--back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: transparent;
   border-color: var(--admin-line-strong);
   color: var(--admin-muted);

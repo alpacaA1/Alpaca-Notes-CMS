@@ -3818,7 +3818,7 @@ export default function App() {
   const hideTopBar = isReaderPreview && isReadLaterTopBarHidden
   const showImmersiveCanvas = Boolean(document) && !isReaderPreview && (isImmersive || isPreviewing)
   const isPostListHidden = showImmersiveCanvas
-  const showSettingsPanel = Boolean(document) && !showImmersiveCanvas
+  const showSettingsPanel = Boolean(document) && (!showImmersiveCanvas || isSettingsDrawerOpen)
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReaderPreview
   const canReturnToPreviousDocument = editorNavigationStack.length > 0
   const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
