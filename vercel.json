@@ -1,4 +1,3 @@
 {
-  "buildCommand": "mkdir -p .vercel-static && printf '%s\n' '<!doctype html><meta charset=\"utf-8\"><title>Alpaca Notes API</title><p>Alpaca Notes API</p>' > .vercel-static/index.html",
   "outputDirectory": ".vercel-static"
 }
