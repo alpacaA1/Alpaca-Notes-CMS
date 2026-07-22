@@ -601,17 +601,13 @@ describe('markdown editor', () => {
 
   it('keeps the pre-picker selection when focus shifts before the picker click handler runs', async () => {
     const onUploadImage = vi.fn().mockResolvedValue({ markdown: '![alt](/uploads/image.png)' })
-    const { editor, uploadButton, uploadInput } = renderControlledEditorWithUpload(
+    const { editor, uploadInput } = renderControlledEditorWithUpload(
       'hello world',
       onUploadImage,
     )
 
     editor.focus()
     editor.setSelectionRange(6, 11)
-    fireEvent.mouseDown(uploadButton)
-    uploadButton.focus()
-    editor.setSelectionRange(0, 0)
-    fireEvent.click(uploadButton)
     fireEvent.change(uploadInput, { target: { files: [createImageFile()] } })
 
     await waitFor(() => {
@@ -662,34 +658,31 @@ describe('markdown editor', () => {
 
   it('leaves the value unchanged when image selection is canceled', () => {
     const onUploadImage = vi.fn()
-    const { editor, uploadButton, uploadInput } = renderControlledEditorWithUpload('hello', onUploadImage)
+    const { editor, uploadInput } = renderControlledEditorWithUpload('hello', onUploadImage)
 
     editor.focus()
     editor.setSelectionRange(2, 2)
-    fireEvent.click(uploadButton)
     fireEvent.change(uploadInput, { target: { files: [] } })
 
     expect(editor.value).toBe('hello')
     expect(onUploadImage).not.toHaveBeenCalled()
   })
 
-  it('disables the textarea and upload button while image upload is in flight', async () => {
+  it('disables the textarea while image upload is in flight', async () => {
     const deferred = createDeferred<{ markdown: string }>()
     const onUploadImage = vi.fn(() => deferred.promise)
-    const { editor, uploadButton, uploadInput } = renderControlledEditorWithUpload('', onUploadImage)
+    const { editor, uploadInput } = renderControlledEditorWithUpload('', onUploadImage)
 
     editor.focus()
     editor.setSelectionRange(0, 0)
     fireEvent.change(uploadInput, { target: { files: [createImageFile()] } })
 
     expect(editor.disabled).toBe(true)
-    expect(uploadButton.disabled).toBe(true)
 
     deferred.resolve({ markdown: '![alt](/uploads/image.png)' })
 
     await waitFor(() => {
       expect(editor.disabled).toBe(false)
-      expect(uploadButton.disabled).toBe(false)
     })
   })
 
@@ -754,7 +747,7 @@ describe('markdown editor', () => {
   it('leaves the value unchanged when image upload rejects', async () => {
     const imageFile = createImageFile()
     const onUploadImage = vi.fn().mockRejectedValue(new Error('upload failed'))
-    const { editor, uploadButton } = renderControlledEditorWithUpload('hello', onUploadImage)
+    const { editor } = renderControlledEditorWithUpload('hello', onUploadImage)
 
     editor.focus()
     editor.setSelectionRange(5, 5)
@@ -766,7 +759,7 @@ describe('markdown editor', () => {
     })
 
     await waitFor(() => {
-      expect(uploadButton.disabled).toBe(false)
+      expect(editor.disabled).toBe(false)
     })
     expect(editor.value).toBe('hello')
   })
