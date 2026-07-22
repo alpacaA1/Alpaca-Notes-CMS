@@ -4082,10 +4082,6 @@ export default function App() {
                           <div className="editor-frame__title-row"><input type="text" className={`editor-frame__title-input${!document.frontmatter.title?.trim() ? ' editor-frame__title-input--untitled' : ''}`} aria-label="标题" placeholder="未命名草稿" value={document.frontmatter.title} onChange={(event) => handleFrontmatterChange('title', event.target.value)} />{validationErrors.title ? <span className="error-message editor-frame__title-error">{validationErrors.title}</span> : null}</div>
                         </div>
                       </div>
-                      <div className="editor-frame__meta">
-                        <span>{document.path}</span>
-                        <span>{mode === 'preview' ? (isReadLaterDocument ? '阅读视图' : '预览模式') : '编辑模式'}</span>
-                      </div>
                     </section>
                   ) : null}
                   {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}

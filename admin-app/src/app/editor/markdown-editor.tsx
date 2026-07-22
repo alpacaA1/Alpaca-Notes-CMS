@@ -573,10 +573,22 @@ export default function MarkdownEditor({
   const redoStackRef = useRef<HistoryEntry[]>([])
   const isComposingRef = useRef(false)
   const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [isScrolling, setIsScrolling] = useState(false)
+  const scrollTimerRef = useRef<number | null>(null)
   const [editorSelection, setEditorSelection] = useState<SelectionRange>({ start: 0, end: 0 })
   const [activeInternalReferenceIndex, setActiveInternalReferenceIndex] = useState(0)
   const [dismissedInternalReferenceKey, setDismissedInternalReferenceKey] = useState<string | null>(null)
   const textareaId = useId()
+
+  const handleScroll = () => {
+    setIsScrolling(true)
+    if (scrollTimerRef.current !== null) {
+      window.clearTimeout(scrollTimerRef.current)
+    }
+    scrollTimerRef.current = window.setTimeout(() => {
+      setIsScrolling(false)
+    }, 800)
+  }
 
   currentValueRef.current = value
 
@@ -1211,9 +1223,10 @@ export default function MarkdownEditor({
         id={textareaId}
         ref={textareaRef}
         aria-label="Markdown 编辑器"
-        className="editor-textarea editor-textarea--editor-canvas"
+        className={`editor-textarea editor-textarea--editor-canvas${isScrolling ? ' is-scrolling' : ''}`}
         value={value}
         disabled={isUploadingImage}
+        onScroll={handleScroll}
         onChange={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)
           setDismissedInternalReferenceKey(null)
