@@ -363,18 +363,6 @@ export default function TopBar({
     return (
       <header className="top-bar top-bar--editor top-bar--editor-workspace" ref={editorMenuRef}>
         <div className="top-bar__editor-left">
-          {onBackToDashboard ? (
-            <button
-              type="button"
-              className="top-bar__button top-bar__button--back"
-              onClick={onBackToDashboard}
-              aria-label={backButtonLabel}
-              title={backButtonLabel}
-            >
-              <BackIcon />
-              <span>{backButtonLabel}</span>
-            </button>
-          ) : null}
           <div className="top-bar__editor-product-menu">
             <button
               type="button"
@@ -427,6 +415,15 @@ export default function TopBar({
         </div>
 
         <div className="top-bar__editor-actions">
+          {onBackToDashboard ? (
+            <button
+              className="top-bar__button top-bar__button--back"
+              type="button"
+              onClick={onBackToDashboard}
+            >
+              {backButtonLabel}
+            </button>
+          ) : null}
           <button
             type="button"
             className={`top-bar__button${isSettingsPanelOpen ? ' top-bar__button--active' : ''}`}
