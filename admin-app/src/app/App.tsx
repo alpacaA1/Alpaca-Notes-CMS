@@ -4002,6 +4002,7 @@ export default function App() {
             onMarkFeedRead={markRssFeedRead}
             onCreateReadLaterFromPreview={(item, article) => { void handleCreateReadLaterFromFeedPreview(item, article) }}
             isCreatingReadLaterFromPreview={isQuickCollectingReadLater}
+            onTranslateReadLater={handleTranslateReadLater}
           />
         </section>
       ) : isAnnotationsView ? (

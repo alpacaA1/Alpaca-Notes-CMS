@@ -60,4 +60,69 @@ describe('translateReadLaterContent', () => {
       ),
     ).rejects.toThrow('未配置 AI 翻译模型密钥。')
   })
+
+  it('caches the translation and does not call fetch again for the same text', async () => {
+    window.localStorage.clear()
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        translatedText: '# 译文内容',
+        model: 'test-translate-model',
+      }),
+    } as Response)
+
+    // First call: calls fetch
+    const result1 = await translateReadLaterContent(
+      { token: 'token-xyz' },
+      { text: 'Hello' }
+    )
+    expect(result1.translatedText).toBe('# 译文内容')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Second call: retrieves from cache, does not call fetch
+    const result2 = await translateReadLaterContent(
+      { token: 'token-xyz' },
+      { text: 'Hello' }
+    )
+    expect(result2.translatedText).toBe('# 译文内容')
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls fetch again if cache is expired', async () => {
+    window.localStorage.clear()
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        translatedText: '# 新译文',
+        model: 'test-translate-model',
+      }),
+    } as Response)
+
+    await translateReadLaterContent(
+      { token: 'token-xyz' },
+      { text: 'Hello' }
+    )
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+
+    // Manually modify the timestamp in localStorage to be expired (8 days ago)
+    const cachedStr = window.localStorage.getItem('alpaca-translation-cache')
+    expect(cachedStr).not.toBeNull()
+    const cache = JSON.parse(cachedStr!)
+    const keys = Object.keys(cache)
+    expect(keys.length).toBe(1)
+    const hashKey = keys[0]
+    cache[hashKey].timestamp = Date.now() - (8 * 24 * 60 * 60 * 1000)
+    window.localStorage.setItem('alpaca-translation-cache', JSON.stringify(cache))
+
+    // Call again: should call fetch again
+    const result = await translateReadLaterContent(
+      { token: 'token-xyz' },
+      { text: 'Hello' }
+    )
+    expect(result.translatedText).toBe('# 新译文')
+    expect(fetchSpy).toHaveBeenCalledTimes(2)
+  })
 })
+

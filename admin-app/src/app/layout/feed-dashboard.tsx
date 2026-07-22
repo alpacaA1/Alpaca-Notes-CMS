@@ -40,6 +40,7 @@ type FeedDashboardProps = {
   onMarkFeedRead?: (subscription: FeedSubscription) => void
   onCreateReadLaterFromPreview: (item: ImportedFeedItem, article: ImportedReadLaterArticle | null) => void
   isCreatingReadLaterFromPreview?: boolean
+  onTranslateReadLater?: (text: string, title?: string) => Promise<string>
 }
 
 type SubscriptionViewModel = {
@@ -204,6 +205,7 @@ export default function FeedDashboard({
   onMarkFeedRead,
   onCreateReadLaterFromPreview,
   isCreatingReadLaterFromPreview = false,
+  onTranslateReadLater,
 }: FeedDashboardProps) {
   const normalizedSearch = search.trim().toLowerCase()
   const [selectedPreviewItemUrl, setSelectedPreviewItemUrl] = useState<string | null>(null)
@@ -1054,6 +1056,7 @@ export default function FeedDashboard({
                 readingStatus="unread"
                 contentType="read-later"
                 showReadLaterOutline
+                onTranslateReadLater={onTranslateReadLater}
               />
             </div>
           ) : (

@@ -2808,7 +2808,7 @@ export default function PreviewPane({
                     disabled={isTranslating}
                     onClick={handleToggleTranslate}
                   >
-                    {isTranslating ? '翻译中...' : isShowingTranslation ? '显示原文' : 'AI 翻译'}
+                    {isTranslating ? '翻译中...' : isShowingTranslation ? '显示原文' : '翻译'}
                   </button>
                 ) : null}
                 {translationError ? (
