@@ -726,7 +726,7 @@ describe('App editor modes', () => {
     expect(screen.queryByRole('button', { name: '沉浸模式' })).toBeTruthy()
     expect(screen.queryAllByRole('button', { name: '沉浸模式' })).toHaveLength(1)
     expect(screen.getByRole('button', { name: '沉浸模式' }).closest('.markdown-editor__toolbar')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '上传图片' }).closest('.markdown-editor__toolbar')).toBe(
+    expect(screen.getByLabelText('上传图片文件').closest('.markdown-editor__toolbar')).toBe(
       screen.getByRole('button', { name: '沉浸模式' }).closest('.markdown-editor__toolbar'),
     )
 

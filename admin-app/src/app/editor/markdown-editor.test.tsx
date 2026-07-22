@@ -29,7 +29,6 @@ function renderControlledEditorWithUpload(
   render(<Harness />)
   return {
     editor: screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement,
-    uploadButton: screen.getByRole('button', { name: '上传图片' }) as HTMLButtonElement,
     uploadInput: screen.getByLabelText('上传图片文件') as HTMLInputElement,
   }
 }
@@ -643,13 +642,10 @@ describe('markdown editor', () => {
     render(<Harness />)
 
     const editor = screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
-    const uploadButton = screen.getByRole('button', { name: '上传图片' }) as HTMLButtonElement
     const uploadInput = screen.getByLabelText('上传图片文件') as HTMLInputElement
 
     editor.focus()
     editor.setSelectionRange(6, 11)
-    fireEvent.mouseDown(uploadButton)
-    fireEvent.click(uploadButton)
     fireEvent.change(uploadInput, { target: { files: [createImageFile()] } })
     fireEvent.click(screen.getByRole('button', { name: 'Append suffix' }))
 
