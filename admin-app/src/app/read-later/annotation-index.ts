@@ -11,6 +11,7 @@ export type ReadLaterAnnotationSourceFile = {
 
 export type ReadLaterAnnotationIndexItem = {
   id: string
+  sourceType?: 'read-later' | 'book'
   annotationId: string
   postPath: string
   postTitle: string
@@ -28,6 +29,8 @@ export type ReadLaterAnnotationIndexItem = {
   createdAt: string
   updatedAt: string
   searchText: string
+  bookId?: string
+  bookFormat?: 'epub' | 'pdf'
 }
 
 const SECTION_LABELS: Record<ReadLaterAnnotation['sectionKey'], string> = {
@@ -75,6 +78,7 @@ export async function buildReadLaterAnnotationIndex(
 
       return item.annotations.map<ReadLaterAnnotationIndexItem>((annotation) => ({
         id: `${item.path}::${annotation.id}`,
+        sourceType: 'read-later',
         annotationId: annotation.id,
         postPath: item.path,
         postTitle: item.frontmatter.title.trim() || '未命名待读',

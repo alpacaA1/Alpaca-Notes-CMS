@@ -33,3 +33,11 @@
 - 右侧保持统一侧栏，包含 `信息` / `评论` tabs。
 - 评论 tab 编辑结构化字段：`原文摘录`、`我的总结`、`我的评论`。
 - 存储格式仍然是 Markdown body。
+
+## books（电子书）当前基线
+- books 模块位于 `admin-app/src/app/books/`，顶栏「书架」入口进入，仅登录后可用。
+- 仅支持 EPUB；书文件、书架元数据、阅读进度、批注全部存浏览器 IndexedDB（库名 `alpaca-books`），不进 GitHub 仓库、不上传。
+- 渲染用 foliate-js（懒加载，动态 import `foliate-js/view.js`），分页模式；批注锚点是 EPUB CFI，高亮色 `#D4A574`。
+- IndexedDB 取回的 Blob 没有 `name`，打开前必须包成带 `.epub` 文件名的 `File`，否则 foliate-js 解析会抛错。
+- 阅读视图布局：左侧目录 / 中央书页 / 右侧 `信息` `评论` 侧栏；「聚焦」沉浸模式只有一个入口，隐藏顶栏与两侧栏。
+- 批注尚未与 read-later 批注面板聚合，也未同步 Markdown 侧车文件，属于后续迭代项。

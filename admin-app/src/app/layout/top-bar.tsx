@@ -6,7 +6,7 @@ import {
   READING_FONT_WEIGHTS,
 } from './use-reading-font'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
 
 function AlpacaLogo() {
   return (
@@ -97,6 +97,7 @@ type TopBarProps = {
   onOpenAnnotations?: () => void
   onOpenTrash?: () => void
   onOpenFeeds?: () => void
+  onOpenBooks?: () => void
   rssUnreadCount?: number
   isRssRefreshing?: boolean
   onContentTypeChange: (value: ContentType) => void
@@ -187,6 +188,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
     return '搜索摘录、批注、来源文章、来源或标签'
   }
 
+  if (adminView === 'books') {
+    return '搜索书名或作者'
+  }
+
   if (contentType === 'read-later') {
     return '搜索标题、摘要、正文、来源或原文链接'
   }
@@ -216,6 +221,7 @@ export default function TopBar({
   onOpenAnnotations,
   onOpenTrash,
   onOpenFeeds,
+  onOpenBooks,
   rssUnreadCount = 0,
   isRssRefreshing = false,
   onContentTypeChange,
@@ -253,11 +259,14 @@ export default function TopBar({
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isFeedsView = adminView === 'feeds'
-  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView
+  const isBooksView = adminView === 'books'
+  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView
   const titleText = isTrashView
     ? '回收站'
     : isFeedsView
       ? 'RSS 工作台'
+    : isBooksView
+      ? '电子书'
     : isAnnotationsView
       ? '批注管理'
       : isDashboardLike
@@ -353,6 +362,7 @@ export default function TopBar({
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
+  const showBooksToggle = !isEditor && Boolean(onOpenBooks || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showRssRefreshing = !isFeedsView && isRssRefreshing
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
@@ -651,6 +661,15 @@ export default function TopBar({
               ) : null}
             </button>
           ) : null}
+          {showBooksToggle ? (
+            <button
+              className={`top-bar__button${isBooksView ? ' top-bar__button--active' : ''}`}
+              type="button"
+              onClick={isBooksView ? onBackToDashboard : onOpenBooks}
+            >
+              {isBooksView ? '返回内容' : '书架'}
+            </button>
+          ) : null}
           {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
@@ -669,7 +688,7 @@ export default function TopBar({
               整理素材
             </button>
           ) : null}
-          {!isTrashView && !isFeedsView ? (
+          {!isTrashView && !isFeedsView && !isBooksView ? (
             <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
               {createLabel}
             </button>
