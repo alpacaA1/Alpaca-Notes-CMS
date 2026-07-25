@@ -57,6 +57,12 @@ const READER_STYLES = `
     aside[epub|type~="rearnote"] {
         display: none;
     }
+    /* 部分 EPUB（如 calibre 导出）用 .section/.page 包裹正文并设 overflow:hidden，
+       这会让该块成为不可分页的单体，foliate 的多栏分页无法把整章拆成多页，
+       表现为「整章塞进一列」。强制可滚动，恢复分栏分页。 */
+    .section, .page, .calibre1, .calibre2 {
+        overflow: visible !important;
+    }
 `
 
 function formatBookDateTime(value: string) {
@@ -133,7 +139,6 @@ export default function BookReaderView({
   onImmersiveChange,
 }: BookReaderViewProps) {
   const mountRef = useRef<HTMLDivElement | null>(null)
-  const rightMountRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<FoliateViewElement | null>(null)
   const annotationsRef = useRef<BookAnnotation[]>([])
   const metaRef = useRef<StoredBookMeta>(meta)
@@ -181,7 +186,7 @@ export default function BookReaderView({
     if (!view?.renderer) {
       return
     }
-    // 进入/退出聚焦后画布尺寸变化，foliate 的 ResizeObserver 偶尔不触发重新分栏，主动重排一次。
+    // 聚焦/目录切换后画布尺寸变化，foliate 的 ResizeObserver 偶尔不触发重新分栏，主动重排一次。
     const handle = window.setTimeout(() => {
       try {
         view.renderer?.render?.()
@@ -192,51 +197,36 @@ export default function BookReaderView({
     return () => {
       window.clearTimeout(handle)
     }
-  }, [isImmersive, isReady])
+  }, [isImmersive, isTocOpen, isReady])
 
   useEffect(() => {
     let cancelled = false
     let view: FoliateViewElement | null = null
-    let rightView: FoliateViewElement | null = null
-    let isRightViewReady = false
-    let rightSyncVersion = 0
 
     const configurePageView = (pageView: FoliateViewElement) => {
       pageView.style.width = '100%'
       pageView.style.height = '100%'
       pageView.style.display = 'block'
+      // 单 view 双栏跨页：宽屏显示左右两页连续内容，窄屏自动降为单栏。
+      // 不要用两个独立 foliate-view 拼双页——next() 同步不可靠，会出现整章一列或左右重复。
       pageView.renderer?.setAttribute('flow', 'paginated')
-      pageView.renderer?.setAttribute('max-column-count', '1')
-      pageView.renderer?.setAttribute('max-inline-size', '560px')
-      pageView.renderer?.setAttribute('gap', '0%')
-      pageView.renderer?.setAttribute('margin', '28px')
+      pageView.renderer?.setAttribute('max-column-count', '2')
+      pageView.renderer?.setAttribute('max-inline-size', '720px')
+      pageView.renderer?.setAttribute('gap', '5%')
+      pageView.renderer?.setAttribute('margin', '24px')
       pageView.renderer?.setStyles?.(READER_STYLES)
-    }
-
-    const syncRightPage = async (cfi?: string | null) => {
-      if (!rightView || !isRightViewReady || !cfi) {
-        return
-      }
-      const version = ++rightSyncVersion
-      await rightView.goTo(cfi)
-      if (cancelled || version !== rightSyncVersion) {
-        return
-      }
-      await rightView.next()
     }
 
     const setup = async () => {
       try {
         await import('foliate-js/view.js')
         const { Overlayer } = await import('foliate-js/overlayer.js')
-        if (cancelled || !mountRef.current || !rightMountRef.current) {
+        if (cancelled || !mountRef.current) {
           return
         }
 
         view = document.createElement('foliate-view') as FoliateViewElement
-        rightView = document.createElement('foliate-view') as FoliateViewElement
         mountRef.current.append(view)
-        rightMountRef.current.append(rightView)
         viewRef.current = view
 
         const storedAnnotations = await listBookAnnotations(meta.id)
@@ -247,14 +237,12 @@ export default function BookReaderView({
 
         // IndexedDB 取回的是无名 Blob，foliate-js 解析时会读取 file.name，包一层 File。
         const namedFile = new File([fileBlob], `${meta.title || 'book'}.epub`, { type: 'application/epub+zip' })
-        const rightNamedFile = new File([fileBlob], `${meta.title || 'book'}.epub`, { type: 'application/epub+zip' })
-        await Promise.all([view.open(namedFile), rightView.open(rightNamedFile)])
+        await view.open(namedFile)
         if (cancelled) {
           return
         }
 
         configurePageView(view)
-        configurePageView(rightView)
 
         const handleKeydown = (event: KeyboardEvent) => {
           const target = event.target as HTMLElement | null
@@ -329,9 +317,6 @@ export default function BookReaderView({
             window.clearTimeout(persistTimerRef.current)
           }
           const cfi = detail.cfi ?? null
-          void syncRightPage(cfi).catch(() => {
-            // 右页同步失败时保持当前页，避免影响左页阅读和进度保存。
-          })
           persistTimerRef.current = window.setTimeout(() => {
             persistTimerRef.current = null
             const latest = metaRef.current
@@ -350,20 +335,6 @@ export default function BookReaderView({
           for (const annotation of annotationsRef.current) {
             void view?.addAnnotation(annotation)
           }
-        })
-
-        rightView.addEventListener('create-overlay', () => {
-          for (const annotation of annotationsRef.current) {
-            void rightView?.addAnnotation(annotation)
-          }
-        })
-
-        rightView.addEventListener('draw-annotation', (event) => {
-          const { draw, annotation } = (event as CustomEvent<{
-            draw: (func: unknown, options?: Record<string, unknown>) => void
-            annotation: { color?: string }
-          }>).detail
-          draw(Overlayer.highlight, { color: annotation.color || BOOK_HIGHLIGHT_COLOR })
         })
 
         view.addEventListener('draw-annotation', (event) => {
@@ -392,12 +363,6 @@ export default function BookReaderView({
           lastLocation: meta.progressCfi || undefined,
           showTextStart: false,
         })
-        await rightView.init({
-          lastLocation: view.lastLocation?.cfi || meta.progressCfi || undefined,
-          showTextStart: false,
-        })
-        isRightViewReady = true
-        await syncRightPage(view.lastLocation?.cfi || meta.progressCfi)
 
         if (!cancelled) {
           setIsReady(true)
@@ -416,8 +381,6 @@ export default function BookReaderView({
       try {
         view?.close()
         view?.remove()
-        rightView?.close()
-        rightView?.remove()
       } catch {
         // 忽略卸载异常
       }
@@ -633,10 +596,7 @@ export default function BookReaderView({
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
-          <div className="book-reader__spread">
-            <div ref={mountRef} className="book-reader__view" />
-            <div ref={rightMountRef} className="book-reader__view book-reader__view--right" />
-          </div>
+          <div ref={mountRef} className="book-reader__view" />
           {!isReady && !loadError ? (
             <div className="book-reader__loading">
               <div className="book-reader__loading-bar" />

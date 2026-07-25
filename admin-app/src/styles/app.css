@@ -13171,21 +13171,14 @@ textarea {
   background: var(--book-paper);
 }
 
-.book-reader__spread {
+.book-reader__view {
   position: absolute;
   inset: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 2px;
-  background: var(--book-paper);
-}
-
-.book-reader__view {
-  position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
   min-height: 0;
+  background: var(--book-paper);
   opacity: 0;
   transition: opacity 0.25s ease;
 }
