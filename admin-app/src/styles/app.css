@@ -13935,3 +13935,59 @@ textarea {
     animation: none;
   }
 }
+
+/* ---- Softer surface separation ---- */
+/* Keep controls discoverable, but let warm surface steps do most of the grouping. */
+.admin-shell {
+  --admin-line: rgba(111, 87, 57, 0.12);
+  --admin-line-strong: rgba(111, 87, 57, 0.2);
+}
+
+.admin-shell--dark {
+  --admin-line: rgba(255, 255, 255, 0.055);
+  --admin-line-strong: rgba(255, 255, 255, 0.1);
+}
+
+.top-bar__utility-actions {
+  border-left-color: var(--admin-line);
+}
+
+.post-dashboard__toolbar,
+.post-dashboard__recovery,
+.post-dashboard__quick-capture,
+.post-dashboard__daily-knowledge,
+.post-dashboard__list-row {
+  border-color: var(--admin-line);
+  box-shadow: 0 4px 14px rgba(56, 41, 19, 0.035);
+}
+
+/* One source of truth for all filled primary actions, including the top-right create button. */
+.top-bar__button--new-post,
+.top-bar__button--save,
+.post-dashboard__new-btn,
+.post-dashboard__quick-capture-btn,
+.feed-dashboard__composer-btn,
+.feed-dashboard__toolbar-add-btn,
+.book-shelf__import-btn,
+.confirm-dialog__btn--confirm,
+.settings-panel__document-note-action--primary {
+  border-color: var(--admin-save);
+  background: var(--admin-save);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: var(--admin-save-text);
+}
+
+.top-bar__button--new-post:hover:not(:disabled),
+.top-bar__button--save:hover:not(:disabled),
+.post-dashboard__new-btn:hover:not(:disabled),
+.post-dashboard__quick-capture-btn:hover:not(:disabled),
+.feed-dashboard__composer-btn:hover:not(:disabled),
+.feed-dashboard__toolbar-add-btn:hover:not(:disabled),
+.book-shelf__import-btn:hover:not(:disabled),
+.confirm-dialog__btn--confirm:hover:not(:disabled),
+.settings-panel__document-note-action--primary:hover:not(:disabled) {
+  border-color: var(--admin-save-hover);
+  background: var(--admin-save-hover);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: var(--admin-save-text);
+}
