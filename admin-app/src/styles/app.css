@@ -187,8 +187,8 @@ textarea {
   --admin-soft: #918577;
   --admin-accent: #403a33;
   --admin-accent-soft: #ece2d5;
-  --admin-save: #2d241c;
-  --admin-save-hover: #1f1812;
+  --admin-save: #6f5537;
+  --admin-save-hover: #5b432b;
   --admin-save-disabled: #6d6257;
   --admin-save-disabled-hover: #62584e;
   --admin-save-text: #fffaf2;
@@ -13975,6 +13975,21 @@ textarea {
   background: var(--admin-save);
   color: var(--admin-save-text);
   -webkit-text-fill-color: var(--admin-save-text);
+}
+
+/* Keep the top bar on the same compact button geometry as the dashboard tools. */
+.admin-shell .top-bar__button,
+.admin-shell .top-bar__switcher-option {
+  min-height: 38px;
+  height: 38px;
+  border-radius: var(--admin-button-radius);
+}
+
+.admin-shell .top-bar__button--icon,
+.admin-shell .top-bar__button--theme {
+  width: 38px;
+  min-width: 38px;
+  border-radius: var(--admin-button-icon-radius);
 }
 
 .top-bar__button--new-post:hover:not(:disabled),
