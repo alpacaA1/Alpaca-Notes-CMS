@@ -333,6 +333,19 @@ function clampSpreadStart(pageNumber: number, pageCount: number) {
   return clamped % 2 === 0 ? clamped - 1 : clamped
 }
 
+export function scrollPdfPageWithinContainer(
+  container: HTMLElement,
+  target: HTMLElement,
+  behavior: ScrollBehavior = 'smooth',
+) {
+  const containerTop = container.getBoundingClientRect().top
+  const targetTop = target.getBoundingClientRect().top
+  container.scrollTo({
+    top: container.scrollTop + targetTop - containerTop,
+    behavior,
+  })
+}
+
 export default function PdfReaderView({
   meta,
   fileBlob,
@@ -488,8 +501,11 @@ export default function PdfReaderView({
   }, [isActive, layout, pageCount])
 
   const scrollToPage = useCallback((nextPage: number, behavior: ScrollBehavior = 'smooth') => {
-    const target = scrollRef.current?.querySelector<HTMLElement>(`[data-page-number="${nextPage}"]`)
-    target?.scrollIntoView({ block: 'start', behavior })
+    const container = scrollRef.current
+    const target = container?.querySelector<HTMLElement>(`[data-page-number="${nextPage}"]`)
+    if (container && target) {
+      scrollPdfPageWithinContainer(container, target, behavior)
+    }
   }, [])
 
   useEffect(() => {
