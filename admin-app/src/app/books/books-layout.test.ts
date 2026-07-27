@@ -5,10 +5,10 @@ import { describe, expect, it } from 'vitest'
 const appStyles = readFileSync(resolve(process.cwd(), 'src/styles/app.css'), 'utf8')
 
 describe('书架视图高度', () => {
-  it('由顶栏下方的 Grid 行决定高度，不再额外占满整屏', () => {
+  it('占满顶栏下方的 Grid 行，为绝对定位的阅读器提供确定高度', () => {
     const rule = appStyles.match(/\.admin-shell__viewport--books\s*\{([^}]*)\}/)?.[1] ?? ''
 
     expect(rule).toContain('min-height: 0')
-    expect(rule).not.toMatch(/height:\s*100%/)
+    expect(rule).toMatch(/height:\s*100%/)
   })
 })

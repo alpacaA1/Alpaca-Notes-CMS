@@ -150,6 +150,9 @@ export default function BookReaderView({
   const chapterRef = useRef('')
   const persistTimerRef = useRef<number | null>(null)
   const selectionDebounceRef = useRef<number | null>(null)
+  const wheelAdvanceFrameRef = useRef<number | null>(null)
+  const didScrollDuringWheelRef = useRef(false)
+  const wheelAdvanceLockedRef = useRef(false)
   const annotationCardRefs = useRef(new Map<string, HTMLElement | null>())
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const layoutRef = useRef<BookReaderLayout>(readBookReaderLayout())
@@ -181,6 +184,9 @@ export default function BookReaderView({
     }
     if (selectionDebounceRef.current !== null) {
       window.clearTimeout(selectionDebounceRef.current)
+    }
+    if (wheelAdvanceFrameRef.current !== null) {
+      window.cancelAnimationFrame(wheelAdvanceFrameRef.current)
     }
   }, [])
 
@@ -229,6 +235,7 @@ export default function BookReaderView({
   useEffect(() => {
     let cancelled = false
     let view: FoliateViewElement | null = null
+    let cleanupWheelNavigation: (() => void) | undefined
 
     const configurePageView = (pageView: FoliateViewElement) => {
       pageView.style.width = '100%'
@@ -273,6 +280,22 @@ export default function BookReaderView({
 
         configurePageView(view)
 
+        // foliate 的 scrolled flow 只负责当前 spine 文档的原生滚动；封面等
+        // 内容高度不足一屏的文档不会产生 scroll 事件，也就无法自然进入下一项。
+        // 仅当一次向下滚轮没有造成任何原生滚动时，补一次 next() 来连接下一项。
+        const wheelListeners = new Map<Document, EventListener>()
+        const handleRendererScroll = () => {
+          didScrollDuringWheelRef.current = true
+        }
+        view.renderer?.addEventListener('scroll', handleRendererScroll)
+        cleanupWheelNavigation = () => {
+          view?.renderer?.removeEventListener('scroll', handleRendererScroll)
+          for (const [doc, listener] of wheelListeners) {
+            doc.removeEventListener('wheel', listener)
+          }
+          wheelListeners.clear()
+        }
+
         const handleKeydown = (event: KeyboardEvent) => {
           if (!activeRef.current) return
           const target = event.target as HTMLElement | null
@@ -294,6 +317,36 @@ export default function BookReaderView({
         view.addEventListener('load', (event) => {
           const { doc, index } = (event as CustomEvent<{ doc: Document; index: number }>).detail
           doc.addEventListener('keydown', handleKeydown)
+          const handleWheel = (wheelEvent: WheelEvent) => {
+            if (
+              !activeRef.current
+              || layoutRef.current !== 'scrolled'
+              || wheelEvent.deltaY <= 0
+              || wheelEvent.ctrlKey
+              || wheelAdvanceFrameRef.current !== null
+            ) {
+              return
+            }
+
+            didScrollDuringWheelRef.current = false
+            wheelAdvanceFrameRef.current = window.requestAnimationFrame(() => {
+              wheelAdvanceFrameRef.current = null
+              if (
+                !activeRef.current
+                || layoutRef.current !== 'scrolled'
+                || didScrollDuringWheelRef.current
+                || wheelAdvanceLockedRef.current
+              ) {
+                return
+              }
+              wheelAdvanceLockedRef.current = true
+              void view?.next().finally(() => {
+                wheelAdvanceLockedRef.current = false
+              })
+            })
+          }
+          doc.addEventListener('wheel', handleWheel, { passive: true })
+          wheelListeners.set(doc, handleWheel)
           doc.addEventListener('selectionchange', () => {
             if (selectionDebounceRef.current !== null) {
               window.clearTimeout(selectionDebounceRef.current)
@@ -408,6 +461,7 @@ export default function BookReaderView({
 
     return () => {
       cancelled = true
+      cleanupWheelNavigation?.()
       try {
         view?.close()
         view?.remove()
