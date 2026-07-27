@@ -524,6 +524,7 @@ function EmptyState({ error }: { error: string | null }) {
 }
 
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
+type BookReaderSession = { meta: StoredBookMeta; fileBlob: Blob; targetAnnotationId?: string | null }
 
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
@@ -550,7 +551,9 @@ export default function App() {
   const [isBooksLoading, setIsBooksLoading] = useState(false)
   const [isBookImporting, setIsBookImporting] = useState(false)
   const [deletingBookId, setDeletingBookId] = useState<string | null>(null)
-  const [activeBook, setActiveBook] = useState<{ meta: StoredBookMeta; fileBlob: Blob; targetAnnotationId?: string | null } | null>(null)
+  const [activeBook, setActiveBook] = useState<BookReaderSession | null>(null)
+  const [bookReaderSessions, setBookReaderSessions] = useState<BookReaderSession[]>([])
+  const [isBookReaderOpen, setIsBookReaderOpen] = useState(false)
   const [isBookReaderImmersive, setIsBookReaderImmersive] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
@@ -1752,6 +1755,8 @@ export default function App() {
     setEditorNavigationStack([])
     replaceDocument(null)
     setIsImmersive(false)
+    setIsBookReaderOpen(false)
+    setIsBookReaderImmersive(false)
     setSuccessMessage(null)
     setError(null)
     setAdminView('dashboard')
@@ -1870,6 +1875,15 @@ export default function App() {
     }
   }
 
+  const activateBookReader = useCallback((session: BookReaderSession) => {
+    setBookReaderSessions((current) => {
+      const next = [session, ...current.filter((item) => item.meta.id !== session.meta.id)]
+      return next.slice(0, 2)
+    })
+    setActiveBook(session)
+    setIsBookReaderOpen(true)
+  }, [])
+
   const handleOpenBook = async (book: StoredBookMeta) => {
     setError(null)
     try {
@@ -1879,7 +1893,7 @@ export default function App() {
       }
       const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
       void putBookMeta(nextMeta)
-      setActiveBook({ meta: nextMeta, fileBlob: file.blob, targetAnnotationId: null })
+      activateBookReader({ meta: nextMeta, fileBlob: file.blob, targetAnnotationId: null })
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : '打开书籍失败。')
     }
@@ -1903,7 +1917,9 @@ export default function App() {
       await deleteBook(book.id)
       if (activeBook?.meta.id === book.id) {
         setActiveBook(null)
+        setIsBookReaderOpen(false)
       }
+      setBookReaderSessions((current) => current.filter((item) => item.meta.id !== book.id))
       await refreshBookShelf()
       setSuccessMessage(`已删除《${book.title}》。`)
     } catch (deleteError) {
@@ -1916,6 +1932,7 @@ export default function App() {
   const handleBookProgressChange = useCallback((nextMeta: StoredBookMeta) => {
     setBookMetas((current) => current.map((item) => (item.id === nextMeta.id ? nextMeta : item)))
     setActiveBook((current) => (current && current.meta.id === nextMeta.id ? { ...current, meta: nextMeta } : current))
+    setBookReaderSessions((current) => current.map((item) => (item.meta.id === nextMeta.id ? { ...item, meta: nextMeta } : item)))
   }, [])
 
   const handleBookAnnotationsChange = useCallback((bookId: string, count: number) => {
@@ -1923,7 +1940,7 @@ export default function App() {
   }, [])
 
   const handleBackFromBookReader = () => {
-    setActiveBook(null)
+    setIsBookReaderOpen(false)
     setIsBookReaderImmersive(false)
     void refreshBookShelf()
   }
@@ -2880,7 +2897,7 @@ export default function App() {
         const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
         void putBookMeta(nextMeta)
         setBookMetas(books)
-        setActiveBook({ meta: nextMeta, fileBlob: file.blob, targetAnnotationId: annotation.annotationId })
+        activateBookReader({ meta: nextMeta, fileBlob: file.blob, targetAnnotationId: annotation.annotationId })
       } catch (openError) {
         setError(openError instanceof Error ? openError.message : '打开电子书批注失败。')
       }
@@ -4057,6 +4074,7 @@ export default function App() {
               setQuickReadLaterPendingItemUrl(null)
               setEditorNavigationStack([])
               setActiveBook(null)
+              setIsBookReaderOpen(false)
               setIsBookReaderImmersive(false)
               setContentType(value)
               setAdminView('dashboard')
@@ -4226,40 +4244,50 @@ export default function App() {
         <section className="admin-shell__viewport admin-shell__viewport--books">
           {successMessage ? <p className="success-message">{successMessage}</p> : null}
           {error ? <p className="error-message">{error}</p> : null}
-          {activeBook ? (
-            (activeBook.meta.format === 'pdf' ? (
-              <PdfReaderView
-                meta={activeBook.meta}
-                fileBlob={activeBook.fileBlob}
-                targetAnnotationId={activeBook.targetAnnotationId}
-                onBack={handleBackFromBookReader}
-                onProgressChange={handleBookProgressChange}
-                onAnnotationsChange={handleBookAnnotationsChange}
-                onImmersiveChange={setIsBookReaderImmersive}
+          <div className="books-workspace">
+            <div className={`books-workspace__shelf${isBookReaderOpen ? '' : ' is-active'}`} aria-hidden={isBookReaderOpen}>
+              <BookShelfView
+                books={bookMetas}
+                annotationCounts={bookAnnotationCounts}
+                isLoading={isBooksLoading}
+                isImporting={isBookImporting}
+                search={search}
+                deletingBookId={deletingBookId}
+                onImportFile={(file) => { void handleImportBookFile(file) }}
+                onOpenBook={(book) => { void handleOpenBook(book) }}
+                onDeleteBook={(book) => { void handleDeleteBookRequest(book) }}
               />
-            ) : (
-              <BookReaderView
-                meta={activeBook.meta}
-                fileBlob={activeBook.fileBlob}
-                onBack={handleBackFromBookReader}
-                onProgressChange={handleBookProgressChange}
-                onAnnotationsChange={handleBookAnnotationsChange}
-                onImmersiveChange={setIsBookReaderImmersive}
-              />
-            ))
-          ) : (
-            <BookShelfView
-              books={bookMetas}
-              annotationCounts={bookAnnotationCounts}
-              isLoading={isBooksLoading}
-              isImporting={isBookImporting}
-              search={search}
-              deletingBookId={deletingBookId}
-              onImportFile={(file) => { void handleImportBookFile(file) }}
-              onOpenBook={(book) => { void handleOpenBook(book) }}
-              onDeleteBook={(book) => { void handleDeleteBookRequest(book) }}
-            />
-          )}
+            </div>
+            {bookReaderSessions.map((book) => {
+              const isActive = isBookReaderOpen && activeBook?.meta.id === book.meta.id
+              return (
+                <div key={book.meta.id} className={`books-workspace__reader${isActive ? ' is-active' : ''}`} aria-hidden={!isActive}>
+                  {book.meta.format === 'pdf' ? (
+                    <PdfReaderView
+                      meta={book.meta}
+                      fileBlob={book.fileBlob}
+                      targetAnnotationId={isActive ? book.targetAnnotationId : null}
+                      onBack={handleBackFromBookReader}
+                      onProgressChange={handleBookProgressChange}
+                      onAnnotationsChange={handleBookAnnotationsChange}
+                      onImmersiveChange={isActive ? setIsBookReaderImmersive : undefined}
+                      isActive={isActive}
+                    />
+                  ) : (
+                    <BookReaderView
+                      meta={book.meta}
+                      fileBlob={book.fileBlob}
+                      onBack={handleBackFromBookReader}
+                      onProgressChange={handleBookProgressChange}
+                      onAnnotationsChange={handleBookAnnotationsChange}
+                      onImmersiveChange={isActive ? setIsBookReaderImmersive : undefined}
+                      isActive={isActive}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </section>
       ) : (
         <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReadLaterDocument ? ' admin-layout--drawers' : ''}`}>

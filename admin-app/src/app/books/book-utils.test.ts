@@ -12,6 +12,8 @@ import {
   isPdfFile,
   isSupportedBookFile,
   normalizeBookQuote,
+  readBookReaderLayout,
+  saveBookReaderLayout,
 } from './book-utils'
 
 describe('isEpubFile', () => {
@@ -117,5 +119,14 @@ describe('flattenBookTocLabels', () => {
 describe('BOOK_HIGHLIGHT_COLOR', () => {
   it('是合法 hex 颜色', () => {
     expect(BOOK_HIGHLIGHT_COLOR).toMatch(/^#[0-9A-Fa-f]{6}$/)
+  })
+})
+
+describe('阅读布局偏好', () => {
+  it('默认使用双页，并保存滚动模式', () => {
+    window.localStorage.clear()
+    expect(readBookReaderLayout()).toBe('paginated')
+    saveBookReaderLayout('scrolled')
+    expect(readBookReaderLayout()).toBe('scrolled')
   })
 })

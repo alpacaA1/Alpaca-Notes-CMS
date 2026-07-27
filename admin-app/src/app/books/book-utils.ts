@@ -1,4 +1,23 @@
 export const BOOK_HIGHLIGHT_COLOR = '#D4A574'
+export type BookReaderLayout = 'paginated' | 'scrolled'
+
+const BOOK_READER_LAYOUT_STORAGE_KEY = 'alpaca-book-reader-layout'
+
+export function readBookReaderLayout(): BookReaderLayout {
+  try {
+    return window.localStorage.getItem(BOOK_READER_LAYOUT_STORAGE_KEY) === 'scrolled' ? 'scrolled' : 'paginated'
+  } catch {
+    return 'paginated'
+  }
+}
+
+export function saveBookReaderLayout(layout: BookReaderLayout) {
+  try {
+    window.localStorage.setItem(BOOK_READER_LAYOUT_STORAGE_KEY, layout)
+  } catch {
+    // 本地存储不可用时仅保留当前会话的选择。
+  }
+}
 
 const EPUB_FILE_NAME_PATTERN = /\.epub$/i
 const PDF_FILE_NAME_PATTERN = /\.pdf$/i

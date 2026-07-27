@@ -11,6 +11,9 @@ import {
   createBookAnnotationId,
   formatBookProgress,
   normalizeBookQuote,
+  readBookReaderLayout,
+  saveBookReaderLayout,
+  type BookReaderLayout,
 } from './book-utils'
 import PdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?worker'
 
@@ -24,6 +27,7 @@ type PdfReaderViewProps = {
   onProgressChange: (meta: StoredBookMeta) => void
   onAnnotationsChange: (bookId: string, count: number) => void
   onImmersiveChange?: (isImmersive: boolean) => void
+  isActive?: boolean
 }
 
 type ReaderTab = 'info' | 'notes'
@@ -69,6 +73,18 @@ type CachedPdfPage = {
   viewport: PdfViewport
   scale: number
   textItems: PdfTextItem[]
+  layout: BookReaderLayout
+  frameWidth: number
+  frameHeight: number
+}
+
+export function isCachedPdfPageCompatible(
+  cached: Pick<CachedPdfPage, 'layout' | 'frameWidth' | 'frameHeight'> | undefined,
+  layout: BookReaderLayout,
+  frameWidth: number,
+  frameHeight: number,
+) {
+  return Boolean(cached && cached.layout === layout && cached.frameWidth === frameWidth && cached.frameHeight === frameHeight)
 }
 
 type PdfSurfaceSelection = {
@@ -85,13 +101,29 @@ type PdfPageSurfaceProps = {
   annotations: BookAnnotation[]
   onError: (message: string) => void
   onSelect: (selection: PdfSurfaceSelection) => void
+  layout?: BookReaderLayout
 }
 
-function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect }: PdfPageSurfaceProps) {
+function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect, layout = 'paginated' }: PdfPageSurfaceProps) {
   const frameRef = useRef<HTMLDivElement | null>(null)
   const contentRef = useRef<HTMLDivElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const textLayerRef = useRef<HTMLDivElement | null>(null)
+  const [frameSize, setFrameSize] = useState({ width: 0, height: 0 })
+
+  useEffect(() => {
+    const frame = frameRef.current
+    if (!frame) return
+    const updateSize = () => {
+      const width = Math.round(frame.clientWidth)
+      const height = Math.round(frame.clientHeight)
+      setFrameSize((current) => current.width === width && current.height === height ? current : { width, height })
+    }
+    updateSize()
+    const observer = new ResizeObserver(updateSize)
+    observer.observe(frame)
+    return () => observer.disconnect()
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -104,15 +136,20 @@ function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect
         const textLayer = textLayerRef.current
         if (!frame || !canvas || !textLayer) return
 
+        const frameWidth = Math.round(frame.clientWidth)
+        const frameHeight = Math.round(frame.clientHeight)
+        if (frameWidth <= 0 || frameHeight <= 0) return
         let cached = cache.get(pageNumber)
+        if (!isCachedPdfPageCompatible(cached, layout, frameWidth, frameHeight)) {
+          cached = undefined
+        }
         if (!cached) {
           const page = await pdf.getPage(pageNumber)
           if (cancelled) return
           const baseViewport = page.getViewport({ scale: 1 })
-          const scale = Math.min(
-            Math.max(Math.min((frame.clientWidth - 24) / baseViewport.width, (frame.clientHeight - 24) / baseViewport.height), 0.2),
-            2,
-          )
+          const scale = layout === 'scrolled'
+            ? Math.min(Math.max((frame.clientWidth - 24) / baseViewport.width, 0.2), 2)
+            : Math.min(Math.max(Math.min((frame.clientWidth - 24) / baseViewport.width, (frame.clientHeight - 24) / baseViewport.height), 0.2), 2)
           const viewport = page.getViewport({ scale })
           const ratio = window.devicePixelRatio || 1
           const renderCanvas = document.createElement('canvas')
@@ -128,8 +165,14 @@ function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect
           await task.promise
           if (cancelled) return
           const textContent = await page.getTextContent()
-          cached = { canvas: renderCanvas, viewport, scale, textItems: textContent.items }
+          cached = { canvas: renderCanvas, viewport, scale, textItems: textContent.items, layout, frameWidth, frameHeight }
+          cache.delete(pageNumber)
           cache.set(pageNumber, cached)
+          while (cache.size > 8) {
+            const oldest = cache.keys().next().value
+            if (typeof oldest !== 'number') break
+            cache.delete(oldest)
+          }
         }
         if (cancelled) return
 
@@ -174,7 +217,7 @@ function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect
       cancelled = true
       task?.cancel?.()
     }
-  }, [cache, onError, pageNumber, pdf])
+  }, [cache, frameSize, layout, onError, pageNumber, pdf])
 
   const handleSelection = useCallback(() => {
     const selection = window.getSelection()
@@ -198,7 +241,7 @@ function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect
   }, [onSelect, pageNumber])
 
   return (
-    <div ref={frameRef} className="pdf-reader__surface" data-page-number={pageNumber}>
+    <div ref={frameRef} className={`pdf-reader__surface${layout === 'scrolled' ? ' pdf-reader__surface--scrolled' : ''}`} data-page-number={pageNumber}>
       <div ref={contentRef} className="pdf-reader__page-content" onMouseUp={handleSelection}>
         <canvas ref={canvasRef} className="pdf-reader__canvas-layer" />
         <div className="pdf-reader__highlight-layer">
@@ -221,6 +264,36 @@ function PdfPageSurface({ pdf, pageNumber, cache, annotations, onError, onSelect
         </div>
         <div ref={textLayerRef} className="pdf-reader__text-layer" />
       </div>
+    </div>
+  )
+}
+
+type PdfScrollPageProps = PdfPageSurfaceProps & {
+  scrollRoot: HTMLElement | null
+  eager?: boolean
+}
+
+function PdfScrollPage({ scrollRoot, eager = false, ...surfaceProps }: PdfScrollPageProps) {
+  const shellRef = useRef<HTMLDivElement | null>(null)
+  const [isNearViewport, setIsNearViewport] = useState(eager)
+
+  useEffect(() => {
+    const shell = shellRef.current
+    if (!shell || !scrollRoot || !('IntersectionObserver' in window)) {
+      setIsNearViewport(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsNearViewport(entry.isIntersecting),
+      { root: scrollRoot, rootMargin: '900px 0px' },
+    )
+    observer.observe(shell)
+    return () => observer.disconnect()
+  }, [scrollRoot])
+
+  return (
+    <div ref={shellRef} className="pdf-reader__scroll-page" data-page-number={surfaceProps.pageNumber}>
+      {isNearViewport ? <PdfPageSurface {...surfaceProps} layout="scrolled" /> : null}
     </div>
   )
 }
@@ -268,16 +341,14 @@ export default function PdfReaderView({
   onProgressChange,
   onAnnotationsChange,
   onImmersiveChange,
+  isActive = true,
 }: PdfReaderViewProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null)
-  const pageLayerRef = useRef<HTMLDivElement | null>(null)
-  const textLayerRef = useRef<HTMLDivElement | null>(null)
   const pdfRef = useRef<PdfDocumentProxy | null>(null)
   const metaRef = useRef(meta)
   const annotationCardRefs = useRef(new Map<string, HTMLElement | null>())
-  const activeRenderTaskRef = useRef<{ promise: Promise<void>; cancel?: () => void } | null>(null)
   const pdfPageCacheRef = useRef(new Map<number, CachedPdfPage>())
-  const readerPageFrameRef = useRef<{ width: number; height: number } | null>(null)
+  const scrollRef = useRef<HTMLDivElement | null>(null)
+  const wasActiveRef = useRef(isActive)
 
   const [isReady, setIsReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -291,14 +362,34 @@ export default function PdfReaderView({
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
-  const [scale, setScale] = useState(1)
   const [pdfDocument, setPdfDocument] = useState<PdfDocumentProxy | null>(null)
+  const [layout, setLayout] = useState<BookReaderLayout>(() => readBookReaderLayout())
+  const [scrollRoot, setScrollRoot] = useState<HTMLDivElement | null>(null)
+  const [renderEpoch, setRenderEpoch] = useState(0)
 
   metaRef.current = meta
+
+  const setScrollContainer = useCallback((element: HTMLDivElement | null) => {
+    scrollRef.current = element
+    setScrollRoot((current) => current === element ? current : element)
+  }, [])
 
   useEffect(() => {
     onImmersiveChange?.(isImmersive)
   }, [isImmersive, onImmersiveChange])
+
+  useEffect(() => {
+    if (!isActive) {
+      wasActiveRef.current = false
+      return
+    }
+    // 缓存阅读器在隐藏态没有可用尺寸；重新显示时必须以当前画布尺寸重绘。
+    if (!wasActiveRef.current) {
+      pdfPageCacheRef.current.clear()
+      setRenderEpoch((current) => current + 1)
+    }
+    wasActiveRef.current = true
+  }, [isActive])
 
   useEffect(() => {
     let cancelled = false
@@ -319,7 +410,7 @@ export default function PdfReaderView({
         pdfRef.current = pdf
         setPdfDocument(pdf)
         setPageCount(pdf.numPages)
-        setPageNumber(clampSpreadStart(meta.progressPage || 1, pdf.numPages))
+        setPageNumber(layout === 'paginated' ? clampSpreadStart(meta.progressPage || 1, pdf.numPages) : clampPage(meta.progressPage || 1, pdf.numPages))
         setAnnotations(storedAnnotations)
         setIsReady(true)
       } catch (error) {
@@ -339,151 +430,10 @@ export default function PdfReaderView({
       worker?.terminate()
       worker = null
       pdfPageCacheRef.current.clear()
-      readerPageFrameRef.current = null
     }
+  // 书籍切换时才重新解析 PDF；布局切换只复用当前 document。
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileBlob, meta.id])
-
-  useEffect(() => {
-    if (!isReady || !pdfRef.current || !canvasRef.current || !pageLayerRef.current || !textLayerRef.current || pageCount <= 0) {
-      return
-    }
-
-    let cancelled = false
-    let renderTask: { promise: Promise<void>; cancel?: () => void } | null = null
-
-    const renderPage = async () => {
-      try {
-        const previousTask = activeRenderTaskRef.current
-        if (previousTask) {
-          try {
-            previousTask.cancel?.()
-            await previousTask.promise
-          } catch {
-            // The previous page was intentionally cancelled before reusing its canvas.
-          }
-          if (activeRenderTaskRef.current === previousTask) {
-            activeRenderTaskRef.current = null
-          }
-        }
-        if (cancelled) {
-          return
-        }
-
-        const pdf = pdfRef.current
-        const canvas = canvasRef.current
-        const pageLayer = pageLayerRef.current
-        const textLayer = textLayerRef.current
-        if (!pdf || !canvas || !pageLayer || !textLayer) {
-          return
-        }
-
-        const ratio = window.devicePixelRatio || 1
-        let cachedPage = pdfPageCacheRef.current.get(pageNumber)
-        if (!cachedPage) {
-          const page = await pdf.getPage(pageNumber)
-          if (cancelled) {
-            return
-          }
-          const scrollContainer = pageLayer.parentElement
-          const availableWidth = Math.max((scrollContainer?.clientWidth || 760) - 36, 240)
-          const viewportHeight = window.innerHeight - (isImmersive ? 92 : 210)
-          const availableHeight = Math.max(
-            Math.min((scrollContainer?.clientHeight || viewportHeight) - 36, viewportHeight),
-            240,
-          )
-          const baseViewport = page.getViewport({ scale: 1 })
-          const fixedFrame = readerPageFrameRef.current
-          const nextScale = fixedFrame
-            ? Math.min(fixedFrame.width / baseViewport.width, fixedFrame.height / baseViewport.height)
-            : Math.min(
-              Math.max(Math.min(availableWidth / baseViewport.width, availableHeight / baseViewport.height), 0.25),
-              1.7,
-            )
-          const viewport = page.getViewport({ scale: nextScale })
-          if (!fixedFrame) {
-            readerPageFrameRef.current = { width: viewport.width, height: viewport.height }
-          }
-          const renderCanvas = document.createElement('canvas')
-          renderCanvas.width = Math.floor(viewport.width * ratio)
-          renderCanvas.height = Math.floor(viewport.height * ratio)
-          const renderContext = renderCanvas.getContext('2d')
-          if (!renderContext) {
-            return
-          }
-          renderTask = page.render({
-            canvasContext: renderContext,
-            viewport,
-            transform: ratio === 1 ? undefined : [ratio, 0, 0, ratio, 0, 0],
-          })
-          activeRenderTaskRef.current = renderTask
-          await renderTask.promise
-          if (activeRenderTaskRef.current === renderTask) {
-            activeRenderTaskRef.current = null
-          }
-          const textContent = await page.getTextContent()
-          cachedPage = { canvas: renderCanvas, viewport, scale: nextScale, textItems: textContent.items }
-          pdfPageCacheRef.current.set(pageNumber, cachedPage)
-        }
-        if (cancelled) {
-          return
-        }
-
-        canvas.width = cachedPage.canvas.width
-        canvas.height = cachedPage.canvas.height
-        canvas.style.width = `${cachedPage.viewport.width}px`
-        canvas.style.height = `${cachedPage.viewport.height}px`
-        pageLayer.style.width = `${cachedPage.viewport.width}px`
-        pageLayer.style.height = `${cachedPage.viewport.height}px`
-        textLayer.style.width = `${cachedPage.viewport.width}px`
-        textLayer.style.height = `${cachedPage.viewport.height}px`
-        const context = canvas.getContext('2d')
-        if (!context) {
-          return
-        }
-        context.setTransform(1, 0, 0, 1, 0, 0)
-        context.drawImage(cachedPage.canvas, 0, 0)
-        textLayer.replaceChildren()
-        const fragment = document.createDocumentFragment()
-        for (const item of cachedPage.textItems) {
-          if (!item.str || !item.transform) {
-            continue
-          }
-          const transform = multiplyTransform(cachedPage.viewport.transform, item.transform)
-          const span = document.createElement('span')
-          span.textContent = item.str
-          span.style.left = `${transform[4]}px`
-          span.style.top = `${transform[5]}px`
-          span.style.fontSize = `${Math.max(Math.hypot(transform[2], transform[3]), 8)}px`
-          span.style.transform = `scaleX(${item.width ? Math.max((item.width * cachedPage.scale) / Math.max(item.str.length * Math.max(Math.hypot(transform[0], transform[1]), 1), 1), 0.4) : 1})`
-          span.style.transformOrigin = '0 0'
-          fragment.append(span)
-        }
-        textLayer.append(fragment)
-        setScale(cachedPage.scale)
-        setSelectionInfo(null)
-      } catch (error) {
-        if (activeRenderTaskRef.current === renderTask) {
-          activeRenderTaskRef.current = null
-        }
-        if (!cancelled && !(error instanceof Error && error.name === 'RenderingCancelledException')) {
-          setLoadError(error instanceof Error ? error.message : '渲染 PDF 页面失败。')
-        }
-      }
-    }
-
-    void renderPage()
-
-    return () => {
-      cancelled = true
-      try {
-        if (activeRenderTaskRef.current === renderTask) {
-          renderTask?.cancel?.()
-        }
-      } catch {
-        // 忽略取消渲染异常
-      }
-    }
-  }, [isReady, isImmersive, pageCount, pageNumber])
 
   useEffect(() => {
     if (!isReady || pageCount <= 0) {
@@ -509,21 +459,23 @@ export default function PdfReaderView({
     if (!annotation?.target || annotation.target.type !== 'pdf') {
       return
     }
-    setPageNumber(clampPage(annotation.target.pageNumber, pageCount || annotation.target.pageNumber))
+    const targetPage = clampPage(annotation.target.pageNumber, pageCount || annotation.target.pageNumber)
+    setPageNumber(layout === 'paginated' ? clampSpreadStart(targetPage, pageCount || targetPage) : targetPage)
     setActiveAnnotationId(annotation.id)
     setTab('notes')
-  }, [annotations, pageCount, targetAnnotationId])
+  }, [annotations, layout, pageCount, targetAnnotationId])
 
   useEffect(() => {
+    if (!isActive) return
     const handleKeydown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
         return
       }
-      if (event.key === 'ArrowLeft') {
+      if (layout === 'paginated' && event.key === 'ArrowLeft') {
         event.preventDefault()
         setPageNumber((current) => clampSpreadStart(current - 2, pageCount || 1))
-      } else if (event.key === 'ArrowRight') {
+      } else if (layout === 'paginated' && event.key === 'ArrowRight') {
         event.preventDefault()
         setPageNumber((current) => clampSpreadStart(current + 2, pageCount || 1))
       } else if (event.key === 'Escape') {
@@ -533,7 +485,52 @@ export default function PdfReaderView({
     }
     window.addEventListener('keydown', handleKeydown)
     return () => window.removeEventListener('keydown', handleKeydown)
-  }, [pageCount])
+  }, [isActive, layout, pageCount])
+
+  const scrollToPage = useCallback((nextPage: number, behavior: ScrollBehavior = 'smooth') => {
+    const target = scrollRef.current?.querySelector<HTMLElement>(`[data-page-number="${nextPage}"]`)
+    target?.scrollIntoView({ block: 'start', behavior })
+  }, [])
+
+  useEffect(() => {
+    if (layout !== 'scrolled' || !isActive || !isReady || pageCount <= 0) return
+    const handle = window.setTimeout(() => scrollToPage(pageNumber, 'auto'), 0)
+    return () => window.clearTimeout(handle)
+    // 只在首次就绪或重新激活时恢复位置，不能跟随用户每次滚动触发。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, isReady, layout, pageCount, scrollToPage])
+
+  const handleLayoutChange = useCallback((nextLayout: BookReaderLayout) => {
+    if (nextLayout === layout) return
+    const nextPage = nextLayout === 'paginated'
+      ? clampSpreadStart(pageNumber, pageCount || pageNumber)
+      : clampPage(pageNumber, pageCount || pageNumber)
+    pdfPageCacheRef.current.clear()
+    setRenderEpoch((current) => current + 1)
+    setLayout(nextLayout)
+    setPageNumber(nextPage)
+    saveBookReaderLayout(nextLayout)
+    if (nextLayout === 'scrolled') {
+      window.setTimeout(() => scrollToPage(nextPage, 'auto'), 0)
+    }
+  }, [layout, pageCount, pageNumber, scrollToPage])
+
+  const handleScroll = useCallback(() => {
+    if (layout !== 'scrolled' || !scrollRef.current) return
+    const center = scrollRef.current.getBoundingClientRect().top + scrollRef.current.clientHeight / 2
+    let closestPage = pageNumber
+    let closestDistance = Number.POSITIVE_INFINITY
+    scrollRef.current.querySelectorAll<HTMLElement>('[data-page-number]').forEach((element) => {
+      const page = Number(element.dataset.pageNumber)
+      const rect = element.getBoundingClientRect()
+      const distance = Math.abs((rect.top + rect.height / 2) - center)
+      if (Number.isFinite(page) && distance < closestDistance) {
+        closestDistance = distance
+        closestPage = page
+      }
+    })
+    if (closestPage !== pageNumber) setPageNumber(closestPage)
+  }, [layout, pageNumber])
 
   const notifyAnnotationsChanged = useCallback((next: BookAnnotation[]) => {
     setAnnotations(next)
@@ -549,61 +546,6 @@ export default function PdfReaderView({
       rect: selection.rect,
     })
   }, [])
-
-  const handleSelection = useCallback(() => {
-    const selection = window.getSelection()
-    const pageLayer = pageLayerRef.current
-    const textLayer = textLayerRef.current
-    if (!selection || !pageLayer || !textLayer || selection.isCollapsed || selection.rangeCount === 0) {
-      setSelectionInfo(null)
-      return
-    }
-
-    const range = selection.getRangeAt(0)
-    if (!textLayer.contains(range.commonAncestorContainer)) {
-      setSelectionInfo(null)
-      return
-    }
-
-    const quote = normalizeBookQuote(selection.toString())
-    if (!quote) {
-      setSelectionInfo(null)
-      return
-    }
-
-    const pageRect = pageLayer.getBoundingClientRect()
-    const rects = Array.from(range.getClientRects())
-      .map((rect) => ({
-        left: (rect.left - pageRect.left) / pageRect.width,
-        top: (rect.top - pageRect.top) / pageRect.height,
-        width: rect.width / pageRect.width,
-        height: rect.height / pageRect.height,
-      }))
-      .filter((rect) => rect.width > 0.001 && rect.height > 0.001)
-
-    if (rects.length === 0) {
-      setSelectionInfo(null)
-      return
-    }
-
-    const firstRect = range.getBoundingClientRect()
-    setSelectionInfo({
-      value: `pdf:${pageNumber}:${Date.now().toString(36)}`,
-      quote,
-      chapter: `第 ${pageNumber} 页`,
-      rect: {
-        left: firstRect.left,
-        top: firstRect.top,
-        width: firstRect.width,
-        height: firstRect.height,
-      },
-    })
-  }, [pageNumber])
-
-  const currentPageAnnotations = useMemo(
-    () => annotations.filter((annotation) => annotation.target?.type === 'pdf' && annotation.target.pageNumber === pageNumber),
-    [annotations, pageNumber],
-  )
 
   const selectionPopoverStyle = useMemo(() => {
     if (!selectionInfo) {
@@ -690,10 +632,12 @@ export default function PdfReaderView({
 
   const handleLocateAnnotation = useCallback((annotation: BookAnnotation) => {
     if (annotation.target?.type === 'pdf') {
-      setPageNumber(clampSpreadStart(annotation.target.pageNumber, pageCount || annotation.target.pageNumber))
+      const targetPage = clampPage(annotation.target.pageNumber, pageCount || annotation.target.pageNumber)
+      setPageNumber(layout === 'paginated' ? clampSpreadStart(targetPage, pageCount || targetPage) : targetPage)
+      if (layout === 'scrolled') window.setTimeout(() => scrollToPage(targetPage), 0)
     }
     setActiveAnnotationId(annotation.id)
-  }, [pageCount])
+  }, [layout, pageCount, scrollToPage])
 
   const notedCount = useMemo(() => annotations.filter((annotation) => annotation.note.trim().length > 0).length, [annotations])
   const fraction = pageCount > 0 ? getPageFraction(pageNumber, pageCount) : 0
@@ -707,9 +651,13 @@ export default function PdfReaderView({
           </button>
           <div className="book-reader__header-title">
             <strong title={meta.title}>{meta.title}</strong>
-            <span>{pageCount > 0 ? `第 ${pageNumber}${pageNumber < pageCount ? `-${pageNumber + 1}` : ''} / ${pageCount} 页` : 'PDF'}</span>
+            <span>{pageCount > 0 ? `第 ${pageNumber}${layout === 'paginated' && pageNumber < pageCount ? `-${pageNumber + 1}` : ''} / ${pageCount} 页` : 'PDF'}</span>
           </div>
           <div className="book-reader__header-actions">
+            <div className="book-reader__layout-switch" role="group" aria-label="阅读布局">
+              <button type="button" className={layout === 'paginated' ? 'is-active' : ''} onClick={() => handleLayoutChange('paginated')}>双页</button>
+              <button type="button" className={layout === 'scrolled' ? 'is-active' : ''} onClick={() => handleLayoutChange('scrolled')}>滚动</button>
+            </div>
             <button type="button" className="book-reader__header-btn" onClick={() => setIsImmersive(true)}>
               聚焦
             </button>
@@ -722,7 +670,10 @@ export default function PdfReaderView({
           <aside className="book-reader__toc" aria-label="PDF 导航">
             <div className="book-reader__toc-header">
               <span>页面</span>
-              <button type="button" className="book-reader__toc-top" onClick={() => setPageNumber(1)}>
+              <button type="button" className="book-reader__toc-top" onClick={() => {
+                setPageNumber(1)
+                if (layout === 'scrolled') scrollToPage(1)
+              }}>
                 回到首页
               </button>
             </div>
@@ -733,8 +684,14 @@ export default function PdfReaderView({
                 max={pageCount || 1}
                 value={pageNumber}
                 aria-label="页码"
-                step={2}
-                onChange={(event) => setPageNumber(clampSpreadStart(Number(event.target.value), pageCount || 1))}
+                step={layout === 'paginated' ? 2 : 1}
+                onChange={(event) => {
+                  const nextPage = layout === 'paginated'
+                    ? clampSpreadStart(Number(event.target.value), pageCount || 1)
+                    : clampPage(Number(event.target.value), pageCount || 1)
+                  setPageNumber(nextPage)
+                  if (layout === 'scrolled') scrollToPage(nextPage)
+                }}
               />
               <span>/ {pageCount || '—'}</span>
             </div>
@@ -743,28 +700,48 @@ export default function PdfReaderView({
         ) : null}
 
         <section className="book-reader__canvas pdf-reader__canvas" aria-label="PDF 书页">
-          <div className="pdf-reader__scroll">
+          <div ref={setScrollContainer} className={`pdf-reader__scroll${layout === 'scrolled' ? ' pdf-reader__scroll--continuous' : ''}`} onScroll={handleScroll}>
             {pdfDocument ? (
-              <div className="pdf-reader__spread">
-                <PdfPageSurface
-                  pdf={pdfDocument}
-                  pageNumber={pageNumber}
-                  cache={pdfPageCacheRef.current}
-                  annotations={annotations}
-                  onError={setLoadError}
-                  onSelect={handleSurfaceSelection}
-                />
-                {pageNumber < pageCount ? (
+              layout === 'scrolled' ? (
+                <div className="pdf-reader__continuous-list">
+                  {Array.from({ length: pageCount }, (_, index) => (
+                    <PdfScrollPage
+                      key={`${layout}-${renderEpoch}-${index + 1}`}
+                      pdf={pdfDocument}
+                      pageNumber={index + 1}
+                      cache={pdfPageCacheRef.current}
+                      annotations={annotations}
+                      onError={setLoadError}
+                      onSelect={handleSurfaceSelection}
+                      scrollRoot={scrollRoot}
+                      eager={index < 2}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="pdf-reader__spread">
                   <PdfPageSurface
+                    key={`${layout}-${renderEpoch}-${pageNumber}`}
                     pdf={pdfDocument}
-                    pageNumber={pageNumber + 1}
+                    pageNumber={pageNumber}
                     cache={pdfPageCacheRef.current}
                     annotations={annotations}
                     onError={setLoadError}
                     onSelect={handleSurfaceSelection}
                   />
-                ) : <div className="pdf-reader__surface pdf-reader__surface--empty" />}
-              </div>
+                  {pageNumber < pageCount ? (
+                    <PdfPageSurface
+                      key={`${layout}-${renderEpoch}-${pageNumber + 1}`}
+                      pdf={pdfDocument}
+                      pageNumber={pageNumber + 1}
+                      cache={pdfPageCacheRef.current}
+                      annotations={annotations}
+                      onError={setLoadError}
+                      onSelect={handleSurfaceSelection}
+                    />
+                  ) : <div className="pdf-reader__surface pdf-reader__surface--empty" />}
+                </div>
+              )
             ) : null}
           </div>
           {!isReady && !loadError ? (
@@ -912,18 +889,24 @@ export default function PdfReaderView({
 
       {isReady ? (
         <div className={`book-reader__pager${isImmersive ? ' book-reader__pager--immersive' : ''}`}>
-          <button type="button" aria-label="上一组" onClick={() => setPageNumber((current) => clampSpreadStart(current - 2, pageCount || 1))}>‹</button>
+          {layout === 'paginated' ? <button type="button" aria-label="上一组" onClick={() => setPageNumber((current) => clampSpreadStart(current - 2, pageCount || 1))}>‹</button> : null}
           <input
             type="range"
             min={1}
             max={pageCount || 1}
-            step={2}
+            step={layout === 'paginated' ? 2 : 1}
             value={pageNumber}
             aria-label="阅读进度"
-            onChange={(event) => setPageNumber(clampSpreadStart(Number(event.target.value), pageCount || 1))}
+            onChange={(event) => {
+              const nextPage = layout === 'paginated'
+                ? clampSpreadStart(Number(event.target.value), pageCount || 1)
+                : clampPage(Number(event.target.value), pageCount || 1)
+              setPageNumber(nextPage)
+              if (layout === 'scrolled') scrollToPage(nextPage)
+            }}
           />
-          <span className="book-reader__pager-label">{pageNumber}{pageNumber < pageCount ? `-${pageNumber + 1}` : ''} / {pageCount || '—'}</span>
-          <button type="button" aria-label="下一组" onClick={() => setPageNumber((current) => clampSpreadStart(current + 2, pageCount || 1))}>›</button>
+          <span className="book-reader__pager-label">{pageNumber}{layout === 'paginated' && pageNumber < pageCount ? `-${pageNumber + 1}` : ''} / {pageCount || '—'}</span>
+          {layout === 'paginated' ? <button type="button" aria-label="下一组" onClick={() => setPageNumber((current) => clampSpreadStart(current + 2, pageCount || 1))}>›</button> : null}
           {isImmersive ? (
             <button type="button" className="book-reader__pager-exit" onClick={() => setIsImmersive(false)}>
               退出聚焦
@@ -944,7 +927,6 @@ export default function PdfReaderView({
           </button>
         </div>
       ) : null}
-      <span className="pdf-reader__scale-probe" aria-hidden="true">{scale}</span>
     </div>
   )
 }

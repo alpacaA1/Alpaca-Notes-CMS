@@ -18,6 +18,9 @@ import {
   createBookAnnotationId,
   formatBookProgress,
   normalizeBookQuote,
+  readBookReaderLayout,
+  saveBookReaderLayout,
+  type BookReaderLayout,
 } from './book-utils'
 
 type BookReaderViewProps = {
@@ -27,6 +30,7 @@ type BookReaderViewProps = {
   onProgressChange: (meta: StoredBookMeta) => void
   onAnnotationsChange: (bookId: string, count: number) => void
   onImmersiveChange?: (isImmersive: boolean) => void
+  isActive?: boolean
 }
 
 type ReaderTab = 'info' | 'notes'
@@ -137,6 +141,7 @@ export default function BookReaderView({
   onProgressChange,
   onAnnotationsChange,
   onImmersiveChange,
+  isActive = true,
 }: BookReaderViewProps) {
   const mountRef = useRef<HTMLDivElement | null>(null)
   const viewRef = useRef<FoliateViewElement | null>(null)
@@ -147,6 +152,8 @@ export default function BookReaderView({
   const selectionDebounceRef = useRef<number | null>(null)
   const annotationCardRefs = useRef(new Map<string, HTMLElement | null>())
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
+  const layoutRef = useRef<BookReaderLayout>(readBookReaderLayout())
+  const activeRef = useRef(isActive)
 
   const [isReady, setIsReady] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -161,9 +168,12 @@ export default function BookReaderView({
   const [noteDraft, setNoteDraft] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
   const [isTocOpen, setIsTocOpen] = useState(true)
+  const [layout, setLayout] = useState<BookReaderLayout>(() => readBookReaderLayout())
 
   metaRef.current = meta
   annotationsRef.current = annotations
+  layoutRef.current = layout
+  activeRef.current = isActive
 
   useEffect(() => () => {
     if (persistTimerRef.current !== null) {
@@ -179,7 +189,7 @@ export default function BookReaderView({
   }, [isImmersive, onImmersiveChange])
 
   useEffect(() => {
-    if (!isReady) {
+    if (!isReady || !isActive) {
       return
     }
     const view = viewRef.current
@@ -197,7 +207,24 @@ export default function BookReaderView({
     return () => {
       window.clearTimeout(handle)
     }
-  }, [isImmersive, isTocOpen, isReady])
+  }, [isActive, isImmersive, isTocOpen, isReady])
+
+  useEffect(() => {
+    if (!isReady || !viewRef.current?.renderer) return
+    const view = viewRef.current
+    const renderer = view.renderer
+    if (!renderer) return
+    const location = view.lastLocation?.cfi
+    renderer.setAttribute('flow', layout)
+    renderer.removeAttribute('max-column-count')
+    if (layout === 'paginated') {
+      renderer.setAttribute('max-column-count', '2')
+    }
+    renderer.render?.()
+    if (location) {
+      window.setTimeout(() => void view.goTo(location), 0)
+    }
+  }, [isReady, layout])
 
   useEffect(() => {
     let cancelled = false
@@ -209,8 +236,10 @@ export default function BookReaderView({
       pageView.style.display = 'block'
       // 单 view 双栏跨页：宽屏显示左右两页连续内容，窄屏自动降为单栏。
       // 不要用两个独立 foliate-view 拼双页——next() 同步不可靠，会出现整章一列或左右重复。
-      pageView.renderer?.setAttribute('flow', 'paginated')
-      pageView.renderer?.setAttribute('max-column-count', '2')
+      pageView.renderer?.setAttribute('flow', layoutRef.current)
+      if (layoutRef.current === 'paginated') {
+        pageView.renderer?.setAttribute('max-column-count', '2')
+      }
       pageView.renderer?.setAttribute('max-inline-size', '720px')
       pageView.renderer?.setAttribute('gap', '5%')
       pageView.renderer?.setAttribute('margin', '24px')
@@ -245,14 +274,15 @@ export default function BookReaderView({
         configurePageView(view)
 
         const handleKeydown = (event: KeyboardEvent) => {
+          if (!activeRef.current) return
           const target = event.target as HTMLElement | null
           if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
             return
           }
-          if (event.key === 'ArrowLeft') {
+          if (layoutRef.current === 'paginated' && event.key === 'ArrowLeft') {
             event.preventDefault()
             void view?.goLeft()
-          } else if (event.key === 'ArrowRight') {
+          } else if (layoutRef.current === 'paginated' && event.key === 'ArrowRight') {
             event.preventDefault()
             void view?.goRight()
           } else if (event.key === 'Escape') {
@@ -390,15 +420,16 @@ export default function BookReaderView({
   }, [meta.id, fileBlob])
 
   useEffect(() => {
+    if (!isActive) return
     const handleKeydown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null
       if (target && (target.tagName === 'TEXTAREA' || target.tagName === 'INPUT')) {
         return
       }
-      if (event.key === 'ArrowLeft') {
+      if (layout === 'paginated' && event.key === 'ArrowLeft') {
         event.preventDefault()
         void viewRef.current?.goLeft()
-      } else if (event.key === 'ArrowRight') {
+      } else if (layout === 'paginated' && event.key === 'ArrowRight') {
         event.preventDefault()
         void viewRef.current?.goRight()
       } else if (event.key === 'Escape') {
@@ -408,7 +439,7 @@ export default function BookReaderView({
     }
     window.addEventListener('keydown', handleKeydown)
     return () => window.removeEventListener('keydown', handleKeydown)
-  }, [])
+  }, [isActive, layout])
 
   const notifyAnnotationsChanged = useCallback((next: BookAnnotation[]) => {
     annotationsRef.current = next
@@ -507,6 +538,7 @@ export default function BookReaderView({
   }
 
   const handleTouchEnd = (event: ReactTouchEvent<HTMLElement>) => {
+    if (layout !== 'paginated') return
     const start = touchStartRef.current
     touchStartRef.current = null
     if (!start) {
@@ -523,6 +555,11 @@ export default function BookReaderView({
     } else {
       void viewRef.current?.goLeft()
     }
+  }
+
+  const handleLayoutChange = (nextLayout: BookReaderLayout) => {
+    setLayout(nextLayout)
+    saveBookReaderLayout(nextLayout)
   }
 
   const selectionPopoverStyle = useMemo(() => {
@@ -552,6 +589,10 @@ export default function BookReaderView({
             {currentChapter ? <span title={currentChapter}>{currentChapter}</span> : null}
           </div>
           <div className="book-reader__header-actions">
+            <div className="book-reader__layout-switch" role="group" aria-label="阅读布局">
+              <button type="button" className={layout === 'paginated' ? 'is-active' : ''} onClick={() => handleLayoutChange('paginated')}>双页</button>
+              <button type="button" className={layout === 'scrolled' ? 'is-active' : ''} onClick={() => handleLayoutChange('scrolled')}>滚动</button>
+            </div>
             <button
               type="button"
               className={`book-reader__header-btn${isTocOpen ? ' is-active' : ''}`}
@@ -742,7 +783,7 @@ export default function BookReaderView({
 
       {isReady ? (
         <div className={`book-reader__pager${isImmersive ? ' book-reader__pager--immersive' : ''}`}>
-          <button type="button" aria-label="上一页" onClick={() => void viewRef.current?.goLeft()}>‹</button>
+          {layout === 'paginated' ? <button type="button" aria-label="上一页" onClick={() => void viewRef.current?.goLeft()}>‹</button> : null}
           <input
             type="range"
             min={0}
@@ -753,7 +794,7 @@ export default function BookReaderView({
             onChange={(event) => handleProgressSlider(Number(event.target.value))}
           />
           <span className="book-reader__pager-label">{formatBookProgress(fraction)}</span>
-          <button type="button" aria-label="下一页" onClick={() => void viewRef.current?.goRight()}>›</button>
+          {layout === 'paginated' ? <button type="button" aria-label="下一页" onClick={() => void viewRef.current?.goRight()}>›</button> : null}
           {isImmersive ? (
             <button type="button" className="book-reader__pager-exit" onClick={() => setIsImmersive(false)}>
               退出聚焦
