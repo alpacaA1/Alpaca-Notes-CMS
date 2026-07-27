@@ -4056,6 +4056,160 @@ textarea {
   }
 }
 
+/* ---- Unified button system ----
+ * Buttons are intentionally quiet: hierarchy comes from semantic variants,
+ * not from gradients, floating shadows, or inconsistent corner treatments.
+ */
+.admin-shell {
+  --admin-button-radius: 6px;
+  --admin-button-icon-radius: 8px;
+  --admin-button-focus: 0 0 0 3px rgba(141, 113, 77, 0.22);
+  --admin-button-danger: #8a4f46;
+  --admin-button-danger-bg: rgba(193, 108, 95, 0.1);
+  --admin-button-danger-line: rgba(193, 108, 95, 0.32);
+}
+
+.admin-shell button {
+  border-radius: var(--admin-button-radius);
+  box-shadow: none;
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+}
+
+.admin-shell button:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.admin-shell button:focus-visible {
+  outline: none;
+  box-shadow: var(--admin-button-focus);
+}
+
+/* Primary: the one clear action for create, save, import, and confirmation. */
+.top-bar__button--new-post,
+.top-bar__button--save,
+.post-dashboard__new-btn,
+.post-dashboard__quick-capture-btn,
+.feed-dashboard__composer-btn,
+.feed-dashboard__toolbar-add-btn,
+.book-shelf__import-btn,
+.confirm-dialog__btn--confirm,
+.settings-panel__document-note-action--primary {
+  border-color: var(--admin-save);
+  background: var(--admin-save);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: currentColor;
+  box-shadow: none;
+}
+
+.top-bar__button--new-post:hover:not(:disabled),
+.top-bar__button--save:hover:not(:disabled),
+.post-dashboard__new-btn:hover:not(:disabled),
+.post-dashboard__quick-capture-btn:hover:not(:disabled),
+.feed-dashboard__composer-btn:hover:not(:disabled),
+.feed-dashboard__toolbar-add-btn:hover:not(:disabled),
+.book-shelf__import-btn:hover:not(:disabled),
+.confirm-dialog__btn--confirm:hover:not(:disabled),
+.settings-panel__document-note-action--primary:hover:not(:disabled) {
+  border-color: var(--admin-save-hover);
+  background: var(--admin-save-hover);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Secondary: bounded controls that support the task without competing with it. */
+.top-bar__button,
+.editor-mode-bar button,
+.markdown-editor__upload-button,
+.book-reader__back-btn,
+.book-reader__header-btn,
+.series-collection__action-btn,
+.taxonomy-multi-select__action-btn,
+.confirm-dialog__btn--cancel,
+.annotation-dashboard__clear-btn,
+.annotation-dashboard__open-btn {
+  border-color: var(--admin-line-strong);
+  background: var(--admin-surface-strong);
+  color: var(--admin-muted);
+}
+
+.top-bar__button:hover:not(:disabled),
+.editor-mode-bar button:hover:not(:disabled),
+.markdown-editor__upload-button:hover:not(:disabled),
+.book-reader__back-btn:hover:not(:disabled),
+.book-reader__header-btn:hover:not(:disabled),
+.series-collection__action-btn:hover:not(:disabled),
+.taxonomy-multi-select__action-btn:hover:not(:disabled),
+.confirm-dialog__btn--cancel:hover:not(:disabled),
+.annotation-dashboard__clear-btn:hover:not(:disabled),
+.annotation-dashboard__open-btn:hover:not(:disabled) {
+  border-color: var(--admin-warm);
+  background: var(--admin-accent-soft);
+  color: var(--admin-text);
+}
+
+/* Kept after the broad secondary rule so the top-bar primary actions win. */
+.top-bar__button--new-post,
+.top-bar__button--save,
+.post-dashboard__new-btn,
+.post-dashboard__quick-capture-btn,
+.feed-dashboard__composer-btn,
+.feed-dashboard__toolbar-add-btn,
+.book-shelf__import-btn,
+.confirm-dialog__btn--confirm,
+.settings-panel__document-note-action--primary {
+  border-color: var(--admin-save);
+  background: var(--admin-save);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: currentColor;
+}
+
+.top-bar__button--new-post:hover:not(:disabled),
+.top-bar__button--save:hover:not(:disabled),
+.post-dashboard__new-btn:hover:not(:disabled),
+.post-dashboard__quick-capture-btn:hover:not(:disabled),
+.feed-dashboard__composer-btn:hover:not(:disabled),
+.feed-dashboard__toolbar-add-btn:hover:not(:disabled),
+.book-shelf__import-btn:hover:not(:disabled),
+.confirm-dialog__btn--confirm:hover:not(:disabled),
+.settings-panel__document-note-action--primary:hover:not(:disabled) {
+  border-color: var(--admin-save-hover);
+  background: var(--admin-save-hover);
+  color: var(--admin-save-text);
+  -webkit-text-fill-color: currentColor;
+}
+
+/* Intentional destructive actions stay quiet until their confirmation point. */
+.top-bar__button--danger,
+.trash-view__btn--delete,
+.taxonomy-multi-select__action-btn--danger {
+  border-color: var(--admin-button-danger-line);
+  background: var(--admin-button-danger-bg);
+  color: var(--admin-button-danger);
+}
+
+/* Icon-only controls share one compact geometry. Natural pager controls remain round. */
+.top-bar__button--icon,
+.top-bar__button--theme,
+.drawer-close-button,
+.book-shelf__delete-btn {
+  border-radius: var(--admin-button-icon-radius);
+}
+
+.book-reader__pager > button:not(.book-reader__pager-exit) {
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell button {
+    transition: none;
+  }
+}
+
 .settings-panel__section-stack--reader {
   padding-top: 14px;
   border-top: 1px solid var(--admin-line);
