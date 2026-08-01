@@ -113,13 +113,13 @@ describe('settings panel', () => {
     vi.restoreAllMocks()
   })
 
-  it('edits title date desc published pinned taxonomy selections and permalink', () => {
+  it('edits date, published state, taxonomy selections, and permalink without showing a summary', () => {
     const { onFieldChange } = renderControlledSettingsPanel()
 
     fireEvent.change(screen.getByLabelText('日期'), {
       target: { value: '2026-04-03T10:12:13' },
     })
-    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'New desc' } })
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     fireEvent.click(screen.getByRole('checkbox', { name: '已发布' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
 
@@ -136,7 +136,6 @@ describe('settings panel', () => {
     fireEvent.change(screen.getByLabelText('永久链接'), { target: { value: 'new-title/' } })
 
     expect(onFieldChange).toHaveBeenCalledWith('date', '2026-04-03 10:12:13')
-    expect(onFieldChange).toHaveBeenCalledWith('desc', 'New desc')
     expect(onFieldChange).toHaveBeenCalledWith('published', true)
     expect(onFieldChange).toHaveBeenCalledWith('pinned', true)
     expect(onFieldChange).toHaveBeenCalledWith('categories', ['思考'])
@@ -151,7 +150,6 @@ describe('settings panel', () => {
         document={createNewPost(new Date(2026, 3, 3, 10, 11, 12))}
         validationErrors={{
           title: '请填写标题。',
-          desc: '请填写摘要。',
           permalink: '首次保存前请填写永久链接。',
         }}
         contentType="post"
@@ -161,7 +159,6 @@ describe('settings panel', () => {
       />,
     )
 
-    expect(screen.getByText('请填写摘要。')).toBeTruthy()
     expect(screen.getByText('首次保存前请填写永久链接。')).toBeTruthy()
   })
 

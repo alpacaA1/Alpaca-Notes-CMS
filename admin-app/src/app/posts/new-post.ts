@@ -1,6 +1,7 @@
 import { DIARY_PATH } from '../config'
 import type { ParsedPost } from './parse-post'
 import type { PostValidationErrors } from './post-types'
+import type { PostIndexItem } from './post-types'
 
 function pad(value: number) {
   return String(value).padStart(2, '0')
@@ -52,7 +53,16 @@ export function fromPostDateTimeInputValue(value: string) {
   return `${date} ${time}:${seconds}`
 }
 
-export function createNewPost(date = new Date()): ParsedPost {
+export function getNextNumericPermalink(posts: Pick<PostIndexItem, 'permalink'>[]) {
+  const largestExistingNumber = posts.reduce((largest, post) => {
+    const match = post.permalink?.trim().match(/^(\d+)\/?$/)
+    return match ? Math.max(largest, Number(match[1])) : largest
+  }, 0)
+
+  return `${largestExistingNumber + 1}/`
+}
+
+export function createNewPost(date = new Date(), permalink?: string): ParsedPost {
   return {
     path: `source/_posts/${formatPostTimestamp(date)}.md`,
     sha: '',
@@ -67,6 +77,7 @@ export function createNewPost(date = new Date()): ParsedPost {
       pinned: false,
       categories: [],
       tags: [],
+      ...(permalink ? { permalink } : {}),
     },
   }
 }
@@ -108,7 +119,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.date = '请填写日期。'
   }
 
-  if (!post.frontmatter.desc.trim() && !isKnowledge && !isDiary) {
+  if (!post.frontmatter.desc.trim() && isReadLater) {
     errors.desc = '请填写摘要。'
   }
 
@@ -128,10 +139,6 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
 
   if (isDiary || isKnowledge) {
     return errors
-  }
-
-  if (options?.isNewPost && !permalink) {
-    errors.permalink = '首次保存前请填写永久链接。'
   }
 
   if (/^[a-z][a-z\d+.-]*:\/\//i.test(permalink)) {

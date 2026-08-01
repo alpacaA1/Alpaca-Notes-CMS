@@ -6,6 +6,7 @@ import {
   formatPostDate,
   formatPostTimestamp,
   fromPostDateTimeInputValue,
+  getNextNumericPermalink,
   toPostDateTimeInputValue,
   validatePostForSave,
 } from './new-post'
@@ -52,22 +53,28 @@ describe('new post helpers', () => {
     expect(fromPostDateTimeInputValue('2026-04-03T06:07:08')).toBe('2026-04-03 06:07:08')
   })
 
-  it('requires title, date, and desc on every save', () => {
+  it('requires a title but no summary on article saves', () => {
     const errors = validatePostForSave(createNewPost(fixedDate))
 
     expect(errors).toEqual({
       title: '请填写标题。',
-      desc: '请填写摘要。',
     })
   })
 
-  it('requires permalink before first save of a new post only', () => {
+  it('does not require a permalink before first save', () => {
     const newPost = createNewPost(fixedDate)
-    expect(validatePostForSave(newPost, { isNewPost: true }).permalink).toBe(
-      '首次保存前请填写永久链接。',
-    )
+    expect(validatePostForSave(newPost, { isNewPost: true }).permalink).toBeUndefined()
 
     expect(validatePostForSave(newPost, { isNewPost: false }).permalink).toBeUndefined()
+  })
+
+  it('generates the next numeric permalink from existing articles', () => {
+    expect(getNextNumericPermalink([])).toBe('1/')
+    expect(getNextNumericPermalink([
+      { permalink: '9/' },
+      { permalink: '12' },
+      { permalink: 'notes/' },
+    ])).toBe('13/')
   })
 
   it('rejects absolute permalink URLs', () => {

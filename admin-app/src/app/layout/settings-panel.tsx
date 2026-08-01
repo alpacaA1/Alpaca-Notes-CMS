@@ -9,6 +9,7 @@ import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-
 import { createReadLaterBody } from '../read-later/new-item'
 import { getEditableReadLaterSections } from '../read-later/parse-item'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
+import FilterSelect from './filter-select'
 
 type TaxonomyType = 'categories' | 'tags'
 type ReadLaterTab = 'info' | 'commentary'
@@ -147,7 +148,7 @@ export default function SettingsPanel({
   const isDiary = contentType === 'diary'
   const isPost = contentType === 'post'
   const isKnowledge = contentType === 'knowledge'
-  const showSummaryField = !isKnowledge && !isDiary
+  const showSummaryField = isReadLater
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -520,23 +521,24 @@ export default function SettingsPanel({
               ) : null}
 
               {isPost ? (
-                <label className="settings-panel__field">
+                <div className="settings-panel__field">
                   <span>系列</span>
-                  <input
-                    type="text"
-                    list="series-options"
-                    aria-label="系列"
+                  <FilterSelect
+                    label="系列"
                     value={frontmatter.series || ''}
-                    onChange={(event) => onFieldChange('series', event.target.value || undefined)}
-                    placeholder="填写系列名称，留空则不归属任何系列"
+                    options={[
+                      { value: '', label: '不归属任何系列' },
+                      ...availableSeries.map((name) => ({ value: name, label: name })),
+                    ]}
+                    searchable
+                    allowCustomValue
+                    placeholder="选择或新建系列"
+                    triggerAriaLabel="系列"
+                    searchPlaceholder="搜索或输入新系列"
+                    onChange={(value) => onFieldChange('series', value || undefined)}
                   />
-                  <datalist id="series-options">
-                    {availableSeries.map((name) => (
-                      <option key={name} value={name} />
-                    ))}
-                  </datalist>
                   <p className="settings-panel__field-note">同名系列的多篇文章会在合集页中归到一起。</p>
-                </label>
+                </div>
               ) : null}
               <div className="settings-panel__field settings-panel__taxonomy">
                 <span>标签</span>
@@ -555,18 +557,17 @@ export default function SettingsPanel({
 
           {!isReadLater ? <MetadataSection title="高级设置">
           {isPost ? (
-            <label className="settings-panel__field">
+            <div className="settings-panel__field">
               <span>文章类型</span>
-              <select
-                aria-label="文章类型"
+              <FilterSelect
+                label="文章类型"
                 value={isTopicPost ? 'topic' : 'post'}
-                onChange={(event) => handlePostTopicChange(event.target.value === 'topic')}
-              >
-                <option value="post">普通文章</option>
-                <option value="topic">主题文章</option>
-              </select>
+                options={[{ value: 'post', label: '普通文章' }, { value: 'topic', label: '主题文章' }]}
+                triggerAriaLabel="文章类型"
+                onChange={(value) => handlePostTopicChange(value === 'topic')}
+              />
               <p className="settings-panel__field-note">主题文章可以被日记、文章和知识点用 `[[node_key]]` 引用。</p>
-            </label>
+            </div>
           ) : null}
 
           {isKnowledge ? (

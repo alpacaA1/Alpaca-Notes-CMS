@@ -85,7 +85,7 @@ import {
   type FeedSubscription,
   type FeedSubscriptionsState,
 } from './rss/feed-subscriptions'
-import { createNewDiaryEntry, createNewPost } from './posts/new-post'
+import { createNewDiaryEntry, createNewPost, getNextNumericPermalink } from './posts/new-post'
 import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
@@ -1652,7 +1652,7 @@ export default function App() {
           ? createNewDiaryEntry()
           : contentType === 'knowledge'
             ? createNewKnowledgeItem()
-          : createNewPost(),
+          : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
     setAdminView('editor')
   }
@@ -2816,7 +2816,7 @@ export default function App() {
       ? createNewDiaryEntry()
       : targetContentType === 'knowledge'
         ? createNewKnowledgeItem()
-        : createNewPost()
+        : createNewPost(undefined, getNextNumericPermalink(postsByType.post))
     const duplicatedDocument: ParsedPost = {
       ...baseDocument,
       body: document.body,

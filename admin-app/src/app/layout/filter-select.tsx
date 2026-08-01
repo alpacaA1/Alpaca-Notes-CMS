@@ -12,8 +12,11 @@ type FilterSelectProps = {
   options: FilterSelectOption[]
   onChange: (value: string) => void
   searchable?: boolean
+  allowCustomValue?: boolean
   searchPlaceholder?: string
   emptyMessage?: string
+  placeholder?: string
+  triggerAriaLabel?: string
 }
 
 function normalizeText(value: string) {
@@ -38,8 +41,11 @@ export default function FilterSelect({
   options,
   onChange,
   searchable = false,
+  allowCustomValue = false,
   searchPlaceholder,
   emptyMessage,
+  placeholder,
+  triggerAriaLabel,
 }: FilterSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -60,7 +66,7 @@ export default function FilterSelect({
     })
   }, [normalizedOptions, normalizedQuery])
   const selectedOption = normalizedOptions.find((option) => option.value === value) || null
-  const triggerText = selectedOption?.label || '请选择'
+  const triggerText = selectedOption?.label || value || placeholder || '请选择'
   const searchLabel = `搜索${label}`
   const listboxLabel = `${label}选项`
   const resolvedSearchPlaceholder = searchPlaceholder || `筛选${label}`
@@ -118,12 +124,16 @@ export default function FilterSelect({
     setQuery('')
   }
 
+  const canCreateCustomValue = allowCustomValue && query.trim().length > 0 && !normalizedOptions.some(
+    (option) => normalizeText(option.value) === normalizedQuery || normalizeText(option.label) === normalizedQuery,
+  )
+
   return (
     <div className={`filter-select${isOpen ? ' is-open' : ''}`} ref={containerRef}>
       <button
         type="button"
         className="filter-select__trigger"
-        aria-label={`筛选${label}`}
+        aria-label={triggerAriaLabel || `筛选${label}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-controls={listboxId}
@@ -181,6 +191,11 @@ export default function FilterSelect({
           ) : (
             <p className="filter-select__status">{resolvedEmptyMessage}</p>
           )}
+          {canCreateCustomValue ? (
+            <button type="button" className="filter-select__custom-option" onClick={() => handleSelect(query.trim())}>
+              使用“{query.trim()}”
+            </button>
+          ) : null}
         </div>
       ) : null}
     </div>
