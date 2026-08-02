@@ -211,7 +211,7 @@ describe('App save flow', () => {
     expect(savedButton.disabled).toBe(true)
     expect(await screen.findByText('已保存。')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Edited again after save' } })
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Edited again after save' } })
 
     await waitFor(() => {
       expect(screen.queryByText('已保存。')).toBeNull()
@@ -249,13 +249,13 @@ describe('App save flow', () => {
 
     expect(await screen.findByText('已保存。')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Edited again after save' } })
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Edited again after save' } })
 
     await waitFor(() => {
       expect(screen.queryByText('已保存。')).toBeNull()
     })
 
-    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'desc' } })
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
 
     const revertedSaveButton = (await screen.findByRole('button', { name: '已保存' })) as HTMLButtonElement
     expect(revertedSaveButton.disabled).toBe(true)
@@ -323,7 +323,6 @@ describe('App save flow', () => {
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'Updated title' } })
-    fireEvent.change(screen.getByLabelText('摘要'), { target: { value: 'Updated desc' } })
     fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     await waitFor(() => {
@@ -338,7 +337,7 @@ describe('App save flow', () => {
         content: expect.stringContaining('title: Updated title'),
       }),
     )
-    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('desc: Updated desc')
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('desc: desc')
 
     await waitFor(() => {
       expect(buildPostIndex).toHaveBeenCalledTimes(1)

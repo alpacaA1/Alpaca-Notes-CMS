@@ -114,7 +114,7 @@ describe('App read-later import flow', () => {
 
     expect(await screen.findByRole('heading', { name: '导入正文' })).toBeTruthy()
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('导入后的标题')
-    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('导入后的摘要')
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('导入来源')
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
@@ -347,7 +347,7 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('heading', { name: '快速导入正文' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('快速收录标题')
-    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('快速收录摘要')
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('快速来源')
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
@@ -391,7 +391,7 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('link', { name: '原文摘录' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('上下文主权：AI 时代，什么才算你的想法')
-    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('上下文不是越多越好。')
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('Superlinear Academy')
 
     fireEvent.change(screen.getByLabelText('手动粘贴正文'), {
@@ -473,7 +473,7 @@ describe('App read-later import flow', () => {
     expect(await screen.findByRole('button', { name: '保存' })).toBeTruthy()
     fireEvent.click(screen.getByRole('tab', { name: '信息' }))
     expect((screen.getByLabelText('标题') as HTMLInputElement).value).toBe('新的系统设计文章')
-    expect((screen.getByLabelText('摘要') as HTMLTextAreaElement).value).toBe('这是一篇关于系统设计取舍的摘要。')
+    expect(screen.queryByLabelText('摘要')).toBeNull()
     expect((screen.getByLabelText('来源') as HTMLInputElement).value).toBe('设计摘录')
   })
 
