@@ -148,7 +148,6 @@ export default function SettingsPanel({
   const isDiary = contentType === 'diary'
   const isPost = contentType === 'post'
   const isKnowledge = contentType === 'knowledge'
-  const showSummaryField = isReadLater
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -355,13 +354,6 @@ export default function SettingsPanel({
                 <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
                 {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
               </label>
-              {showSummaryField ? (
-                <label>
-                  <span>摘要</span>
-                  <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
-                  {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
-                </label>
-              ) : null}
             </MetadataSection>
           ) : (
             <>
@@ -382,13 +374,6 @@ export default function SettingsPanel({
                 <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
                 {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
               </label>
-              {showSummaryField ? (
-                <label>
-                  <span>摘要</span>
-                  <textarea aria-label="摘要" value={frontmatter.desc} onChange={(event) => onFieldChange('desc', event.target.value)} />
-                  {validationErrors.desc ? <span className="error-message">{validationErrors.desc}</span> : null}
-                </label>
-              ) : null}
             </>
           )}
 

@@ -119,10 +119,6 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.date = '请填写日期。'
   }
 
-  if (!post.frontmatter.desc.trim() && isReadLater) {
-    errors.desc = '请填写摘要。'
-  }
-
   if (isReadLater) {
     const externalUrl = post.frontmatter.external_url?.trim() || ''
     if (!externalUrl) {
