@@ -537,7 +537,11 @@ export default function TopBar({
               aria-expanded={openEditorMenu === 'more'}
               onClick={() => setOpenEditorMenu((current) => current === 'more' ? null : 'more')}
             >
-              •••
+              <svg className="top-bar__more-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="2.2" />
+                <circle cx="12" cy="12" r="2.2" />
+                <circle cx="19" cy="12" r="2.2" />
+              </svg>
             </button>
             {openEditorMenu === 'more' ? (
               <div className="top-bar__editor-menu top-bar__editor-menu--more" role="menu">

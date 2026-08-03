@@ -14207,7 +14207,7 @@ textarea {
   -webkit-text-fill-color: var(--admin-save-text);
 }
 
-/* Explicitly enforce 100% identical height, padding, and border radius across all settings panel dropdown triggers */
+/* Explicitly enforce 100% identical height, padding, and border radius across all settings panel dropdown triggers and inputs */
 .settings-panel .filter-select.is-open {
   z-index: 100 !important;
 }
@@ -14219,13 +14219,72 @@ textarea {
 .settings-panel .filter-select__trigger,
 .settings-panel .taxonomy-multi-select__trigger,
 .settings-panel .settings-panel__filter-like-select,
-.settings-panel select {
+.settings-panel select,
+.settings-panel input[type="text"],
+.settings-panel input[type="datetime-local"],
+.settings-panel input:not([type="checkbox"]):not([type="radio"]) {
   box-sizing: border-box !important;
   min-height: 36px !important;
   height: 36px !important;
-  padding: 0 34px 0 12px !important;
+  padding: 0 12px !important;
   border: 1px solid var(--admin-line-strong) !important;
   border-radius: 12px !important;
   font-size: 0.88rem !important;
   line-height: 1.2 !important;
+}
+
+.settings-panel .filter-select__trigger,
+.settings-panel .taxonomy-multi-select__trigger,
+.settings-panel .settings-panel__filter-like-select,
+.settings-panel select {
+  padding-right: 34px !important;
+}
+
+.top-bar__button--icon {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.top-bar__more-icon {
+  display: block;
+  color: var(--admin-text);
+  transition: transform 160ms ease;
+}
+
+.top-bar__editor-menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 8px);
+  min-width: 188px;
+  padding: 6px;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(249, 243, 234, 0.96));
+  backdrop-filter: blur(18px);
+  box-shadow:
+    0 18px 36px rgba(36, 24, 10, 0.14),
+    0 4px 12px rgba(36, 24, 10, 0.06);
+}
+
+.top-bar__editor-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  width: 100%;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.top-bar__editor-menu button:hover,
+.top-bar__editor-menu button.is-active {
+  background: rgba(141, 113, 77, 0.08);
 }

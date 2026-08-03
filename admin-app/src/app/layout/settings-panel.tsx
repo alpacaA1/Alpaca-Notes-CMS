@@ -351,7 +351,7 @@ export default function SettingsPanel({
                   value={toPostDateTimeInputValue(frontmatter.date)}
                   onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
                 />
-                <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
+
                 {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
               </label>
             </MetadataSection>
@@ -371,7 +371,7 @@ export default function SettingsPanel({
                   value={toPostDateTimeInputValue(frontmatter.date)}
                   onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
                 />
-                <p className="settings-panel__field-note">保存时会保留秒级时间。</p>
+
                 {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
               </label>
             </>
