@@ -2554,13 +2554,13 @@ textarea {
 .post-list-item__pin-btn,
 .post-list-item__delete-btn {
   appearance: none;
-  min-width: 72px;
-  min-height: 38px;
-  height: 38px;
-  padding: 0 12px;
+  min-width: 58px;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
   border-radius: var(--admin-button-radius);
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
   transition:
@@ -14072,13 +14072,11 @@ textarea {
   -webkit-text-fill-color: var(--admin-save-text);
 }
 
-/* Keep top bar buttons, content switcher options, post list pin/delete buttons, and action buttons on the exact same 8px rounded rectangle geometry and 38px height. */
+/* Keep top bar buttons, content switcher options, and action buttons on the exact same 8px rounded rectangle geometry and 38px height. */
 .admin-shell .top-bar__button,
 .admin-shell .top-bar__switcher-option,
 .admin-shell .top-bar__button--new-post,
-.admin-shell .post-dashboard__new-btn,
-.admin-shell .post-list-item__pin-btn,
-.admin-shell .post-list-item__delete-btn {
+.admin-shell .post-dashboard__new-btn {
   min-height: 38px;
   height: 38px;
   border-radius: var(--admin-button-radius);
