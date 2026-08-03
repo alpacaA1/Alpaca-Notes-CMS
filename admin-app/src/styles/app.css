@@ -6520,17 +6520,20 @@ textarea {
   z-index: 0;
 }
 
-.filter-select.is-open,
+.filter-select.is-open {
+  z-index: 12;
+}
+
 .taxonomy-multi-select.is-open {
   z-index: 100;
 }
 
 .filter-select__panel {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
-  z-index: 120;
+  z-index: 60;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -14129,6 +14132,14 @@ textarea {
 }
 
 /* Explicitly enforce 100% identical height, padding, and border radius across all settings panel dropdown triggers */
+.settings-panel .filter-select.is-open {
+  z-index: 100 !important;
+}
+
+.settings-panel .filter-select__panel {
+  z-index: 120 !important;
+}
+
 .settings-panel .filter-select__trigger,
 .settings-panel .taxonomy-multi-select__trigger,
 .settings-panel .settings-panel__filter-like-select,
