@@ -6618,11 +6618,21 @@ textarea {
   padding: 0 10px 0 32px;
   font: inherit;
   font-size: 0.84rem;
-  border: 1px solid rgba(141, 113, 77, 0.2);
+  border: 1px solid rgba(141, 113, 77, 0.18);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.85);
   color: var(--admin-text);
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: none;
+  outline: none;
+  transition: background 150ms ease;
+}
+
+.filter-select__search input:hover,
+.filter-select__search input:focus,
+.filter-select__search input:focus-visible {
+  border-color: rgba(141, 113, 77, 0.24);
+  box-shadow: none;
+  outline: none;
 }
 
 .filter-select__search input::placeholder {
@@ -6724,15 +6734,9 @@ textarea {
 
 .filter-select__trigger:hover,
 .filter-select__trigger:focus-visible,
-.filter-select__trigger[aria-expanded='true'],
-.filter-select__search input:hover,
-.filter-select__search input:focus-visible {
+.filter-select__trigger[aria-expanded='true'] {
   border-color: var(--admin-warm);
   outline: none;
-}
-
-.filter-select__search input:focus-visible {
-  box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12);
 }
 
 .filter-select__trigger[aria-expanded='true'] {
