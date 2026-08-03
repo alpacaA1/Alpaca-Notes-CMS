@@ -14127,3 +14127,18 @@ textarea {
   color: var(--admin-save-text);
   -webkit-text-fill-color: var(--admin-save-text);
 }
+
+/* Explicitly enforce 100% identical height, padding, and border radius across all settings panel dropdown triggers */
+.settings-panel .filter-select__trigger,
+.settings-panel .taxonomy-multi-select__trigger,
+.settings-panel .settings-panel__filter-like-select,
+.settings-panel select {
+  box-sizing: border-box !important;
+  min-height: 36px !important;
+  height: 36px !important;
+  padding: 0 34px 0 12px !important;
+  border: 1px solid var(--admin-line-strong) !important;
+  border-radius: 12px !important;
+  font-size: 0.88rem !important;
+  line-height: 1.2 !important;
+}
