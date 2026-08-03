@@ -4061,7 +4061,7 @@ textarea {
  * not from gradients, floating shadows, or inconsistent corner treatments.
  */
 .admin-shell {
-  --admin-button-radius: 6px;
+  --admin-button-radius: 8px;
   --admin-button-icon-radius: 8px;
   --admin-button-focus: 0 0 0 3px rgba(141, 113, 77, 0.22);
   --admin-button-danger: #8a4f46;
@@ -9028,9 +9028,7 @@ textarea {
   align-items: center;
   justify-content: center;
   margin-left: auto;
-  min-height: 38px;
-  padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--admin-button-radius);
   border: 1px solid var(--admin-new-post-line);
   background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), var(--admin-new-post));
   color: var(--admin-warm);
@@ -14002,11 +14000,11 @@ textarea {
   -webkit-text-fill-color: var(--admin-save-text);
 }
 
-/* Keep the top bar on the same compact button geometry as the dashboard tools. */
+/* Keep top bar buttons, search input, content switcher, and dashboard action buttons on the exact same rounded rectangle geometry (8px). */
 .admin-shell .top-bar__button,
-.admin-shell .top-bar__switcher-option {
-  min-height: 38px;
-  height: 38px;
+.admin-shell .top-bar__switcher-option,
+.admin-shell .top-bar__search input,
+.admin-shell .post-dashboard__new-btn {
   border-radius: var(--admin-button-radius);
 }
 
