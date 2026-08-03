@@ -4007,6 +4007,20 @@ textarea {
   z-index: 10;
 }
 
+.settings-panel__metadata-section[open]:focus-within,
+.settings-panel__metadata-section[open]:has(.is-open) {
+  z-index: 100;
+}
+
+.settings-panel__field {
+  position: relative;
+}
+
+.settings-panel__field:focus-within,
+.settings-panel__field:has(.is-open) {
+  z-index: 120;
+}
+
 .settings-panel__metadata-section-summary {
   display: flex;
   min-height: 46px;
@@ -4717,12 +4731,10 @@ textarea {
   gap: 8px;
 }
 
-.taxonomy-multi-select__trigger,
 .taxonomy-multi-select__chip,
 .taxonomy-multi-select__option,
 .taxonomy-multi-select__search input {
   box-sizing: border-box;
-  min-height: 44px;
   font: inherit;
 }
 
@@ -4741,26 +4753,32 @@ textarea {
 }
 
 .taxonomy-multi-select__trigger {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   min-height: 36px;
   height: 36px;
+  border: 1px solid var(--admin-line-strong);
   border-radius: 12px;
   padding: 0 34px 0 12px;
-  background: rgba(255, 255, 255, 0.78);
+  background:
+    url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23918577' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
+    no-repeat right 12px center,
+    rgba(255, 255, 255, 0.78);
+  background-size: 10px 6px, auto;
   color: var(--admin-text);
   font-size: 0.88rem;
   line-height: 1.2;
   text-align: left;
   box-shadow: none;
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
 .taxonomy-multi-select__trigger::after {
-  content: '▾';
-  color: var(--admin-soft);
-  font-size: 0.82rem;
+  display: none;
 }
 
 .taxonomy-multi-select__trigger[aria-expanded='true'] {
