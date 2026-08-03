@@ -208,21 +208,27 @@ export default function TaxonomyMultiSelect({
           {showSearch ? (
             <label className="taxonomy-multi-select__search">
               <span className="taxonomy-multi-select__search-label">{searchLabel}</span>
-              <input
-                aria-label={searchLabel}
-                autoFocus
-                value={query}
-                placeholder={`筛选${label}`}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault()
-                    if (canCreate()) {
-                      handleCreate()
+              <div className="taxonomy-multi-select__search-input-wrapper">
+                <svg className="taxonomy-multi-select__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input
+                  aria-label={searchLabel}
+                  autoFocus
+                  value={query}
+                  placeholder={`搜索或输入新${label}`}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault()
+                      if (canCreate()) {
+                        handleCreate()
+                      }
                     }
-                  }
-                }}
-              />
+                  }}
+                />
+              </div>
             </label>
           ) : null}
 
@@ -302,7 +308,11 @@ export default function TaxonomyMultiSelect({
                   >
                     <span>{option}</span>
                     <span className="taxonomy-multi-select__option-trail">
-                      {isSelected ? <span aria-hidden="true">已选</span> : null}
+                      {isSelected ? (
+                        <svg className="taxonomy-multi-select__check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                      ) : null}
                       {hasManageActions ? (
                         <span className="taxonomy-multi-select__option-actions">
                           {onRenameOption ? (

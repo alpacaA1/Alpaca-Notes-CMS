@@ -492,7 +492,6 @@ export default function SettingsPanel({
               {!isDiary ? (
                 <div className="settings-panel__field settings-panel__taxonomy">
                   <span>分类</span>
-                  <p className="settings-panel__field-note">搜索并选择已创建分类；已选分类会保留在下方。</p>
                   <TaxonomyMultiSelect
                     label="分类"
                     value={frontmatter.categories}
@@ -522,7 +521,6 @@ export default function SettingsPanel({
                     searchPlaceholder="搜索或输入新系列"
                     onChange={(value) => onFieldChange('series', value || undefined)}
                   />
-                  <p className="settings-panel__field-note">同名系列的多篇文章会在合集页中归到一起。</p>
                 </div>
               ) : null}
               <div className="settings-panel__field settings-panel__taxonomy">
