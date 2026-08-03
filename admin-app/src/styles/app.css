@@ -4061,8 +4061,8 @@ textarea {
  * not from gradients, floating shadows, or inconsistent corner treatments.
  */
 .admin-shell {
-  --admin-button-radius: 999px;
-  --admin-button-icon-radius: 999px;
+  --admin-button-radius: 8px;
+  --admin-button-icon-radius: 8px;
   --admin-button-focus: 0 0 0 3px rgba(141, 113, 77, 0.22);
   --admin-button-danger: #8a4f46;
   --admin-button-danger-bg: rgba(193, 108, 95, 0.1);
@@ -9082,7 +9082,7 @@ textarea {
   margin-left: auto;
   min-height: 38px;
   padding: 0 18px;
-  border-radius: 999px;
+  border-radius: var(--admin-button-radius);
   border: 1px solid var(--admin-new-post-line);
   background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), var(--admin-new-post));
   color: var(--admin-warm);
@@ -14054,19 +14054,19 @@ textarea {
   -webkit-text-fill-color: var(--admin-save-text);
 }
 
-/* Keep top bar buttons and switcher options on the exact same capsule pill geometry (999px) as the status toolbar new-post button. */
+/* Keep top bar buttons, content switcher options, and action buttons on the exact same 8px rounded rectangle geometry. */
 .admin-shell .top-bar__button,
 .admin-shell .top-bar__switcher-option,
 .admin-shell .top-bar__button--new-post,
 .admin-shell .post-dashboard__new-btn {
-  border-radius: 999px;
+  border-radius: var(--admin-button-radius);
 }
 
 .admin-shell .top-bar__button--icon,
 .admin-shell .top-bar__button--theme {
   width: 38px;
   min-width: 38px;
-  border-radius: 999px;
+  border-radius: var(--admin-button-icon-radius);
 }
 
 .top-bar__button--new-post:hover:not(:disabled),
