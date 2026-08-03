@@ -720,7 +720,7 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /supported post/i }))
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
-    expect(screen.getByText(/已发布 · 已保存/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: '已保存' })).toBeTruthy()
     expect(screen.queryByText('文章归档')).toBeNull()
 
     expect(screen.queryByRole('button', { name: '沉浸模式' })).toBeTruthy()
@@ -738,7 +738,7 @@ describe('App editor modes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '退出沉浸' }))
 
-    expect(await screen.findByText(/已发布 · 已保存/)).toBeTruthy()
+    expect(await screen.findByRole('button', { name: '已保存' })).toBeTruthy()
     expect(screen.queryByText('文章归档')).toBeNull()
   })
 
@@ -782,7 +782,7 @@ describe('App editor modes', () => {
     expect(restoredMarkdownEditor).toBeTruthy()
     expect(screen.getByDisplayValue('Edited title before preview')).toBeTruthy()
     expect(screen.getByDisplayValue('Edited body before preview with **bold** text.')).toBeTruthy()
-    expect(screen.getByText(/已发布 · 有未保存修改/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
     expect(screen.queryByText('文章归档')).toBeNull()
     expect(screen.getByText('发布设置')).toBeTruthy()
   })

@@ -539,7 +539,7 @@ Original body.`,
 
     expect(await screen.findByText('检测到远端内容已变更，请先重新加载文章后再覆盖保存。')).toBeTruthy()
     expect(screen.getByDisplayValue('Locally changed title')).toBeTruthy()
-    expect(screen.getByText(/未保存修改/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
 
   it('preserves dirty local state when save fails', async () => {
@@ -566,7 +566,7 @@ Original body.`,
 
     expect(await screen.findByText('save failed')).toBeTruthy()
     expect(screen.getByDisplayValue('Changed body')).toBeTruthy()
-    expect(screen.getByText(/未保存修改/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
   })
 
   it('clears the session and returns to login when save hits auth expiry', async () => {

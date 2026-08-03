@@ -310,7 +310,7 @@ export default function SettingsPanel({
           <>
             <p className="settings-panel__eyebrow">元信息</p>
             <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '文章设置'}</h2>
-            <p>{isDiary ? '保留最少字段，先把阶段记录写下来。' : isKnowledge ? '保留正文与来源上下文，快速沉淀知识点。' : '发布前把标题、链接与分类信息整理清楚。'}</p>
+            {isDiary ? <p>保留最少字段，先把阶段记录写下来。</p> : isKnowledge ? <p>保留正文与来源上下文，快速沉淀知识点。</p> : null}
           </>
         </div>
       ) : null}

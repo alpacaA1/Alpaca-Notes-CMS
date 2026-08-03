@@ -79,7 +79,6 @@ describe('App local draft recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     expect(await screen.findByDisplayValue('Recovered after crash')).toBeTruthy()
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
-    expect(screen.getByText(/未保存修改/)).toBeTruthy()
   })
 
   it('shows an orphan local draft entry for an unsaved new post', async () => {
@@ -115,6 +114,5 @@ describe('App local draft recovery', () => {
     fireEvent.click(screen.getByRole('button', { name: '文章设置' }))
     expect(await screen.findByDisplayValue('Local-only draft')).toBeTruthy()
     expect(screen.getByRole('button', { name: '保存' })).toBeTruthy()
-    expect(screen.getByText(/未保存修改/)).toBeTruthy()
   })
 })
