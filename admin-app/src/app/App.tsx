@@ -4381,7 +4381,7 @@ export default function App() {
         <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReadLaterDocument ? ' admin-layout--drawers' : ''}`}>
           <PostListPane
             posts={filteredPosts}
-            hidden={isReadLaterDocument ? isPostListHidden : (showImmersiveCanvas && !isPostListDrawerOpen)}
+            hidden={isPostListHidden || (!isReadLaterDocument && !isPostListDrawerOpen)}
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
