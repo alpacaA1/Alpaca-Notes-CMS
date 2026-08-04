@@ -3174,9 +3174,11 @@ textarea {
 }
 
 .editor-frame {
-  display: grid;
-  gap: 10px;
-  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  min-height: 36px;
 }
 
 .editor-frame__header {
@@ -3184,12 +3186,13 @@ textarea {
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  width: 100%;
+  gap: 8px;
 }
 
 .editor-frame h1 {
-  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
-  line-height: 1.25;
+  font-size: 1.05rem;
+  line-height: 1.2;
   font-weight: 600;
   color: var(--admin-text);
   opacity: 0.9;
@@ -3197,10 +3200,10 @@ textarea {
 
 .editor-frame__title-input {
   margin: 0;
-  padding: 2px 6px;
+  padding: 2px 4px;
   font: inherit;
-  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
-  line-height: 1.25;
+  font-size: 1.05rem;
+  line-height: 1.2;
   font-weight: 600;
   color: var(--admin-text);
   opacity: 0.9;
