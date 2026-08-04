@@ -3175,21 +3175,21 @@ textarea {
 
 .editor-frame {
   display: grid;
-  gap: 16px;
-  padding: 24px 26px;
+  gap: 10px;
+  padding: 12px 20px;
 }
 
 .editor-frame__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 18px;
+  gap: 12px;
 }
 
 .editor-frame h1 {
-  font-size: clamp(1.4rem, 2vw, 1.8rem);
-  line-height: 1.1;
+  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+  line-height: 1.25;
   font-weight: 600;
   color: var(--admin-text);
   opacity: 0.9;
@@ -3199,8 +3199,8 @@ textarea {
   margin: 0;
   padding: 2px 6px;
   font: inherit;
-  font-size: clamp(1.4rem, 2vw, 1.8rem);
-  line-height: 1.1;
+  font-size: clamp(1.2rem, 1.6vw, 1.45rem);
+  line-height: 1.25;
   font-weight: 600;
   color: var(--admin-text);
   opacity: 0.9;
