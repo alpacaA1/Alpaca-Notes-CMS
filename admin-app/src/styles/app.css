@@ -4941,6 +4941,91 @@ textarea {
   font-weight: 600;
 }
 
+.taxonomy-multi-select__option--editing,
+.filter-select__option--editing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 3px 6px 3px 8px;
+  border-radius: 8px;
+  background: rgba(141, 113, 77, 0.08);
+  border: 1px solid rgba(141, 113, 77, 0.22);
+}
+
+.taxonomy-multi-select__edit-input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 2px 8px;
+  font: inherit;
+  font-size: 0.84rem;
+  color: var(--admin-text);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(141, 113, 77, 0.28);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.taxonomy-multi-select__edit-input:focus {
+  border-color: var(--admin-warm, #d4a574);
+  box-shadow: 0 0 0 2px rgba(212, 165, 106, 0.2);
+}
+
+.admin-shell--dark .taxonomy-multi-select__edit-input {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.taxonomy-multi-select__edit-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.taxonomy-multi-select__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.taxonomy-multi-select__edit-btn--save {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.taxonomy-multi-select__edit-btn--save:hover {
+  color: #ffffff;
+  background: #10b981;
+  border-color: #10b981;
+}
+
+.taxonomy-multi-select__edit-btn--cancel {
+  color: var(--admin-soft);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.taxonomy-multi-select__edit-btn--cancel:hover {
+  color: var(--admin-text);
+  background: rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+.admin-shell--dark .taxonomy-multi-select__edit-btn--cancel {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
 .taxonomy-multi-select__option-trail {
   display: inline-flex;
   align-items: center;
