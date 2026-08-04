@@ -29,6 +29,8 @@ type SettingsPanelProps = {
   onTaxonomyCreate?: (type: TaxonomyType, name: string) => void
   onTaxonomyRename?: (type: TaxonomyType, oldName: string, newName: string) => void
   onTaxonomyDelete?: (type: TaxonomyType, name: string) => void
+  onSeriesRename?: (oldName: string, newName: string) => void
+  onSeriesDelete?: (name: string) => void
   onUploadImage?: (file: File) => Promise<{ markdown: string; publicUrl: string }>
   onImportFromUrl?: () => void
   isImportingFromUrl?: boolean
@@ -117,6 +119,8 @@ export default function SettingsPanel({
   onTaxonomyCreate,
   onTaxonomyRename,
   onTaxonomyDelete,
+  onSeriesRename,
+  onSeriesDelete,
   onUploadImage,
   onImportFromUrl,
   isImportingFromUrl = false,
@@ -520,6 +524,8 @@ export default function SettingsPanel({
                     triggerAriaLabel="系列"
                     searchPlaceholder="搜索或输入新系列"
                     onChange={(value) => onFieldChange('series', value || undefined)}
+                    onRenameOption={onSeriesRename}
+                    onDeleteOption={onSeriesDelete}
                   />
                 </div>
               ) : null}

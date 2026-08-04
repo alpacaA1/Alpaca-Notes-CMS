@@ -91,7 +91,7 @@ import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
 import type { ContentType, PostIndexItem } from './posts/post-types'
-import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent } from './posts/taxonomy-operations'
+import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent, findPostsWithSeries, renameSeriesInContent, deleteSeriesFromContent } from './posts/taxonomy-operations'
 import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
 
 type IndexedPostsByType = Record<ContentType, PostIndexItem[]>
@@ -3850,6 +3850,94 @@ export default function App() {
     setTaxonomyConfirm({ kind: 'delete', type, name, affectedPaths })
   }
 
+  const handleSeriesRename = (oldName: string, newName: string) => {
+    const affectedPaths = findPostsWithSeries(posts, oldName)
+
+    if (affectedPaths.length === 0) {
+      if (document && document.frontmatter.series === oldName) {
+        updateFrontmatter('series', newName)
+      }
+      return
+    }
+
+    if (!session) {
+      return
+    }
+
+    setIsBatchUpdating(true)
+    setBatchProgress('')
+    setError(null)
+
+    batchUpdatePostContents(
+      session,
+      affectedPaths,
+      `Rename series "${oldName}" to "${newName}"`,
+      (content) => renameSeriesInContent(content, oldName, newName),
+      (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+    )
+      .then((result) => {
+        if (document && document.frontmatter.series === oldName) {
+          updateFrontmatter('series', newName)
+        }
+        if (result.failed.length > 0) {
+          setError(`重命名系列完成，但 ${result.failed.length} 篇文章更新失败。`)
+        } else {
+          setSuccessMessage(`已将系列「${oldName}」重命名为「${newName}」。`)
+        }
+        return reloadAllPosts()
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : '重命名系列失败。')
+      })
+      .finally(() => {
+        setIsBatchUpdating(false)
+      })
+  }
+
+  const handleSeriesDelete = (name: string) => {
+    const affectedPaths = findPostsWithSeries(posts, name)
+
+    if (affectedPaths.length === 0) {
+      if (document && document.frontmatter.series === name) {
+        updateFrontmatter('series', undefined)
+      }
+      return
+    }
+
+    if (!session) {
+      return
+    }
+
+    setIsBatchUpdating(true)
+    setBatchProgress('')
+    setError(null)
+
+    batchUpdatePostContents(
+      session,
+      affectedPaths,
+      `Delete series "${name}"`,
+      (content) => deleteSeriesFromContent(content, name),
+      (completed, total) => setBatchProgress(`正在更新 ${completed}/${total} 篇文章…`),
+    )
+      .then((result) => {
+        if (document && document.frontmatter.series === name) {
+          updateFrontmatter('series', undefined)
+        }
+        if (result.failed.length > 0) {
+          setError(`删除系列完成，但 ${result.failed.length} 篇文章更新失败。`)
+        } else {
+          setSuccessMessage(`已删除系列「${name}」。`)
+        }
+        return reloadAllPosts()
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : '删除系列失败。')
+      })
+      .finally(() => {
+        setIsBatchUpdating(false)
+      })
+  }
+
   const handleTaxonomyConfirm = async () => {
     if (!taxonomyConfirm || !session) {
       return
@@ -4411,6 +4499,8 @@ export default function App() {
                 onTaxonomyCreate={handleTaxonomyCreate}
                 onTaxonomyRename={handleTaxonomyRename}
                 onTaxonomyDelete={handleTaxonomyDelete}
+                onSeriesRename={handleSeriesRename}
+                onSeriesDelete={handleSeriesDelete}
                 onUploadImage={handleUploadImage}
                 onImportFromUrl={() => { void handleImportFromUrl() }}
                 isImportingFromUrl={isImportingFromUrl}

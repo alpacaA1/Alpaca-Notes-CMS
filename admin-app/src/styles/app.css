@@ -4777,6 +4777,15 @@ textarea {
   transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
 }
 
+.taxonomy-multi-select__trigger-text {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .taxonomy-multi-select__trigger::after {
   display: none;
 }
@@ -6507,7 +6516,8 @@ textarea {
   display: none;
 }
 
-.taxonomy-multi-select__option-actions {
+.taxonomy-multi-select__option-actions,
+.filter-select__option-actions {
   display: flex;
   gap: 4px;
   opacity: 0;
@@ -6515,8 +6525,53 @@ textarea {
 }
 
 .taxonomy-multi-select__option:hover .taxonomy-multi-select__option-actions,
-.taxonomy-multi-select__option:focus-within .taxonomy-multi-select__option-actions {
+.taxonomy-multi-select__option:focus-within .taxonomy-multi-select__option-actions,
+.filter-select__option:hover .filter-select__option-actions,
+.filter-select__option:focus-within .filter-select__option-actions {
   opacity: 1;
+}
+
+.taxonomy-multi-select__confirm-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--admin-surface-strong, rgba(239, 68, 68, 0.08));
+  border: 1px solid var(--admin-button-danger-line, rgba(239, 68, 68, 0.3));
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.taxonomy-multi-select__confirm-text {
+  font-size: 0.78rem;
+  color: var(--admin-button-danger, #ef4444);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.taxonomy-multi-select__confirm-btn {
+  appearance: none;
+  border: 1px solid var(--admin-line);
+  background: var(--admin-surface, #ffffff);
+  color: var(--admin-text, #333333);
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  line-height: 1.2;
+}
+
+.taxonomy-multi-select__confirm-btn:hover {
+  background: var(--admin-surface-strong, #f3f4f6);
+}
+
+.taxonomy-multi-select__confirm-btn--danger {
+  border-color: var(--admin-button-danger-line, #ef4444);
+  background: var(--admin-button-danger, #ef4444);
+  color: #ffffff;
+}
+
+.taxonomy-multi-select__confirm-btn--danger:hover {
+  opacity: 0.9;
 }
 
 .taxonomy-multi-select__action-btn {

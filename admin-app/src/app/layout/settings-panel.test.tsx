@@ -123,16 +123,18 @@ describe('settings panel', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: '已发布' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
 
-    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    const categoryTrigger = screen.getByRole('button', { name: '选择分类' })
+    fireEvent.click(categoryTrigger)
     fireEvent.change(screen.getByLabelText('搜索分类'), { target: { value: '思' } })
     fireEvent.click(screen.getByRole('option', { name: '思考' }))
-    expect(screen.getByRole('button', { name: '移除分类 思考' })).toBeTruthy()
+    expect(categoryTrigger.textContent).toBe('思考')
 
-    fireEvent.click(screen.getByRole('button', { name: '选择标签' }))
+    const tagTrigger = screen.getByRole('button', { name: '选择标签' })
+    fireEvent.click(tagTrigger)
     fireEvent.click(screen.getByRole('option', { name: '记录' }))
-    expect(screen.getByRole('button', { name: '移除标签 记录' })).toBeTruthy()
+    expect(tagTrigger.textContent).toBe('记录')
 
-    fireEvent.click(screen.getByRole('button', { name: '移除分类 思考' }))
+    fireEvent.click(screen.getByRole('option', { name: '思考' }))
     fireEvent.change(screen.getByLabelText('永久链接'), { target: { value: 'new-title/' } })
 
     expect(onFieldChange).toHaveBeenCalledWith('date', '2026-04-03 10:12:13')
@@ -554,8 +556,8 @@ describe('settings panel', () => {
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
   })
 
-  it('keeps existing taxonomy selections visible and removable when indexed options are empty for existing posts', () => {
-    const { onFieldChange } = renderControlledSettingsPanel({
+  it('keeps existing taxonomy selections visible inside trigger when indexed options are empty for existing posts', () => {
+    renderControlledSettingsPanel({
       document: createExistingPost(),
       availableCategories: [],
       availableTags: [],
@@ -563,8 +565,8 @@ describe('settings panel', () => {
 
     expect((screen.getByLabelText('日期') as HTMLInputElement).value).toBe('2026-04-03T12:00')
     expect(screen.getByPlaceholderText('旧文章可留空')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '移除标签 产品' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '选择分类' }).textContent).toBe('专业')
+    expect(screen.getByRole('button', { name: '选择标签' }).textContent).toBe('产品')
     expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).disabled).toBe(false)
     expect((screen.getByRole('checkbox', { name: '已发布' }) as HTMLInputElement).checked).toBe(true)
     expect((screen.getByRole('checkbox', { name: '置顶' }) as HTMLInputElement).checked).toBe(false)
@@ -573,15 +575,8 @@ describe('settings panel', () => {
     expect(screen.getByText('暂无已索引的分类。')).toBeTruthy()
     expect(screen.queryByLabelText('搜索分类')).toBe(null)
 
-    fireEvent.click(screen.getByRole('button', { name: '移除分类 专业' }))
-
     fireEvent.click(screen.getByRole('button', { name: '选择标签' }))
     expect(screen.getByText('暂无已索引的标签。')).toBeTruthy()
     expect(screen.queryByLabelText('搜索标签')).toBe(null)
-
-    fireEvent.click(screen.getByRole('button', { name: '移除标签 产品' }))
-
-    expect(onFieldChange).toHaveBeenCalledWith('categories', [])
-    expect(onFieldChange).toHaveBeenCalledWith('tags', [])
   })
 })

@@ -79,6 +79,78 @@ export function deleteTaxonomyFromContent(
   return `${before}${updatedFrontmatter}${after}${rest}`
 }
 
+export function findPostsWithSeries(
+  posts: { path: string; series?: string | null }[],
+  seriesName: string,
+): string[] {
+  return posts
+    .filter((post) => post.series === seriesName)
+    .map((post) => post.path)
+}
+
+export function renameSeriesInContent(
+  content: string,
+  oldName: string,
+  newName: string,
+): string {
+  const frontmatterMatch = content.match(/^(---\n)([\s\S]*?\n)(---\n?)/)
+  if (!frontmatterMatch) {
+    return content
+  }
+
+  const before = frontmatterMatch[1]
+  const frontmatter = frontmatterMatch[2]
+  const after = frontmatterMatch[3]
+  const rest = content.slice(frontmatterMatch[0].length)
+
+  const lines = frontmatter.split('\n')
+  const updatedLines = lines.map((line) => {
+    if (/^series\s*:/.test(line)) {
+      const valMatch = line.match(/^series\s*:\s*(.*)$/)
+      if (valMatch) {
+        const rawVal = valMatch[1].trim().replace(/^['"]|['"]$/g, '').trim()
+        if (rawVal === oldName) {
+          return `series: "${newName}"`
+        }
+      }
+    }
+    return line
+  })
+
+  return `${before}${updatedLines.join('\n')}${after}${rest}`
+}
+
+export function deleteSeriesFromContent(
+  content: string,
+  seriesName: string,
+): string {
+  const frontmatterMatch = content.match(/^(---\n)([\s\S]*?\n)(---\n?)/)
+  if (!frontmatterMatch) {
+    return content
+  }
+
+  const before = frontmatterMatch[1]
+  const frontmatter = frontmatterMatch[2]
+  const after = frontmatterMatch[3]
+  const rest = content.slice(frontmatterMatch[0].length)
+
+  const lines = frontmatter.split('\n')
+  const updatedLines = lines.filter((line) => {
+    if (/^series\s*:/.test(line)) {
+      const valMatch = line.match(/^series\s*:\s*(.*)$/)
+      if (valMatch) {
+        const rawVal = valMatch[1].trim().replace(/^['"]|['"]$/g, '').trim()
+        if (rawVal === seriesName) {
+          return false
+        }
+      }
+    }
+    return true
+  })
+
+  return `${before}${updatedLines.join('\n')}${after}${rest}`
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 

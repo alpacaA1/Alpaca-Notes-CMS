@@ -67,10 +67,11 @@ describe('taxonomy multi select', () => {
     expect(option.getAttribute('aria-selected')).toBe('false')
   })
 
-  it('filters, selects multiple options, deselects from the dropdown, and removes selected chips', () => {
+  it('filters, selects multiple options, and deselects from the dropdown', () => {
     const { onChange } = renderControl({ availableOptions: ['专业', '思考', '记录'] })
+    const trigger = screen.getByRole('button', { name: '选择分类' })
 
-    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    fireEvent.click(trigger)
     fireEvent.change(screen.getByLabelText('搜索分类'), { target: { value: '思' } })
 
     expect(screen.getByRole('option', { name: '思考' })).toBeTruthy()
@@ -78,37 +79,33 @@ describe('taxonomy multi select', () => {
 
     fireEvent.click(screen.getByRole('option', { name: '思考' }))
     expect(onChange).toHaveBeenNthCalledWith(1, ['思考'])
+    expect(trigger.textContent).toBe('思考')
 
     fireEvent.change(screen.getByLabelText('搜索分类'), { target: { value: '' } })
     fireEvent.click(screen.getByRole('option', { name: '专业' }))
 
     expect(onChange).toHaveBeenNthCalledWith(2, ['思考', '专业'])
-    expect(screen.getByRole('button', { name: '移除分类 思考' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
+    expect(trigger.textContent).toBe('思考, 专业')
 
     fireEvent.click(screen.getByRole('option', { name: '专业' }))
     expect(onChange).toHaveBeenNthCalledWith(3, ['思考'])
-    expect(screen.queryByRole('button', { name: '移除分类 专业' })).toBe(null)
+    expect(trigger.textContent).toBe('思考')
 
-    fireEvent.click(screen.getByRole('button', { name: '移除分类 思考' }))
+    fireEvent.click(screen.getByRole('option', { name: '思考' }))
     expect(onChange).toHaveBeenNthCalledWith(4, [])
-    expect(screen.queryByRole('button', { name: '移除分类 思考' })).toBe(null)
+    expect(trigger.textContent).toBe('选择分类')
   })
 
-  it('shows empty indexed state without search or listbox and keeps selected chips visible when available options are empty', () => {
-    const { onChange } = renderControl({ initialValue: ['既有分类'], availableOptions: [] })
+  it('shows empty indexed state without search or listbox when available options are empty', () => {
+    renderControl({ initialValue: ['既有分类'], availableOptions: [] })
+    const trigger = screen.getByRole('button', { name: '选择分类' })
+    expect(trigger.textContent).toBe('既有分类')
 
-    expect(screen.getByRole('button', { name: '移除分类 既有分类' })).toBeTruthy()
-
-    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    fireEvent.click(trigger)
 
     expect(screen.getByText('暂无已索引的分类。')).toBeTruthy()
     expect(screen.queryByLabelText('搜索分类')).toBe(null)
     expect(screen.queryByRole('listbox', { name: '分类选项' })).toBe(null)
-
-    fireEvent.click(screen.getByRole('button', { name: '移除分类 既有分类' }))
-
-    expect(onChange).toHaveBeenCalledWith([])
   })
 
   it('shows no-results state outside the listbox and never creates freeform options from search input', () => {
@@ -126,7 +123,6 @@ describe('taxonomy multi select', () => {
 
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.queryByRole('option', { name: '自定义分类' })).toBe(null)
-    expect(screen.queryByRole('button', { name: '移除分类 自定义分类' })).toBe(null)
   })
 
   it('filters out blank taxonomy options, normalizes quoted values, and auto-focuses search when opened', () => {
@@ -139,23 +135,43 @@ describe('taxonomy multi select', () => {
     expect(screen.getAllByRole('option').map((option) => option.textContent?.trim())).toEqual(['专业', '思考'])
   })
 
-  it('normalizes already selected taxonomy chips and matches options against the normalized values', () => {
+  it('normalizes already selected taxonomy values and matches options against the normalized values', () => {
     renderControl({ initialValue: ['  "专业"   ', " '思考'   "], availableOptions: ['专业', '思考'] })
 
-    expect(screen.getByRole('button', { name: '移除分类 专业' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '移除分类 思考' })).toBeTruthy()
+    const trigger = screen.getByRole('button', { name: '选择分类' })
+    expect(trigger.textContent).toBe('专业, 思考')
 
-    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+    fireEvent.click(trigger)
 
     expect(screen.getByRole('option', { name: '专业' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('option', { name: '思考' }).getAttribute('aria-selected')).toBe('true')
   })
 
-  it('uses a floating overlay panel instead of expanding the document flow', () => {
-    expect(appStyles).toMatch(/\.taxonomy-multi-select\s*\{[^}]*position:\s*relative;/s)
-    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*position:\s*absolute;[^}]*top:\s*calc\(100%\s*\+\s*8px\);[^}]*left:\s*0;[^}]*right:\s*0;/s)
-    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*z-index:\s*60;/s)
-    expect(appStyles).toMatch(/\.taxonomy-multi-select__panel\s*\{[^}]*box-shadow:[^;]*0 18px 36px rgba\(36, 24, 10, 0\.14\)/s)
-    expect(appStyles).not.toMatch(/@media \(max-width: 720px\)[\s\S]*?\.taxonomy-multi-select__panel\s*\{[^}]*position:\s*static;/s)
+  it('requires secondary confirmation before calling onDeleteOption', () => {
+    const onDeleteOption = vi.fn()
+    render(
+      <TaxonomyMultiSelect
+        label="分类"
+        value={[]}
+        availableOptions={['前端']}
+        onChange={vi.fn()}
+        onDeleteOption={onDeleteOption}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+
+    const deleteBtn = screen.getByRole('button', { name: '删除分类 前端' })
+    fireEvent.click(deleteBtn)
+
+    expect(onDeleteOption).not.toHaveBeenCalled()
+    expect(screen.getByText('确定删除？')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '取消删除分类 前端' }))
+    expect(screen.queryByText('确定删除？')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: '删除分类 前端' }))
+    fireEvent.click(screen.getByRole('button', { name: '确认删除分类 前端' }))
+    expect(onDeleteOption).toHaveBeenCalledWith('前端')
   })
 })

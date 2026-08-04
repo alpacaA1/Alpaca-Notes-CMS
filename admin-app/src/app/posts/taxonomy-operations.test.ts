@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  deleteSeriesFromContent,
   deleteTaxonomyFromContent,
+  findPostsWithSeries,
   findPostsWithTaxonomy,
+  renameSeriesInContent,
   renameTaxonomyInContent,
 } from './taxonomy-operations'
 
@@ -122,5 +125,29 @@ describe('deleteTaxonomyFromContent', () => {
     expect(result).toContain('categories:')
     expect(result).not.toContain('  - 唯一')
     expect(result).toContain('  - 标签A')
+  })
+})
+
+describe('series operations', () => {
+  const posts = [
+    { path: 'a.md', series: 'React 入门' },
+    { path: 'b.md', series: 'Vue 实战' },
+    { path: 'c.md', series: 'React 入门' },
+  ]
+
+  it('finds posts with a specific series', () => {
+    expect(findPostsWithSeries(posts, 'React 入门')).toEqual(['a.md', 'c.md'])
+  })
+
+  it('renames series in content', () => {
+    const content = ['---', 'title: A', 'series: "React 入门"', '---', '', 'Body'].join('\n')
+    const result = renameSeriesInContent(content, 'React 入门', 'React 进阶')
+    expect(result).toContain('series: "React 进阶"')
+  })
+
+  it('deletes series from content', () => {
+    const content = ['---', 'title: A', 'series: "React 入门"', '---', '', 'Body'].join('\n')
+    const result = deleteSeriesFromContent(content, 'React 入门')
+    expect(result).not.toContain('series:')
   })
 })
