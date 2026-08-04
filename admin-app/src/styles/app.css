@@ -4945,12 +4945,12 @@ textarea {
 .filter-select__option--editing {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 34px;
-  padding: 3px 6px 3px 8px;
+  padding: 3px 4px;
   border-radius: 8px;
-  background: rgba(141, 113, 77, 0.08);
-  border: 1px solid rgba(141, 113, 77, 0.22);
+  background: transparent;
+  border: 0;
 }
 
 .taxonomy-multi-select__edit-input {
@@ -4961,21 +4961,24 @@ textarea {
   font: inherit;
   font-size: 0.84rem;
   color: var(--admin-text);
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid rgba(141, 113, 77, 0.28);
+  background: #ffffff;
+  border: 1px solid rgba(141, 113, 77, 0.18);
   border-radius: 6px;
   outline: none;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  box-shadow: none;
+  transition: border-color 150ms ease;
 }
 
-.taxonomy-multi-select__edit-input:focus {
+.taxonomy-multi-select__edit-input:focus,
+.taxonomy-multi-select__edit-input:focus-visible {
   border-color: var(--admin-warm, #d4a574);
-  box-shadow: 0 0 0 2px rgba(212, 165, 106, 0.2);
+  box-shadow: none;
+  outline: none;
 }
 
 .admin-shell--dark .taxonomy-multi-select__edit-input {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.95);
 }
 
