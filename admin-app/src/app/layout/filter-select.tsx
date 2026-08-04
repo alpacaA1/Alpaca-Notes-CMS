@@ -296,11 +296,6 @@ export default function FilterSelect({
                   >
                     <span className="filter-select__option-label">{option.label}</span>
                     <span className="filter-select__option-trail" aria-hidden="true">
-                      {isSelected && !isConfirmingDelete ? (
-                        <svg className="filter-select__check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                      ) : null}
 
                       {isConfirmingDelete ? (
                         <span className="taxonomy-multi-select__confirm-box" onClick={(e) => e.stopPropagation()}>

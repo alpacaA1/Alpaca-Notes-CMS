@@ -274,7 +274,7 @@ export default function PostListPane({
         })
 
   return (
-    <aside className={`post-pane${isDrawer ? ' post-pane--drawer' : ''}`}>
+    <aside className={`post-pane${isDrawer ? ' post-pane--drawer' : ''}${isDrawer && !isOpen ? ' is-closed' : ''}`}>
       <div className="post-pane__header">
         {isDrawer ? <div className="post-pane__drawer-top"><strong>文章列表</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章列表">×</button></div> : null}
         <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : '文章归档'}</p>

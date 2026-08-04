@@ -3086,6 +3086,13 @@ textarea {
   overscroll-behavior: contain;
   transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), opacity 220ms ease, visibility 220ms ease;
 }
+.admin-layout--drawers .post-pane--drawer.is-closed {
+  transform: translateX(calc(-100% - 40px));
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .admin-layout--drawers .settings-panel--drawer.is-closed {
   transform: translateX(calc(100% + 40px));
   opacity: 0;
@@ -4847,6 +4854,9 @@ textarea {
 .taxonomy-multi-select__search-icon {
   position: absolute;
   left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   color: var(--admin-soft);
   pointer-events: none;
 }
@@ -4854,7 +4864,7 @@ textarea {
 .taxonomy-multi-select__search input {
   width: 100%;
   min-height: 34px;
-  padding: 0 10px 0 32px;
+  padding: 0 10px 0 32px !important;
   font: inherit;
   font-size: 0.84rem;
   border: 1px solid rgba(141, 113, 77, 0.18);
@@ -6742,6 +6752,9 @@ textarea {
 .filter-select__search-icon {
   position: absolute;
   left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
   color: var(--admin-soft);
   pointer-events: none;
 }
@@ -6749,7 +6762,7 @@ textarea {
 .filter-select__search input {
   width: 100%;
   min-height: 34px;
-  padding: 0 10px 0 32px;
+  padding: 0 10px 0 32px !important;
   font: inherit;
   font-size: 0.84rem;
   border: 1px solid rgba(141, 113, 77, 0.18);

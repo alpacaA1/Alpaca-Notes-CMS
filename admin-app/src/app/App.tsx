@@ -4381,7 +4381,7 @@ export default function App() {
         <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReadLaterDocument ? ' admin-layout--drawers' : ''}`}>
           <PostListPane
             posts={filteredPosts}
-            hidden={isPostListHidden || (!isReadLaterDocument && !isPostListDrawerOpen)}
+            hidden={isReadLaterDocument ? isPostListHidden : (showImmersiveCanvas && !isPostListDrawerOpen)}
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
@@ -4402,6 +4402,7 @@ export default function App() {
             isTopBarHidden={hideTopBar}
             onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
             isDrawer={!isReadLaterDocument}
+            isOpen={isPostListDrawerOpen}
             onClose={() => setIsPostListDrawerOpen(false)}
           />
           {!isReadLaterDocument && (isPostListDrawerOpen || isSettingsDrawerOpen) ? <button type="button" className="editor-drawer-backdrop" aria-label="关闭抽屉" onClick={() => { setIsPostListDrawerOpen(false); setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }} /> : null}
