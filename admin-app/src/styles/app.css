@@ -10033,8 +10033,36 @@ textarea {
 }
 
 .post-dashboard__diary-month-nav-header {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 6px;
+}
+
+.post-dashboard__diary-month-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.post-dashboard__diary-month-toggle-all {
+  appearance: none;
+  border: 1px solid var(--admin-line);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--admin-soft);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.post-dashboard__diary-month-toggle-all:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--admin-text);
+  border-color: rgba(203, 167, 119, 0.44);
+  transform: translateY(-1px);
 }
 
 .post-dashboard__diary-month-nav-header strong {
@@ -10182,19 +10210,47 @@ textarea {
   box-shadow:
     0 10px 24px rgba(56, 41, 19, 0.05),
     inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  transition: padding 200ms ease, gap 200ms ease;
+}
+
+.post-dashboard__diary-month.is-collapsed {
+  gap: 0;
 }
 
 .post-dashboard__diary-month-header {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 0 4px;
+  padding: 6px 10px;
+  margin: -6px -10px;
+  border-radius: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 160ms ease;
+}
+
+.post-dashboard__diary-month-header:hover {
+  background: rgba(203, 167, 119, 0.08);
 }
 
 .post-dashboard__diary-month-meta {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.post-dashboard__diary-month-chevron {
+  display: inline-block;
+  font-size: 0.68rem;
+  color: var(--admin-soft);
+  transition: transform 200ms ease;
+  line-height: 1;
+}
+
+.post-dashboard__diary-month-chevron.is-collapsed {
+  transform: rotate(-90deg);
 }
 
 .post-dashboard__diary-month-meta h3 {
@@ -10207,6 +10263,24 @@ textarea {
 .post-dashboard__diary-month-meta span {
   color: var(--admin-soft);
   font-size: 0.82rem;
+}
+
+.post-dashboard__diary-month-toggle-btn {
+  appearance: none;
+  border: 1px solid var(--admin-line);
+  background: transparent;
+  color: var(--admin-soft);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.post-dashboard__diary-month-header:hover .post-dashboard__diary-month-toggle-btn {
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--admin-text);
+  border-color: rgba(203, 167, 119, 0.38);
 }
 
 .post-dashboard__diary-month-content {
@@ -12450,6 +12524,32 @@ textarea {
   border-color: rgba(255, 255, 255, 0.06);
   background: linear-gradient(180deg, rgba(28, 25, 21, 0.96), rgba(22, 19, 16, 0.96));
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.16);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-toggle-all {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--admin-muted);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-toggle-all:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--admin-text);
+  border-color: rgba(212, 165, 106, 0.35);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-toggle-btn {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .post-dashboard__diary-month-header:hover .post-dashboard__diary-month-toggle-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--admin-text);
+  border-color: rgba(212, 165, 106, 0.3);
 }
 
 .admin-shell--dark .post-dashboard__diary-month-chip {

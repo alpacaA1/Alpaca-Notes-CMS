@@ -88,6 +88,27 @@ const READ_LATER_SORT_OPTIONS: { value: PostSort; label: string }[] = [
 const VIEW_MODE_STORAGE_KEY = 'alpaca-dashboard-view-mode'
 const RECOVERY_DISMISS_STORAGE_PREFIX = 'alpaca-dashboard-dismissed-recovery:'
 const DIARY_ALL_MONTHS_KEY = 'all-months'
+const DIARY_COLLAPSED_MONTHS_KEY = 'alpaca-diary-collapsed-months'
+
+function readStoredCollapsedMonths(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(DIARY_COLLAPSED_MONTHS_KEY)
+    if (raw) {
+      return JSON.parse(raw)
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return {}
+}
+
+function saveStoredCollapsedMonths(collapsedMap: Record<string, boolean>) {
+  try {
+    localStorage.setItem(DIARY_COLLAPSED_MONTHS_KEY, JSON.stringify(collapsedMap))
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 function readStoredViewMode(): DashboardViewMode {
   try {
@@ -410,6 +431,7 @@ export default function PostDashboard({
   const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
+  const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>(readStoredCollapsedMonths)
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
@@ -502,6 +524,32 @@ export default function PostDashboard({
 
     return diaryMonthGroups.find((group) => group.monthKey === activeDiaryMonthKey)?.label || '全部月份'
   }, [activeDiaryMonthKey, diaryMonthGroups])
+
+  const toggleMonthCollapse = useCallback((monthKey: string) => {
+    setCollapsedMonths((prev) => {
+      const next = { ...prev, [monthKey]: !prev[monthKey] }
+      saveStoredCollapsedMonths(next)
+      return next
+    })
+  }, [])
+
+  const collapseAllMonths = useCallback(() => {
+    const next: Record<string, boolean> = {}
+    diaryMonthGroups.forEach((group) => {
+      next[group.monthKey] = true
+    })
+    setCollapsedMonths(next)
+    saveStoredCollapsedMonths(next)
+  }, [diaryMonthGroups])
+
+  const expandAllMonths = useCallback(() => {
+    const next: Record<string, boolean> = {}
+    diaryMonthGroups.forEach((group) => {
+      next[group.monthKey] = false
+    })
+    setCollapsedMonths(next)
+    saveStoredCollapsedMonths(next)
+  }, [diaryMonthGroups])
   useEffect(() => {
     if (!isDiary || activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY) {
       return
@@ -933,6 +981,24 @@ export default function PostDashboard({
                 <strong>{activeDiaryMonthKey === DIARY_ALL_MONTHS_KEY ? '按月浏览全部日记' : activeDiaryMonthLabel}</strong>
                 <span className="post-dashboard__diary-month-nav-note">共 {diaryMonthGroups.length} 个归档月份</span>
               </div>
+              <div className="post-dashboard__diary-month-nav-actions">
+                <button
+                  type="button"
+                  className="post-dashboard__diary-month-toggle-all"
+                  onClick={collapseAllMonths}
+                  title="全部折叠"
+                >
+                  全部折叠
+                </button>
+                <button
+                  type="button"
+                  className="post-dashboard__diary-month-toggle-all"
+                  onClick={expandAllMonths}
+                  title="全部展开"
+                >
+                  全部展开
+                </button>
+              </div>
             </div>
             <div className="post-dashboard__diary-month-pills">
               <button
@@ -955,7 +1021,12 @@ export default function PostDashboard({
                     type="button"
                     aria-label={`筛选 ${group.label}`}
                     className={`post-dashboard__diary-month-chip${activeDiaryMonthKey === group.monthKey ? ' is-active' : ''}`}
-                    onClick={() => setActiveDiaryMonthKey(group.monthKey)}
+                    onClick={() => {
+                      setActiveDiaryMonthKey(group.monthKey)
+                      if (collapsedMonths[group.monthKey]) {
+                        toggleMonthCollapse(group.monthKey)
+                      }
+                    }}
                   >
                     <span className="post-dashboard__diary-month-chip-label">{group.label}</span>
                     <span className="post-dashboard__diary-month-chip-meta">
@@ -972,90 +1043,118 @@ export default function PostDashboard({
             <div className="post-dashboard__diary-main-column">
             {visibleDiaryMonthGroups.map((group) => {
               const selectedInMonth = group.posts.filter((post) => selectedMaterialPathSet.has(post.path)).length
+              const isCollapsed = Boolean(collapsedMonths[group.monthKey])
 
               return (
-                <section key={group.monthKey} className="post-dashboard__diary-month">
-                  <div className="post-dashboard__diary-month-header">
+                <section key={group.monthKey} className={`post-dashboard__diary-month${isCollapsed ? ' is-collapsed' : ''}`}>
+                  <div
+                    className="post-dashboard__diary-month-header"
+                    onClick={() => toggleMonthCollapse(group.monthKey)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={!isCollapsed}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        toggleMonthCollapse(group.monthKey)
+                      }
+                    }}
+                  >
                     <div className="post-dashboard__diary-month-meta">
+                      <span className={`post-dashboard__diary-month-chevron${isCollapsed ? ' is-collapsed' : ''}`} aria-hidden="true">
+                        ▼
+                      </span>
                       <h3>{group.label}</h3>
-                      <span>{group.posts.length} 篇日记{selectedInMonth > 0 ? ` · 已选 ${selectedInMonth} 篇` : ''}</span>
+                      <span>{group.posts.length} 篇日记{selectedInMonth > 0 ? ` · 已选 ${selectedInMonth} 篇` : ''}{isCollapsed ? ' · 已折叠' : ''}</span>
                     </div>
+                    <button
+                      type="button"
+                      className="post-dashboard__diary-month-toggle-btn"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleMonthCollapse(group.monthKey)
+                      }}
+                    >
+                      {isCollapsed ? '展开' : '折叠'}
+                    </button>
                   </div>
-                  <div className="post-dashboard__diary-month-content">
-                    <div className="post-dashboard__diary-list">
-                      {group.posts.map((post) => {
-                        const isSelected = selectedMaterialPathSet.has(post.path)
-                        const isDeletingThisPost = deletingPostPath === post.path
-                        const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
-                        const isPinnedToggleDisabled = isDeleting || isTogglingPinned
+                  {!isCollapsed ? (
+                    <div className="post-dashboard__diary-month-content">
+                      <div className="post-dashboard__diary-list">
+                        {group.posts.map((post) => {
+                          const isSelected = selectedMaterialPathSet.has(post.path)
+                          const isDeletingThisPost = deletingPostPath === post.path
+                          const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
+                          const isPinnedToggleDisabled = isDeleting || isTogglingPinned
 
-                        return (
-                          <div
-                            key={post.path}
-                            className={`post-dashboard__diary-row${post.pinned ? ' post-dashboard__diary-row--pinned' : ''}${isSelected ? ' is-selected' : ''}`}
-                          >
-                            <label className="post-dashboard__diary-row-check">
-                              <input
-                                type="checkbox"
-                                aria-label={`选择日记 ${post.title}`}
-                                checked={isSelected}
-                                onChange={() => toggleMaterialSelection(post)}
-                              />
-                            </label>
-                            <button
-                              type="button"
-                              className="post-dashboard__diary-main"
-                              onClick={() => onOpenPost(post)}
+                          return (
+                            <div
+                              key={post.path}
+                              className={`post-dashboard__diary-row${post.pinned ? ' post-dashboard__diary-row--pinned' : ''}${isSelected ? ' is-selected' : ''}`}
                             >
-                              <span className="post-dashboard__diary-content">
-                                <span className="post-dashboard__diary-title">
-                                  <strong>{post.title}</strong>
-                                  {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
-                                </span>
-                                <span className="post-dashboard__diary-desc">{post.desc || '打开这篇日记，继续补全当天的记录。'}</span>
-                              </span>
-                              <span className="post-dashboard__diary-meta">
-                                <span className="post-dashboard__diary-date">{post.date ? post.date.slice(0, 10) : '无日期'}</span>
-                                <span className="post-dashboard__diary-tags">
-                                  {post.tags.length > 0 ? (
-                                    <>
-                                      <span className="post-dashboard__card-category">{post.tags[0]}</span>
-                                      {post.tags.length > 1 ? <span className="post-dashboard__tag-more">+{post.tags.length - 1}</span> : null}
-                                    </>
-                                  ) : (
-                                    <span className="post-dashboard__diary-fallback">内部记录</span>
-                                  )}
-                                </span>
-                                <span className="post-dashboard__diary-file">{post.path.replace(/^source\/diary\//, '')}</span>
-                              </span>
-                            </button>
-                            <div className="post-dashboard__list-actions">
+                              <label className="post-dashboard__diary-row-check">
+                                <input
+                                  type="checkbox"
+                                  aria-label={`选择日记 ${post.title}`}
+                                  checked={isSelected}
+                                  onChange={() => toggleMaterialSelection(post)}
+                                />
+                              </label>
                               <button
                                 type="button"
-                                className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
-                                onClick={() => onTogglePinned(post)}
-                                disabled={isPinnedToggleDisabled}
-                                aria-label={getPinActionLabel(contentType, post.pinned)}
-                                title={post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
+                                className="post-dashboard__diary-main"
+                                onClick={() => onOpenPost(post)}
                               >
-                                {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
+                                <span className="post-dashboard__diary-content">
+                                  <span className="post-dashboard__diary-title">
+                                    <strong>{post.title}</strong>
+                                    {post.pinned ? <span className="post-dashboard__pin-mark post-dashboard__pin-mark--inline">置顶</span> : null}
+                                  </span>
+                                  <span className="post-dashboard__diary-desc">{post.desc || '打开这篇日记，继续补全当天的记录。'}</span>
+                                </span>
+                                <span className="post-dashboard__diary-meta">
+                                  <span className="post-dashboard__diary-date">{post.date ? post.date.slice(0, 10) : '无日期'}</span>
+                                  <span className="post-dashboard__diary-tags">
+                                    {post.tags.length > 0 ? (
+                                      <>
+                                        <span className="post-dashboard__card-category">{post.tags[0]}</span>
+                                        {post.tags.length > 1 ? <span className="post-dashboard__tag-more">+{post.tags.length - 1}</span> : null}
+                                      </>
+                                    ) : (
+                                      <span className="post-dashboard__diary-fallback">内部记录</span>
+                                    )}
+                                  </span>
+                                  <span className="post-dashboard__diary-file">{post.path.replace(/^source\/diary\//, '')}</span>
+                                </span>
                               </button>
-                              <button
-                                type="button"
-                                className="post-list-item__delete-btn"
-                                onClick={() => onDeletePost(post)}
-                                disabled={isDeleting}
-                                aria-label={getDeleteActionLabel(contentType)}
-                                title={`删除《${post.title}》`}
-                              >
-                                {isDeletingThisPost ? '删除中…' : '删除'}
-                              </button>
+                              <div className="post-dashboard__list-actions">
+                                <button
+                                  type="button"
+                                  className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`}
+                                  onClick={() => onTogglePinned(post)}
+                                  disabled={isPinnedToggleDisabled}
+                                  aria-label={getPinActionLabel(contentType, post.pinned)}
+                                  title={post.pinned ? `取消《${post.title}》的置顶` : `置顶《${post.title}》`}
+                                >
+                                  {isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}
+                                </button>
+                                <button
+                                  type="button"
+                                  className="post-list-item__delete-btn"
+                                  onClick={() => onDeletePost(post)}
+                                  disabled={isDeleting}
+                                  aria-label={getDeleteActionLabel(contentType)}
+                                  title={`删除《${post.title}》`}
+                                >
+                                  {isDeletingThisPost ? '删除中…' : '删除'}
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                        )
-                      })}
+                          )
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  ) : null}
                 </section>
               )
             })}

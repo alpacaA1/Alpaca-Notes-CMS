@@ -500,4 +500,36 @@ describe('App indexing flow', () => {
     expect(screen.getByText('GitHub 会话已过期，请重新登录。')).toBeTruthy()
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:open-preview-image')
   })
+
+  it('allows collapsing and expanding diary month sections', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
+    vi.spyOn(postsModule, 'buildDiaryIndex').mockResolvedValue(diaryIndexedPosts)
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('为什么先把博客搭起来')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '日记' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    })
+
+    const collapseButton = screen.getByRole('button', { name: '折叠' })
+    fireEvent.click(collapseButton)
+
+    await waitFor(() => {
+      expect(screen.queryByText('五月第一则日记')).toBeNull()
+      expect(screen.getByText('展开')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '展开' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+    })
+  })
 })

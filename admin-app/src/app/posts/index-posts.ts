@@ -346,9 +346,28 @@ export function collectPostIndexFacets(posts: PostIndexItem[]) {
   const tags = Array.from(new Set(posts.flatMap((post) => post.tags))).sort((left, right) =>
     left.localeCompare(right, 'zh-CN'),
   )
-  const seriesList = Array.from(new Set(posts.map((post) => post.series).filter((value): value is string => Boolean(value)))).sort((left, right) =>
-    left.localeCompare(right, 'zh-CN'),
-  )
+
+  const seriesLatestDateMap = new Map<string, string>()
+  posts.forEach((post) => {
+    if (!post.series) {
+      return
+    }
+
+    const currentDate = seriesLatestDateMap.get(post.series) || ''
+    if (post.date && post.date > currentDate) {
+      seriesLatestDateMap.set(post.series, post.date)
+    }
+  })
+
+  const seriesList = Array.from(seriesLatestDateMap.keys()).sort((left, right) => {
+    const leftDate = seriesLatestDateMap.get(left) || ''
+    const rightDate = seriesLatestDateMap.get(right) || ''
+    if (leftDate !== rightDate) {
+      return rightDate.localeCompare(leftDate)
+    }
+
+    return left.localeCompare(right, 'zh-CN')
+  })
 
   return { categories, tags, seriesList }
 }

@@ -31,7 +31,15 @@ function groupPostsBySeries(posts: PostIndexItem[]): SeriesGroup[] {
       name,
       posts: sortPostIndex(seriesPosts, 'date-desc'),
     }))
-    .sort((left, right) => right.posts.length - left.posts.length)
+    .sort((left, right) => {
+      const leftDate = left.posts[0]?.date || ''
+      const rightDate = right.posts[0]?.date || ''
+      if (leftDate !== rightDate) {
+        return rightDate.localeCompare(leftDate)
+      }
+
+      return left.name.localeCompare(right.name, 'zh-CN')
+    })
 }
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
