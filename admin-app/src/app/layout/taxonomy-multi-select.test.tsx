@@ -174,4 +174,17 @@ describe('taxonomy multi select', () => {
     fireEvent.click(screen.getByRole('button', { name: '确认删除分类 前端' }))
     expect(onDeleteOption).toHaveBeenCalledWith('前端')
   })
+
+  it('renders check-icon svg when option is selected', () => {
+    renderControl({ initialValue: ['专业'], availableOptions: ['专业', '思考'] })
+    fireEvent.click(screen.getByRole('button', { name: '选择分类' }))
+
+    const selectedOption = screen.getByRole('option', { name: '专业' })
+    expect(selectedOption.className).toContain('is-selected')
+    expect(selectedOption.querySelector('.taxonomy-multi-select__check-icon')).toBeTruthy()
+
+    const unselectedOption = screen.getByRole('option', { name: '思考' })
+    expect(unselectedOption.className).not.toContain('is-selected')
+    expect(unselectedOption.querySelector('.taxonomy-multi-select__check-icon')).toBeNull()
+  })
 })
