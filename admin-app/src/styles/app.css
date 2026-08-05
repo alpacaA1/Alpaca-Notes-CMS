@@ -4985,7 +4985,7 @@ textarea {
 
 .taxonomy-multi-select__edit-input:focus,
 .taxonomy-multi-select__edit-input:focus-visible {
-  border-color: var(--admin-warm, #d4a574);
+  border-color: rgba(141, 113, 77, 0.4);
   box-shadow: none;
   outline: none;
 }
@@ -5138,10 +5138,17 @@ textarea {
 
 .taxonomy-multi-select__option:focus-visible,
 .taxonomy-multi-select__chip:focus-visible,
-.taxonomy-multi-select__trigger:focus-visible,
-.taxonomy-multi-select__search input:focus-visible {
+.taxonomy-multi-select__trigger:focus-visible {
   outline: 2px solid rgba(141, 113, 77, 0.4);
   outline-offset: 2px;
+}
+
+.taxonomy-multi-select__search input:focus,
+.taxonomy-multi-select__search input:focus-visible {
+  outline: none;
+  border-color: rgba(141, 113, 77, 0.4);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: none;
 }
 
 .settings-panel__toggle {
@@ -6943,7 +6950,8 @@ textarea {
 .filter-select__search input:hover,
 .filter-select__search input:focus,
 .filter-select__search input:focus-visible {
-  border-color: rgba(141, 113, 77, 0.24);
+  border-color: rgba(141, 113, 77, 0.4);
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: none;
   outline: none;
 }
@@ -7063,8 +7071,7 @@ textarea {
 
 .filter-select__trigger:focus-visible,
 .filter-select__trigger[aria-expanded='true'],
-.filter-select__option:focus-visible,
-.filter-select__search input:focus-visible {
+.filter-select__option:focus-visible {
   box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12);
 }
 
