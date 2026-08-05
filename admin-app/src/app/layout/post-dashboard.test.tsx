@@ -36,7 +36,7 @@ const readLaterPosts: PostIndexItem[] = [
     contentType: 'read-later',
     externalUrl: 'https://example.com/design',
     sourceName: 'Example Design',
-    readingStatus: 'reading',
+    readingStatus: 'unread',
     cover: null,
   },
 ]
@@ -554,4 +554,64 @@ describe('post dashboard', () => {
     fireEvent.click(screen.getByLabelText(`选择待读 ${readLaterPosts[0].title}`))
     expect(container.querySelectorAll('.post-dashboard__card-shell.is-selected')).toHaveLength(1)
   })
+
+  it('defaults statusFilter to unread for read-later mode', () => {
+    const unreadPost: PostIndexItem = {
+      path: 'source/read-later-items/unread-article.md',
+      sha: 'sha-rl-unread',
+      title: '未读待读文章',
+      date: '2026-04-03 10:00:00',
+      desc: 'desc',
+      published: false,
+      hasExplicitPublished: false,
+      categories: [],
+      tags: [],
+      permalink: 'read-later/unread-article/',
+      contentType: 'read-later',
+      readingStatus: 'unread',
+      cover: null,
+    }
+    const donePost: PostIndexItem = {
+      path: 'source/read-later-items/done-article.md',
+      sha: 'sha-rl-done',
+      title: '已读待读文章',
+      date: '2026-04-02 10:00:00',
+      desc: 'desc',
+      published: false,
+      hasExplicitPublished: false,
+      categories: [],
+      tags: [],
+      permalink: 'read-later/done-article/',
+      contentType: 'read-later',
+      readingStatus: 'done',
+      cover: null,
+    }
+
+    render(
+      <PostDashboard
+        posts={[unreadPost, donePost]}
+        search=""
+        isIndexing={false}
+        contentType="read-later"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    // Unread item should be visible by default, done item should not
+    expect(screen.getByText('未读待读文章')).toBeTruthy()
+    expect(screen.queryByText('已读待读文章')).toBeNull()
+
+    // Status filter toggle button for '未读' should be active
+    const unreadBtn = screen.getByRole('button', { name: '未读' })
+    expect(unreadBtn.className).toContain('is-active')
+
+    // Switch filter to '全部' should show both items
+    fireEvent.click(screen.getByRole('button', { name: '全部' }))
+    expect(screen.getByText('未读待读文章')).toBeTruthy()
+    expect(screen.getByText('已读待读文章')).toBeTruthy()
+  })
 })
+

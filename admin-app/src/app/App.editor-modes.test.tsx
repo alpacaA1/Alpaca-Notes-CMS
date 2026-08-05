@@ -68,7 +68,7 @@ const readLaterPost = {
   contentType: 'read-later' as const,
   externalUrl: 'https://example.com/original',
   sourceName: 'Mode Source',
-  readingStatus: 'reading' as const,
+  readingStatus: 'unread' as const,
 }
 
 const readLaterContent = `---
@@ -78,7 +78,7 @@ date: 2026-04-05 09:30:00
 desc: desc
 external_url: https://example.com/original
 source_name: Mode Source
-reading_status: reading
+reading_status: unread
 read_later: true
 nav_exclude: true
 layout: read-later-item

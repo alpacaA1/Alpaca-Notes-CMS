@@ -423,7 +423,9 @@ export default function PostDashboard({
   onSearchFocus,
   onOpenSeriesCollection,
 }: PostDashboardProps) {
-  const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>(() =>
+    contentType === 'read-later' ? 'unread' : 'all',
+  )
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null)
@@ -468,7 +470,7 @@ export default function PostDashboard({
   }, [isKnowledge, posts])
 
   useEffect(() => {
-    setStatusFilter('all')
+    setStatusFilter(contentType === 'read-later' ? 'unread' : 'all')
     setSelectedCategory(null)
     setSelectedTag(null)
     setSelectedSeries(null)
@@ -672,7 +674,7 @@ export default function PostDashboard({
   }, [onNewPost, onSearchFocus, toggleViewMode])
 
   const isFiltered =
-    statusFilter !== 'all' ||
+    statusFilter !== (isReadLater ? 'unread' : 'all') ||
     (!isReadLater && !isDiary && selectedCategory !== null) ||
     selectedTag !== null ||
     selectedSeries !== null ||
@@ -703,7 +705,7 @@ export default function PostDashboard({
   }, [filteredPosts.length])
 
   const clearFilters = () => {
-    setStatusFilter('all')
+    setStatusFilter(isReadLater ? 'unread' : 'all')
     setSelectedCategory(null)
     setSelectedTag(null)
     setSelectedSeries(null)
