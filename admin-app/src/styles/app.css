@@ -488,8 +488,8 @@ textarea {
 
 .admin-shell--dark .top-bar__search input:focus,
 .admin-shell--dark .top-bar__search input:focus-visible {
-  border-color: var(--admin-warm);
-  box-shadow: 0 0 0 2px rgba(212, 165, 106, 0.12);
+  border-color: rgba(212, 165, 106, 0.4);
+  box-shadow: none;
 }
 
 .admin-shell--dark .settings-panel input,
@@ -1193,8 +1193,7 @@ textarea {
 .admin-shell--dark .settings-panel__document-note-entry:focus-visible,
 .admin-shell--dark .settings-panel__document-note-action:focus-visible,
 .admin-shell--dark .settings-panel__linked-post:focus-visible,
-.admin-shell--dark .preview-content__wiki-link:focus-visible,
-.admin-shell--dark .top-bar__search input:focus-visible {
+.admin-shell--dark .preview-content__wiki-link:focus-visible {
   box-shadow: 0 0 0 4px rgba(212, 165, 106, 0.15);
 }
 
@@ -1476,8 +1475,9 @@ textarea {
 .top-bar__search input:focus,
 .top-bar__search input:focus-visible {
   outline: none;
-  border-color: var(--admin-warm);
-  box-shadow: 0 0 0 2px rgba(141, 113, 77, 0.12);
+  border-color: rgba(141, 113, 77, 0.4);
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: none;
 }
 
 .top-bar__search input::placeholder {
@@ -6415,8 +6415,7 @@ textarea {
 .editor-textarea:focus-visible,
 .settings-panel input:focus-visible,
 .settings-panel textarea:focus-visible,
-.settings-panel select:focus-visible,
-.top-bar__search input:focus-visible {
+.settings-panel select:focus-visible {
   outline: none;
   box-shadow: 0 0 0 4px rgba(141, 113, 77, 0.16);
 }
