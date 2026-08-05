@@ -722,19 +722,29 @@ export default function App() {
     if (!successMessage) {
       return
     }
-    const delay = adminView === 'feeds' ? 3200 : adminView === 'books' ? 3000 : null
-    if (delay === null) {
-      return
-    }
 
     const timeoutId = window.setTimeout(() => {
       setSuccessMessage(null)
-    }, delay)
+    }, 3200)
 
     return () => {
       window.clearTimeout(timeoutId)
     }
-  }, [adminView, successMessage])
+  }, [successMessage])
+
+  useEffect(() => {
+    if (!error) {
+      return
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setError(null)
+    }, 5000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [error])
 
   useEffect(() => {
     const availablePathsByType: Record<MaterialSourceType, Set<string>> = {
@@ -4110,6 +4120,36 @@ export default function App() {
     <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}${hideTopBar ? ' admin-shell--reader-top-bar-hidden' : ''}`}>
       <div className="admin-shell__glow admin-shell__glow--left" />
       <div className="admin-shell__glow admin-shell__glow--right" />
+      {(successMessage || error) && (
+        <div className="admin-shell__toast-container" role="region" aria-label="通知提示">
+          {successMessage ? (
+            <div className="admin-shell__toast admin-shell__toast--success" role="status" aria-live="polite">
+              <span className="admin-shell__toast-message">{successMessage}</span>
+              <button
+                type="button"
+                className="admin-shell__toast-close"
+                aria-label="关闭提示"
+                onClick={() => setSuccessMessage(null)}
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
+          {error ? (
+            <div className="admin-shell__toast admin-shell__toast--error" role="alert">
+              <span className="admin-shell__toast-message">{error}</span>
+              <button
+                type="button"
+                className="admin-shell__toast-close"
+                aria-label="关闭提示"
+                onClick={() => setError(null)}
+              >
+                ×
+              </button>
+            </div>
+          ) : null}
+        </div>
+      )}
       {!hideTopBar ? (
         <TopBar
           search={search}
@@ -4202,8 +4242,6 @@ export default function App() {
       ) : null}
       {isDashboard ? (
         <section className="admin-shell__viewport">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
           <PostDashboard
             posts={posts}
             search={search}
@@ -4247,16 +4285,6 @@ export default function App() {
         </section>
       ) : isFeedsView ? (
         <section className="admin-shell__viewport">
-          {successMessage ? (
-            <div className="admin-shell__toast admin-shell__toast--success" role="status" aria-live="polite">
-              {successMessage}
-            </div>
-          ) : null}
-          {error ? (
-            <div className="admin-shell__toast admin-shell__toast--error" role="alert">
-              {error}
-            </div>
-          ) : null}
           <FeedDashboard
             search={search}
             manualFeedUrl={manualFeedUrl}
@@ -4293,8 +4321,6 @@ export default function App() {
         </section>
       ) : isAnnotationsView ? (
         <section className="admin-shell__viewport">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
           <ReadLaterAnnotationsView
             annotations={readLaterAnnotationIndex}
             isLoading={isAnnotationIndexing}
@@ -4305,8 +4331,6 @@ export default function App() {
         </section>
       ) : isTrashView ? (
         <section className="admin-shell__viewport">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
           <TrashView
             entries={trashEntries}
             search={search}
@@ -4319,8 +4343,6 @@ export default function App() {
         </section>
       ) : isSeriesView ? (
         <section className="admin-shell__viewport">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
           <SeriesCollection
             posts={postsByType.post || []}
             contentType={contentType}
@@ -4330,8 +4352,6 @@ export default function App() {
         </section>
       ) : isBooksView ? (
         <section className="admin-shell__viewport admin-shell__viewport--books">
-          {successMessage ? <p className="success-message">{successMessage}</p> : null}
-          {error ? <p className="error-message">{error}</p> : null}
           <div className="books-workspace">
             <div className={`books-workspace__shelf${isBookReaderOpen ? '' : ' is-active'}`} aria-hidden={isBookReaderOpen}>
               <BookShelfView
@@ -4419,8 +4439,6 @@ export default function App() {
                       </div>
                     </section>
                   ) : null}
-                  {successMessage && !isDirty ? <p className="success-message">{successMessage}</p> : null}
-                  {error ? <p className="error-message">{error}</p> : null}
                   {mode === 'preview' ? (
                     <PreviewPane
                       title={document.frontmatter.title}

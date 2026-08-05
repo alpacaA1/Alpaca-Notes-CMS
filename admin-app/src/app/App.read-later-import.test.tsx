@@ -533,7 +533,7 @@ describe('App read-later import flow', () => {
     fireEvent.click(within(sidebar).getByRole('button', { name: 'Anthropic News' }))
 
     expect(await screen.findByRole('status')).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toBe('已加载《Anthropic News》最近 20 条内容。')
+    expect(screen.getByRole('status').textContent).toContain('已加载《Anthropic News》最近 20 条内容。')
     expect(container.querySelector('.success-message')).toBeNull()
   })
 
