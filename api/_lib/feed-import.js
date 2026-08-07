@@ -590,7 +590,9 @@ async function importTwitterProfileFeed(url, signal) {
     }
   }
 
+  const customRsshubBase = process.env.RSSHUB_BASE_URL?.trim();
   const candidateFeedUrls = [
+    ...(customRsshubBase ? [`${customRsshubBase.replace(/\/$/, '')}/twitter/user/${encodeURIComponent(username)}`] : []),
     `https://nitter.net/${encodeURIComponent(username)}/rss`,
     `https://rsshub.app/twitter/user/${encodeURIComponent(username)}`,
     `https://nitter.privacydev.net/${encodeURIComponent(username)}/rss`,
