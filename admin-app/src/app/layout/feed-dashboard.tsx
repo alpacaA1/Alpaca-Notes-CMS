@@ -976,8 +976,14 @@ export default function FeedDashboard({
             </div>
             {isPreviewLoading && !previewFeed ? (
               <div className="feed-dashboard__preview-empty">正在读取最近条目…</div>
+            ) : selectedSubscription?.lastError ? (
+              <div className="feed-dashboard__preview-empty">
+                抓取该 feed 失败：{selectedSubscription.lastError}
+              </div>
             ) : !previewFeed ? (
-              <div className="feed-dashboard__preview-empty">左侧选一个已订阅 feed，或手动添加新的 feed。</div>
+              <div className="feed-dashboard__preview-empty">
+                {selectedSubscription ? '当前 feed 暂时没有可读取的条目。' : '左侧选一个已订阅 feed，或手动添加新的 feed。'}
+              </div>
             ) : (
               <div className="feed-dashboard__preview-list">
                 {previewFeed.items.map((item) => {
@@ -1020,8 +1026,14 @@ export default function FeedDashboard({
           </div>
           {isPreviewLoading && !previewFeed ? (
             <div className="feed-dashboard__reader-empty">正在准备正文预览区…</div>
+          ) : selectedSubscription?.lastError ? (
+            <div className="feed-dashboard__reader-empty">
+              抓取该 feed 失败：{selectedSubscription.lastError}
+            </div>
           ) : !previewFeed ? (
-            <div className="feed-dashboard__reader-empty">选中 feed 后，这里显示当前条目的正文预览。</div>
+            <div className="feed-dashboard__reader-empty">
+              {selectedSubscription ? '选中条目后，这里显示当前条目的正文预览。' : '选中 feed 后，这里显示当前条目的正文预览。'}
+            </div>
           ) : !selectedPreviewItem ? (
             <div className="feed-dashboard__reader-empty">这个 feed 暂时没有可阅读的条目。</div>
           ) : isSelectedPreviewArticleLoading && !selectedPreviewArticle ? (

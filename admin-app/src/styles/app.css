@@ -8525,6 +8525,7 @@ textarea {
 .feed-dashboard__subscription-menu-wrap {
   position: relative;
   flex: 0 0 auto;
+  z-index: 20;
 }
 
 .feed-dashboard__folder-menu-wrap {
@@ -8536,6 +8537,7 @@ textarea {
   top: 50%;
   right: 4px;
   transform: translateY(-50%);
+  z-index: 20;
 }
 
 .feed-dashboard__folder-menu-btn,
@@ -8584,17 +8586,13 @@ textarea {
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  z-index: 10;
-  min-width: 116px;
-  padding: 5px;
-  border-radius: 8px;
-  border: 1px solid var(--admin-line-strong);
-  background: #fffefb;
-  box-shadow: 0 12px 28px rgba(43, 35, 25, 0.14);
-}
-
-.feed-dashboard__subscription-menu {
+  z-index: 1000;
   min-width: 128px;
+  padding: 5px;
+  border-radius: 10px;
+  border: 1px solid var(--admin-line-strong);
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(43, 35, 25, 0.22);
 }
 
 .feed-dashboard__folder-menu button,
@@ -8655,6 +8653,7 @@ textarea {
 
 .feed-dashboard__subscription-item {
   position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   min-height: 42px;
@@ -8666,8 +8665,14 @@ textarea {
   transition: border-color 160ms ease, background 160ms ease;
 }
 
-.feed-dashboard__subscription-item:hover {
+.feed-dashboard__subscription-item:hover,
+.feed-dashboard__subscription-item:focus-within {
+  z-index: 10;
   background: var(--feed-card-hover);
+}
+
+.feed-dashboard__subscription-item:has(.feed-dashboard__subscription-menu-btn[aria-expanded="true"]) {
+  z-index: 50;
 }
 
 .feed-dashboard__subscription-item.is-dragging {
