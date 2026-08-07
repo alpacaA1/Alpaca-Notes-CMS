@@ -335,3 +335,41 @@ test('importFeed blocks hostnames that resolve to private addresses', async () =
   );
   assert.equal(fetchCalls, 0);
 });
+
+test('importFeed converts Twitter / X user profile URL into RSS feed subscription', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.60', family: 4 }]);
+  const fetchCalls = [];
+
+  global.fetch = async (url) => {
+    fetchCalls.push(url);
+    if (url.includes('rsshub.app/twitter/user/karpathy')) {
+      return createMockResponse({
+        url,
+        headers: {
+          'content-type': 'application/rss+xml; charset=utf-8',
+        },
+        body: `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Andrej Karpathy on X</title>
+    <description>Latest posts</description>
+    <item>
+      <guid>tweet-1</guid>
+      <title>Karpathy: Neural Networks</title>
+      <link>https://x.com/karpathy/status/1001</link>
+      <description>Neural Networks are awesome.</description>
+    </item>
+  </channel>
+</rss>`,
+      });
+    }
+
+    return createMockResponse({ url, status: 404, body: '' });
+  };
+
+  const feed = await importFeed('https://x.com/karpathy');
+  assert.equal(feed.requestedUrl, 'https://x.com/karpathy');
+  assert.equal(feed.title, 'Andrej Karpathy on X');
+  assert.equal(feed.items.length, 1);
+  assert.equal(feed.items[0].title, 'Karpathy: Neural Networks');
+});

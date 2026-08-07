@@ -486,6 +486,59 @@ async function fetchAndParseFeed(url, signal) {
     body,
   };
 }
+const TWITTER_PROFILE_HOSTNAME_PATTERN = /^(?:mobile\.)?(?:twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com)$/i;
+const RESERVED_TWITTER_PATHS = new Set(['status', 'statuses', 'i', 'settings', 'search', 'home', 'explore', 'notifications', 'messages', 'tos', 'privacy']);
+
+function isTwitterProfileUrl(url) {
+  if (!TWITTER_PROFILE_HOSTNAME_PATTERN.test(url.hostname)) {
+    return false;
+  }
+
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts.length === 1 && !RESERVED_TWITTER_PATHS.has(parts[0].toLowerCase())) {
+    return true;
+  }
+
+  return false;
+}
+
+function readTwitterProfileUsername(url) {
+  return url.pathname.split('/').filter(Boolean)[0] || '';
+}
+
+async function importTwitterProfileFeed(url, signal) {
+  const username = readTwitterProfileUsername(url);
+  if (!username) {
+    throw new FeedImportError('未识别到有效的 X 用户名。', 400, 'invalid_twitter_user');
+  }
+
+  const candidateFeedUrls = [
+    `https://rsshub.app/twitter/user/${encodeURIComponent(username)}`,
+    `https://nitter.net/${encodeURIComponent(username)}/rss`,
+    `https://nitter.privacydev.net/${encodeURIComponent(username)}/rss`,
+    `https://nitter.poast.org/${encodeURIComponent(username)}/rss`,
+  ];
+
+  for (const candidateUrlStr of candidateFeedUrls) {
+    try {
+      const candidateUrl = validateFeedUrl(candidateUrlStr);
+      const result = await fetchAndParseFeed(candidateUrl, signal);
+      if (result?.parsed?.items?.length) {
+        return {
+          title: result.parsed.title || `@${username} on X`,
+          description: result.parsed.description || `@${username} 的 X 动态`,
+          requestedUrl: url.toString(),
+          finalUrl: candidateUrlStr,
+          items: result.parsed.items,
+        };
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  throw new FeedImportError(`暂无法抓取 @${username} 的 RSS 动态，目标源拒绝连接或需私密权限。`, 502, 'twitter_feed_failed');
+}
 
 async function importFeed(feedUrl) {
   const url = validateFeedUrl(feedUrl);
@@ -493,6 +546,10 @@ async function importFeed(feedUrl) {
   const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
+    if (isTwitterProfileUrl(url)) {
+      return await importTwitterProfileFeed(url, controller.signal);
+    }
+
     const { response, finalUrl } = await fetchFeedResponse(url, controller.signal);
     if (!response.ok) {
       const discoveredUrl = await discoverAlternateFeedUrl(url, controller.signal);
