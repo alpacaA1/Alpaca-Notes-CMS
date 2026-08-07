@@ -513,8 +513,8 @@ async function importTwitterProfileFeed(url, signal) {
   }
 
   const candidateFeedUrls = [
-    `https://rsshub.app/twitter/user/${encodeURIComponent(username)}`,
     `https://nitter.net/${encodeURIComponent(username)}/rss`,
+    `https://rsshub.app/twitter/user/${encodeURIComponent(username)}`,
     `https://nitter.privacydev.net/${encodeURIComponent(username)}/rss`,
     `https://nitter.poast.org/${encodeURIComponent(username)}/rss`,
   ];
@@ -537,7 +537,32 @@ async function importTwitterProfileFeed(url, signal) {
     }
   }
 
-  throw new FeedImportError(`暂无法抓取 @${username} 的 RSS 动态，目标源拒绝连接或需私密权限。`, 502, 'twitter_feed_failed');
+  // Check if the account is protected / private on X
+  try {
+    const fxResp = await fetch(`https://api.fxtwitter.com/${encodeURIComponent(username)}`, {
+      signal,
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'alpaca-notes-feed-importer/1.0',
+      },
+    });
+    if (fxResp.ok) {
+      const fxData = await fxResp.json();
+      if (fxData?.user?.protected) {
+        throw new FeedImportError(
+          `用户 @${username} 的 X 账号设置了私密保护（锁推），公开 API / RSS 无法获取其内容。`,
+          403,
+          'twitter_account_protected'
+        );
+      }
+    }
+  } catch (error) {
+    if (error instanceof FeedImportError) {
+      throw error;
+    }
+  }
+
+  throw new FeedImportError(`暂无法抓取 @${username} 的 RSS 动态，目标源拒绝连接或处于保护状态。`, 502, 'twitter_feed_failed');
 }
 
 async function importFeed(feedUrl) {
