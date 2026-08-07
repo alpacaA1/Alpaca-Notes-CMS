@@ -104,6 +104,18 @@ function isEditableTarget(target: EventTarget | null) {
   return target.isContentEditable || tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
 }
 
+function requestNextFrame(callback: () => void) {
+  if (
+    typeof window !== 'undefined' &&
+    typeof window.requestAnimationFrame === 'function' &&
+    process.env.NODE_ENV !== 'test'
+  ) {
+    window.requestAnimationFrame(callback)
+  } else {
+    callback()
+  }
+}
+
 export function readViewedFeedItemsByUrl(): ViewedFeedItemsByUrl {
   if (typeof window === 'undefined') {
     return {}
@@ -695,13 +707,9 @@ export default function FeedDashboard({
                 className="feed-dashboard__subscription-menu-danger"
                 onClick={() => {
                   setOpenSubscriptionMenuUrl(null)
-                  if (typeof window !== 'undefined') {
-                    window.requestAnimationFrame(() => {
-                      onRemoveSubscription(subscription)
-                    })
-                  } else {
+                  requestNextFrame(() => {
                     onRemoveSubscription(subscription)
-                  }
+                  })
                 }}
               >
                 Delete
@@ -791,13 +799,9 @@ export default function FeedDashboard({
                     onClick={() => {
                       const targetFolder = folderViewModel.folder as FeedFolder
                       setOpenFolderMenuId(null)
-                      if (typeof window !== 'undefined') {
-                        window.requestAnimationFrame(() => {
-                          handleDeleteFolderClick(targetFolder)
-                        })
-                      } else {
+                      requestNextFrame(() => {
                         handleDeleteFolderClick(targetFolder)
-                      }
+                      })
                     }}
                   >
                     Delete
