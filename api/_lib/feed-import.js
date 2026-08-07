@@ -506,10 +506,88 @@ function readTwitterProfileUsername(url) {
   return url.pathname.split('/').filter(Boolean)[0] || '';
 }
 
+async function fetchTwitterUserTimelineWithToken(username, authToken, ct0, signal) {
+  const bearerToken = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnwIzUaaNOGyLxoUsy8vh2hdxsi4%3D5O1pTemporalWebKey';
+  const headers = {
+    Authorization: bearerToken,
+    Cookie: `auth_token=${authToken}; ct0=${ct0}`,
+    'x-csrf-token': ct0,
+    'x-twitter-active-user': 'yes',
+    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  };
+
+  const apiUrl = `https://api.twitter.com/1.1/statuses/user_timeline.json?screen_name=${encodeURIComponent(username)}&count=20&tweet_mode=extended&include_rts=1`;
+  const response = await fetch(apiUrl, { headers, signal });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json();
+  if (!Array.isArray(payload) || payload.length === 0) {
+    return null;
+  }
+
+  const items = payload.map((tweet) => {
+    const tweetId = tweet.id_str || tweet.id;
+    const text = tweet.full_text || tweet.text || '';
+    const authorName = tweet.user?.name || username;
+    const screenName = tweet.user?.screen_name || username;
+    const itemUrl = `https://x.com/${screenName}/status/${tweetId}`;
+    const pubDate = tweet.created_at ? new Date(tweet.created_at).toISOString() : new Date().toISOString();
+
+    let mediaMd = '';
+    const photos = tweet.entities?.media || tweet.extended_entities?.media || [];
+    if (Array.isArray(photos) && photos.length > 0) {
+      mediaMd = '\n\n' + photos.map((p, i) => `![Media ${i + 1}](${p.media_url_https || p.media_url})`).join('\n\n');
+    }
+
+    return {
+      id: tweetId,
+      title: `${authorName}: "${text.slice(0, 80).replace(/[\r\n]+/g, ' ')}"`,
+      url: itemUrl,
+      summary: (text + mediaMd).slice(0, 320),
+      publishedAt: pubDate,
+      sourceName: `${authorName} (@${screenName})`,
+    };
+  });
+
+  const firstUser = payload[0]?.user;
+  const displayName = firstUser?.name ? `${firstUser.name} (@${firstUser.screen_name})` : `@${username}`;
+
+  return {
+    title: `${displayName} on X`,
+    description: firstUser?.description || `@${username} 的 X 动态`,
+    items,
+  };
+}
+
 async function importTwitterProfileFeed(url, signal) {
   const username = readTwitterProfileUsername(url);
   if (!username) {
     throw new FeedImportError('未识别到有效的 X 用户名。', 400, 'invalid_twitter_user');
+  }
+
+  const authToken = process.env.TWITTER_AUTH_TOKEN?.trim() || '';
+  const ct0 = process.env.TWITTER_CT0?.trim() || '1234567890abcdef1234567890abcdef';
+
+  if (authToken) {
+    try {
+      const feedResult = await fetchTwitterUserTimelineWithToken(username, authToken, ct0, signal);
+      if (feedResult?.items?.length) {
+        return {
+          title: feedResult.title || `@${username} on X`,
+          description: feedResult.description || `@${username} 的 X 动态`,
+          requestedUrl: url.toString(),
+          finalUrl: url.toString(),
+          items: feedResult.items,
+        };
+      }
+    } catch (error) {
+      if (error instanceof FeedImportError) {
+        throw error;
+      }
+    }
   }
 
   const candidateFeedUrls = [
@@ -562,7 +640,11 @@ async function importTwitterProfileFeed(url, signal) {
     }
   }
 
-  throw new FeedImportError(`暂无法抓取 @${username} 的 RSS 动态，目标源拒绝连接或处于保护状态。`, 502, 'twitter_feed_failed');
+  throw new FeedImportError(
+    `暂无法抓取 @${username} 的 RSS 动态。推荐在 Vercel 环境变量中配置 TWITTER_AUTH_TOKEN。`,
+    502,
+    'twitter_feed_failed'
+  );
 }
 
 async function importFeed(feedUrl) {
