@@ -695,7 +695,13 @@ export default function FeedDashboard({
                 className="feed-dashboard__subscription-menu-danger"
                 onClick={() => {
                   setOpenSubscriptionMenuUrl(null)
-                  onRemoveSubscription(subscription)
+                  if (typeof window !== 'undefined') {
+                    window.requestAnimationFrame(() => {
+                      onRemoveSubscription(subscription)
+                    })
+                  } else {
+                    onRemoveSubscription(subscription)
+                  }
                 }}
               >
                 Delete
@@ -782,7 +788,17 @@ export default function FeedDashboard({
                     type="button"
                     role="menuitem"
                     className="feed-dashboard__folder-menu-danger"
-                    onClick={() => handleDeleteFolderClick(folderViewModel.folder as FeedFolder)}
+                    onClick={() => {
+                      const targetFolder = folderViewModel.folder as FeedFolder
+                      setOpenFolderMenuId(null)
+                      if (typeof window !== 'undefined') {
+                        window.requestAnimationFrame(() => {
+                          handleDeleteFolderClick(targetFolder)
+                        })
+                      } else {
+                        handleDeleteFolderClick(targetFolder)
+                      }
+                    }}
                   >
                     Delete
                   </button>
