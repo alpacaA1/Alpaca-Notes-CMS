@@ -85,6 +85,25 @@ function readMowenArticleId(url) {
   return url.pathname.match(MOWEN_DETAIL_PATH_PATTERN)?.[1]?.trim() || '';
 }
 
+const TWITTER_HOSTNAME_PATTERN = /^(?:mobile\.)?(?:twitter\.com|x\.com|fxtwitter\.com|vxtwitter\.com|fixupx\.com)$/i;
+const TWITTER_STATUS_PATH_PATTERN = /(?:\/status\/|\/statuses\/)(\d+)/i;
+
+function isTwitterArticleUrl(url) {
+  return TWITTER_HOSTNAME_PATTERN.test(url.hostname) && TWITTER_STATUS_PATH_PATTERN.test(url.pathname);
+}
+
+function readTwitterStatusId(url) {
+  return url.pathname.match(TWITTER_STATUS_PATH_PATTERN)?.[1]?.trim() || '';
+}
+
+function readTwitterUsername(url) {
+  const parts = url.pathname.split('/').filter(Boolean);
+  if (parts.length >= 1 && parts[0] !== 'i' && parts[0] !== 'status') {
+    return parts[0];
+  }
+  return 'i';
+}
+
 function buildArticleRequestHeaders(url) {
   if (!isWeChatArticleUrl(url)) {
     return DEFAULT_ARTICLE_REQUEST_HEADERS;
@@ -859,6 +878,124 @@ async function importMowenArticle(finalArticleUrl, signal) {
   };
 }
 
+function formatFxTweetToArticle(tweet, finalUrl) {
+  const authorName = normalizeText(tweet?.author?.name) || 'X User';
+  const screenName = normalizeText(tweet?.author?.screen_name) || '';
+  const authorHandle = screenName ? `@${screenName}` : '';
+  const authorDisplay = authorHandle ? `${authorName} (${authorHandle})` : authorName;
+  const tweetText = String(tweet?.text || '').trim();
+  const titleText = tweetText.slice(0, 80).replace(/[\r\n]+/g, ' ') || 'X 推文';
+
+  let markdown = `**[${authorDisplay}](https://x.com/${screenName || ''})**\n\n${tweetText}`;
+
+  const photos = Array.isArray(tweet?.media?.photos)
+    ? tweet.media.photos
+    : Array.isArray(tweet?.media?.all)
+      ? tweet.media.all.filter((m) => m.type === 'photo')
+      : [];
+
+  if (photos.length > 0) {
+    const imagesMd = photos
+      .map((photo, index) => `![Tweet Media ${index + 1}](${photo.url})`)
+      .join('\n\n');
+    markdown += `\n\n${imagesMd}`;
+  }
+
+  if (tweet?.quote) {
+    const qAuthor = normalizeText(tweet.quote.author?.name) || 'X User';
+    const qHandle = tweet.quote.author?.screen_name ? `@${tweet.quote.author.screen_name}` : '';
+    const qText = String(tweet.quote.text || '').trim();
+    markdown += `\n\n> **${qAuthor} ${qHandle}**:\n> ${qText.replace(/\n/g, '\n> ')}`;
+  }
+
+  return {
+    title: `${authorDisplay}: "${titleText}"`,
+    desc: tweetText.slice(0, 160),
+    sourceName: `${authorDisplay} · X`,
+    markdown: enhanceImportedMarkdown(markdown, titleText),
+  };
+}
+
+function formatSyndicationTweetToArticle(payload, finalUrl) {
+  const authorName = normalizeText(payload?.user?.name) || 'X User';
+  const screenName = normalizeText(payload?.user?.screen_name) || '';
+  const authorHandle = screenName ? `@${screenName}` : '';
+  const authorDisplay = authorHandle ? `${authorName} (${authorHandle})` : authorName;
+  const tweetText = String(payload?.text || '').trim();
+  const titleText = tweetText.slice(0, 80).replace(/[\r\n]+/g, ' ') || 'X 推文';
+
+  let markdown = `**[${authorDisplay}](https://x.com/${screenName || ''})**\n\n${tweetText}`;
+
+  const photos = Array.isArray(payload?.photos) ? payload.photos : [];
+  if (photos.length > 0) {
+    const imagesMd = photos
+      .map((photo, index) => `![Tweet Media ${index + 1}](${photo.url})`)
+      .join('\n\n');
+    markdown += `\n\n${imagesMd}`;
+  }
+
+  return {
+    title: `${authorDisplay}: "${titleText}"`,
+    desc: tweetText.slice(0, 160),
+    sourceName: `${authorDisplay} · X`,
+    markdown: enhanceImportedMarkdown(markdown, titleText),
+  };
+}
+
+async function importTwitterArticle(finalArticleUrl, signal) {
+  const statusId = readTwitterStatusId(finalArticleUrl);
+  if (!statusId) {
+    throw new ArticleImportError('X / Twitter 推文链接格式无效。', 400);
+  }
+
+  const username = readTwitterUsername(finalArticleUrl);
+  const fxApiUrl = `https://api.fxtwitter.com/${encodeURIComponent(username)}/status/${statusId}`;
+
+  try {
+    const response = await fetch(fxApiUrl, {
+      signal,
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'alpaca-notes-importer/1.0',
+      },
+    });
+
+    if (response.ok) {
+      const payload = parseJsonPayload(
+        await readTextWithLimit(response, MAX_JSON_LENGTH, '推文正文返回内容过大，暂不支持导入。'),
+        '推文正文返回格式无效。'
+      );
+      if (payload?.code === 200 && payload?.tweet) {
+        return formatFxTweetToArticle(payload.tweet, finalArticleUrl.toString());
+      }
+    }
+  } catch (error) {
+    if (error instanceof ArticleImportError && error.statusCode === 413) {
+      throw error;
+    }
+  }
+
+  const syndicationUrl = `https://cdn.syndication.twimg.com/tweet-result?id=${statusId}&lang=zh-cn`;
+  const response = await fetch(syndicationUrl, {
+    signal,
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': WECHAT_BROWSER_USER_AGENT,
+    },
+  });
+
+  if (!response.ok) {
+    throw new ArticleImportError(`无法从 X 获取该推文内容（HTTP ${response.status}）。`, 502);
+  }
+
+  const payload = parseJsonPayload(
+    await readTextWithLimit(response, MAX_JSON_LENGTH, '推文正文返回内容过大，暂不支持导入。'),
+    '推文正文返回格式无效。'
+  );
+
+  return formatSyndicationTweetToArticle(payload, finalArticleUrl.toString());
+}
+
 async function importArticle(requestedUrl, options = {}) {
   const validatedRequestedUrl = validateArticleUrl(requestedUrl, '请填写有效的文章链接。');
   const controller = new AbortController();
@@ -867,6 +1004,22 @@ async function importArticle(requestedUrl, options = {}) {
   const includeImages = options.includeImages === true;
 
   try {
+    if (isTwitterArticleUrl(validatedRequestedUrl)) {
+      const extractedArticle = await importTwitterArticle(validatedRequestedUrl, controller.signal);
+      const finalUrl = validatedRequestedUrl.toString();
+      return {
+        title: extractedArticle.title,
+        desc: extractedArticle.desc,
+        sourceName: extractedArticle.sourceName,
+        markdown: extractedArticle.markdown,
+        images: includeImages
+          ? await downloadImportedImages(extractedArticle.markdown, finalUrl, controller.signal)
+          : [],
+        requestedUrl: validatedRequestedUrl.toString(),
+        finalUrl,
+      };
+    }
+
     const { response, finalUrl: finalArticleUrl } = await fetchArticleResponse(validatedRequestedUrl, controller.signal);
 
     if (!response.ok) {

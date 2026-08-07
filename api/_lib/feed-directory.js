@@ -103,11 +103,17 @@ async function fetchFeedDirectory() {
       throw new FeedDirectoryError('共享 RSS 源目录加载超时，请稍后重试。', 504, 'timeout');
     }
 
-    throw new FeedDirectoryError(
-      error instanceof Error ? error.message : '共享 RSS 源目录加载失败。',
-      500,
-      'feed_directory_error',
-    );
+    const cause = error?.cause || error;
+    const code = cause?.code || error?.code;
+    let message = error instanceof Error ? error.message : '共享 RSS 源目录加载失败。';
+
+    if (code === 'ENOTFOUND') {
+      message = '共享 RSS 源目录服务器域名无法解析，服务可能已迁移。';
+    } else if (message === 'fetch failed' || message.includes('fetch failed')) {
+      message = '无法连接到共享 RSS 源目录服务器。';
+    }
+
+    throw new FeedDirectoryError(message, 500, 'feed_directory_error');
   } finally {
     clearTimeout(timeoutId);
   }

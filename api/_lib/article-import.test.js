@@ -438,3 +438,39 @@ test('importArticle blocks redirects that point to private addresses', async () 
   );
   assert.deepEqual(fetchCalls, ['https://redirect.example/start']);
 });
+
+test('importArticle imports X / Twitter posts natively bypassing Mowen', async () => {
+  const fetchCalls = [];
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.30', family: 4 }]);
+
+  global.fetch = async (url) => {
+    fetchCalls.push(url);
+    if (url.includes('api.fxtwitter.com')) {
+      return createMockJsonResponse({
+        url,
+        json: {
+          code: 200,
+          tweet: {
+            text: 'AI is moving insanely fast.',
+            author: {
+              name: 'Andrej Karpathy',
+              screen_name: 'karpathy',
+            },
+            media: {
+              photos: [{ url: 'https://pbs.twimg.com/media/example.jpg' }],
+            },
+          },
+        },
+      });
+    }
+
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  const article = await importArticle('https://x.com/karpathy/status/1785368307049443657');
+  assert.equal(fetchCalls[0], 'https://api.fxtwitter.com/karpathy/status/1785368307049443657');
+  assert.match(article.title, /Andrej Karpathy/);
+  assert.match(article.sourceName, /karpathy/);
+  assert.match(article.markdown, /AI is moving insanely fast/);
+  assert.match(article.markdown, /https:\/\/pbs\.twimg\.com\/media\/example\.jpg/);
+});

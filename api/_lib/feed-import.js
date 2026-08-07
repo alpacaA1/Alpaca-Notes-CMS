@@ -565,7 +565,23 @@ async function importFeed(feedUrl) {
       throw new FeedImportError('RSS 抓取超时，请稍后重试。', 504, 'timeout');
     }
 
-    throw new FeedImportError(error instanceof Error ? error.message : 'RSS 导入失败。', 500, 'feed_import_failed');
+    const cause = error?.cause || error;
+    const code = cause?.code || error?.code;
+    let message = error instanceof Error ? error.message : 'RSS 导入失败。';
+
+    if (code === 'ENOTFOUND') {
+      message = '无法解析域名（ENOTFOUND），目标服务器可能已下线或不存在。';
+    } else if (code === 'ECONNREFUSED') {
+      message = '目标服务器拒绝连接（ECONNREFUSED）。';
+    } else if (code === 'ETIMEDOUT' || code === 'ESOCKETTIMEDOUT') {
+      message = '连接目标服务器超时（ETIMEDOUT）。';
+    } else if (code === 'ECONNRESET') {
+      message = '与目标服务器的连接被重置（ECONNRESET）。';
+    } else if (message === 'fetch failed' || message.includes('fetch failed')) {
+      message = '网络请求失败，无法连接到目标 RSS 服务器。';
+    }
+
+    throw new FeedImportError(message, 500, 'feed_import_failed');
   } finally {
     clearTimeout(timeoutId);
   }
