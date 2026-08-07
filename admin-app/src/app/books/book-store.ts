@@ -127,3 +127,95 @@ export async function countBookAnnotations() {
   }
   return counts
 }
+
+export interface BookLibraryBackup {
+  version: 1
+  exportedAt: string
+  books: Array<{
+    meta: StoredBookMeta
+    annotations: BookAnnotation[]
+  }>
+}
+
+export async function exportBookLibraryBackup(): Promise<BookLibraryBackup> {
+  const books = await listBookMetas()
+  const booksData = await Promise.all(
+    books.map(async (meta) => {
+      const annotations = await listBookAnnotations(meta.id)
+      return { meta, annotations }
+    }),
+  )
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    books: booksData,
+  }
+}
+
+export async function importBookLibraryBackup(backup: BookLibraryBackup): Promise<number> {
+  if (!backup || backup.version !== 1 || !Array.isArray(backup.books)) {
+    throw new Error('无效的电子书备份数据格式。')
+  }
+
+  let importedCount = 0
+  for (const item of backup.books) {
+    if (item.meta && item.meta.id) {
+      await putBookMeta(item.meta)
+      if (Array.isArray(item.annotations)) {
+        for (const annotation of item.annotations) {
+          if (annotation && annotation.id) {
+            await putBookAnnotation(annotation)
+          }
+        }
+      }
+      importedCount += 1
+    }
+  }
+
+  return importedCount
+}
+
+export async function exportBookAnnotationsToMarkdown(bookId: string): Promise<string> {
+  const metas = await listBookMetas()
+  const meta = metas.find((item) => item.id === bookId)
+
+  const title = meta?.title || '未命名电子书'
+  const creator = meta?.creator ? `\n- **作者**：${meta.creator}` : ''
+  const annotations = await listBookAnnotations(bookId)
+
+  if (!annotations.length) {
+    return `# 《${title}》读书笔记\n${creator}\n\n*暂无划线批注*`
+  }
+
+  const lines: string[] = [
+    `# 《${title}》读书笔记`,
+    creator,
+    `- **批注总数**：${annotations.length}`,
+    `- **导出时间**：${new Date().toLocaleString('zh-CN')}`,
+    '',
+    '---',
+    '',
+  ]
+
+  annotations.forEach((item, index) => {
+    lines.push(`### ${index + 1}. ${item.chapter || '章节片段'}`)
+    if (item.quote) {
+      lines.push(`> ${item.quote.split('\n').join('\n> ')}`)
+      lines.push('')
+    }
+    if (item.note) {
+      lines.push(`**笔记/想法**：${item.note}`)
+      lines.push('')
+    }
+    if (item.createdAt) {
+      lines.push(`*时间：${item.createdAt}*`)
+      lines.push('')
+    }
+    lines.push('---')
+    lines.push('')
+  })
+
+  return lines.join('\n').trim()
+}
+

@@ -231,7 +231,7 @@ export default function PostListPane({
   const normalizedDrawerSearch = drawerSearch.trim().toLowerCase()
   const visiblePosts = !isDrawer || !normalizedDrawerSearch
     ? posts
-    : posts.filter((post) => [post.title, post.desc, post.categories.join(' '), post.tags.join(' ')].join(' ').toLowerCase().includes(normalizedDrawerSearch))
+    : posts.filter((post) => [post.title, post.desc, post.series || '', post.categories.join(' '), post.tags.join(' ')].join(' ').toLowerCase().includes(normalizedDrawerSearch))
   const draftPosts = visiblePosts.filter((post) => !post.published)
   const publishedPosts = visiblePosts.filter((post) => post.published)
   const renderPosts = (items: PostIndexItem[]) => items.map((post) => {
@@ -262,7 +262,7 @@ export default function PostListPane({
                   </div>
                   <strong>{post.title}</strong>
                   {contentType !== 'diary' ? <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span> : null}
-                  <div className="post-row-button__footer"><span>{contentType === 'read-later' ? (post.sourceName || '未填写来源') : contentType === 'diary' ? (post.tags[0] || '内部记录') : contentType === 'knowledge' ? (post.sourceTitle || '手动新增') : (post.permalink || '旧链接')}</span><span>{contentType === 'read-later' ? (post.externalUrl || '未填写原文链接') : contentType === 'diary' ? post.path.replace(/^source\/diary\//, '') : contentType === 'knowledge' ? (post.sourceUrl || post.sourcePath || '内部知识库') : (post.categories[0] || '未分类')}</span></div>
+                  <div className="post-row-button__footer"><span>{contentType === 'read-later' ? (post.sourceName || '未填写来源') : contentType === 'diary' ? (post.tags[0] || '内部记录') : contentType === 'knowledge' ? (post.sourceTitle || '手动新增') : (post.series || '无系列')}</span><span>{contentType === 'read-later' ? (post.externalUrl || '未填写原文链接') : contentType === 'diary' ? post.path.replace(/^source\/diary\//, '') : contentType === 'knowledge' ? (post.sourceUrl || post.sourcePath || '内部知识库') : (post.permalink || '旧链接')}</span></div>
                 </button>
                 <div className="post-list-item__side-actions">
                   <button type="button" className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`} onClick={() => onTogglePinned(post)} disabled={isPinnedToggleDisabled} aria-label={getPinActionLabel(contentType, post.pinned)}>{isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}</button>
@@ -291,7 +291,7 @@ export default function PostListPane({
                 ? '优先看来源、摘录与标签，快速回到你要复习的点。'
               : '先看标题、链接和元信息，再打开对应稿件。'}
         </p>
-        {isDrawer ? <label className="post-pane__drawer-search"><span className="sr-only">搜索文章</span><input value={drawerSearch} onChange={(event) => setDrawerSearch(event.target.value)} placeholder="搜索标题、分类或标签" autoFocus /></label> : null}
+        {isDrawer ? <label className="post-pane__drawer-search"><span className="sr-only">搜索文章</span><input value={drawerSearch} onChange={(event) => setDrawerSearch(event.target.value)} placeholder="搜索标题或系列" autoFocus /></label> : null}
       </div>
       {isDrawer ? (
         <div className="post-pane__drawer-groups">
@@ -339,7 +339,7 @@ export default function PostListPane({
                           ? (post.tags[0] || '内部记录')
                           : contentType === 'knowledge'
                             ? (post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增'))
-                          : (post.permalink || '旧链接')}
+                          : (post.series || '无系列')}
                     </span>
                     <span>
                       {contentType === 'read-later'
@@ -348,7 +348,7 @@ export default function PostListPane({
                           ? post.path.replace(/^source\/diary\//, '')
                           : contentType === 'knowledge'
                             ? (post.sourceUrl || post.sourcePath || '内部知识库')
-                          : (post.categories[0] || '未分类')}
+                          : (post.permalink || '旧链接')}
                     </span>
                   </div>
                 </button>

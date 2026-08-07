@@ -50,4 +50,12 @@ describe('image upload helpers', () => {
       '![pasted-image](/Alpaca-Notes-CMS/images/2026/04/example.png)',
     )
   })
+
+  it('keeps gif files uncompressed without throwing', async () => {
+    const { compressImageToWebP } = await import('./image-upload')
+    const file = new File(['GIF89a'], 'animated.gif', { type: 'image/gif' })
+    const result = await compressImageToWebP(file)
+    expect(result).toBe(file)
+  })
 })
+

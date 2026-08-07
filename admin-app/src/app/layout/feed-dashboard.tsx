@@ -661,7 +661,14 @@ export default function FeedDashboard({
           onClick={() => onSelectSubscription(subscription)}
         >
           <span className="feed-dashboard__subscription-text">
-            <span className="feed-dashboard__subscription-title">{subscription.title || '未命名 feed'}</span>
+            <span className="feed-dashboard__subscription-title">
+              {subscription.title || '未命名 feed'}
+              {subscription.lastError ? (
+                <span className="feed-dashboard__subscription-error-badge" style={{ marginLeft: '4px', opacity: 0.85 }} title={`抓取失败：${subscription.lastError}`}>
+                  ⚠️
+                </span>
+              ) : null}
+            </span>
           </span>
           {unreadCount > 0 ? (
             <span

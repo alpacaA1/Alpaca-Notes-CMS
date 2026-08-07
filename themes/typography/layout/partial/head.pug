@@ -28,3 +28,7 @@ if theme.themeStyle == "dark"
 link(rel="alternate" type="application/atom+xml" title="ATOM 1.0" href= url_for(theme.rss || 'atom.xml'))
 link(rel="stylesheet", href= url_for('css/blog_basic.css'))
 link(rel="stylesheet", href= url_for('css/alpaca-custom.css'))
+meta(property="og:title", content= page.title || config.title)
+meta(property="og:description", content= page.description || page.excerpt || config.description)
+meta(property="og:type", content= page.title ? "article" : "website")
+meta(property="og:url", content= config.url + (page.path ? '/' + page.path : ''))

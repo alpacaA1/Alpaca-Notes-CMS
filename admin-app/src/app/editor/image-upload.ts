@@ -90,3 +90,66 @@ export function buildImageUploadDescriptor(file: File, now = new Date()) {
 export function buildImageMarkdown(defaultAlt: string, publicUrl: string) {
   return `![${defaultAlt}](${publicUrl})`
 }
+
+export async function compressImageToWebP(
+  file: File,
+  maxDimension = 1920,
+  quality = 0.85,
+): Promise<File> {
+  if (!file || file.type === 'image/gif' || !file.type.startsWith('image/')) {
+    return file
+  }
+
+  if (typeof document === 'undefined' || typeof HTMLCanvasElement === 'undefined') {
+    return file
+  }
+
+  try {
+    const objectUrl = URL.createObjectURL(file)
+    const img = new Image()
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load image for compression'))
+      img.src = objectUrl
+    })
+
+    let { width, height } = img
+    if (width > maxDimension || height > maxDimension) {
+      if (width > height) {
+        height = Math.round((height * maxDimension) / width)
+        width = maxDimension
+      } else {
+        width = Math.round((width * maxDimension) / height)
+        height = maxDimension
+      }
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      URL.revokeObjectURL(objectUrl)
+      return file
+    }
+
+    ctx.drawImage(img, 0, 0, width, height)
+    URL.revokeObjectURL(objectUrl)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob((b) => resolve(b), 'image/webp', quality)
+    })
+
+    if (!blob || blob.size === 0) {
+      return file
+    }
+
+    const { basename } = splitFileName(file.name)
+    const newName = `${sanitizeFilenamePart(basename)}.webp`
+    return new File([blob], newName, { type: 'image/webp' })
+  } catch {
+    return file
+  }
+}
+

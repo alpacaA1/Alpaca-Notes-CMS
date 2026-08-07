@@ -658,6 +658,24 @@ export default function BookReaderView({
             <button
               type="button"
               className="book-reader__header-btn"
+              onClick={async () => {
+                const { exportBookAnnotationsToMarkdown } = await import('./book-store')
+                const markdown = await exportBookAnnotationsToMarkdown(meta.id)
+                const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' })
+                const url = URL.createObjectURL(blob)
+                const link = document.createElement('a')
+                link.href = url
+                link.download = `《${meta.title}》读书笔记.md`
+                link.click()
+                URL.revokeObjectURL(url)
+              }}
+              title="导出当前电子书划线批注为 Markdown 笔记"
+            >
+              导出笔记
+            </button>
+            <button
+              type="button"
+              className="book-reader__header-btn"
               onClick={() => setIsImmersive(true)}
             >
               聚焦

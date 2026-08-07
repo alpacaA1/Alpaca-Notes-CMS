@@ -152,7 +152,7 @@ export default function SeriesCollection({ posts, contentType, onOpenPost, onBac
                             <span className={`post-status-badge post-status-badge--${post.published ? 'published' : 'draft'}`}>
                               {post.published ? '已发布' : '草稿'}
                             </span>
-                            <span>{post.categories[0] || '未分类'}</span>
+                            <span>{post.permalink || '旧链接'}</span>
                           </span>
                         </button>
                       )

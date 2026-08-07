@@ -119,14 +119,34 @@ export default function BookShelfView({
             <span className="book-shelf__toolbar-meta">
               共 {books.length} 本{filteredBooks.length !== books.length ? ` · 匹配 ${filteredBooks.length} 本` : ''}
             </span>
-            <button
-              type="button"
-              className="book-shelf__import-btn"
-              onClick={triggerImport}
-              disabled={isImporting}
-            >
-              {isImporting ? '正在导入…' : '导入电子书'}
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="book-shelf__import-btn"
+                onClick={async () => {
+                  const { exportBookLibraryBackup } = await import('./book-store')
+                  const data = await exportBookLibraryBackup()
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                  const url = URL.createObjectURL(blob)
+                  const link = document.createElement('a')
+                  link.href = url
+                  link.download = `alpaca-books-backup-${new Date().toISOString().slice(0, 10)}.json`
+                  link.click()
+                  URL.revokeObjectURL(url)
+                }}
+                title="导出所有电子书元数据与批注备份为 JSON 文件"
+              >
+                备份书库
+              </button>
+              <button
+                type="button"
+                className="book-shelf__import-btn"
+                onClick={triggerImport}
+                disabled={isImporting}
+              >
+                {isImporting ? '正在导入…' : '导入电子书'}
+              </button>
+            </div>
           </div>
 
           {filteredBooks.length === 0 ? (

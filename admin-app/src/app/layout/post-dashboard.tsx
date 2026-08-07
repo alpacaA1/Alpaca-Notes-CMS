@@ -1218,7 +1218,7 @@ export default function PostDashboard({
                   ? post.tags[0] || '内部记录'
                   : isKnowledge
                     ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增')
-                    : post.categories[0] || '未分类'
+                    : post.series || '无系列'
               const secondaryMeta = isReadLater
                 ? post.externalUrl || '未填写原文链接'
                 : isDiary
@@ -1243,7 +1243,7 @@ export default function PostDashboard({
                   </div>
                   <h3 className="post-dashboard__card-title">{post.title}</h3>
                   {contentType !== 'diary' ? <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p> : null}
-                  {post.tags.length > 0 ? (
+                  {(isReadLater || isDiary || isKnowledge) && post.tags.length > 0 ? (
                     <div className="post-dashboard__card-tags">
                       {post.tags.slice(0, 4).map((tag) => (
                         <TagBadge key={tag} tag={tag} />
@@ -1303,8 +1303,8 @@ export default function PostDashboard({
             <div className="post-dashboard__list-header-main">
               <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : isDiary ? '标记' : isKnowledge ? '来源内容' : '分类'}</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : isDiary ? '标记' : isKnowledge ? '来源内容' : '系列'}</span>
+              {(isReadLater || isDiary || isKnowledge) ? <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span> : null}
               <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : isDiary ? '文件' : isKnowledge ? '来源定位' : '链接'}</span>
             </div>
@@ -1357,21 +1357,23 @@ export default function PostDashboard({
                           ? post.tags[0] || '内部记录'
                           : isKnowledge
                             ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增')
-                          : post.categories[0] || '未分类'}
+                          : post.series || '无系列'}
                     </span>
                   </span>
-                  <span className="post-dashboard__list-col post-dashboard__list-col--tags">
-                    {post.tags.length > 0 ? (
-                      <span className="post-dashboard__list-tags">
-                        {post.tags.slice(0, 3).map((tag) => (
-                          <TagBadge key={tag} tag={tag} />
-                        ))}
-                        {post.tags.length > 3 ? <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span> : null}
-                      </span>
-                    ) : (
-                      <span className="post-dashboard__list-no-tags">—</span>
-                    )}
-                  </span>
+                  {(isReadLater || isDiary || isKnowledge) ? (
+                    <span className="post-dashboard__list-col post-dashboard__list-col--tags">
+                      {post.tags.length > 0 ? (
+                        <span className="post-dashboard__list-tags">
+                          {post.tags.slice(0, 3).map((tag) => (
+                            <TagBadge key={tag} tag={tag} />
+                          ))}
+                          {post.tags.length > 3 ? <span className="post-dashboard__tag-more">+{post.tags.length - 3}</span> : null}
+                        </span>
+                      ) : (
+                        <span className="post-dashboard__list-no-tags">—</span>
+                      )}
+                    </span>
+                  ) : null}
                   <span className="post-dashboard__list-col post-dashboard__list-col--date">
                     {post.date ? post.date.slice(0, 10) : '—'}
                   </span>
