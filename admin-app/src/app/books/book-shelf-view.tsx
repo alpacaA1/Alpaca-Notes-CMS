@@ -104,14 +104,23 @@ export default function BookShelfView({
           </svg>
           <p className="book-shelf__empty-title">书架还是空的</p>
           <p className="book-shelf__empty-desc">导入你的第一本 EPUB 或 PDF，文件仅存本机，不会上传。</p>
-          <button
-            type="button"
-            className="book-shelf__import-btn"
-            onClick={triggerImport}
-            disabled={isImporting}
-          >
-            {isImporting ? '正在导入…' : '导入电子书'}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className="book-shelf__import-btn"
+              onClick={triggerImport}
+              disabled={isImporting}
+            >
+              {isImporting ? '正在导入…' : '导入电子书'}
+            </button>
+            <button
+              type="button"
+              className="book-shelf__import-btn"
+              onClick={triggerRestore}
+            >
+              恢复备份
+            </button>
+          </div>
         </div>
       ) : (
         <>
@@ -137,6 +146,14 @@ export default function BookShelfView({
                 title="导出所有电子书元数据与批注备份为 JSON 文件"
               >
                 备份书库
+              </button>
+              <button
+                type="button"
+                className="book-shelf__import-btn"
+                onClick={triggerRestore}
+                title="选择先前备份的 JSON 文件恢复书架元数据与批注"
+              >
+                恢复备份
               </button>
               <button
                 type="button"

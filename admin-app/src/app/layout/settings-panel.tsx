@@ -753,8 +753,8 @@ export default function SettingsPanel({
             </label>
           ) : null}
 
-          {!isDiary && !isKnowledge ? (
-            <label>
+          {contentType === 'post' ? (
+            <label className="settings-panel__field">
               <span>永久链接</span>
               <input
                 aria-label="永久链接"
@@ -764,6 +764,28 @@ export default function SettingsPanel({
               />
               {validationErrors.permalink ? <span className="error-message">{validationErrors.permalink}</span> : null}
             </label>
+          ) : null}
+
+          {topicBacklinks.length > 0 && !isTopicDocument && !isLegacyTopicKnowledge ? (
+            <div className="settings-panel__field">
+              <span>反向引用 ({topicBacklinks.length})</span>
+              <div className="settings-panel__linked-posts">
+                {topicBacklinks.map((backlink, index) => (
+                  <button
+                    key={`${backlink.sourcePath}-${backlink.targetKey}-${backlink.excerpt}-${index}`}
+                    type="button"
+                    className="settings-panel__linked-post"
+                    onClick={() => onOpenLinkedPost?.(backlink.sourcePost)}
+                  >
+                    <div className="settings-panel__linked-post-meta">
+                      <strong>{backlink.sourceTitle}</strong>
+                      <span>{getLinkedPostTypeLabel(backlink.sourceContentType)} · {backlink.sourceDate.slice(0, 10) || '无日期'}</span>
+                    </div>
+                    <p>{backlink.excerpt || '点击打开原文'}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
           ) : null}
           </MetadataSection> : null}
         </div>

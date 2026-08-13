@@ -368,35 +368,42 @@ export function buildTopicBacklinkMap(posts: PostIndexItem[]) {
       ? [...blockquoteRanges, ...collectParagraphExcerptRanges(normalizedBody)]
       : blockquoteRanges
 
-    if (excerptRanges.length === 0) {
-      return
-    }
-
     parseWikiLinks(normalizedBody).forEach((link) => {
       const excerptRange = excerptRanges.find((range) => link.start >= range.start && link.start <= range.end)
-      if (!excerptRange?.excerpt) {
-        return
+      let excerpt = excerptRange?.excerpt || ''
+      if (!excerpt) {
+        const lineStart = normalizedBody.lastIndexOf('\n', link.start)
+        const lineEnd = normalizedBody.indexOf('\n', link.end)
+        const rawLine = normalizedBody.slice(lineStart < 0 ? 0 : lineStart + 1, lineEnd < 0 ? normalizedBody.length : lineEnd).trim()
+        excerpt = normalizeInlineLabel(rawLine)
+      }
+      if (!excerpt) {
+        excerpt = post.title
       }
 
       const resolvedTargetKey = resolveWikiLinkTargetKey(link.targetKey, topicNodeMap)
-      const backlinks = backlinkMap.get(resolvedTargetKey) || []
-      backlinks.push({
-        targetKey: resolvedTargetKey,
-        sourcePost: post,
-        sourcePath: post.path,
-        sourceTitle: post.title,
-        sourceDate: post.date,
-        sourceContentType: post.contentType || 'post',
-        excerpt: excerptRange.excerpt,
+      const targetKeysToRegister = Array.from(new Set([resolvedTargetKey, link.targetKey].filter(Boolean)))
+
+      targetKeysToRegister.forEach((key) => {
+        const backlinks = backlinkMap.get(key) || []
+        backlinks.push({
+          targetKey: key,
+          sourcePost: post,
+          sourcePath: post.path,
+          sourceTitle: post.title,
+          sourceDate: post.date,
+          sourceContentType: post.contentType || 'post',
+          excerpt,
+        })
+        backlinkMap.set(key, backlinks)
       })
-      backlinkMap.set(resolvedTargetKey, backlinks)
     })
   })
 
   backlinkMap.forEach((backlinks, targetKey) => {
     backlinkMap.set(
       targetKey,
-      [...backlinks].sort((left, right) => {
+      dedupeTopicBacklinks(backlinks).sort((left, right) => {
         const dateCompare = right.sourceDate.localeCompare(left.sourceDate)
         if (dateCompare !== 0) {
           return dateCompare

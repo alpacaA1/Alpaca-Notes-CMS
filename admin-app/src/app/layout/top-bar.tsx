@@ -61,6 +61,20 @@ function FontSizeIcon() {
   )
 }
 
+function RenderSaveBadge({ label }: { label: string }) {
+  const isSaved = label.includes('已保存')
+  const isSaving = label.includes('保存中')
+  const statusClass = isSaved ? 'is-saved' : isSaving ? 'is-saving' : 'is-dirty'
+
+  return (
+    <span className={`top-bar__save-badge ${statusClass}`}>
+      <span className="top-bar__status-dot" aria-hidden="true" />
+      <span className="top-bar__status-text">{label}</span>
+    </span>
+  )
+}
+
+
 function TrashIcon() {
   return (
     <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -130,6 +144,7 @@ type TopBarProps = {
   onCopyCurrentPath?: () => void
   onExportCurrent?: () => void
   onDuplicateCurrent?: () => void
+  onOpenCommandPalette?: () => void
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
@@ -254,6 +269,7 @@ export default function TopBar({
   onCopyCurrentPath,
   onExportCurrent,
   onDuplicateCurrent,
+  onOpenCommandPalette,
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
@@ -526,7 +542,7 @@ export default function TopBar({
             onClick={onSave}
             disabled={isSaveDisabled}
           >
-            {saveLabel}
+            <RenderSaveBadge label={saveLabel} />
           </button>
           <div className="top-bar__editor-more">
             <button
@@ -705,7 +721,7 @@ export default function TopBar({
                 onClick={onSave}
                 disabled={isSaveDisabled}
               >
-                {saveLabel}
+                <RenderSaveBadge label={saveLabel} />
               </button>
               {showPreviewToggle ? (
                 <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
@@ -716,6 +732,17 @@ export default function TopBar({
           ) : null}
         </div>
         <div className="top-bar__utility-actions">
+          {onOpenCommandPalette ? (
+            <button
+              className="top-bar__button top-bar__button--cmd-k"
+              type="button"
+              onClick={onOpenCommandPalette}
+              aria-label="命令面板 (⌘K)"
+              title="命令面板 (⌘K)"
+            >
+              <kbd className="top-bar__cmd-k-kbd">⌘K</kbd>
+            </button>
+          ) : null}
           {showReadingFontButton ? (
             <div className="top-bar__reading-font">
               <button

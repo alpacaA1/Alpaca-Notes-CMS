@@ -35,6 +35,7 @@ import { resolveContentFormat } from './content-format'
 import { FEED_SUBSCRIPTIONS_PATH } from './config'
 import { organizeWritingMaterials, type DiaryAiEntry, type ReadLaterAiEntry, type WritingMaterialEntry } from './diary/diary-ai-client'
 import TopBar from './layout/top-bar'
+import { CommandPalette, type CommandPaletteOption } from './layout/command-palette'
 import PostListPane from './layout/post-list-pane'
 import PostDashboard from './layout/post-dashboard'
 import SeriesCollection from './layout/series-collection'
@@ -622,6 +623,7 @@ export default function App() {
   const [batchProgress, setBatchProgress] = useState('')
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
   const [isPostListDrawerOpen, setIsPostListDrawerOpen] = useState(false)
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
@@ -654,6 +656,11 @@ export default function App() {
     }
 
     const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setIsCommandPaletteOpen((prev) => !prev)
+        return
+      }
       if (event.key === 'Escape') {
         setIsPostListDrawerOpen(false)
         setIsSettingsDrawerOpen(false)
@@ -1665,6 +1672,27 @@ export default function App() {
           : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
     setAdminView('editor')
+  }
+
+  const handleCreatePostFromBookAnnotations = async (bookId: string) => {
+    if (!(await confirmNavigation())) {
+      return
+    }
+
+    const { exportBookAnnotationsToMarkdown, listBookMetas } = await import('./books/book-store')
+    const metas = await listBookMetas()
+    const book = metas.find((b) => b.id === bookId)
+    const title = book?.title ? `《${book.title}》读书笔记` : '电子书划线笔记'
+    const markdownBody = await exportBookAnnotationsToMarkdown(bookId)
+    const newPost = createNewPost(undefined, getNextNumericPermalink(postsByType.post))
+    newPost.frontmatter.title = title
+    newPost.body = markdownBody
+
+    setEditorNavigationStack([])
+    setContentType('post')
+    openDocument(newPost)
+    setAdminView('editor')
+    setSuccessMessage(`已基于《${book?.title || '电子书'}》批注生成新草稿。`)
   }
 
   const openIndexedPost = async (post: PostIndexItem, options?: OpenIndexedPostOptions) => {
@@ -4153,6 +4181,7 @@ export default function App() {
       {!hideTopBar ? (
         <TopBar
           search={search}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onSearchChange={setSearch}
           onNewPost={handleNewPost}
           onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
@@ -4389,6 +4418,7 @@ export default function App() {
                       onProgressChange={handleBookProgressChange}
                       onAnnotationsChange={handleBookAnnotationsChange}
                       onImmersiveChange={isActive ? setIsBookReaderImmersive : undefined}
+                      onCreatePostFromAnnotations={(bookId) => { void handleCreatePostFromBookAnnotations(bookId) }}
                       isActive={isActive}
                     />
                   )}
@@ -4617,6 +4647,19 @@ export default function App() {
           onCancel={() => closeAppConfirm(false)}
         />
       ) : null}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        options={[
+          { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: handleNewPost },
+          { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
+          { id: 'books', label: '电子书架', category: '导航', icon: '📚', action: handleOpenBooks },
+          { id: 'feeds', label: 'RSS 订阅与高光', category: '导航', icon: '📡', action: handleOpenFeeds },
+          { id: 'trash', label: '回收站', category: '导航', icon: '🗑️', action: handleOpenTrash },
+          { id: 'toggle-immersive', label: isImmersive ? '退出沉浸模式' : '进入沉浸模式', category: '视图', icon: '👁️', shortcut: 'Esc / ⌘\\', action: () => setIsImmersive((prev) => !prev) },
+          { id: 'toggle-theme', label: isDark ? '切换至浅色模式' : '切换至深色模式', category: '外观', icon: '🌓', action: toggleColorMode },
+        ]}
+      />
     </main>
   )
 }

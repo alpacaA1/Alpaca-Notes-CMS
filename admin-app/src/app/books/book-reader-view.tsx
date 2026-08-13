@@ -30,6 +30,7 @@ type BookReaderViewProps = {
   onProgressChange: (meta: StoredBookMeta) => void
   onAnnotationsChange: (bookId: string, count: number) => void
   onImmersiveChange?: (isImmersive: boolean) => void
+  onCreatePostFromAnnotations?: (bookId: string) => void
   isActive?: boolean
 }
 
@@ -141,6 +142,7 @@ export default function BookReaderView({
   onProgressChange,
   onAnnotationsChange,
   onImmersiveChange,
+  onCreatePostFromAnnotations,
   isActive = true,
 }: BookReaderViewProps) {
   const mountRef = useRef<HTMLDivElement | null>(null)
@@ -673,6 +675,16 @@ export default function BookReaderView({
             >
               导出笔记
             </button>
+            {onCreatePostFromAnnotations ? (
+              <button
+                type="button"
+                className="book-reader__header-btn"
+                onClick={() => onCreatePostFromAnnotations(meta.id)}
+                title="基于当前划线批注生成新稿件草稿"
+              >
+                转为草稿
+              </button>
+            ) : null}
             <button
               type="button"
               className="book-reader__header-btn"
