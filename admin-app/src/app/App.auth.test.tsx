@@ -31,10 +31,10 @@ describe('App auth flow', () => {
     expect(screen.getByRole('button', { name: '用户与工具菜单' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
-    const toolHubLink = screen.getByRole('link', { name: /Tool Hub/ })
+    const toolHubLink = screen.getByRole('menuitem', { name: /Tool Hub/ })
     expect(toolHubLink).toBeTruthy()
     expect(toolHubLink.getAttribute('href')).toBe('https://alpacaa1.github.io/json-check/')
-    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
+    expect(screen.getByRole('menuitem', { name: '退出登录' })).toBeTruthy()
   })
 
   it('starts popup login and renders the authenticated workspace on success', async () => {
@@ -68,7 +68,7 @@ describe('App auth flow', () => {
 
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
-    fireEvent.click(screen.getByRole('button', { name: '退出登录' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '退出登录' }))
 
     expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()
     expect(screen.queryByText('请选择一篇文章开始编辑，或新建一篇草稿。')).not.toBeTruthy()
