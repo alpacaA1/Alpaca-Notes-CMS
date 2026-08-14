@@ -28,6 +28,12 @@ describe('App auth flow', () => {
     render(<App />)
 
     expect(screen.getByText('文章管理')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '用户与工具菜单' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
+    const toolHubLink = screen.getByRole('link', { name: /Tool Hub/ })
+    expect(toolHubLink).toBeTruthy()
+    expect(toolHubLink.getAttribute('href')).toBe('https://alpacaa1.github.io/json-check/')
     expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
   })
 
@@ -43,7 +49,7 @@ describe('App auth flow', () => {
       expect(screen.getByText('文章管理')).toBeTruthy()
     })
 
-    expect(screen.getByRole('button', { name: '退出登录' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '用户与工具菜单' })).toBeTruthy()
   })
 
   it('shows the login error and keeps the user at the gate when login fails', async () => {
@@ -61,6 +67,7 @@ describe('App auth flow', () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
 
     render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
     fireEvent.click(screen.getByRole('button', { name: '退出登录' }))
 
     expect(screen.getByRole('button', { name: 'Sign in with GitHub' })).toBeTruthy()

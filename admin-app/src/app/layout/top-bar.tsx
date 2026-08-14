@@ -7,6 +7,8 @@ import {
   READING_FONT_WEIGHTS,
 } from './use-reading-font'
 
+const TOOL_HUB_URL = 'https://alpacaa1.github.io/json-check/'
+
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
 
 function AlpacaLogo() {
@@ -56,8 +58,53 @@ function MoonIcon() {
 function FontSizeIcon() {
   return (
     <svg className="top-bar__font-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path d="M3.7 15 7.4 5.6h1.2L12.3 15h-1.6l-0.95-2.6H6.2L5.3 15H3.7Zm2.92-3.9h2.96l-1.46-4.05-1.5 4.05Z" fill="currentColor" />
-      <path d="M13.4 13.4h4.2v1.18h-5.5v-1.06l1.62-1.74c.66-.72 1.06-1.18 1.2-1.4.18-.28.27-.55.27-.82 0-.32-.1-.58-.3-.78-.2-.2-.46-.3-.8-.3-.3 0-.55.08-.78.25-.22.16-.4.4-.52.7l-1.18-.4c.18-.55.5-.98.92-1.28.43-.3.94-.45 1.54-.45.7 0 1.27.2 1.7.6.43.4.64.93.64 1.6 0 .4-.1.78-.3 1.14-.18.36-.6.87-1.24 1.54l-1.46 1.56Z" fill="currentColor" opacity="0.92" />
+      <path
+        d="M3.7 15 7.4 5.6h1.2L12.3 15h-1.6l-0.95-2.6H6.2L5.3 15H3.7Zm2.92-3.9h2.96l-1.46-4.05-1.5 4.05Z"
+        fill="currentColor"
+      />
+      <path
+        d="M13.4 13.4h4.2v1.18h-5.5v-1.06l1.62-1.74c.66-.72 1.06-1.18 1.2-1.4.18-.28.27-.55.27-.82 0-.32-.1-.58-.3-.78-.2-.2-.46-.3-.8-.3-.3 0-.55.08-.78.25-.22.16-.4.4-.52.7l-1.18-.4c.18-.55.5-.98.92-1.28.43-.3.94-.45 1.54-.45.7 0 1.27.2 1.7.6.43.4.64.93.64 1.6 0 .4-.1.78-.3 1.14-.18.36-.6.87-1.24 1.54l-1.46 1.56Z"
+        fill="currentColor"
+        opacity="0.92"
+      />
+    </svg>
+  )
+}
+
+function UserIcon() {
+  return (
+    <svg className="top-bar__theme-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="6.2" r="3.2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M4.5 16.2c0-2.8 2.5-4.7 5.5-4.7s5.5 1.9 5.5 4.7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ToolHubMenuIcon() {
+  return (
+    <svg className="top-bar__menu-item-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="6" width="14" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 6V4.5C7 3.67 7.67 3 8.5 3h3c.83 0 1.5.67 1.5 1.5V6" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 10.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="10" cy="10.5" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function LogoutMenuIcon() {
+  return (
+    <svg className="top-bar__menu-item-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M7.5 4H4.5a1.5 1.5 0 0 0-1.5 1.5v9a1.5 1.5 0 0 0 1.5 1.5h3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12.5 13.5l3.5-3.5-3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 10H7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function ExternalArrowIcon() {
+  return (
+    <svg className="top-bar__menu-item-arrow" width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M6 3.5h6.5V10M12.5 3.5L5.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -302,6 +349,46 @@ export default function TopBar({
   const readingFontPopoverRef = useRef<HTMLDivElement | null>(null)
   const editorMenuRef = useRef<HTMLElement | null>(null)
   const [openEditorMenu, setOpenEditorMenu] = useState<'content' | 'more' | null>(null)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const userMenuButtonRef = useRef<HTMLButtonElement | null>(null)
+  const userMenuPopoverRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!isUserMenuOpen) {
+      return
+    }
+
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null
+      if (!target) {
+        return
+      }
+
+      if (userMenuPopoverRef.current?.contains(target)) {
+        return
+      }
+
+      if (userMenuButtonRef.current?.contains(target)) {
+        return
+      }
+
+      setIsUserMenuOpen(false)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [isUserMenuOpen])
 
   useEffect(() => {
     if (!isReadingFontOpen) {
@@ -425,6 +512,20 @@ export default function TopBar({
                   </button>
                 ))}
                 <div className="top-bar__editor-menu-divider" />
+                <a
+                  href={TOOL_HUB_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="top-bar__editor-menu-link"
+                  role="menuitem"
+                  onClick={() => setOpenEditorMenu(null)}
+                >
+                  <span className="top-bar__menu-item-main">
+                    <ToolHubMenuIcon />
+                    <span>Tool Hub</span>
+                  </span>
+                  <ExternalArrowIcon />
+                </a>
                 <button type="button" role="menuitem" onClick={onToggleColorMode}>
                   {isDarkMode ? '切换浅色模式' : '切换深色模式'}
                 </button>
@@ -870,9 +971,53 @@ export default function TopBar({
             </span>
           </button>
           <span className="top-bar__utility-divider" aria-hidden="true" />
-          <button className="top-bar__button top-bar__button--quiet" type="button" onClick={onLogout}>
-            退出登录
-          </button>
+          <div className="top-bar__user-menu">
+            <button
+              ref={userMenuButtonRef}
+              className={`top-bar__button top-bar__button--icon top-bar__button--user${isUserMenuOpen ? ' is-active' : ''}`}
+              type="button"
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              aria-label="用户与工具菜单"
+              aria-haspopup="menu"
+              aria-expanded={isUserMenuOpen}
+              title="用户与工具菜单"
+            >
+              <UserIcon />
+            </button>
+            {isUserMenuOpen ? (
+              <div ref={userMenuPopoverRef} className="top-bar__user-dropdown" role="menu" aria-label="用户与工具菜单">
+                <a
+                  href={TOOL_HUB_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="top-bar__user-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setIsUserMenuOpen(false)}
+                >
+                  <span className="top-bar__menu-item-main">
+                    <ToolHubMenuIcon />
+                    <span>Tool Hub</span>
+                  </span>
+                  <ExternalArrowIcon />
+                </a>
+                <div className="top-bar__user-dropdown-divider" />
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="top-bar__user-dropdown-item top-bar__user-dropdown-item--danger"
+                  onClick={() => {
+                    setIsUserMenuOpen(false)
+                    onLogout()
+                  }}
+                >
+                  <span className="top-bar__menu-item-main">
+                    <LogoutMenuIcon />
+                    <span>退出登录</span>
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </header>
