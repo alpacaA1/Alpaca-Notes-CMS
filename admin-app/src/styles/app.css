@@ -3522,7 +3522,7 @@ textarea {
   padding: 18px 24px;
   background: #fdfbf8;
   color: var(--admin-text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  font-family: var(--md-editor-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif);
   font-size: 1rem;
   line-height: 1.8;
   letter-spacing: -0.01em;
@@ -5589,6 +5589,7 @@ textarea {
       rgba(111, 95, 73, 0.04) 35px
     );
   color: #333333;
+  font-family: var(--preview-font-family, inherit);
   line-height: 1.85;
   box-shadow: 0 24px 50px rgba(56, 43, 30, 0.08);
 }
@@ -13423,6 +13424,38 @@ textarea {
   background: var(--admin-line);
 }
 
+.top-bar__reading-font-family-group {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.top-bar__reading-font-family-btn {
+  appearance: none;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--admin-line-strong);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--admin-text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.top-bar__reading-font-family-btn:hover {
+  border-color: var(--admin-warm);
+  background: var(--admin-surface-strong);
+}
+
+.top-bar__reading-font-family-btn.is-active {
+  border-color: var(--admin-warm);
+  background: rgba(190, 142, 49, 0.15);
+  color: var(--admin-warm);
+  font-weight: 700;
+}
+
 .top-bar__utility-divider {
   flex: 0 0 auto;
   width: 1px;
@@ -13456,6 +13489,23 @@ textarea {
 
 .admin-shell--dark .top-bar__reading-font-step {
   background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .top-bar__reading-font-family-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #d8cec2;
+}
+
+.admin-shell--dark .top-bar__reading-font-family-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(228, 163, 88, 0.3);
+}
+
+.admin-shell--dark .top-bar__reading-font-family-btn.is-active {
+  background: rgba(228, 163, 88, 0.2);
+  border-color: rgba(228, 163, 88, 0.6);
+  color: #e4a358;
 }
 
 .admin-shell--dark .top-bar__utility-divider {

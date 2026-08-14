@@ -24,6 +24,7 @@ type MarkdownEditorProps = {
   internalReferenceCandidates?: InternalReferenceCandidate[]
   editorFontSize?: number
   editorFontWeight?: number
+  editorFontFamily?: string
 }
 
 type SelectionRange = {
@@ -561,6 +562,7 @@ export default function MarkdownEditor({
   internalReferenceCandidates = [],
   editorFontSize,
   editorFontWeight,
+  editorFontFamily,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -1129,13 +1131,16 @@ export default function MarkdownEditor({
     if (editorFontWeight !== undefined) {
       customProperties['--md-editor-font-weight'] = String(editorFontWeight)
     }
+    if (editorFontFamily !== undefined) {
+      customProperties['--md-editor-font-family'] = editorFontFamily
+    }
 
     if (Object.keys(customProperties).length === 0) {
       return undefined
     }
 
     return customProperties as CSSProperties
-  }, [editorFontSize, editorFontWeight])
+  }, [editorFontSize, editorFontWeight, editorFontFamily])
 
   return (
     <section className="editor-surface editor-surface--editor-canvas" style={editorFontStyle}>

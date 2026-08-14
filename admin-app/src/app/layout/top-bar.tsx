@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type Ref } from 'react'
 import type { ContentType } from '../posts/post-types'
 import {
+  READING_FONT_FAMILIES,
   READING_FONT_SIZE_MAX,
   READING_FONT_SIZE_MIN,
   READING_FONT_WEIGHTS,
@@ -123,8 +124,10 @@ type TopBarProps = {
   hasActiveDocument: boolean
   previewFontSize?: number
   previewFontWeightIndex?: number
+  previewFontFamilyId?: string
   onPreviewFontSizeChange?: (next: number) => void
   onPreviewFontWeightIndexChange?: (next: number) => void
+  onPreviewFontFamilyIdChange?: (next: string) => void
   saveLabel: string
   isSaveDisabled: boolean
   isSaveQuiet: boolean
@@ -248,8 +251,10 @@ export default function TopBar({
   hasActiveDocument,
   previewFontSize = 16,
   previewFontWeightIndex = 1,
+  previewFontFamilyId = 'sans',
   onPreviewFontSizeChange,
   onPreviewFontWeightIndexChange,
+  onPreviewFontFamilyIdChange,
   saveLabel,
   isSaveDisabled,
   isSaveQuiet,
@@ -533,6 +538,24 @@ export default function TopBar({
                   />
                   <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--bold" aria-hidden="true">A</span>
                 </div>
+                <div className="top-bar__reading-font-divider" />
+                <div className="top-bar__reading-font-row">
+                  <span className="top-bar__reading-font-name">字体风格</span>
+                </div>
+                <div className="top-bar__reading-font-family-group" role="radiogroup" aria-label="选择字体风格">
+                  {READING_FONT_FAMILIES.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={previewFontFamilyId === option.id}
+                      className={`top-bar__reading-font-family-btn${previewFontFamilyId === option.id ? ' is-active' : ''}`}
+                      onClick={() => onPreviewFontFamilyIdChange?.(option.id)}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : null}
           </div>
@@ -811,6 +834,24 @@ export default function TopBar({
                       aria-label="字体粗细"
                     />
                     <span className="top-bar__reading-font-glyph top-bar__reading-font-glyph--bold" aria-hidden="true">A</span>
+                  </div>
+                  <div className="top-bar__reading-font-divider" />
+                  <div className="top-bar__reading-font-row">
+                    <span className="top-bar__reading-font-name">字体风格</span>
+                  </div>
+                  <div className="top-bar__reading-font-family-group" role="radiogroup" aria-label="选择字体风格">
+                    {READING_FONT_FAMILIES.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        role="radio"
+                        aria-checked={previewFontFamilyId === option.id}
+                        className={`top-bar__reading-font-family-btn${previewFontFamilyId === option.id ? ' is-active' : ''}`}
+                        onClick={() => onPreviewFontFamilyIdChange?.(option.id)}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               ) : null}

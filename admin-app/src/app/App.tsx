@@ -535,8 +535,11 @@ export default function App() {
     fontSize: previewReadingFontSize,
     fontWeight: previewReadingFontWeight,
     fontWeightIndex: previewReadingFontWeightIndex,
+    fontFamily: previewReadingFontFamily,
+    fontFamilyId: previewReadingFontFamilyId,
     setFontSize: setPreviewReadingFontSize,
     setFontWeightIndex: setPreviewReadingFontWeightIndex,
+    setFontFamilyId: setPreviewReadingFontFamilyId,
   } = useReadingFont()
   const [contentType, setContentType] = useState<ContentType>('post')
   const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
@@ -4194,8 +4197,10 @@ export default function App() {
           isDarkMode={isDark}
           previewFontSize={previewReadingFontSize}
           previewFontWeightIndex={previewReadingFontWeightIndex}
+          previewFontFamilyId={previewReadingFontFamilyId}
           onPreviewFontSizeChange={setPreviewReadingFontSize}
           onPreviewFontWeightIndexChange={setPreviewReadingFontWeightIndex}
+          onPreviewFontFamilyIdChange={setPreviewReadingFontFamilyId}
           saveLabel={saveLabel}
           isSaveDisabled={isSaveDisabled}
           isSaveQuiet={isSaveQuiet}
@@ -4512,6 +4517,7 @@ export default function App() {
                       showInlineOutline={!isReaderPreview}
                       readingFontSize={previewReadingFontSize}
                       readingFontWeight={previewReadingFontWeight}
+                      readingFontFamily={previewReadingFontFamily}
                     />
                   ) : (
                     <MarkdownEditor
@@ -4523,6 +4529,7 @@ export default function App() {
                       internalReferenceCandidates={internalReferenceCandidates}
                       editorFontSize={previewReadingFontSize}
                       editorFontWeight={previewReadingFontWeight}
+                      editorFontFamily={previewReadingFontFamily}
                     />
                   )}
                 </>

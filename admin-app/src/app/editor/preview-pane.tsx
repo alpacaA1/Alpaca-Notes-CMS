@@ -115,6 +115,7 @@ type PreviewPaneProps = {
   showInlineOutline?: boolean
   readingFontSize?: number
   readingFontWeight?: number
+  readingFontFamily?: string
 }
 
 type WikiLinkRenderOptions = {
@@ -2115,6 +2116,7 @@ export default function PreviewPane({
   showInlineOutline = true,
   readingFontSize,
   readingFontWeight,
+  readingFontFamily,
 }: PreviewPaneProps) {
   const [selectionToolbar, setSelectionToolbar] = useState<SelectionToolbarState | null>(null)
   const [annotationDeleteTargetId, setAnnotationDeleteTargetId] = useState<string | null>(null)
@@ -2239,13 +2241,16 @@ export default function PreviewPane({
     if (readingFontWeight !== undefined) {
       customProperties['--preview-font-weight'] = String(readingFontWeight)
     }
+    if (readingFontFamily !== undefined) {
+      customProperties['--preview-font-family'] = readingFontFamily
+    }
 
     if (Object.keys(customProperties).length === 0) {
       return undefined
     }
 
     return customProperties as CSSProperties
-  }, [readingFontSize, readingFontWeight])
+  }, [readingFontSize, readingFontWeight, readingFontFamily])
   const wikiLinkOptions = useMemo(
     () => ({ resolveWikiLinkTitle, onOpenWikiLink, resolveInternalReferenceTitle, onOpenInternalReference }),
     [onOpenInternalReference, onOpenWikiLink, resolveInternalReferenceTitle, resolveWikiLinkTitle],
