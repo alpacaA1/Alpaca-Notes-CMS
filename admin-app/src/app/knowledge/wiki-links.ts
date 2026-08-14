@@ -370,33 +370,28 @@ export function buildTopicBacklinkMap(posts: PostIndexItem[]) {
 
     parseWikiLinks(normalizedBody).forEach((link) => {
       const excerptRange = excerptRanges.find((range) => link.start >= range.start && link.start <= range.end)
-      let excerpt = excerptRange?.excerpt || ''
-      if (!excerpt) {
-        const lineStart = normalizedBody.lastIndexOf('\n', link.start)
-        const lineEnd = normalizedBody.indexOf('\n', link.end)
-        const rawLine = normalizedBody.slice(lineStart < 0 ? 0 : lineStart + 1, lineEnd < 0 ? normalizedBody.length : lineEnd).trim()
-        excerpt = normalizeInlineLabel(rawLine)
-      }
-      if (!excerpt) {
-        excerpt = post.title
+      if (!excerptRange) {
+        return
       }
 
-      const resolvedTargetKey = resolveWikiLinkTargetKey(link.targetKey, topicNodeMap)
-      const targetKeysToRegister = Array.from(new Set([resolvedTargetKey, link.targetKey].filter(Boolean)))
+      const excerpt = excerptRange.excerpt || post.title
 
-      targetKeysToRegister.forEach((key) => {
-        const backlinks = backlinkMap.get(key) || []
-        backlinks.push({
-          targetKey: key,
-          sourcePost: post,
-          sourcePath: post.path,
-          sourceTitle: post.title,
-          sourceDate: post.date,
-          sourceContentType: post.contentType || 'post',
-          excerpt,
-        })
-        backlinkMap.set(key, backlinks)
+      const resolvedTargetKey = resolveWikiLinkTargetKey(link.targetKey, topicNodeMap) || link.targetKey
+      if (!resolvedTargetKey) {
+        return
+      }
+
+      const backlinks = backlinkMap.get(resolvedTargetKey) || []
+      backlinks.push({
+        targetKey: resolvedTargetKey,
+        sourcePost: post,
+        sourcePath: post.path,
+        sourceTitle: post.title,
+        sourceDate: post.date,
+        sourceContentType: post.contentType || 'post',
+        excerpt,
       })
+      backlinkMap.set(resolvedTargetKey, backlinks)
     })
   })
 
