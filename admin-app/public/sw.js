@@ -1,4 +1,4 @@
-const CACHE_NAME = 'alpaca-cms-v1';
+const CACHE_NAME = 'alpaca-cms-v2';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
@@ -26,6 +26,23 @@ self.addEventListener('fetch', (event) => {
 
   // Skip cross-origin API calls to GitHub or Vercel
   if (url.origin !== self.location.origin) return;
+
+  // Always check the network for navigations so a cached index.html cannot
+  // keep pointing at an outdated hashed JavaScript bundle after deployment.
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+        }
+        return networkResponse;
+      }).catch(async () => (
+        (await caches.match(event.request)) || caches.match('./index.html')
+      ))
+    );
+    return;
+  }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
