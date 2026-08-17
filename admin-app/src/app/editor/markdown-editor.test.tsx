@@ -519,6 +519,11 @@ describe('markdown editor', () => {
     expect(appStyles).toMatch(/\.admin-layout\s*\{[^}]*height:\s*100%;[^}]*overflow-y:\s*auto;/s)
   })
 
+  it('keeps the dashboard viewport scrollable without a persistent native scrollbar', () => {
+    expect(appStyles).toMatch(/\.admin-shell__viewport\s*\{[^}]*overflow-y:\s*auto;[^}]*scrollbar-width:\s*none;/s)
+    expect(appStyles).toMatch(/\.admin-shell__viewport::-webkit-scrollbar\s*\{[^}]*width:\s*0;/s)
+  })
+
   it('keeps preview article width capped when topic backlinks drawer is visible', () => {
     expect(appStyles).toMatch(
       /\.preview-pane__canvas--with-topic-backlinks\s+\.preview-content\s*\{[^}]*width:\s*min\(100%,\s*860px\);[^}]*max-width:\s*860px;/s,

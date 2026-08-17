@@ -1244,6 +1244,13 @@ textarea {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  /* Keep the workspace scrollable without permanently framing it with a native scrollbar. */
+  scrollbar-width: none;
+}
+
+.admin-shell__viewport::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .admin-layout {
@@ -15045,4 +15052,3 @@ textarea {
   background: rgba(255, 255, 255, 0.08);
   color: #9ca3af;
 }
-
