@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#18181b" />
+    <title>正在更新 Alpaca Notes Admin</title>
+    <style>
+      body {
+        min-height: 100vh;
+        margin: 0;
+        display: grid;
+        place-items: center;
+        background: #f7f3ed;
+        color: #352f29;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      main {
+        width: min(520px, calc(100vw - 48px));
+        padding: 32px;
+        border: 1px solid #ded5ca;
+        border-radius: 20px;
+        background: rgba(255, 255, 255, 0.88);
+        text-align: center;
+      }
+
+      a { color: #8a6246; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>正在更新管理后台</h1>
+      <p id="status">正在清理旧缓存，请稍候…</p>
+      <p><a id="continue-link" href="./?debug-list=1">如果没有自动跳转，请点这里继续</a></p>
+    </main>
+    <script>
+      (async () => {
+        const status = document.getElementById('status');
+        const continueLink = document.getElementById('continue-link');
+        const nextUrl = `./?debug-list=1&cache-reset=${Date.now()}`;
+        continueLink.href = nextUrl;
+
+        try {
+          if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map((registration) => registration.unregister()));
+          }
+
+          if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+          }
+
+          status.textContent = '缓存已清理，正在打开最新版本…';
+          window.location.replace(nextUrl);
+        } catch (error) {
+          status.textContent = '自动清理失败，请点击下方链接继续。';
+          console.error('[cache-reset]', error);
+        }
+      })();
+    </script>
+  </body>
+</html>

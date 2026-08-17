@@ -49,4 +49,13 @@ describe('admin service worker', () => {
     expect(fetch).toHaveBeenCalledOnce()
     expect(caches.match).not.toHaveBeenCalled()
   })
+
+  it('ships a standalone recovery page that unregisters workers and clears caches', () => {
+    const resetPage = readFileSync(resolve(process.cwd(), 'public/reset-cache.html'), 'utf8')
+
+    expect(resetPage).toContain('navigator.serviceWorker.getRegistrations()')
+    expect(resetPage).toContain('registration.unregister()')
+    expect(resetPage).toContain('caches.delete(cacheName)')
+    expect(resetPage).toContain('?debug-list=1&cache-reset=')
+  })
 })
