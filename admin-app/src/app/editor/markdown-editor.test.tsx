@@ -509,6 +509,56 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(editor.value.length)
   })
 
+  it('renumbers following items when indenting an inserted list item with Tab', () => {
+    const editor = renderControlledEditor('1. 中文\n2. 英文\n3. 法语')
+
+    editor.focus()
+    // Place cursor at end of "2. 英文"
+    const secondLineEnd = '1. 中文\n2. 英文'.length
+    editor.setSelectionRange(secondLineEnd, secondLineEnd)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. 中文\n2. 英文\n3. \n4. 法语')
+
+    // Press Tab on the empty "3. " line
+    fireEvent.keyDown(editor, { key: 'Tab' })
+    expect(editor.value).toBe('1. 中文\n2. 英文\n    1. \n3. 法语')
+
+    // Press Shift+Tab to outdent back
+    fireEvent.keyDown(editor, { key: 'Tab', shiftKey: true })
+    expect(editor.value).toBe('1. 中文\n2. 英文\n3. \n4. 法语')
+  })
+
+  it('renumbers following items when deleting an empty ordered list item with Backspace', () => {
+    const editor = renderControlledEditor('1. 中文\n2. 英文\n3. 法语')
+
+    editor.focus()
+    const secondLineEnd = '1. 中文\n2. 英文'.length
+    editor.setSelectionRange(secondLineEnd, secondLineEnd)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. 中文\n2. 英文\n3. \n4. 法语')
+
+    // Press Backspace on the empty "3. " line
+    fireEvent.keyDown(editor, { key: 'Backspace' })
+    expect(editor.value).toBe('1. 中文\n2. 英文\n\n3. 法语')
+  })
+
+  it('renumbers following items when clearing an empty ordered list item with Enter', () => {
+    const editor = renderControlledEditor('1. 中文\n2. 英文\n3. 法语')
+
+    editor.focus()
+    const secondLineEnd = '1. 中文\n2. 英文'.length
+    editor.setSelectionRange(secondLineEnd, secondLineEnd)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    expect(editor.value).toBe('1. 中文\n2. 英文\n3. \n4. 法语')
+
+    // Press Enter on the empty "3. " line
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(editor.value).toBe('1. 中文\n2. 英文\n\n3. 法语')
+  })
+
   it('keeps the editor textarea horizontal padding aligned with the editor surface', () => {
     expect(appStyles).toMatch(/\.editor-surface,\s*\.settings-panel,\s*\.preview-pane\s*\{[^}]*padding:\s*24px;/s)
     expect(appStyles).toMatch(/\.editor-textarea\s*\{[^}]*padding:\s*18px 24px;/s)

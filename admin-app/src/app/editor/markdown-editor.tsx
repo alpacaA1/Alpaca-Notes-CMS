@@ -381,6 +381,150 @@ function getOrderedListLineContext(line: string) {
   }
 }
 
+function getPreviousOrderedOrdinal(
+  lines: string[],
+  beforeLineIndex: number,
+  context: {
+    blockquotePrefix: string
+    indentWidth: number
+    kind: OrderedMarkerKind
+    separator: string
+    uppercase: boolean
+  },
+): number | null {
+  for (let index = beforeLineIndex; index >= 0; index -= 1) {
+    const line = lines[index]
+    if (!line.trim()) {
+      let hasPreceding = false
+      for (let lookback = index - 1; lookback >= 0; lookback -= 1) {
+        const prevLine = lines[lookback]
+        if (!prevLine.trim()) {
+          continue
+        }
+        const { blockquotePrefix, content } = splitBlockquotePrefix(prevLine)
+        if (blockquotePrefix === context.blockquotePrefix) {
+          const indent = getIndentWidth(getLeadingWhitespace(content))
+          if (indent >= context.indentWidth) {
+            hasPreceding = true
+          }
+        }
+        break
+      }
+      if (!hasPreceding) {
+        break
+      }
+      continue
+    }
+
+    const { blockquotePrefix, content } = splitBlockquotePrefix(line)
+    if (blockquotePrefix !== context.blockquotePrefix) {
+      break
+    }
+
+    const indentWidth = getIndentWidth(getLeadingWhitespace(content))
+    if (indentWidth > context.indentWidth) {
+      continue
+    }
+
+    if (indentWidth < context.indentWidth) {
+      break
+    }
+
+    const lineContext = getOrderedListLineContext(line)
+    if (
+      lineContext &&
+      lineContext.kind === context.kind &&
+      lineContext.separator === context.separator &&
+      lineContext.uppercase === context.uppercase
+    ) {
+      return lineContext.ordinal
+    }
+
+    break
+  }
+
+  return null
+}
+
+function renumberFollowingOrderedListLinesInArray(
+  lines: string[],
+  afterLineIndex: number,
+  context: {
+    blockquotePrefix: string
+    indentWidth: number
+    kind: OrderedMarkerKind
+    separator: string
+    uppercase: boolean
+  },
+  explicitNextOrdinal?: number,
+): boolean {
+  let nextOrdinal = explicitNextOrdinal
+  if (nextOrdinal === undefined) {
+    const prevOrdinal = getPreviousOrderedOrdinal(lines, afterLineIndex, context)
+    nextOrdinal = prevOrdinal !== null ? prevOrdinal + 1 : 1
+  }
+
+  let changed = false
+
+  for (let index = afterLineIndex + 1; index < lines.length; index += 1) {
+    const line = lines[index]
+    if (!line.trim()) {
+      let hasContinuation = false
+      for (let lookahead = index + 1; lookahead < lines.length; lookahead += 1) {
+        const aheadLine = lines[lookahead]
+        if (!aheadLine.trim()) {
+          continue
+        }
+        const { blockquotePrefix: aheadBq, content: aheadContent } = splitBlockquotePrefix(aheadLine)
+        if (aheadBq === context.blockquotePrefix) {
+          const aheadIndent = getIndentWidth(getLeadingWhitespace(aheadContent))
+          if (aheadIndent >= context.indentWidth) {
+            hasContinuation = true
+          }
+        }
+        break
+      }
+      if (!hasContinuation) {
+        break
+      }
+      continue
+    }
+
+    const { blockquotePrefix, content } = splitBlockquotePrefix(line)
+    if (blockquotePrefix !== context.blockquotePrefix) {
+      break
+    }
+
+    const indentWidth = getIndentWidth(getLeadingWhitespace(content))
+    if (indentWidth > context.indentWidth) {
+      continue
+    }
+
+    if (indentWidth < context.indentWidth) {
+      break
+    }
+
+    const lineContext = getOrderedListLineContext(line)
+    if (
+      !lineContext ||
+      lineContext.kind !== context.kind ||
+      lineContext.separator !== context.separator ||
+      lineContext.uppercase !== context.uppercase
+    ) {
+      break
+    }
+
+    const nextLine = `${lineContext.blockquotePrefix}${buildIndentWhitespace(lineContext.indentWidth)}${formatOrderedMarker(context.kind, nextOrdinal, context.separator, context.uppercase)}${lineContext.suffix}`
+    if (nextLine !== line) {
+      lines[index] = nextLine
+      changed = true
+    }
+    nextOrdinal += 1
+  }
+
+  return changed
+}
+
 function renumberFollowingOrderedListLines(value: string, insertedLineIndex: number) {
   const lines = value.split('\n')
   const insertedLine = lines[insertedLineIndex]
@@ -389,47 +533,12 @@ function renumberFollowingOrderedListLines(value: string, insertedLineIndex: num
     return value
   }
 
-  let nextOrdinal = insertedContext.ordinal + 1
-  let changed = false
-
-  for (let index = insertedLineIndex + 1; index < lines.length; index += 1) {
-    const line = lines[index]
-    if (!line.trim()) {
-      continue
-    }
-
-    const { blockquotePrefix, content } = splitBlockquotePrefix(line)
-    if (blockquotePrefix !== insertedContext.blockquotePrefix) {
-      break
-    }
-
-    const indentWidth = getIndentWidth(getLeadingWhitespace(content))
-    if (indentWidth > insertedContext.indentWidth) {
-      continue
-    }
-
-    if (indentWidth < insertedContext.indentWidth) {
-      break
-    }
-
-    const lineContext = getOrderedListLineContext(line)
-    if (
-      !lineContext ||
-      lineContext.kind !== insertedContext.kind ||
-      lineContext.separator !== insertedContext.separator ||
-      lineContext.uppercase !== insertedContext.uppercase
-    ) {
-      break
-    }
-
-    const nextLine = `${lineContext.blockquotePrefix}${buildIndentWhitespace(lineContext.indentWidth)}${formatOrderedMarker(insertedContext.kind, nextOrdinal, insertedContext.separator, insertedContext.uppercase)}${lineContext.suffix}`
-    if (nextLine !== line) {
-      lines[index] = nextLine
-      changed = true
-    }
-    nextOrdinal += 1
-  }
-
+  const changed = renumberFollowingOrderedListLinesInArray(
+    lines,
+    insertedLineIndex,
+    insertedContext,
+    insertedContext.ordinal + 1,
+  )
   return changed ? lines.join('\n') : value
 }
 
@@ -487,6 +596,12 @@ function moveCurrentLine(value: string, selectionStart: number, direction: 'up' 
     nextLines[targetLineIndex],
     nextLines[currentLineIndex],
   ]
+
+  const minIndex = Math.min(currentLineIndex, targetLineIndex)
+  const firstContext = getOrderedListLineContext(nextLines[minIndex])
+  if (firstContext) {
+    renumberFollowingOrderedListLinesInArray(nextLines, minIndex - 1, firstContext)
+  }
 
   const nextLineStart = nextLines
     .slice(0, targetLineIndex)
@@ -930,21 +1045,52 @@ export default function MarkdownEditor({
         (currentLine.startsWith(INDENT) || currentLine.startsWith('\t'))
       ) {
         event.preventDefault()
+        const oldContext = getOrderedListLineContext(currentLine)
         const lines = value.split('\n')
         const nextLine = outdentLineInContext(lines, lineIndex)
-        const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
+        lines[lineIndex] = nextLine
+        const newContext = getOrderedListLineContext(nextLine)
+        if (oldContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+        }
+        if (newContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, newContext, newContext.ordinal + 1)
+        }
+        const nextValue = lines.join('\n')
         const nextCaret = lineStart + nextLine.length
         dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
+        return
+      }
+
+      if (!insideCodeFence && emptyListPrefix && selectionStart === lineEnd) {
+        event.preventDefault()
+        const oldContext = getOrderedListLineContext(currentLine)
+        const lines = value.split('\n')
+        lines[lineIndex] = ''
+        if (oldContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+        }
+        const nextValue = lines.join('\n')
+        dispatchValueChange(nextValue, { start: lineStart, end: lineStart }, selection)
         return
       }
 
       if (cursorOffset > 0 && cursorOffset <= indentOnlyPrefix.length) {
         if (!insideCodeFence && isListLine) {
           const lines = value.split('\n')
+          const oldContext = getOrderedListLineContext(lines[lineIndex])
           const nextLine = outdentLineInContext(lines, lineIndex)
           if (nextLine !== currentLine) {
             event.preventDefault()
-            const nextValue = `${value.slice(0, lineStart)}${nextLine}${value.slice(lineEnd)}`
+            lines[lineIndex] = nextLine
+            const newContext = getOrderedListLineContext(nextLine)
+            if (oldContext) {
+              renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+            }
+            if (newContext) {
+              renumberFollowingOrderedListLinesInArray(lines, lineIndex, newContext, newContext.ordinal + 1)
+            }
+            const nextValue = lines.join('\n')
             const nextCaret = lineStart + getLeadingWhitespace(nextLine).length
             dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
             return
@@ -1004,7 +1150,14 @@ export default function MarkdownEditor({
 
       if (listPrefixToRemove) {
         event.preventDefault()
-        const nextValue = `${value.slice(0, lineStart)}${value.slice(selectionEnd)}`
+        const oldContext = getOrderedListLineContext(currentLine)
+        const lineIndex = getLineIndex(value, lineStart)
+        const lines = value.split('\n')
+        lines[lineIndex] = ''
+        if (oldContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+        }
+        const nextValue = lines.join('\n')
         dispatchValueChange(nextValue, { start: lineStart, end: lineStart }, selection)
         return
       }
@@ -1041,9 +1194,18 @@ export default function MarkdownEditor({
       }
 
       if (selectionStart === lineStart || (emptyListPrefix && selectionStart === lineEnd)) {
+        const oldContext = getOrderedListLineContext(currentLine)
         const lines = value.split('\n')
         const indentedLine = indentLineInContext(lines, lineIndex)
-        const nextValue = `${value.slice(0, lineStart)}${indentedLine}${value.slice(lineEnd)}`
+        lines[lineIndex] = indentedLine
+        const newContext = getOrderedListLineContext(indentedLine)
+        if (oldContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+        }
+        if (newContext) {
+          renumberFollowingOrderedListLinesInArray(lines, lineIndex, newContext, newContext.ordinal + 1)
+        }
+        const nextValue = lines.join('\n')
         const nextCaret = selectionStart + (indentedLine.length - currentLine.length)
         dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
         return
@@ -1061,6 +1223,7 @@ export default function MarkdownEditor({
       const lineIndex = getLineIndex(value, lineStart)
       const currentLine = value.slice(lineStart, lineEnd)
       const lines = value.split('\n')
+      const oldContext = getOrderedListLineContext(lines[lineIndex])
       const outdentedLine = outdentLineInContext(lines, lineIndex)
       const removedCount = currentLine.length - outdentedLine.length
 
@@ -1068,7 +1231,15 @@ export default function MarkdownEditor({
         return
       }
 
-      const nextValue = `${value.slice(0, lineStart)}${outdentedLine}${value.slice(lineEnd)}`
+      lines[lineIndex] = outdentedLine
+      const newContext = getOrderedListLineContext(outdentedLine)
+      if (oldContext) {
+        renumberFollowingOrderedListLinesInArray(lines, lineIndex, oldContext)
+      }
+      if (newContext) {
+        renumberFollowingOrderedListLinesInArray(lines, lineIndex, newContext, newContext.ordinal + 1)
+      }
+      const nextValue = lines.join('\n')
       const nextCaret = Math.max(lineStart, selectionStart - removedCount)
       dispatchValueChange(nextValue, { start: nextCaret, end: nextCaret }, selection)
       return
@@ -1078,9 +1249,28 @@ export default function MarkdownEditor({
     const startLineIndex = getLineIndex(value, start)
     const endLineIndex = getLineIndex(value, end)
     const lines = value.split('\n')
+    const oldContexts = lines
+      .slice(startLineIndex, endLineIndex + 1)
+      .map((line) => getOrderedListLineContext(line))
+      .filter((context): context is NonNullable<typeof context> => Boolean(context))
 
     for (let index = startLineIndex; index <= endLineIndex; index += 1) {
       lines[index] = event.shiftKey ? outdentLineInContext(lines, index) : indentLineInContext(lines, index)
+    }
+
+    const newContexts = lines
+      .slice(startLineIndex, endLineIndex + 1)
+      .map((line) => getOrderedListLineContext(line))
+      .filter((context): context is NonNullable<typeof context> => Boolean(context))
+
+    const allContexts = [...oldContexts, ...newContexts]
+    const seenContexts = new Set<string>()
+    for (const ctx of allContexts) {
+      const key = `${ctx.blockquotePrefix}|${ctx.indentWidth}|${ctx.kind}|${ctx.separator}|${ctx.uppercase}`
+      if (!seenContexts.has(key)) {
+        seenContexts.add(key)
+        renumberFollowingOrderedListLinesInArray(lines, endLineIndex, ctx)
+      }
     }
 
     const nextBlock = lines.slice(startLineIndex, endLineIndex + 1).join('\n')
