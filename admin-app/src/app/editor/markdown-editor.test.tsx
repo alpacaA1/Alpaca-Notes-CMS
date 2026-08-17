@@ -248,6 +248,28 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(11)
   })
 
+  it('structurally indents a non-empty ordered item when pressing Tab at the line end', () => {
+    const editor = renderControlledEditor('1. 222\n    1. \n2. 44')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('1. 222\n    1. \n    2. 44')
+    expect(editor.selectionStart).toBe(editor.value.length)
+    expect(editor.selectionEnd).toBe(editor.value.length)
+  })
+
+  it('continues an existing three-space child list when indenting with Tab', () => {
+    const editor = renderControlledEditor('1. 222\n   1. \n2. 44')
+
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.keyDown(editor, { key: 'Tab' })
+
+    expect(editor.value).toBe('1. 222\n   1. \n   2. 44')
+  })
+
   it('removes indentation when pressing Shift+Tab', () => {
     const editor = renderControlledEditor('1. aaa\n    1. item')
 

@@ -264,11 +264,37 @@ function getNextOrderedLineOrdinal(lines: string[], lineIndex: number, targetInd
   return nextOrdinal
 }
 
+function getExistingChildIndentWidth(lines: string[], lineIndex: number, parentIndentWidth: number) {
+  let childIndentWidth: number | null = null
+
+  for (let index = lineIndex - 1; index >= 0; index -= 1) {
+    const line = lines[index]
+    if (!line.trim()) {
+      continue
+    }
+
+    const indentWidth = getIndentWidth(getLeadingWhitespace(line))
+    if (indentWidth <= parentIndentWidth) {
+      break
+    }
+
+    const orderedMatch = getOrderedLineMatch(line)
+    if (orderedMatch) {
+      childIndentWidth = childIndentWidth === null
+        ? orderedMatch.indentWidth
+        : Math.min(childIndentWidth, orderedMatch.indentWidth)
+    }
+  }
+
+  return childIndentWidth
+}
+
 function indentLineInContext(lines: string[], lineIndex: number) {
   const line = lines[lineIndex]
   const orderedMatch = getOrderedLineMatch(line)
   if (orderedMatch) {
-    const targetIndentWidth = orderedMatch.indentWidth + LIST_INDENT.length
+    const targetIndentWidth = getExistingChildIndentWidth(lines, lineIndex, orderedMatch.indentWidth)
+      ?? orderedMatch.indentWidth + LIST_INDENT.length
     const nextOrdinal = getNextOrderedLineOrdinal(lines, lineIndex, targetIndentWidth)
     return `${buildIndentWhitespace(targetIndentWidth)}${formatOrderedMarker('numeric', nextOrdinal, orderedMatch.separator, false)}${orderedMatch.suffix}`
   }
@@ -1193,7 +1219,12 @@ export default function MarkdownEditor({
         return
       }
 
-      if (selectionStart === lineStart || (emptyListPrefix && selectionStart === lineEnd)) {
+      if (
+        selectionStart === lineStart
+        || (emptyListPrefix && selectionStart === lineEnd)
+        || getOrderedLineMatch(currentLine)
+        || isBulletListLine(currentLine)
+      ) {
         const oldContext = getOrderedListLineContext(currentLine)
         const lines = value.split('\n')
         const indentedLine = indentLineInContext(lines, lineIndex)
