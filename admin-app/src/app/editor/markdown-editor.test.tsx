@@ -95,6 +95,33 @@ function createClipboardData({
 describe('markdown editor', () => {
   afterEach(() => {
     cleanup()
+    window.history.replaceState({}, '', '/')
+    window.localStorage.clear()
+  })
+
+  it('records ordered-list key and value transitions when list diagnostics are enabled', () => {
+    const consoleInfo = vi.spyOn(console, 'info').mockImplementation(() => {})
+    window.history.replaceState({}, '', '/?debug-list=1')
+    const editor = renderControlledEditor('1. 222\n2. 333\n3. 444')
+
+    editor.focus()
+    const secondLineEnd = '1. 222\n2. 333'.length
+    editor.setSelectionRange(secondLineEnd, secondLineEnd)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    fireEvent.keyDown(editor, { key: 'Tab' })
+    fireEvent.compositionStart(editor)
+    fireEvent.change(editor, { target: { value: '1. 222\n2. 333\n    1. 你好\n3. 444' } })
+    fireEvent.compositionEnd(editor)
+
+    const diagnostics = JSON.parse(window.localStorage.getItem('alpaca-admin:list-debug:v1') || '[]') as Array<{
+      type: string
+      key?: string
+      excerpt: string
+    }>
+    expect(diagnostics.some((entry) => entry.type === 'keydown' && entry.key === 'Tab')).toBe(true)
+    expect(diagnostics.some((entry) => entry.type === 'dispatch' && entry.excerpt.includes('3. 444'))).toBe(true)
+    expect(screen.getByRole('button', { name: '复制列表诊断' })).toBeTruthy()
+    consoleInfo.mockRestore()
   })
 
   it('inserts nested ordered indentation when pressing Tab', () => {

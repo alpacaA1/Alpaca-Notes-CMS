@@ -12,6 +12,7 @@ const LIST_INDENT = '    '
 const DEFAULT_LINK_URL = 'https://'
 const DEFAULT_LINK_TEXT = '链接文本'
 const ROMAN_MARKERS = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x']
+const LIST_DEBUG_STORAGE_KEY = 'alpaca-admin:list-debug:v1'
 
 type OrderedMarkerKind = 'numeric' | 'alpha' | 'roman'
 
@@ -41,6 +42,44 @@ type ActiveInternalReferenceQuery = {
   start: number
   end: number
   query: string
+}
+
+function isListDebugEnabled() {
+  return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug-list') === '1'
+}
+
+function getListDebugExcerpt(value: string, selectionStart: number) {
+  const lines = value.split('\n')
+  const lineIndex = getLineIndex(value, Math.min(selectionStart, value.length))
+  const start = Math.max(0, lineIndex - 3)
+  const end = Math.min(lines.length, lineIndex + 4)
+  return lines.slice(start, end).map((line, index) => `${start + index + 1}|${line}`).join('\n')
+}
+
+function recordListDebugEvent(
+  type: string,
+  value: string,
+  selection: SelectionRange,
+  details: Record<string, unknown> = {},
+) {
+  if (!isListDebugEnabled()) {
+    return
+  }
+
+  try {
+    const previous = JSON.parse(window.localStorage.getItem(LIST_DEBUG_STORAGE_KEY) || '[]') as unknown[]
+    const entry = {
+      sequence: previous.length + 1,
+      type,
+      selection,
+      excerpt: getListDebugExcerpt(value, selection.start),
+      ...details,
+    }
+    window.localStorage.setItem(LIST_DEBUG_STORAGE_KEY, JSON.stringify([...previous.slice(-39), entry]))
+    console.info('[list-debug]', entry)
+  } catch {
+    // Diagnostics must never affect editing.
+  }
 }
 
 function getLineStart(value: string, index: number) {
@@ -783,6 +822,12 @@ export default function MarkdownEditor({
     setActiveInternalReferenceIndex(0)
   }, [visibleInternalReferenceKey])
 
+  useEffect(() => {
+    if (isListDebugEnabled()) {
+      window.localStorage.removeItem(LIST_DEBUG_STORAGE_KEY)
+    }
+  }, [])
+
   const dismissInternalReferencePanel = () => {
     if (!visibleInternalReferenceKey) {
       return
@@ -809,6 +854,10 @@ export default function MarkdownEditor({
     nextSelection: SelectionRange,
     previousSelection: SelectionRange = trackedSelectionRef.current,
   ) => {
+    recordListDebugEvent('dispatch', nextValue, nextSelection, {
+      previousExcerpt: getListDebugExcerpt(currentValueRef.current, previousSelection.start),
+    })
+
     if (nextValue === currentValueRef.current) {
       pendingSelectionRef.current = nextSelection
       trackedSelectionRef.current = nextSelection
@@ -927,6 +976,15 @@ export default function MarkdownEditor({
         nativeKeyEvent.isComposing === true ||
         nativeKeyEvent.keyCode === 229 ||
         nativeKeyEvent.which === 229)
+
+    if (event.key === 'Enter' || event.key === 'Tab' || event.key === 'Backspace') {
+      recordListDebugEvent('keydown', event.currentTarget.value, selection, {
+        key: event.key,
+        isComposing: isComposingRef.current,
+        nativeIsComposing: nativeKeyEvent.isComposing === true,
+        keyCode: nativeKeyEvent.keyCode,
+      })
+    }
 
     if (isImeConfirming) {
       return
@@ -1372,6 +1430,18 @@ export default function MarkdownEditor({
           </label>
         </div>
         <div className="markdown-editor__actions">
+          {isListDebugEnabled() ? (
+            <button
+              type="button"
+              className="markdown-editor__upload-button"
+              onClick={() => {
+                const diagnostics = window.localStorage.getItem(LIST_DEBUG_STORAGE_KEY) || '[]'
+                void navigator.clipboard?.writeText(diagnostics)
+              }}
+            >
+              复制列表诊断
+            </button>
+          ) : null}
           {onUploadImage ? (
             <input
               ref={fileInputRef}
@@ -1455,14 +1525,19 @@ export default function MarkdownEditor({
         onScroll={handleScroll}
         onChange={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)
+          recordListDebugEvent('change', event.target.value, nextSelection, {
+            isComposing: isComposingRef.current,
+          })
           setDismissedInternalReferenceKey(null)
           dispatchValueChange(event.target.value, nextSelection)
         }}
         onCompositionStart={() => {
           isComposingRef.current = true
+          recordListDebugEvent('compositionstart', currentValueRef.current, trackedSelectionRef.current)
         }}
         onCompositionEnd={() => {
           isComposingRef.current = false
+          recordListDebugEvent('compositionend', currentValueRef.current, trackedSelectionRef.current)
         }}
         onClick={(event) => {
           const nextSelection = getSelectionRange(event.currentTarget)
