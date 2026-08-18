@@ -29,7 +29,7 @@ export const READING_FONT_FAMILIES: readonly ReadingFontFamilyOption[] = [
   {
     id: 'sans',
     label: '黑体',
-    value: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif',
+    value: '-apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Noto Sans SC", "Microsoft YaHei", "Segoe UI", Roboto, sans-serif',
   },
   {
     id: 'serif',

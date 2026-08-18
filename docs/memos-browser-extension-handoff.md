@@ -1,5 +1,9 @@
 # Memos Browser Extension Handoff
 
+> **规划状态：已退出当前项目路线（2026-08-18）**
+>
+> Memos 与 Todo List 服务于快速记录和任务管理，与当前项目“内容内化与写作提升”的主线不同。不要按本文继续实现 `_memos` 内容类型或 Memos 浏览器扩展；本文仅作为历史方案保留。
+
 ## Goal
 
 Build a Chrome MV3 browser extension for quick memo capture, inspired by `usememos/memos`, while keeping this project as a static Hexo/GitHub Pages site.
