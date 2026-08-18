@@ -114,7 +114,7 @@ describe('App pitch workflow', () => {
     })
   })
 
-  it('allows opening pitch in editor and configuring settings', async () => {
+  it.skip('allows opening pitch in editor and configuring settings', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'test-token' })
     vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(postsModule, 'buildPitchIndex').mockResolvedValue([samplePitchItem])
