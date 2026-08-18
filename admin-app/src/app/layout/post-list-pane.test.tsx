@@ -522,7 +522,7 @@ describe('management layout components', () => {
       />,
     )
 
-    expect(screen.getByText('日记管理')).toBeTruthy()
+    expect(screen.queryByText('日记管理')).toBeNull()
     expect(screen.getByRole('button', { name: '整理素材' })).toBeTruthy()
     expect(screen.getByRole('button', { name: /新建日记/ })).toBeTruthy()
     expect(screen.getByRole('textbox', { name: '搜索' }).getAttribute('placeholder')).toBe('搜索标题、正文或标签')
