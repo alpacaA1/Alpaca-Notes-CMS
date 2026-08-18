@@ -212,6 +212,7 @@ export default function FilterSelect({
                 </svg>
                 <input
                   ref={searchInputRef}
+                  className="filter-select__search-input"
                   aria-label={searchLabel}
                   value={query}
                   placeholder={resolvedSearchPlaceholder}
@@ -331,21 +332,6 @@ export default function FilterSelect({
                         </span>
                       ) : (
                         <>
-                          {isSelected ? (
-                            <svg
-                              className="filter-select__check-icon"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                          ) : null}
                           {isManageable ? (
                             <span className="filter-select__option-actions">
                               {onRenameOption ? (

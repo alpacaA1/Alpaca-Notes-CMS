@@ -136,6 +136,57 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(11)
   })
 
+  it('formats the current line when a heading toolbar button is clicked', () => {
+    const editor = renderControlledEditor('标题')
+
+    editor.focus()
+    editor.setSelectionRange(0, editor.value.length)
+    fireEvent.click(screen.getByRole('button', { name: '一级标题' }))
+
+    expect(editor.value).toBe('# 标题')
+  })
+
+  it('wraps a selection when the bold toolbar button is clicked', () => {
+    const editor = renderControlledEditor('重点')
+
+    editor.focus()
+    editor.setSelectionRange(0, editor.value.length)
+    fireEvent.click(screen.getByRole('button', { name: '粗体' }))
+
+    expect(editor.value).toBe('**重点**')
+  })
+
+  it('removes the active bold markers when the bold toolbar button is clicked again', () => {
+    const editor = renderControlledEditor('**重点**')
+
+    editor.focus()
+    editor.setSelectionRange(2, 4)
+    fireEvent.click(screen.getByRole('button', { name: '粗体' }))
+
+    expect(editor.value).toBe('重点')
+  })
+
+  it('removes highlight markers when the cursor is inside the highlighted text', () => {
+    const editor = renderControlledEditor('==重点==')
+
+    editor.focus()
+    editor.setSelectionRange(3, 3)
+    fireEvent.click(screen.getByRole('button', { name: '高亮' }))
+
+    expect(editor.value).toBe('重点')
+    expect(editor.selectionStart).toBe(1)
+  })
+
+  it('removes the current heading marker when its active heading button is clicked again', () => {
+    const editor = renderControlledEditor('## 标题')
+
+    editor.focus()
+    editor.setSelectionRange(3, editor.value.length)
+    fireEvent.click(screen.getByRole('button', { name: '二级标题' }))
+
+    expect(editor.value).toBe('标题')
+  })
+
   it('inserts an internal reference from the suggestion panel after typing [[ query', async () => {
     const editor = renderControlledEditorWithReferences('', [
       {
@@ -697,10 +748,12 @@ describe('markdown editor', () => {
     expect(editor.selectionEnd).toBe(urlStart + 'https://'.length)
   })
 
-  it('does not render the insert-link toolbar button', () => {
+  it('reveals the insert-link toolbar button from the more-format menu', () => {
     renderControlledEditor('hello world')
 
     expect(screen.queryByRole('button', { name: '插入链接' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
+    expect(screen.getByRole('menuitem', { name: '链接' })).toBeTruthy()
   })
 
   it('keeps the pre-picker selection when focus shifts before the picker click handler runs', async () => {

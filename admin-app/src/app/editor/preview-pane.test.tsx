@@ -10,6 +10,36 @@ describe('PreviewPane', () => {
     delete (window as Window & { mermaid?: unknown; __adminPreviewMermaidRuntimePromise?: Promise<unknown> }).__adminPreviewMermaidRuntimePromise
   })
 
+  it('renders ==highlight== markdown as a highlighted inline mark', () => {
+    render(
+      <PreviewPane
+        title="高亮"
+        date="2026-05-08 10:00:00"
+        markdown="这里有 ==重要内容==。"
+      />,
+    )
+
+    const highlighted = screen.getByText('重要内容')
+    expect(highlighted.tagName).toBe('MARK')
+    expect(highlighted.className).toContain('preview-content__markdown-highlight')
+  })
+
+  it('emits a task toggle when a preview checkbox is clicked', () => {
+    const onToggleTask = vi.fn()
+    render(
+      <PreviewPane
+        title="待办"
+        date="2026-05-08 10:00:00"
+        markdown="- [ ] 完成编辑"
+        onToggleTask={onToggleTask}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('checkbox'))
+
+    expect(onToggleTask).toHaveBeenCalledWith('完成编辑', true)
+  })
+
   it('renders markdown headings as collapsible sections in preview', () => {
     render(
       <PreviewPane

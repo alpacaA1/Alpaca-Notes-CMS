@@ -44,6 +44,30 @@ type ActiveInternalReferenceQuery = {
   query: string
 }
 
+function ToolbarIcon({ name }: { name: 'link' | 'image' | 'code' | 'quote' | 'fullscreen' }) {
+  if (name === 'link') {
+    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 12 4-4M7.05 14.95l-1.1 1.1a3.1 3.1 0 0 1-4.4-4.4l3.2-3.2a3.1 3.1 0 0 1 4.4 0M12.95 5.05l1.1-1.1a3.1 3.1 0 1 1 4.4 4.4l-3.2 3.2a3.1 3.1 0 0 1-4.4 0" /></svg>
+  }
+  if (name === 'image') {
+    return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="2.5" y="3" width="15" height="14" rx="1.7" /><circle cx="7" cy="7.5" r="1.25" /><path d="m3.5 14 4.2-4 2.75 2.55 2.05-1.85 4.1 3.3" /></svg>
+  }
+  if (name === 'code') {
+    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m7.3 4-4 6 4 6M12.7 4l4 6-4 6M11.1 2.8 8.9 17.2" /></svg>
+  }
+  if (name === 'quote') {
+    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.4 6.2C5.9 7 4.5 8.8 4.5 11.4c0 1.55.9 2.65 2.3 2.65 1.25 0 2.2-.92 2.2-2.15 0-.96-.55-1.68-1.45-1.98.15-1.18.88-2.02 2.03-2.65L8.4 6.2Zm7.1 0c-2.5.8-3.9 2.6-3.9 5.2 0 1.55.9 2.65 2.3 2.65 1.25 0 2.2-.92 2.2-2.15 0-.96-.55-1.68-1.45-1.98.15-1.18.88-2.02 2.03-2.65L15.5 6.2Z" fill="currentColor" stroke="none" /></svg>
+  }
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.3 3H3v4.3M12.7 3H17v4.3M17 12.7V17h-4.3M7.3 17H3v-4.3" /></svg>
+}
+
+function EditorCommandIcon({ name }: { name: 'divider' | 'table' | 'todo' | 'highlight' | 'more' }) {
+  if (name === 'divider') return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 6.2h14M3 10h14M3 13.8h14" /></svg>
+  if (name === 'table') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="1.2" /><path d="M3 8h14M3 12h14M8 3v14" /></svg>
+  if (name === 'todo') return <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="3.2" y="3.2" width="13.6" height="13.6" rx="1.2" /><path d="m6.5 10 2.1 2.1 4.9-4.9" /></svg>
+  if (name === 'highlight') return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m6.3 14.7 6.8-6.8 2.2 2.2-6.8 6.8-3 .8.8-3ZM12.6 5.2l1-1a1.55 1.55 0 0 1 2.2 2.2l-1 1" /><path d="M3.5 17.2h12.8" /></svg>
+  return <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="5" cy="10" r="1.15" fill="currentColor" stroke="none" /><circle cx="10" cy="10" r="1.15" fill="currentColor" stroke="none" /><circle cx="15" cy="10" r="1.15" fill="currentColor" stroke="none" /></svg>
+}
+
 function isListDebugEnabled() {
   return typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug-list') === '1'
 }
@@ -760,6 +784,7 @@ export default function MarkdownEditor({
   const [editorSelection, setEditorSelection] = useState<SelectionRange>({ start: 0, end: 0 })
   const [activeInternalReferenceIndex, setActiveInternalReferenceIndex] = useState(0)
   const [dismissedInternalReferenceKey, setDismissedInternalReferenceKey] = useState<string | null>(null)
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const textareaId = useId()
 
   const handleScroll = () => {
@@ -889,6 +914,162 @@ export default function MarkdownEditor({
     const urlStart = nextValue.lastIndexOf(DEFAULT_LINK_URL)
     dispatchValueChange(nextValue, { start: urlStart, end: urlStart + DEFAULT_LINK_URL.length }, selection)
   }
+
+  const getToolbarSelection = () => {
+    const selection = getSelectionRange(textareaRef.current)
+    trackedSelectionRef.current = selection
+    setEditorSelection(selection)
+    return selection
+  }
+
+  const focusEditor = () => {
+    window.requestAnimationFrame(() => textareaRef.current?.focus())
+  }
+
+  const applyInlineFormat = (prefix: string, suffix: string, placeholder: string) => {
+    const selection = getToolbarSelection()
+    const selectedText = currentValueRef.current.slice(selection.start, selection.end)
+    const directPrefixStart = selection.start - prefix.length
+    const directSuffixEnd = selection.end + suffix.length
+    const hasDirectMarkers =
+      currentValueRef.current.slice(Math.max(0, directPrefixStart), selection.start) === prefix
+      && currentValueRef.current.slice(selection.end, directSuffixEnd) === suffix
+    const hasSelectedMarkers = selectedText.startsWith(prefix) && selectedText.endsWith(suffix)
+    const cursorPrefixStart = selection.start === selection.end
+      ? currentValueRef.current.lastIndexOf(prefix, Math.max(0, selection.start - 1))
+      : -1
+    const cursorSuffixStart = selection.start === selection.end
+      ? currentValueRef.current.indexOf(suffix, selection.end)
+      : -1
+    const hasCursorMarkers =
+      cursorPrefixStart >= 0
+      && cursorSuffixStart >= selection.end
+      && !currentValueRef.current.slice(cursorPrefixStart + prefix.length, cursorSuffixStart).includes('\n')
+
+    if (hasDirectMarkers || hasSelectedMarkers || hasCursorMarkers) {
+      const markerStart = hasDirectMarkers
+        ? directPrefixStart
+        : hasSelectedMarkers
+          ? selection.start
+          : cursorPrefixStart
+      const contentStart = markerStart + prefix.length
+      const markerEnd = hasDirectMarkers
+        ? directSuffixEnd
+        : hasSelectedMarkers
+          ? selection.end
+          : cursorSuffixStart + suffix.length
+      const contentEnd = markerEnd - suffix.length
+      const content = currentValueRef.current.slice(contentStart, contentEnd)
+      const nextValue = `${currentValueRef.current.slice(0, markerStart)}${content}${currentValueRef.current.slice(markerEnd)}`
+      const cursorOffset = Math.max(0, selection.start - contentStart)
+      const nextStart = markerStart + Math.min(cursorOffset, content.length)
+      const nextEnd = selection.start === selection.end ? nextStart : markerStart + content.length
+      dispatchValueChange(nextValue, { start: nextStart, end: nextEnd }, selection)
+      focusEditor()
+      return
+    }
+
+    const { nextValue, nextSelection } = wrapSelection(
+      currentValueRef.current,
+      selection.start,
+      selection.end,
+      prefix,
+      suffix,
+      placeholder,
+    )
+    dispatchValueChange(nextValue, nextSelection, selection)
+    focusEditor()
+  }
+
+  const applyHeading = (level: 1 | 2 | 3) => {
+    const selection = getToolbarSelection()
+    const { start, end } = getSelectedLineRange(currentValueRef.current, selection.start, selection.end)
+    const selectedText = currentValueRef.current.slice(start, end)
+    const marker = '#'.repeat(level)
+    const lines = selectedText.split('\n')
+    const isAlreadyThisHeading = lines.length > 0 && lines.every((line) => new RegExp(`^\\s*${marker}\\s+`).test(line))
+    const nextBlock = selectedText
+      .split('\n')
+      .map((line) => {
+        const existingHeading = line.match(/^(\s*)#{1,6}\s*(.*)$/)
+        if (existingHeading) {
+          if (isAlreadyThisHeading) {
+            return `${existingHeading[1]}${existingHeading[2]}`
+          }
+          return `${existingHeading[1]}${marker} ${existingHeading[2]}`
+        }
+        return line.trim() ? `${marker} ${line}` : line
+      })
+      .join('\n')
+    const nextValue = `${currentValueRef.current.slice(0, start)}${nextBlock}${currentValueRef.current.slice(end)}`
+    dispatchValueChange(nextValue, { start, end: start + nextBlock.length }, selection)
+    focusEditor()
+  }
+
+  const toggleLinePrefix = (prefix: string) => {
+    const selection = getToolbarSelection()
+    const { start, end } = getSelectedLineRange(currentValueRef.current, selection.start, selection.end)
+    const selectedText = currentValueRef.current.slice(start, end)
+    const lines = selectedText.split('\n')
+    const everyLineHasPrefix = lines.every((line) => line.startsWith(prefix))
+    const nextBlock = lines
+      .map((line) => everyLineHasPrefix ? line.slice(prefix.length) : `${prefix}${line}`)
+      .join('\n')
+    const nextValue = `${currentValueRef.current.slice(0, start)}${nextBlock}${currentValueRef.current.slice(end)}`
+    dispatchValueChange(nextValue, { start, end: start + nextBlock.length }, selection)
+    focusEditor()
+  }
+
+  const applyCodeFormat = () => {
+    const selection = getToolbarSelection()
+    const selectedText = currentValueRef.current.slice(selection.start, selection.end)
+    const fencePrefix = '```\n'
+    const fenceSuffix = '\n```'
+    const hasCodeFence =
+      currentValueRef.current.slice(Math.max(0, selection.start - fencePrefix.length), selection.start) === fencePrefix
+      && currentValueRef.current.slice(selection.end, selection.end + fenceSuffix.length) === fenceSuffix
+
+    if (hasCodeFence) {
+      const nextStart = selection.start - fencePrefix.length
+      const nextValue = `${currentValueRef.current.slice(0, nextStart)}${selectedText}${currentValueRef.current.slice(selection.end + fenceSuffix.length)}`
+      dispatchValueChange(nextValue, { start: nextStart, end: nextStart + selectedText.length }, selection)
+      focusEditor()
+      return
+    }
+
+    if (selectedText.includes('\n')) {
+      const nextValue = `${currentValueRef.current.slice(0, selection.start)}\`\`\`\n${selectedText || '代码'}\n\`\`\`${currentValueRef.current.slice(selection.end)}`
+      const start = selection.start + 4
+      dispatchValueChange(nextValue, { start, end: start + (selectedText || '代码').length }, selection)
+      focusEditor()
+      return
+    }
+
+    applyInlineFormat('`', '`', '代码')
+  }
+
+  const insertSnippet = (snippet: string, selection = getToolbarSelection()) => {
+    const nextValue = `${currentValueRef.current.slice(0, selection.start)}${snippet}${currentValueRef.current.slice(selection.end)}`
+    const caret = selection.start + snippet.length
+    dispatchValueChange(nextValue, { start: caret, end: caret }, selection)
+    focusEditor()
+  }
+
+  const insertDivider = () => {
+    const selection = getToolbarSelection()
+    const lineStart = getLineStart(currentValueRef.current, selection.start)
+    const lineEnd = getLineEnd(currentValueRef.current, selection.end)
+    if (currentValueRef.current.slice(lineStart, lineEnd).trim() === '---') {
+      const nextValue = `${currentValueRef.current.slice(0, lineStart)}${currentValueRef.current.slice(lineEnd + (currentValueRef.current[lineEnd] === '\n' ? 1 : 0))}`
+      dispatchValueChange(nextValue, { start: lineStart, end: lineStart }, selection)
+      focusEditor()
+      return
+    }
+    insertSnippet(`${currentValueRef.current ? '\n\n' : ''}---\n\n`, selection)
+  }
+  const insertTable = () => insertSnippet('| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |')
+  const toggleTodo = () => toggleLinePrefix('- [ ] ')
+  const applyHighlight = () => applyInlineFormat('==', '==', '高亮')
 
   const insertInternalReference = (
     candidate: InternalReferenceCandidate,
@@ -1423,11 +1604,28 @@ export default function MarkdownEditor({
 
   return (
     <section className="editor-surface editor-surface--editor-canvas" style={editorFontStyle}>
-      <div className="markdown-editor__toolbar">
-        <div className="markdown-editor__meta">
-          <label className="editor-surface__label" htmlFor={textareaId}>
-            Markdown 编辑
-          </label>
+      <div className="markdown-editor__toolbar" role="toolbar" aria-label="文章格式工具栏">
+        <div className="markdown-editor__format-actions">
+          <button type="button" className="markdown-editor__format-button markdown-editor__format-button--heading" onMouseDown={(event) => event.preventDefault()} onClick={() => applyHeading(1)} aria-label="一级标题">H1</button>
+          <button type="button" className="markdown-editor__format-button markdown-editor__format-button--heading" onMouseDown={(event) => event.preventDefault()} onClick={() => applyHeading(2)} aria-label="二级标题">H2</button>
+          <button type="button" className="markdown-editor__format-button markdown-editor__format-button--heading" onMouseDown={(event) => event.preventDefault()} onClick={() => applyHeading(3)} aria-label="三级标题">H3</button>
+          <span className="markdown-editor__toolbar-divider" aria-hidden="true" />
+          <button type="button" className="markdown-editor__format-button markdown-editor__format-button--bold" onMouseDown={(event) => event.preventDefault()} onClick={() => applyInlineFormat('**', '**', '粗体')} aria-label="粗体">B</button>
+          <button type="button" className="markdown-editor__format-button markdown-editor__format-button--italic" onMouseDown={(event) => event.preventDefault()} onClick={() => applyInlineFormat('*', '*', '斜体')} aria-label="斜体">I</button>
+          <span className="markdown-editor__toolbar-divider" aria-hidden="true" />
+          <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={insertDivider} aria-label="插入分割线"><EditorCommandIcon name="divider" /><span>分割线</span></button>
+          <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={insertTable} aria-label="插入表格"><EditorCommandIcon name="table" /><span>表格</span></button>
+          <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={toggleTodo} aria-label="待办"><EditorCommandIcon name="todo" /><span>待办</span></button>
+          <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} aria-label="高亮"><EditorCommandIcon name="highlight" /><span>高亮</span></button>
+          <div className="markdown-editor__more-menu">
+            <button type="button" className={`markdown-editor__format-button markdown-editor__format-button--more${isMoreMenuOpen ? ' is-active' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={() => setIsMoreMenuOpen((current) => !current)} aria-label="更多格式" aria-haspopup="menu" aria-expanded={isMoreMenuOpen}><EditorCommandIcon name="more" /></button>
+            {isMoreMenuOpen ? <div className="markdown-editor__more-popover" role="menu">
+              <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { insertLinkMarkdown(getToolbarSelection()); setIsMoreMenuOpen(false) }}><ToolbarIcon name="link" /><span>链接</span></button>
+              {onUploadImage ? <button type="button" role="menuitem" onMouseDown={(event) => { event.preventDefault(); handleUploadButtonMouseDown() }} onClick={() => { handleUploadButtonClick(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="image" /><span>{isUploadingImage ? '上传中' : '图片'}</span></button> : null}
+              <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { applyCodeFormat(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="code" /><span>代码</span></button>
+              <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { toggleLinePrefix('> '); setIsMoreMenuOpen(false) }}><ToolbarIcon name="quote" /><span>引用</span></button>
+            </div> : null}
+          </div>
         </div>
         <div className="markdown-editor__actions">
           {isListDebugEnabled() ? (
@@ -1456,7 +1654,8 @@ export default function MarkdownEditor({
             />
           ) : null}
           {onToggleImmersive ? (
-            <button type="button" className="markdown-editor__upload-button" onClick={onToggleImmersive}>
+            <button type="button" className="markdown-editor__immersive-button" onClick={onToggleImmersive}>
+              <ToolbarIcon name="fullscreen" />
               {isImmersive ? '退出沉浸' : '沉浸模式'}
             </button>
           ) : null}

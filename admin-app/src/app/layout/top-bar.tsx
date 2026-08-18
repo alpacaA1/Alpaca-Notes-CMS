@@ -44,16 +44,9 @@ function MoonIcon() {
 
 function FontSizeIcon() {
   return (
-    <svg className="top-bar__font-icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M3.7 15 7.4 5.6h1.2L12.3 15h-1.6l-0.95-2.6H6.2L5.3 15H3.7Zm2.92-3.9h2.96l-1.46-4.05-1.5 4.05Z"
-        fill="currentColor"
-      />
-      <path
-        d="M13.4 13.4h4.2v1.18h-5.5v-1.06l1.62-1.74c.66-.72 1.06-1.18 1.2-1.4.18-.28.27-.55.27-.82 0-.32-.1-.58-.3-.78-.2-.2-.46-.3-.8-.3-.3 0-.55.08-.78.25-.22.16-.4.4-.52.7l-1.18-.4c.18-.55.5-.98.92-1.28.43-.3.94-.45 1.54-.45.7 0 1.27.2 1.7.6.43.4.64.93.64 1.6 0 .4-.1.78-.3 1.14-.18.36-.6.87-1.24 1.54l-1.46 1.56Z"
-        fill="currentColor"
-        opacity="0.92"
-      />
+    <svg className="top-bar__font-icon" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <text x="1.1" y="14.25" fill="currentColor" fontFamily="Georgia, serif" fontSize="13.5" fontWeight="700">A</text>
+      <text x="10.6" y="14.7" fill="currentColor" fontFamily="Georgia, serif" fontSize="11.5" fontWeight="600">a</text>
     </svg>
   )
 }
@@ -128,6 +121,25 @@ function BackIcon() {
     <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
       <path d="M10.5 4.5 6 9l4.5 4.5" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M6.25 9H15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function PreviewIcon() {
+  return (
+    <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3" y="3.5" width="14" height="10.5" rx="1.6" stroke="currentColor" strokeWidth="1.55" />
+      <path d="M8 17h4M10 14v3" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" />
+      <path d="m6.3 10 2.15-2.1 1.8 1.55 2.95-2.65" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+function SettingsIcon() {
+  return (
+    <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.55" />
+      <path d="M10 3.1v1.25M10 15.65v1.25M16.9 10h-1.25M4.35 10H3.1M14.88 5.12l-.88.88M6 14l-.88.88M14.88 14.88l-.88-.88M6 6l-.88-.88" stroke="currentColor" strokeWidth="1.55" strokeLinecap="round" />
     </svg>
   )
 }
@@ -552,22 +564,24 @@ export default function TopBar({
               className="top-bar__button top-bar__button--back"
               type="button"
               onClick={onBackToDashboard}
+              aria-label={backButtonLabel}
             >
-              {backButtonLabel}
+              <BackIcon />
+              {backButtonLabel?.replace(/^←\s*/, '')}
             </button>
           ) : null}
           <button
             type="button"
-            className={`top-bar__button${isSettingsPanelOpen ? ' top-bar__button--active' : ''}`}
+            className={`top-bar__button top-bar__button--editor-settings${isSettingsPanelOpen ? ' top-bar__button--active' : ''}`}
             onClick={onToggleSettingsPanel}
             aria-pressed={isSettingsPanelOpen}
           >
-            <span aria-hidden="true">⚙</span>
+            <SettingsIcon />
             {contentType === 'diary' ? '日记设置' : contentType === 'knowledge' ? '知识点设置' : contentType === 'pitch' ? '灵感设置' : '文章设置'}
           </button>
           {showPreviewToggle ? (
-            <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
-              <span aria-hidden="true">◉</span>
+            <button className="top-bar__button top-bar__button--editor-preview" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
+              <PreviewIcon />
               {previewToggleLabel}
             </button>
           ) : null}
@@ -660,14 +674,6 @@ export default function TopBar({
               </div>
             ) : null}
           </div>
-          <button
-            className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
-            type="button"
-            onClick={onSave}
-            disabled={isSaveDisabled}
-          >
-            <RenderSaveBadge label={saveLabel} />
-          </button>
           <div className="top-bar__editor-more">
             <button
               type="button"
@@ -706,6 +712,14 @@ export default function TopBar({
               </div>
             ) : null}
           </div>
+          <button
+            className={`top-bar__button top-bar__button--save${isSaveQuiet ? ' top-bar__button--save-quiet' : ''}`}
+            type="button"
+            onClick={onSave}
+            disabled={isSaveDisabled}
+          >
+            <RenderSaveBadge label={saveLabel} />
+          </button>
         </div>
       </header>
     )

@@ -204,6 +204,7 @@ export default function TaxonomyMultiSelect({
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
                 <input
+                  className="taxonomy-multi-select__search-input"
                   aria-label={searchLabel}
                   autoFocus
                   value={query}
@@ -339,21 +340,6 @@ export default function TaxonomyMultiSelect({
                         </span>
                       ) : (
                         <>
-                          {isSelected ? (
-                            <svg
-                              className="taxonomy-multi-select__check-icon"
-                              width="14"
-                              height="14"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2.5"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <polyline points="20 6 9 17 4 12"></polyline>
-                            </svg>
-                          ) : null}
                           {hasManageActions ? (
                             <span className="taxonomy-multi-select__option-actions">
                               {onRenameOption ? (

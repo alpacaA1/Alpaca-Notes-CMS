@@ -109,6 +109,7 @@ type PreviewPaneProps = {
   onOpenWikiLink?: (targetKey: string) => void
   resolveInternalReferenceTitle?: (targetKey: string) => string | null
   onOpenInternalReference?: (targetKey: string) => void
+  onToggleTask?: (label: string, nextChecked: boolean) => void
   topicBacklinks?: TopicBacklinkItem[]
   showTopicBacklinksDrawer?: boolean
   showReadLaterOutline?: boolean
@@ -981,12 +982,12 @@ function renderBareUrls(markdown: string, startIndex: number) {
 
 function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
   const nodes: ReactNode[] = []
-  const pattern = /(\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]|\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
+  const pattern = /(\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]|\[([^\]]+)\]\(([^)]+)\)|==([^=]+)==|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
   let lastIndex = 0
   let matchIndex = 0
 
   for (const match of markdown.matchAll(pattern)) {
-    const [fullMatch, , wikiTargetKey, wikiLabel, linkLabel, linkHref, boldText, italicText, codeText] = match
+    const [fullMatch, , wikiTargetKey, wikiLabel, linkLabel, linkHref, highlightText, boldText, italicText, codeText] = match
     const start = match.index || 0
 
     if (start > lastIndex) {
@@ -1044,6 +1045,8 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
           <span key={`inline-${matchIndex}`}>{linkLabel}</span>
         ),
       )
+    } else if (highlightText) {
+      nodes.push(<mark key={`inline-${matchIndex}`} className="preview-content__markdown-highlight">{highlightText}</mark>)
     } else if (boldText) {
       nodes.push(<strong key={`inline-${matchIndex}`}>{boldText}</strong>)
     } else if (italicText) {
@@ -1233,7 +1236,7 @@ function renderMarkdownListBlock(
           <li key={`${keyPrefix}-item-${itemIndex}`} className={task ? 'preview-content__task-item' : undefined}>
             {task ? (
               <label className="preview-content__task-label">
-                <input type="checkbox" checked={task.checked} readOnly disabled />
+                <input type="checkbox" checked={task.checked} data-task-label={task.label} onChange={() => {}} />
                 <span>{renderInlineWithLineBreaks(task.label, previewImageUrls, wikiLinkOptions)}</span>
               </label>
             ) : (
@@ -2110,6 +2113,7 @@ export default function PreviewPane({
   onOpenWikiLink,
   resolveInternalReferenceTitle,
   onOpenInternalReference,
+  onToggleTask,
   topicBacklinks = [],
   showTopicBacklinksDrawer = false,
   showReadLaterOutline = false,
@@ -2793,6 +2797,12 @@ export default function PreviewPane({
           id={articleRootId}
           style={readingFontStyle}
           onClick={handleArticleClick}
+          onChange={(event) => {
+            const target = event.target
+            if (target instanceof HTMLInputElement && target.type === 'checkbox' && target.dataset.taskLabel !== undefined) {
+              onToggleTask?.(target.dataset.taskLabel, target.checked)
+            }
+          }}
           onMouseUp={handleSelectionChange}
           onKeyUp={handleSelectionChange}
         >

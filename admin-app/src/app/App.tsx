@@ -2957,6 +2957,32 @@ export default function App() {
     updateBody(value)
   }
 
+  const handlePreviewTaskToggle = (label: string, nextChecked: boolean) => {
+    if (!document) {
+      return
+    }
+
+    let hasToggled = false
+    const nextBody = document.body.split('\n').map((line) => {
+      const match = line.match(/^(\s*[-*+]\s+\[)( |x|X)(\]\s+)(.*)$/)
+      if (
+        hasToggled
+        || !match
+        || match[4] !== label
+        || (match[2].toLowerCase() === 'x') === nextChecked
+      ) {
+        return line
+      }
+
+      hasToggled = true
+      return `${match[1]}${nextChecked ? 'x' : ' '}${match[3]}${match[4]}`
+    }).join('\n')
+
+    if (hasToggled) {
+      handleEditorChange(nextBody)
+    }
+  }
+
   const handleReadLaterTabChange = (value: ReadLaterTab) => {
     setReadLaterTab(value)
     if (value !== 'commentary') {
@@ -4634,15 +4660,6 @@ export default function App() {
             <div className={`editor-stack${isReaderPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
-                  {showDocumentFrame ? (
-                    <section className="editor-frame">
-                      <div className="editor-frame__header">
-                        <div>
-                          <div className="editor-frame__title-row"><input type="text" className={`editor-frame__title-input${!document.frontmatter.title?.trim() ? ' editor-frame__title-input--untitled' : ''}`} aria-label="标题" placeholder="未命名草稿" value={document.frontmatter.title} onChange={(event) => handleFrontmatterChange('title', event.target.value)} />{validationErrors.title ? <span className="error-message editor-frame__title-error">{validationErrors.title}</span> : null}</div>
-                        </div>
-                      </div>
-                    </section>
-                  ) : null}
                   {mode === 'preview' ? (
                     <PreviewPane
                       title={document.frontmatter.title}
@@ -4681,6 +4698,7 @@ export default function App() {
                       onOpenWikiLink={handleOpenTopicNode}
                       resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
                       onOpenInternalReference={handleOpenInternalReference}
+                      onToggleTask={handlePreviewTaskToggle}
                       topicBacklinks={activeTopicBacklinks}
                       showTopicBacklinksDrawer={document.contentType === 'post' && document.frontmatter.topic === true}
                       showInlineOutline={!isReaderPreview}
@@ -4689,17 +4707,29 @@ export default function App() {
                       readingFontFamily={previewReadingFontFamily}
                     />
                   ) : (
-                    <MarkdownEditor
-                      value={document.body}
-                      onChange={handleEditorChange}
-                      onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
-                      isImmersive={isImmersive}
-                      onUploadImage={handleUploadImage}
-                      internalReferenceCandidates={internalReferenceCandidates}
-                      editorFontSize={previewReadingFontSize}
-                      editorFontWeight={previewReadingFontWeight}
-                      editorFontFamily={previewReadingFontFamily}
-                    />
+                    <section className="editor-writing-canvas">
+                      {showDocumentFrame ? (
+                        <header className="editor-frame">
+                          <div className="editor-frame__header">
+                            <div>
+                              <div className="editor-frame__title-row"><input type="text" className={`editor-frame__title-input${!document.frontmatter.title?.trim() ? ' editor-frame__title-input--untitled' : ''}`} aria-label="标题" placeholder="未命名草稿" value={document.frontmatter.title} onChange={(event) => handleFrontmatterChange('title', event.target.value)} />{validationErrors.title ? <span className="error-message editor-frame__title-error">{validationErrors.title}</span> : null}</div>
+                              <p className="editor-frame__save-meta">{isDirty ? '未保存修改' : '已保存'} · {document.body.trim().length} 字</p>
+                            </div>
+                          </div>
+                        </header>
+                      ) : null}
+                      <MarkdownEditor
+                        value={document.body}
+                        onChange={handleEditorChange}
+                        onToggleImmersive={() => setIsImmersive((current) => getNextImmersiveMode(current))}
+                        isImmersive={isImmersive}
+                        onUploadImage={handleUploadImage}
+                        internalReferenceCandidates={internalReferenceCandidates}
+                        editorFontSize={previewReadingFontSize}
+                        editorFontWeight={previewReadingFontWeight}
+                        editorFontFamily={previewReadingFontFamily}
+                      />
+                    </section>
                   )}
                 </>
               ) : isOpeningPost ? (
