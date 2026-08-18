@@ -49,6 +49,8 @@ type SettingsPanelProps = {
   onCancelAnnotationEdit?: () => void
   topicBacklinks?: TopicBacklinkItem[]
   onOpenLinkedPost?: (post: PostIndexItem) => void
+  onStartWritingFromPitch?: () => void
+  onOpenLinkedArticle?: (path: string) => void
   isDrawer?: boolean
   isOpen?: boolean
   onClose?: () => void
@@ -139,6 +141,8 @@ export default function SettingsPanel({
   onCancelAnnotationEdit,
   topicBacklinks = [],
   onOpenLinkedPost,
+  onStartWritingFromPitch,
+  onOpenLinkedArticle,
   isDrawer = false,
   isOpen = true,
   onClose,
@@ -152,6 +156,7 @@ export default function SettingsPanel({
   const isDiary = contentType === 'diary'
   const isPost = contentType === 'post'
   const isKnowledge = contentType === 'knowledge'
+  const isPitch = contentType === 'pitch'
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -313,8 +318,8 @@ export default function SettingsPanel({
           {isDrawer ? <div className="settings-panel__drawer-top"><strong>文章设置</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章设置">×</button></div> : null}
           <>
             <p className="settings-panel__eyebrow">元信息</p>
-            <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : '文章设置'}</h2>
-            {isDiary ? <p>保留最少字段，先把阶段记录写下来。</p> : isKnowledge ? <p>保留正文与来源上下文，快速沉淀知识点。</p> : null}
+            <h2>{isDiary ? '日记设置' : isKnowledge ? '知识点设置' : isPitch ? '选题设置' : '文章设置'}</h2>
+            {isDiary ? <p>保留最少字段，先把阶段记录写下来。</p> : isKnowledge ? <p>保留正文与来源上下文，快速沉淀知识点。</p> : isPitch ? <p>轻量记录灵感，积累素材后展开写作。</p> : null}
           </>
         </div>
       ) : null}
@@ -470,7 +475,7 @@ export default function SettingsPanel({
               </label>
             </>
           ) : (
-            <MetadataSection title="发布设置" defaultOpen>
+            <MetadataSection title={isPitch ? '选题设置' : '发布设置'} defaultOpen>
               <label className="settings-panel__toggle">
                 <span>置顶</span>
                 <input
@@ -481,7 +486,35 @@ export default function SettingsPanel({
                 />
               </label>
 
-              {!isDiary && !isKnowledge ? (
+              {isPitch ? (
+                <>
+                  <label className="settings-panel__field">
+                    <span>状态</span>
+                    <select
+                      aria-label="灵感状态"
+                      value={frontmatter.pitch_status === 'open' ? 'collecting' : (frontmatter.pitch_status || 'collecting')}
+                      onChange={(event) => onFieldChange('pitch_status', event.target.value as NonNullable<ParsedPost['frontmatter']['pitch_status']>)}
+                    >
+                      <option value="collecting">收集中</option>
+                      <option value="writing">写作中</option>
+                      <option value="done">已完成</option>
+                      <option value="shelved">已搁置</option>
+                    </select>
+                  </label>
+
+                  <label className="settings-panel__field">
+                    <span>灵感来源</span>
+                    <input
+                      aria-label="灵感来源"
+                      value={frontmatter.pitch_inspiration || ''}
+                      placeholder="例如：看《原则》第三章后的感触"
+                      onChange={(event) => onFieldChange('pitch_inspiration', event.target.value)}
+                    />
+                  </label>
+                </>
+              ) : null}
+
+              {!isDiary && !isKnowledge && !isPitch ? (
                 <label className="settings-panel__toggle">
                   <span>已发布</span>
                   <input
@@ -493,7 +526,7 @@ export default function SettingsPanel({
                 </label>
               ) : null}
 
-              {!isDiary ? (
+              {!isDiary && !isPitch ? (
                 <div className="settings-panel__field settings-panel__taxonomy">
                   <span>分类</span>
                   <TaxonomyMultiSelect
@@ -541,6 +574,46 @@ export default function SettingsPanel({
                   onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
                 />
               </div>
+
+              {isPitch ? (
+                <div className="settings-panel__field" style={{ marginTop: '12px' }}>
+                  <span>关联文章</span>
+                  {frontmatter.linked_post_path ? (
+                    <div className="settings-panel__document-note-entry" style={{ cursor: 'default' }}>
+                      <strong>已关联文章</strong>
+                      <span style={{ fontSize: '12px', color: 'var(--admin-muted)', marginTop: '4px', wordBreak: 'break-all' }}>
+                        {frontmatter.linked_post_path}
+                      </span>
+                      {onOpenLinkedArticle ? (
+                        <button
+                          type="button"
+                          className="top-bar__button"
+                          style={{ marginTop: '8px', minHeight: '32px', padding: '0 10px', fontSize: '13px' }}
+                          onClick={() => onOpenLinkedArticle(frontmatter.linked_post_path!)}
+                        >
+                          打开关联文章
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : onStartWritingFromPitch ? (
+                    <div style={{ marginTop: '4px' }}>
+                      <button
+                        type="button"
+                        className="top-bar__button top-bar__button--new-post"
+                        style={{ width: '100%', justifyContent: 'center' }}
+                        onClick={onStartWritingFromPitch}
+                      >
+                        ✍ 开始写作
+                      </button>
+                      <p className="settings-panel__field-note" style={{ marginTop: '6px' }}>
+                        将当前选题转为正式文章草稿，自动带入标题和想法。
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="settings-panel__field-note">尚未关联文章。</p>
+                  )}
+                </div>
+              ) : null}
             </MetadataSection>
           )}
 
@@ -720,7 +793,7 @@ export default function SettingsPanel({
             </>
           ) : null}
 
-          {!isDiary && !isKnowledge ? (
+          {!isDiary && !isKnowledge && !isPitch ? (
             <label className="settings-panel__field">
               <span>封面图</span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>

@@ -1,7 +1,7 @@
 import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 import type { ResolvedContentFormat } from '../content-format'
 import type { ParsedPost, ReadingStatus } from '../posts/parse-post'
-import type { ContentType, PostIndexItem } from '../posts/post-types'
+import type { ContentType, PitchStatus, PostIndexItem } from '../posts/post-types'
 import { extractMarkdownHeadings, getReadLaterOutline } from '../read-later/parse-item'
 import type { ReadLaterOutlineItem } from '../read-later/item-types'
 
@@ -11,6 +11,20 @@ function getReadLaterStatusTone(status?: ReadingStatus) {
 
 function getReadLaterStatusLabel(status?: ReadingStatus) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
+}
+
+function getPitchStatusTone(status?: PitchStatus | null) {
+  if (status === 'writing') return 'published'
+  if (status === 'done') return 'done'
+  if (status === 'shelved') return 'draft'
+  return 'reading'
+}
+
+function getPitchStatusLabel(status?: PitchStatus | null) {
+  if (status === 'writing') return '写作中'
+  if (status === 'done') return '已完成'
+  if (status === 'shelved') return '已搁置'
+  return '收集中'
 }
 
 function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
@@ -24,6 +38,10 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
 
   if (contentType === 'knowledge') {
     return pinned ? '取消置顶知识点' : '置顶知识点'
+  }
+
+  if (contentType === 'pitch') {
+    return pinned ? '取消置顶选题' : '置顶选题'
   }
 
   return pinned ? '取消置顶文章' : '置顶文章'
@@ -239,7 +257,13 @@ export default function PostListPane({
           const isDeletingThisPost = deletingPostPath === post.path
           const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
           const isPinnedToggleDisabled = isTogglingPinned || isDeleting || disabledPinnedPostPath === post.path
-          const statusTone = contentType === 'read-later' ? getReadLaterStatusTone(post.readingStatus) : post.published ? 'published' : 'draft'
+          const statusTone = contentType === 'read-later'
+            ? getReadLaterStatusTone(post.readingStatus)
+            : contentType === 'pitch'
+              ? getPitchStatusTone(post.pitchStatus)
+              : post.published
+                ? 'published'
+                : 'draft'
           const statusLabel =
             contentType === 'read-later'
               ? getReadLaterStatusLabel(post.readingStatus)
@@ -247,9 +271,11 @@ export default function PostListPane({
                 ? '日记'
                 : contentType === 'knowledge'
                   ? '知识点'
-                : post.published
-                  ? '已发布'
-                  : '草稿'
+                  : contentType === 'pitch'
+                    ? getPitchStatusLabel(post.pitchStatus)
+                    : post.published
+                      ? '已发布'
+                      : '草稿'
 
           return (
             <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
@@ -261,8 +287,31 @@ export default function PostListPane({
                     <span>{post.date}</span>
                   </div>
                   <strong>{post.title}</strong>
-                  {contentType !== 'diary' ? <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span> : null}
-                  <div className="post-row-button__footer"><span>{contentType === 'read-later' ? (post.sourceName || '未填写来源') : contentType === 'diary' ? (post.tags[0] || '内部记录') : contentType === 'knowledge' ? (post.sourceTitle || '手动新增') : (post.series || '无系列')}</span><span>{contentType === 'read-later' ? (post.externalUrl || '未填写原文链接') : contentType === 'diary' ? post.path.replace(/^source\/diary\//, '') : contentType === 'knowledge' ? (post.sourceUrl || post.sourcePath || '内部知识库') : (post.permalink || '旧链接')}</span></div>
+                  {contentType !== 'diary' ? <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : contentType === 'pitch' ? (post.body ? post.body.slice(0, 60) : '暂无内容') : '暂无摘要')}</span> : null}
+                  <div className="post-row-button__footer">
+                    <span>
+                      {contentType === 'read-later'
+                        ? (post.sourceName || '未填写来源')
+                        : contentType === 'diary'
+                          ? (post.tags[0] || '内部记录')
+                          : contentType === 'knowledge'
+                            ? (post.sourceTitle || '手动新增')
+                            : contentType === 'pitch'
+                              ? (post.pitchInspiration || (post.tags[0] ? `#${post.tags[0]}` : '未填写灵感'))
+                              : (post.series || '无系列')}
+                    </span>
+                    <span>
+                      {contentType === 'read-later'
+                        ? (post.externalUrl || '未填写原文链接')
+                        : contentType === 'diary'
+                          ? post.path.replace(/^source\/diary\//, '')
+                          : contentType === 'knowledge'
+                            ? (post.sourceUrl || post.sourcePath || '内部知识库')
+                            : contentType === 'pitch'
+                              ? (post.linkedPostPath ? '已关联文章' : '未关联文章')
+                              : (post.permalink || '旧链接')}
+                    </span>
+                  </div>
                 </button>
                 <div className="post-list-item__side-actions">
                   <button type="button" className={`post-list-item__pin-btn${post.pinned ? ' is-active' : ''}`} onClick={() => onTogglePinned(post)} disabled={isPinnedToggleDisabled} aria-label={getPinActionLabel(contentType, post.pinned)}>{isTogglingPinnedThisPost ? '处理中…' : post.pinned ? '已置顶' : '置顶'}</button>
@@ -277,9 +326,9 @@ export default function PostListPane({
     <aside className={`post-pane${isDrawer ? ' post-pane--drawer' : ''}${isDrawer && !isOpen ? ' is-closed' : ''}`}>
       <div className="post-pane__header">
         {isDrawer ? <div className="post-pane__drawer-top"><strong>文章列表</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章列表">×</button></div> : null}
-        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : '文章归档'}</p>
+        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : contentType === 'pitch' ? '选题归档' : '文章归档'}</p>
         <div className="post-pane__title-row">
-          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : '文章'}</h2>
+          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : contentType === 'pitch' ? '选题' : '文章'}</h2>
           <span className="post-pane__count">{posts.length}</span>
         </div>
         <p className="post-pane__note">
@@ -289,7 +338,9 @@ export default function PostListPane({
               ? '按时间浏览你的阶段记录，打开后直接续写。'
               : contentType === 'knowledge'
                 ? '优先看来源、摘录与标签，快速回到你要复习的点。'
-              : '先看标题、链接和元信息，再打开对应稿件。'}
+                : contentType === 'pitch'
+                  ? '记录写作灵感，收集素材后转为正式文章。'
+                  : '先看标题、链接和元信息，再打开对应稿件。'}
         </p>
         {isDrawer ? <label className="post-pane__drawer-search"><span className="sr-only">搜索文章</span><input value={drawerSearch} onChange={(event) => setDrawerSearch(event.target.value)} placeholder="搜索标题或系列" autoFocus /></label> : null}
       </div>
@@ -304,7 +355,13 @@ export default function PostListPane({
           const isDeletingThisPost = deletingPostPath === post.path
           const isTogglingPinnedThisPost = togglingPinnedPostPath === post.path
           const isPinnedToggleDisabled = isTogglingPinned || isDeleting || disabledPinnedPostPath === post.path
-          const statusTone = contentType === 'read-later' ? getReadLaterStatusTone(post.readingStatus) : post.published ? 'published' : 'draft'
+          const statusTone = contentType === 'read-later'
+            ? getReadLaterStatusTone(post.readingStatus)
+            : contentType === 'pitch'
+              ? getPitchStatusTone(post.pitchStatus)
+              : post.published
+                ? 'published'
+                : 'draft'
           const statusLabel =
             contentType === 'read-later'
               ? getReadLaterStatusLabel(post.readingStatus)
@@ -312,9 +369,11 @@ export default function PostListPane({
                 ? '日记'
                 : contentType === 'knowledge'
                   ? '知识点'
-                : post.published
-                  ? '已发布'
-                  : '草稿'
+                  : contentType === 'pitch'
+                    ? getPitchStatusLabel(post.pitchStatus)
+                    : post.published
+                      ? '已发布'
+                      : '草稿'
 
           return (
             <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
@@ -329,7 +388,7 @@ export default function PostListPane({
                   </div>
                   <strong>{post.title}</strong>
                   {contentType !== 'diary' ? (
-                    <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : '暂无摘要')}</span>
+                    <span className="post-row-button__desc">{post.desc || (contentType === 'knowledge' ? '暂无内容' : contentType === 'pitch' ? (post.body ? post.body.slice(0, 60) : '暂无内容') : '暂无摘要')}</span>
                   ) : null}
                   <div className="post-row-button__footer">
                     <span>
@@ -339,7 +398,9 @@ export default function PostListPane({
                           ? (post.tags[0] || '内部记录')
                           : contentType === 'knowledge'
                             ? (post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增'))
-                          : (post.series || '无系列')}
+                            : contentType === 'pitch'
+                              ? (post.pitchInspiration || (post.tags[0] ? `#${post.tags[0]}` : '未填写灵感'))
+                              : (post.series || '无系列')}
                     </span>
                     <span>
                       {contentType === 'read-later'
@@ -348,7 +409,9 @@ export default function PostListPane({
                           ? post.path.replace(/^source\/diary\//, '')
                           : contentType === 'knowledge'
                             ? (post.sourceUrl || post.sourcePath || '内部知识库')
-                          : (post.permalink || '旧链接')}
+                            : contentType === 'pitch'
+                              ? (post.linkedPostPath ? '已关联文章' : '未关联文章')
+                              : (post.permalink || '旧链接')}
                     </span>
                   </div>
                 </button>

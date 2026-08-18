@@ -1,6 +1,7 @@
 import {
   DIARY_PATH,
   KNOWLEDGE_PATH,
+  PITCH_PATH,
   POSTS_PATH,
   READ_LATER_PATH,
   REPO_BRANCH,
@@ -57,7 +58,7 @@ export type TrashEntry = {
   originalPath: string
   originalSha: string
   originalTitle: string
-  contentType: 'post' | 'diary' | 'read-later' | 'knowledge'
+  contentType: 'post' | 'diary' | 'read-later' | 'knowledge' | 'pitch'
   deletedAt: string
   expiresAt: string
   content: string
@@ -343,13 +344,22 @@ async function listMarkdownFiles(session: SessionState, basePath: string): Promi
   try {
     entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
   } catch (error) {
+    if (basePath === PITCH_PATH || basePath === KNOWLEDGE_PATH) {
+      if (error instanceof Error && (error.message === 'Not Found' || error.message.toLowerCase().includes('not found'))) {
+        return []
+      }
+    }
     if (error instanceof Error && error.message === 'Not Found') {
       throw new GitHubAuthError(PRIVATE_REPO_SCOPE_ERROR)
     }
     throw error
   }
 
-  return entries.filter((entry) => entry.type === 'file' && isSupportedContentFileName(entry.name))
+  if (!Array.isArray(entries)) {
+    return []
+  }
+
+  return entries.filter((entry) => entry && entry.type === 'file' && isSupportedContentFileName(entry.name))
 }
 
 export async function listPostFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
@@ -366,6 +376,10 @@ export async function listDiaryFiles(session: SessionState): Promise<GitHubDirec
 
 export async function listKnowledgeFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
   return listMarkdownFiles(session, KNOWLEDGE_PATH)
+}
+
+export async function listPitchFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  return listMarkdownFiles(session, PITCH_PATH)
 }
 
 export async function listTrashFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {

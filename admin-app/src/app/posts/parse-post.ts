@@ -1,6 +1,6 @@
-import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH } from '../config'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
-import type { ContentType, KnowledgeKind, KnowledgeSourceType, TopicNodeType } from './post-types'
+import type { ContentType, KnowledgeKind, KnowledgeSourceType, PitchStatus, TopicNodeType } from './post-types'
 
 export type ReadingStatus = 'unread' | 'reading' | 'done'
 
@@ -35,6 +35,10 @@ export type PostFrontmatter = {
   read_later?: boolean
   diary?: boolean
   knowledge?: boolean
+  pitch?: boolean
+  pitch_status?: PitchStatus
+  pitch_inspiration?: string
+  linked_post_path?: string
   topic?: boolean
   nav_exclude?: boolean
   layout?: string
@@ -103,6 +107,10 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const readLaterRaw = readScalar(frontmatterBlock, 'read_later')
   const diaryRaw = readScalar(frontmatterBlock, 'diary')
   const knowledgeRaw = readScalar(frontmatterBlock, 'knowledge')
+  const pitchRaw = readScalar(frontmatterBlock, 'pitch')
+  const pitchStatusRaw = readScalar(frontmatterBlock, 'pitch_status')
+  const pitchInspirationRaw = readScalar(frontmatterBlock, 'pitch_inspiration')
+  const linkedPostPathRaw = readScalar(frontmatterBlock, 'linked_post_path')
   const topicRaw = readScalar(frontmatterBlock, 'topic')
   const navExcludeRaw = readScalar(frontmatterBlock, 'nav_exclude')
   const layoutRaw = readScalar(frontmatterBlock, 'layout')
@@ -122,7 +130,9 @@ export function parsePost(input: { path: string; sha: string; content: string })
         ? 'diary'
         : knowledgeRaw === 'true' || input.path.startsWith(`${KNOWLEDGE_PATH}/`)
           ? 'knowledge'
-          : 'post'
+          : pitchRaw === 'true' || input.path.startsWith(`${PITCH_PATH}/`)
+            ? 'pitch'
+            : 'post'
 
   return {
     path: input.path,
@@ -151,6 +161,12 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(readLaterRaw === 'true' ? { read_later: true } : {}),
       ...(contentType === 'diary' ? { diary: true } : {}),
       ...(contentType === 'knowledge' ? { knowledge: true } : {}),
+      ...(contentType === 'pitch' || pitchRaw === 'true' ? { pitch: true } : {}),
+      ...(pitchStatusRaw === 'open' || pitchStatusRaw === 'collecting' || pitchStatusRaw === 'writing' || pitchStatusRaw === 'done' || pitchStatusRaw === 'shelved'
+        ? { pitch_status: pitchStatusRaw }
+        : {}),
+      ...(pitchInspirationRaw && pitchInspirationRaw.length > 0 ? { pitch_inspiration: pitchInspirationRaw } : {}),
+      ...(linkedPostPathRaw && linkedPostPathRaw.length > 0 ? { linked_post_path: linkedPostPathRaw } : {}),
       ...(topicRaw === 'true' ? { topic: true } : {}),
       ...(navExcludeRaw === 'true' ? { nav_exclude: true } : {}),
       ...(layoutRaw && layoutRaw.length > 0 ? { layout: layoutRaw } : {}),

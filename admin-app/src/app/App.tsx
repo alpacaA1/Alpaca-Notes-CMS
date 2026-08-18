@@ -87,7 +87,8 @@ import {
   type FeedSubscriptionsState,
 } from './rss/feed-subscriptions'
 import { createNewDiaryEntry, createNewPost, getNextNumericPermalink } from './posts/new-post'
-import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
+import { createNewPitch, createPostFromPitch } from './pitches/new-item'
+import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
@@ -215,7 +216,7 @@ const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function createEmptyIndexedPostsByType(): IndexedPostsByType {
-  return { post: [], diary: [], 'read-later': [], knowledge: [] }
+  return { post: [], diary: [], 'read-later': [], knowledge: [], pitch: [] }
 }
 
 function createEmptyMaterialSelectionState(): MaterialSelectionState {
@@ -239,6 +240,10 @@ function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | P
     return 'knowledge'
   }
 
+  if (post.contentType === 'pitch') {
+    return 'pitch'
+  }
+
   return 'post'
 }
 
@@ -251,7 +256,15 @@ function getContentTypeLabel(contentType: ContentType) {
     return '日记'
   }
 
-  return contentType === 'knowledge' ? '知识点' : '文章'
+  if (contentType === 'knowledge') {
+    return '知识点'
+  }
+
+  if (contentType === 'pitch') {
+    return '灵感'
+  }
+
+  return '文章'
 }
 
 function getDeleteContentTypeLabel(contentType: ContentType) {
@@ -263,11 +276,19 @@ function getDeleteContentTypeLabel(contentType: ContentType) {
     return '日记'
   }
 
-  return contentType === 'knowledge' ? '知识点' : '文章'
+  if (contentType === 'knowledge') {
+    return '知识点'
+  }
+
+  if (contentType === 'pitch') {
+    return '灵感'
+  }
+
+  return '文章'
 }
 
 function getContentCountUnit(contentType: ContentType) {
-  return contentType === 'read-later' || contentType === 'knowledge' ? '条' : '篇'
+  return contentType === 'read-later' || contentType === 'knowledge' || contentType === 'pitch' ? '条' : '篇'
 }
 
 function getReadLaterAnnotationSectionLabel(sectionKey: ReadLaterAnnotation['sectionKey']) {
@@ -428,6 +449,12 @@ function buildPostIndexItemFromDocument(document: ParsedPost): PostIndexItem {
           sourceName: document.frontmatter.source_name || null,
           readingStatus: document.frontmatter.reading_status || 'unread',
         }
+      : resolvedContentType === 'pitch'
+        ? {
+            pitchStatus: document.frontmatter.pitch_status || 'open',
+            pitchInspiration: document.frontmatter.pitch_inspiration || null,
+            linkedPostPath: document.frontmatter.linked_post_path || null,
+          }
       : resolvedContentType === 'knowledge' || resolvedContentType === 'post'
         ? {
             ...(resolvedContentType === 'knowledge'
@@ -507,6 +534,10 @@ async function buildIndexByContentType(session: { token: string }, type: Content
 
   if (type === 'knowledge') {
     return buildKnowledgeIndex(session, options)
+  }
+
+  if (type === 'pitch') {
+    return buildPitchIndex(session, options)
   }
 
   return buildPostIndex(session, options)
@@ -627,6 +658,8 @@ export default function App() {
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [isGlobalQuickPitchOpen, setIsGlobalQuickPitchOpen] = useState(false)
+  const [globalQuickPitchStatus, setGlobalQuickPitchStatus] = useState<PitchStatus>('collecting')
   const [isPostListDrawerOpen, setIsPostListDrawerOpen] = useState(false)
   const [isSettingsDrawerOpen, setIsSettingsDrawerOpen] = useState(false)
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
@@ -1155,7 +1188,7 @@ export default function App() {
       return
     }
 
-    const preloadTypes = (['post', 'diary', 'knowledge'] as const).filter(
+    const preloadTypes = (['post', 'diary', 'knowledge', 'pitch'] as const).filter(
       (type) => type !== contentType && postsByType[type].length === 0 && !preloadAttemptedRef.current[type],
     )
     if (preloadTypes.length === 0) {
@@ -1190,7 +1223,7 @@ export default function App() {
       cancelled = true
       cancelPreload()
     }
-  }, [contentType, postsByType.diary.length, postsByType.knowledge.length, postsByType.post.length, session, updatePostsForType])
+  }, [contentType, postsByType.diary.length, postsByType.knowledge.length, postsByType.pitch.length, postsByType.post.length, session, updatePostsForType])
 
   const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
     resetPreviewImageUrls()
@@ -1672,9 +1705,20 @@ export default function App() {
           ? createNewDiaryEntry()
           : contentType === 'knowledge'
             ? createNewKnowledgeItem()
-          : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
+            : contentType === 'pitch'
+              ? createNewPitch()
+              : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
     setAdminView('editor')
+  }
+
+  const handleTopBarNewPost = async () => {
+    if (adminView === 'dashboard' && contentType === 'pitch') {
+      setGlobalQuickPitchStatus('collecting')
+      setIsGlobalQuickPitchOpen(true)
+      return
+    }
+    await handleNewPost()
   }
 
   const handleCreatePostFromBookAnnotations = async (bookId: string) => {
@@ -2857,7 +2901,9 @@ export default function App() {
       ? createNewDiaryEntry()
       : targetContentType === 'knowledge'
         ? createNewKnowledgeItem()
-        : createNewPost(undefined, getNextNumericPermalink(postsByType.post))
+        : targetContentType === 'pitch'
+          ? createNewPitch()
+          : createNewPost(undefined, getNextNumericPermalink(postsByType.post))
     const duplicatedDocument: ParsedPost = {
       ...baseDocument,
       body: document.body,
@@ -3814,6 +3860,113 @@ export default function App() {
     }
   }
 
+  const handleStartWritingFromPitch = async () => {
+    if (!document || document.contentType !== 'pitch' || !session || isSaving) {
+      return
+    }
+
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const newPost = createPostFromPitch(document, postsByType.post)
+      const savePostResult = await saveDocumentToRepo(newPost)
+      const updatedPitch: ParsedPost = {
+        ...document,
+        frontmatter: {
+          ...document.frontmatter,
+          pitch_status: 'writing',
+          linked_post_path: savePostResult.savedDocument.path,
+        },
+      }
+      const savePitchResult = await saveDocumentToRepo(updatedPitch)
+
+      setPostsByType((current) => {
+        const withPost = buildNextPostsByType(current, 'post', savePostResult.savedPostIndexItem)
+        return buildNextPostsByType(withPost, 'pitch', savePitchResult.savedPostIndexItem, document.path)
+      })
+
+      setEditorNavigationStack([])
+      setContentType('post')
+      openDocument(savePostResult.savedDocument)
+      setAdminView('editor')
+      setSuccessMessage(`已基于选题《${document.frontmatter.title}》创建文章草稿并关联。`)
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : '从选题生成文章失败，请重试。')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleQuickCreatePitch = async (data: {
+    title: string
+    inspiration?: string
+    tags?: string[]
+    pitchStatus?: PitchStatus
+    openInEditor?: boolean
+  }) => {
+    if (!session) {
+      throw new Error('GitHub 会话已过期，请重新登录。')
+    }
+
+    const newPitch = createNewPitch()
+    newPitch.frontmatter.title = data.title.trim()
+    if (data.inspiration?.trim()) {
+      newPitch.frontmatter.pitch_inspiration = data.inspiration.trim()
+    }
+    if (data.tags && data.tags.length > 0) {
+      newPitch.frontmatter.tags = data.tags
+    }
+    newPitch.frontmatter.pitch_status = data.pitchStatus || 'collecting'
+
+    setIsSaving(true)
+    try {
+      const saveResult = await saveDocumentToRepo(newPitch)
+      const updatedPitches = [saveResult.savedPostIndexItem, ...postsByType.pitch]
+      setPostsByType((prev) => ({
+        ...prev,
+        pitch: updatedPitches,
+      }))
+
+      if (data.openInEditor) {
+        setEditorNavigationStack([])
+        openDocument(saveResult.savedDocument)
+        setAdminView('editor')
+      } else {
+        setSuccessMessage('灵感已记录！')
+      }
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+      setError(caughtError instanceof Error ? caughtError.message : '保存灵感失败。')
+      throw caughtError
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleOpenLinkedArticle = (articlePath: string) => {
+    const postIndexItem = postsByType.post.find((p) => p.path === articlePath)
+    if (postIndexItem) {
+      void openIndexedPost(postIndexItem, { navigationBehavior: 'push' })
+    } else {
+      const minimalItem: PostIndexItem = {
+        path: articlePath,
+        sha: '',
+        title: articlePath.split('/').pop()?.replace(/\.md$/, '') || articlePath,
+        date: '',
+        updated: '',
+        tags: [],
+        categories: [],
+        published: false,
+        contentType: 'post',
+      }
+      void openIndexedPost(minimalItem, { navigationBehavior: 'push' })
+    }
+  }
+
   const handleOpenRecoveredDraft = async (path: string) => {
     if (!(await confirmNavigation())) {
       return
@@ -4186,7 +4339,7 @@ export default function App() {
           search={search}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onSearchChange={setSearch}
-          onNewPost={handleNewPost}
+          onNewPost={handleTopBarNewPost}
           onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
           onSave={() => {
             void handleSave()
@@ -4315,6 +4468,11 @@ export default function App() {
             onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
             onSearchFocus={() => searchInputRef.current?.focus()}
             onOpenSeriesCollection={contentType === 'post' ? handleOpenSeries : undefined}
+            isQuickPitchOpen={isGlobalQuickPitchOpen}
+            onQuickPitchOpenChange={setIsGlobalQuickPitchOpen}
+            quickPitchStatus={globalQuickPitchStatus}
+            onQuickPitchStatusChange={setGlobalQuickPitchStatus}
+            onQuickCreatePitch={contentType === 'pitch' ? handleQuickCreatePitch : undefined}
           />
         </section>
       ) : isFeedsView ? (
@@ -4575,6 +4733,8 @@ export default function App() {
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                 topicBacklinks={activeTopicBacklinks}
                 onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
+                onStartWritingFromPitch={handleStartWritingFromPitch}
+                onOpenLinkedArticle={handleOpenLinkedArticle}
                 isDrawer={!isReadLaterDocument}
                 isOpen={isSettingsDrawerOpen}
                 onClose={() => { setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }}

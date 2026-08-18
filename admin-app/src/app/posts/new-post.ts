@@ -109,6 +109,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
   const isReadLater = post.frontmatter.read_later === true || post.contentType === 'read-later'
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
+  const isPitch = post.frontmatter.pitch === true || post.contentType === 'pitch'
   const isTopic = post.frontmatter.topic === true
 
   if (!post.frontmatter.title.trim()) {
@@ -133,7 +134,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.node_key = '主题节点请填写节点 Key，例如 book/影响力。'
   }
 
-  if (isDiary || isKnowledge) {
+  if (isDiary || isKnowledge || isPitch) {
     return errors
   }
 

@@ -1,8 +1,8 @@
-import { DIARY_PATH, KNOWLEDGE_PATH } from '../config'
-import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH } from '../config'
+import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPitchFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { SessionState } from '../session'
-import type { ContentType, PostIndexItem, PostIndexView } from './post-types'
+import type { ContentType, PitchStatus, PostIndexItem, PostIndexView } from './post-types'
 
 type ContentFileEntry = {
   path: string
@@ -161,6 +161,10 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const readLaterRaw = readScalar(frontmatter, 'read_later')
   const diaryRaw = readScalar(frontmatter, 'diary')
   const knowledgeRaw = readScalar(frontmatter, 'knowledge')
+  const pitchRaw = readScalar(frontmatter, 'pitch')
+  const pitchStatusRaw = readScalar(frontmatter, 'pitch_status')
+  const pitchInspirationRaw = readScalar(frontmatter, 'pitch_inspiration')
+  const linkedPostPathRaw = readScalar(frontmatter, 'linked_post_path')
   const topicRaw = readScalar(frontmatter, 'topic')
   const contentType: ContentType =
     readLaterRaw === 'true'
@@ -169,7 +173,9 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
         ? 'diary'
         : knowledgeRaw === 'true' || input.path.startsWith(`${KNOWLEDGE_PATH}/`)
           ? 'knowledge'
-          : 'post'
+          : pitchRaw === 'true' || input.path.startsWith(`${PITCH_PATH}/`)
+            ? 'pitch'
+            : 'post'
   const title = readScalar(frontmatter, 'title') || input.path.split('/').pop() || input.path
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
@@ -200,6 +206,8 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     sourceTitle || '',
     sourceUrl || '',
     nodeKey || '',
+    pitchInspirationRaw || '',
+    linkedPostPathRaw || '',
     ...aliases,
     ...categories,
     ...tags,
@@ -235,6 +243,11 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
     ...(nodeKey ? { nodeKey } : {}),
     ...(aliases.length > 0 ? { aliases } : {}),
     ...(series ? { series } : {}),
+    ...(pitchStatusRaw === 'open' || pitchStatusRaw === 'collecting' || pitchStatusRaw === 'writing' || pitchStatusRaw === 'done' || pitchStatusRaw === 'shelved'
+      ? { pitchStatus: pitchStatusRaw as PitchStatus }
+      : {}),
+    ...(pitchInspirationRaw ? { pitchInspiration: pitchInspirationRaw } : {}),
+    ...(linkedPostPathRaw ? { linkedPostPath: linkedPostPathRaw } : {}),
   }
 }
 
@@ -269,6 +282,10 @@ export async function buildDiaryIndex(session: SessionState, options?: BuildInde
 
 export async function buildKnowledgeIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
   return buildIndexForFiles(session, listKnowledgeFiles(session), 'knowledge', options)
+}
+
+export async function buildPitchIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listPitchFiles(session), 'pitch', options)
 }
 
 export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): PostIndexItem[] {

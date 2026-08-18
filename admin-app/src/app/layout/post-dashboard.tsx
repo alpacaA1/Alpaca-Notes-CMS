@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { renderContentBlocks } from '../editor/preview-pane'
 import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
+import { QuickPitchModal } from '../pitches/quick-pitch-modal'
 import { collectPostIndexFacets, filterPostIndex, sortPostIndex } from '../posts/index-posts'
 import type { ReadingStatus } from '../posts/parse-post'
-import type { ContentType, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
+import type { ContentType, PitchStatus, PostIndexItem, PostPublishState, PostSort } from '../posts/post-types'
 import FilterSelect from './filter-select'
 
-type DashboardViewMode = 'grid' | 'list'
+type DashboardViewMode = 'grid' | 'list' | 'kanban'
 type DashboardStatusFilter = 'all' | 'published' | 'draft' | ReadingStatus
 type StatusTone = Exclude<DashboardStatusFilter, 'all'>
 type DashboardStatCard = {
@@ -56,6 +57,17 @@ type PostDashboardProps = {
   onOrganizeMaterials?: () => void
   onSearchFocus?: () => void
   onOpenSeriesCollection?: () => void
+  isQuickPitchOpen?: boolean
+  onQuickPitchOpenChange?: (open: boolean) => void
+  quickPitchStatus?: PitchStatus
+  onQuickPitchStatusChange?: (status: PitchStatus) => void
+  onQuickCreatePitch?: (data: {
+    title: string
+    inspiration?: string
+    tags?: string[]
+    pitchStatus?: PitchStatus
+    openInEditor?: boolean
+  }) => Promise<void>
 }
 
 const POST_STATUS_OPTIONS: { value: PostPublishState; label: string }[] = [
@@ -110,16 +122,40 @@ function saveStoredCollapsedMonths(collapsedMap: Record<string, boolean>) {
   }
 }
 
-function readStoredViewMode(): DashboardViewMode {
+function getViewModeStorageKey(contentType: ContentType) {
+  return `${VIEW_MODE_STORAGE_KEY}:${contentType}`
+}
+
+function readStoredViewMode(contentType: ContentType): DashboardViewMode {
   try {
-    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
-    if (stored === 'grid' || stored === 'list') {
-      return stored
+    const specific = localStorage.getItem(getViewModeStorageKey(contentType))
+    if (specific === 'grid' || specific === 'list' || specific === 'kanban') {
+      return specific
+    }
+    if (contentType !== 'pitch') {
+      const legacy = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+      if (legacy === 'grid' || legacy === 'list') {
+        return legacy
+      }
     }
   } catch {
     // Ignore storage errors
   }
+  if (contentType === 'pitch') {
+    return 'kanban'
+  }
   return 'list'
+}
+
+function saveStoredViewMode(contentType: ContentType, mode: DashboardViewMode) {
+  try {
+    localStorage.setItem(getViewModeStorageKey(contentType), mode)
+    if (contentType !== 'pitch' && (mode === 'list' || mode === 'grid')) {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
+    }
+  } catch {
+    // Ignore storage errors
+  }
 }
 
 function getRecoveryDismissStorageKey(contentType: ContentType) {
@@ -155,6 +191,13 @@ function getStatusTone(post: PostIndexItem, contentType: ContentType): StatusTon
     return 'draft'
   }
 
+  if (contentType === 'pitch') {
+    if (post.pitchStatus === 'writing') return 'published'
+    if (post.pitchStatus === 'done') return 'done'
+    if (post.pitchStatus === 'shelved') return 'draft'
+    return 'reading'
+  }
+
   return post.published ? 'published' : 'draft'
 }
 
@@ -170,6 +213,13 @@ function getStatusLabel(post: PostIndexItem, contentType: ContentType) {
 
   if (contentType === 'knowledge') {
     return '知识点'
+  }
+
+  if (contentType === 'pitch') {
+    if (post.pitchStatus === 'writing') return '写作中'
+    if (post.pitchStatus === 'done') return '已完成'
+    if (post.pitchStatus === 'shelved') return '已搁置'
+    return '收集中'
   }
 
   return post.published ? '已发布' : '草稿'
@@ -188,6 +238,10 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
     return pinned ? '取消置顶知识点' : '置顶知识点'
   }
 
+  if (contentType === 'pitch') {
+    return pinned ? '取消置顶灵感' : '置顶灵感'
+  }
+
   return pinned ? '取消置顶文章' : '置顶文章'
 }
 
@@ -202,6 +256,10 @@ function getDeleteActionLabel(contentType: ContentType) {
 
   if (contentType === 'knowledge') {
     return '删除知识点'
+  }
+
+  if (contentType === 'pitch') {
+    return '删除灵感'
   }
 
   return '删除文章'
@@ -234,6 +292,31 @@ function ListIcon() {
       <rect x="1" y="2" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="7" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
       <rect x="1" y="12" width="14" height="3" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function KanbanIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="2" width="3.5" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="6.25" y="2" width="3.5" height="8" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="2" width="3.5" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  )
+}
+
+function PinIcon({ filled }: { filled?: boolean }) {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M9.828 1.172a2 2 0 0 1 2.828 0l2.172 2.172a2 2 0 0 1 0 2.828l-2.036 2.036-1.414-1.414 1.328-1.328a.5.5 0 0 0 0-.708L10.536 2.586a.5.5 0 0 0-.708 0L8.5 3.914 7.086 2.5l2.742-2.328zM3.5 12.5l-2 2 3.5-3.5L3.5 12.5zm4.95-6.364-5.657 5.657 1.414 1.414 5.657-5.657-1.414-1.414z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeWidth={filled ? '0.5' : '1.3'}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -394,6 +477,204 @@ function KnowledgeCard({
   )
 }
 
+function PitchKanbanCard({
+  post,
+  isDeleting,
+  isTogglingPinned,
+  onOpenPost,
+  onTogglePinned,
+  onDeletePost,
+}: {
+  post: PostIndexItem
+  isDeleting: boolean
+  isTogglingPinned: boolean
+  onOpenPost: (post: PostIndexItem) => void
+  onTogglePinned: (post: PostIndexItem) => void
+  onDeletePost: (post: PostIndexItem) => void
+}) {
+  const isPinned = Boolean(post.pinned)
+  const previewText = post.desc || (post.body ? post.body.trim().slice(0, 90) : '')
+
+  return (
+    <article
+      className={`post-dashboard__kanban-card${isPinned ? ' post-dashboard__kanban-card--pinned' : ''}`}
+      onClick={() => onOpenPost(post)}
+    >
+      <div className="post-dashboard__kanban-card-header">
+        <h4 className="post-dashboard__kanban-card-title">{post.title || '未命名灵感'}</h4>
+        <div
+          className="post-dashboard__kanban-card-actions"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className={`post-dashboard__kanban-icon-btn${isPinned ? ' is-active' : ''}`}
+            onClick={() => onTogglePinned(post)}
+            disabled={isTogglingPinned}
+            title={isPinned ? '取消置顶' : '置顶'}
+            aria-label={isPinned ? '取消置顶' : '置顶'}
+          >
+            <PinIcon filled={isPinned} />
+          </button>
+          <button
+            type="button"
+            className="post-dashboard__kanban-icon-btn post-dashboard__kanban-icon-btn--delete"
+            onClick={() => onDeletePost(post)}
+            disabled={isDeleting}
+            title="删除灵感"
+            aria-label="删除灵感"
+          >
+            <DeleteIcon />
+          </button>
+        </div>
+      </div>
+
+      {post.pitchInspiration ? (
+        <div className="post-dashboard__kanban-card-inspiration">
+          <span className="post-dashboard__kanban-card-inspiration-icon">💡</span>
+          <span>{post.pitchInspiration}</span>
+        </div>
+      ) : null}
+
+      {previewText ? (
+        <p className="post-dashboard__kanban-card-desc">{previewText}</p>
+      ) : null}
+
+      <div className="post-dashboard__kanban-card-footer">
+        {(post.tags || []).length > 0 ? (
+          <div className="post-dashboard__card-tags">
+            {(post.tags || []).slice(0, 3).map((tag) => (
+              <TagBadge key={tag} tag={tag} />
+            ))}
+            {(post.tags || []).length > 3 ? <span className="post-dashboard__tag-more">+{(post.tags || []).length - 3}</span> : null}
+          </div>
+        ) : <div />}
+        {post.date ? <span className="post-dashboard__kanban-card-date">{post.date.slice(5, 10)}</span> : null}
+      </div>
+    </article>
+  )
+}
+
+function PitchKanbanBoard({
+  posts,
+  deletingPostPath,
+  togglingPinnedPostPath,
+  isDeleting,
+  isTogglingPinned,
+  onOpenPost,
+  onTogglePinned,
+  onDeletePost,
+  onOpenQuickPitch,
+}: {
+  posts: PostIndexItem[]
+  deletingPostPath: string | null
+  togglingPinnedPostPath: string | null
+  isDeleting: boolean
+  isTogglingPinned: boolean
+  onOpenPost: (post: PostIndexItem) => void
+  onTogglePinned: (post: PostIndexItem) => void
+  onDeletePost: (post: PostIndexItem) => void
+  onOpenQuickPitch?: (status: PitchStatus) => void
+}) {
+  const columns: {
+    status: PitchStatus
+    label: string
+    tone: StatusTone
+    posts: PostIndexItem[]
+  }[] = [
+    {
+      status: 'collecting',
+      label: '收集中',
+      tone: 'reading',
+      posts: (posts || []).filter((p) => !p.pitchStatus || p.pitchStatus === 'open' || p.pitchStatus === 'collecting'),
+    },
+    {
+      status: 'writing',
+      label: '写作中',
+      tone: 'published',
+      posts: (posts || []).filter((p) => p.pitchStatus === 'writing'),
+    },
+    {
+      status: 'done',
+      label: '已完成',
+      tone: 'done',
+      posts: (posts || []).filter((p) => p.pitchStatus === 'done'),
+    },
+  ]
+
+  const shelvedPosts = (posts || []).filter((p) => p.pitchStatus === 'shelved')
+  if (shelvedPosts.length > 0) {
+    columns.push({
+      status: 'shelved',
+      label: '已搁置',
+      tone: 'draft',
+      posts: shelvedPosts,
+    })
+  }
+
+  return (
+    <div className="post-dashboard__kanban" aria-label="灵感看板">
+      {columns.map((col) => (
+        <section key={col.status} className={`post-dashboard__kanban-col post-dashboard__kanban-col--${col.tone}`}>
+          <div className="post-dashboard__kanban-col-header">
+            <div className="post-dashboard__kanban-col-title">
+              <span className={`post-status-dot post-status-dot--${col.tone}`} />
+              <strong>{col.label}</strong>
+              <span className="post-dashboard__kanban-col-count">{col.posts.length}</span>
+            </div>
+            {onOpenQuickPitch ? (
+              <button
+                type="button"
+                className="post-dashboard__kanban-col-add-btn"
+                onClick={() => onOpenQuickPitch(col.status)}
+                title={`在「${col.label}」中记录灵感`}
+                aria-label={`在「${col.label}」中记录灵感`}
+              >
+                +
+              </button>
+            ) : null}
+          </div>
+          <div className="post-dashboard__kanban-cards">
+            {col.posts.length === 0 ? (
+              <div
+                className={`post-dashboard__kanban-empty${onOpenQuickPitch ? ' post-dashboard__kanban-empty--actionable' : ''}`}
+                onClick={onOpenQuickPitch ? () => onOpenQuickPitch(col.status) : undefined}
+                role={onOpenQuickPitch ? 'button' : undefined}
+                tabIndex={onOpenQuickPitch ? 0 : undefined}
+                onKeyDown={
+                  onOpenQuickPitch
+                    ? (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          onOpenQuickPitch(col.status)
+                        }
+                      }
+                    : undefined
+                }
+              >
+                <span className="post-dashboard__kanban-empty-plus">+</span>
+                <span>暂无{col.label}灵感，点击记录</span>
+              </div>
+            ) : (
+              col.posts.map((post) => (
+                <PitchKanbanCard
+                  key={post.path}
+                  post={post}
+                  isDeleting={deletingPostPath === post.path}
+                  isTogglingPinned={togglingPinnedPostPath === post.path}
+                  onOpenPost={onOpenPost}
+                  onTogglePinned={onTogglePinned}
+                  onDeletePost={onDeletePost}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
 export default function PostDashboard({
   posts,
   search,
@@ -422,6 +703,11 @@ export default function PostDashboard({
   onOrganizeMaterials,
   onSearchFocus,
   onOpenSeriesCollection,
+  isQuickPitchOpen: isQuickPitchOpenProp,
+  onQuickPitchOpenChange,
+  quickPitchStatus: quickPitchStatusProp,
+  onQuickPitchStatusChange,
+  onQuickCreatePitch,
 }: PostDashboardProps) {
   const [statusFilter, setStatusFilter] = useState<DashboardStatusFilter>(() =>
     contentType === 'read-later' ? 'unread' : 'all',
@@ -430,18 +716,31 @@ export default function PostDashboard({
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [selectedSeries, setSelectedSeries] = useState<string | null>(null)
   const [sort, setSort] = useState<PostSort>('date-desc')
-  const [viewMode, setViewMode] = useState<DashboardViewMode>(readStoredViewMode)
+  const [viewMode, setViewMode] = useState<DashboardViewMode>(() => readStoredViewMode(contentType))
+
+  useEffect(() => {
+    setViewMode(readStoredViewMode(contentType))
+  }, [contentType])
   const [activeKnowledgeIndex, setActiveKnowledgeIndex] = useState(0)
   const [activeDiaryMonthKey, setActiveDiaryMonthKey] = useState(DIARY_ALL_MONTHS_KEY)
   const [collapsedMonths, setCollapsedMonths] = useState<Record<string, boolean>>(readStoredCollapsedMonths)
+  const [internalQuickPitchOpen, setInternalQuickPitchOpen] = useState(false)
+  const [internalQuickPitchStatus, setInternalQuickPitchStatus] = useState<PitchStatus>('collecting')
+  const [isQuickPitchSaving, setIsQuickPitchSaving] = useState(false)
+
+  const isQuickPitchOpen = isQuickPitchOpenProp !== undefined ? isQuickPitchOpenProp : internalQuickPitchOpen
+  const setIsQuickPitchOpen = onQuickPitchOpenChange || setInternalQuickPitchOpen
+  const quickPitchStatus = quickPitchStatusProp !== undefined ? quickPitchStatusProp : internalQuickPitchStatus
+  const setQuickPitchStatus = onQuickPitchStatusChange || setInternalQuickPitchStatus
   const dashboardRef = useRef<HTMLElement>(null)
   const isReadLater = contentType === 'read-later'
   const isDiary = contentType === 'diary'
   const isKnowledge = contentType === 'knowledge'
+  const isPitch = contentType === 'pitch'
   const showQuickActions = true
   const hasSelectedMaterials = selectedMaterialCounts.diary > 0 || selectedMaterialCounts['read-later'] > 0
-  const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : '新建文章 (N)'
-  const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : '+ 新建文章'
+  const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : isPitch ? '新建灵感 (N)' : '新建文章 (N)'
+  const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : '+ 新建文章'
   const recoverableDraftKey = useMemo(
     () => recoverableDrafts.map((draft) => `${draft.path}:${draft.updatedAt}`).sort().join('|'),
     [recoverableDrafts],
@@ -481,20 +780,25 @@ export default function PostDashboard({
   const filteredPosts = useMemo(() => {
     const basePosts = filterPostIndex(posts, {
       query: search,
-      publishState: isReadLater || isDiary || isKnowledge ? 'all' : (statusFilter as PostPublishState),
-      category: isReadLater || isDiary ? null : selectedCategory,
+      publishState: isReadLater || isDiary || isKnowledge || isPitch ? 'all' : (statusFilter as PostPublishState),
+      category: isReadLater || isDiary || isPitch ? null : selectedCategory,
       tag: selectedTag,
-      series: selectedSeries,
+      series: isPitch ? null : selectedSeries,
       sort,
     })
 
     const statusFilteredPosts =
       isReadLater && statusFilter !== 'all'
         ? basePosts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === statusFilter)
-        : basePosts
+        : isPitch && statusFilter !== 'all'
+          ? basePosts.filter((post) => {
+              const currentStatus = !post.pitchStatus || post.pitchStatus === 'open' ? 'collecting' : post.pitchStatus
+              return currentStatus === statusFilter
+            })
+          : basePosts
 
     return sortPostIndex(statusFilteredPosts, sort)
-  }, [posts, search, isDiary, isKnowledge, isReadLater, statusFilter, selectedCategory, selectedTag, selectedSeries, sort])
+  }, [posts, search, isDiary, isKnowledge, isPitch, isReadLater, statusFilter, selectedCategory, selectedTag, selectedSeries, sort])
 
   const diaryMonthGroups = useMemo(
     () => (isDiary ? groupDiaryPostsByMonth(filteredPosts) : []),
@@ -577,8 +881,38 @@ export default function PostDashboard({
     () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'done').length,
     [posts],
   )
+  const openPitchCount = useMemo(
+    () => posts.filter((post) => !post.pitchStatus || post.pitchStatus === 'open').length,
+    [posts],
+  )
+  const collectingPitchCount = useMemo(
+    () => posts.filter((post) => !post.pitchStatus || post.pitchStatus === 'open' || post.pitchStatus === 'collecting').length,
+    [posts],
+  )
+  const writingPitchCount = useMemo(
+    () => posts.filter((post) => post.pitchStatus === 'writing').length,
+    [posts],
+  )
+  const donePitchCount = useMemo(
+    () => posts.filter((post) => post.pitchStatus === 'done').length,
+    [posts],
+  )
 
-  const statusOptions = isReadLater ? READ_LATER_STATUS_OPTIONS : isDiary || isKnowledge ? [{ value: 'all' as const, label: '全部' }] : POST_STATUS_OPTIONS
+  const pitchStatusOptions: { value: DashboardStatusFilter; label: string }[] = [
+    { value: 'all', label: '全部' },
+    { value: 'collecting' as DashboardStatusFilter, label: '收集中' },
+    { value: 'writing' as DashboardStatusFilter, label: '写作中' },
+    { value: 'done' as DashboardStatusFilter, label: '已完成' },
+    { value: 'shelved' as DashboardStatusFilter, label: '已搁置' },
+  ]
+
+  const statusOptions = isReadLater
+    ? READ_LATER_STATUS_OPTIONS
+    : isPitch
+      ? pitchStatusOptions
+      : isDiary || isKnowledge
+        ? [{ value: 'all' as const, label: '全部' }]
+        : POST_STATUS_OPTIONS
   const sortOptions = isReadLater ? READ_LATER_SORT_OPTIONS : POST_SORT_OPTIONS
   const categoryFilterOptions = useMemo(
     () => [{ value: '', label: '全部分类' }, ...categories.map((category) => ({ value: category, label: category }))],
@@ -605,13 +939,25 @@ export default function PostDashboard({
         ? [
             { value: 'all' as const, label: '全部知识点', count: posts.length },
           ]
-    : [
-        { value: 'all' as const, label: '全部文章', count: posts.length },
-        { value: 'published' as const, label: '已发布', count: publishedCount, tone: 'published' as const },
-        { value: 'draft' as const, label: '草稿', count: draftCount, tone: 'draft' as const },
-      ]
+        : isPitch
+          ? [
+              { value: 'all' as const, label: '全部选题', count: posts.length },
+              { value: 'open' as const, label: '待展开', count: openPitchCount, tone: 'draft' as const },
+              { value: 'collecting' as const, label: '收集中', count: collectingPitchCount, tone: 'reading' as const },
+              { value: 'writing' as const, label: '写作中', count: writingPitchCount, tone: 'published' as const },
+              { value: 'done' as const, label: '已完成', count: donePitchCount, tone: 'done' as const },
+            ]
+          : [
+              { value: 'all' as const, label: '全部文章', count: posts.length },
+              { value: 'published' as const, label: '已发布', count: publishedCount, tone: 'published' as const },
+              { value: 'draft' as const, label: '草稿', count: draftCount, tone: 'draft' as const },
+            ]
 
-  const resolvedViewMode: DashboardViewMode = isKnowledge ? 'grid' : viewMode
+  const resolvedViewMode: DashboardViewMode = isKnowledge
+    ? 'grid'
+    : isPitch
+      ? (viewMode === 'list' ? 'list' : 'kanban')
+      : (viewMode === 'kanban' ? 'grid' : viewMode)
 
   const toggleViewMode = useCallback(() => {
     if (isKnowledge || isDiary) {
@@ -619,15 +965,16 @@ export default function PostDashboard({
     }
 
     setViewMode((current) => {
-      const next = current === 'grid' ? 'list' : 'grid'
-      try {
-        localStorage.setItem(VIEW_MODE_STORAGE_KEY, next)
-      } catch {
-        // Ignore storage errors
+      let next: DashboardViewMode
+      if (isPitch) {
+        next = current === 'list' ? 'kanban' : 'list'
+      } else {
+        next = current === 'grid' ? 'list' : 'grid'
       }
+      saveStoredViewMode(contentType, next)
       return next
     })
-  }, [isDiary, isKnowledge])
+  }, [contentType, isDiary, isKnowledge, isPitch])
 
   const dismissRecoverableDrafts = useCallback(() => {
     setDismissedRecoveryKey(recoverableDraftKey)
@@ -828,23 +1175,25 @@ export default function PostDashboard({
       ) : null}
 
       <div className="post-dashboard__toolbar">
-        <div className="post-dashboard__filter-group">
-          <span className="post-dashboard__filter-label">状态</span>
-          <div className="post-dashboard__toggle-group">
-            {statusOptions.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`post-dashboard__toggle-btn${statusFilter === option.value ? ' is-active' : ''}`}
-                onClick={() => setStatusFilter(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
+        {!(isPitch && resolvedViewMode === 'kanban') ? (
+          <div className="post-dashboard__filter-group">
+            <span className="post-dashboard__filter-label">状态</span>
+            <div className="post-dashboard__toggle-group">
+              {statusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`post-dashboard__toggle-btn${statusFilter === option.value ? ' is-active' : ''}`}
+                  onClick={() => setStatusFilter(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : null}
 
-        {!isReadLater && !isDiary ? (
+        {!isReadLater && !isDiary && !isPitch ? (
           <div className="post-dashboard__filter-group">
             <span className="post-dashboard__filter-label">分类</span>
             <FilterSelect
@@ -881,32 +1230,39 @@ export default function PostDashboard({
         <div className="post-dashboard__toolbar-right">
           {!isKnowledge && !isDiary ? (
             <div className="post-dashboard__view-toggle">
+              {isPitch ? (
+                <button
+                  type="button"
+                  className={`post-dashboard__view-btn${resolvedViewMode === 'kanban' ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setViewMode('kanban')
+                    saveStoredViewMode(contentType, 'kanban')
+                  }}
+                  aria-label="看板视图"
+                  title="看板视图 (G)"
+                >
+                  <KanbanIcon />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={`post-dashboard__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setViewMode('grid')
+                    saveStoredViewMode(contentType, 'grid')
+                  }}
+                  aria-label="网格视图"
+                  title="网格视图 (G)"
+                >
+                  <GridIcon />
+                </button>
+              )}
               <button
                 type="button"
-                className={`post-dashboard__view-btn${viewMode === 'grid' ? ' is-active' : ''}`}
-                onClick={() => {
-                  setViewMode('grid')
-                  try {
-                    localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'grid')
-                  } catch {
-                    // Ignore storage errors
-                  }
-                }}
-                aria-label="网格视图"
-                title="网格视图 (G)"
-              >
-                <GridIcon />
-              </button>
-              <button
-                type="button"
-                className={`post-dashboard__view-btn${viewMode === 'list' ? ' is-active' : ''}`}
+                className={`post-dashboard__view-btn${resolvedViewMode === 'list' ? ' is-active' : ''}`}
                 onClick={() => {
                   setViewMode('list')
-                  try {
-                    localStorage.setItem(VIEW_MODE_STORAGE_KEY, 'list')
-                  } catch {
-                    // Ignore storage errors
-                  }
+                  saveStoredViewMode(contentType, 'list')
                 }}
                 aria-label="列表视图"
                 title="列表视图 (G)"
@@ -915,14 +1271,16 @@ export default function PostDashboard({
               </button>
             </div>
           ) : null}
-          <button
-            type="button"
-            className="post-dashboard__new-btn"
-            onClick={onNewPost}
-            title={newPostTitle}
-          >
-            {newPostLabel}
-          </button>
+          {!isPitch ? (
+            <button
+              type="button"
+              className="post-dashboard__new-btn"
+              onClick={onNewPost}
+              title={newPostTitle}
+            >
+              {newPostLabel}
+            </button>
+          ) : null}
         </div>
       </div>
 
@@ -951,12 +1309,12 @@ export default function PostDashboard({
             ))}
           </div>
         </div>
-      ) : filteredPosts.length === 0 ? (
+      ) : filteredPosts.length === 0 && !(isPitch && resolvedViewMode === 'kanban') ? (
         <div className="post-dashboard__empty">
           <EmptyIllustration />
           {isFiltered ? (
             <>
-              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : '文章'}</p>
+              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : '文章'}</p>
               <p className="post-dashboard__empty-desc">试试调整筛选条件，或清除搜索内容。</p>
               <button type="button" className="post-dashboard__empty-action" onClick={clearFilters}>
                 清除所有筛选
@@ -964,12 +1322,23 @@ export default function PostDashboard({
             </>
           ) : (
             <>
-              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : '文章'}</p>
+              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : '文章'}</p>
               <p className="post-dashboard__empty-desc">
-                {isReadLater ? '点击下方按钮保存第一条待读。' : isDiary ? '点击下方按钮写下第一则日记。' : isKnowledge ? '点击下方按钮沉淀第一条知识点。' : '点击下方按钮创建你的第一篇草稿。'}
+                {isReadLater ? '点击下方按钮保存第一条待读。' : isDiary ? '点击下方按钮写下第一则日记。' : isKnowledge ? '点击下方按钮沉淀第一条知识点。' : isPitch ? '点击下方按钮记录你的第一个灵感。' : '点击下方按钮创建你的第一篇草稿。'}
               </p>
-              <button type="button" className="post-dashboard__empty-action" onClick={onNewPost}>
-                {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : '+ 新建文章'}
+              <button
+                type="button"
+                className="post-dashboard__empty-action"
+                onClick={
+                  isPitch && onQuickCreatePitch
+                    ? () => {
+                        setQuickPitchStatus('collecting')
+                        setIsQuickPitchOpen(true)
+                      }
+                    : onNewPost
+                }
+              >
+                {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : '+ 新建文章'}
               </button>
             </>
           )}
@@ -1162,6 +1531,25 @@ export default function PostDashboard({
             })}
           </div>
         </div>
+      ) : isPitch && resolvedViewMode === 'kanban' ? (
+        <PitchKanbanBoard
+          posts={filteredPosts}
+          deletingPostPath={deletingPostPath}
+          togglingPinnedPostPath={togglingPinnedPostPath}
+          isDeleting={isDeleting}
+          isTogglingPinned={isTogglingPinned}
+          onOpenPost={onOpenPost}
+          onTogglePinned={onTogglePinned}
+          onDeletePost={onDeletePost}
+          onOpenQuickPitch={
+            onQuickCreatePitch
+              ? (status) => {
+                  setQuickPitchStatus(status)
+                  setIsQuickPitchOpen(true)
+                }
+              : undefined
+          }
+        />
       ) : resolvedViewMode === 'grid' ? (
         isKnowledge ? (
           <div
@@ -1218,14 +1606,18 @@ export default function PostDashboard({
                   ? post.tags[0] || '内部记录'
                   : isKnowledge
                     ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增')
-                    : post.series || '无系列'
+                    : isPitch
+                      ? post.pitchInspiration || (post.tags[0] ? `#${post.tags[0]}` : '未填写灵感')
+                      : post.series || '无系列'
               const secondaryMeta = isReadLater
                 ? post.externalUrl || '未填写原文链接'
                 : isDiary
                   ? post.path.replace(/^source\/diary\//, '')
                   : isKnowledge
                     ? post.sourceUrl || post.sourcePath || '内部知识库'
-                    : post.permalink || '—'
+                    : isPitch
+                      ? post.linkedPostPath ? '已关联文章' : '未关联文章'
+                      : post.permalink || '—'
 
               const cardContent = (
                 <>
@@ -1242,8 +1634,8 @@ export default function PostDashboard({
                     <span className="post-dashboard__card-date">{post.date || '无日期'}</span>
                   </div>
                   <h3 className="post-dashboard__card-title">{post.title}</h3>
-                  {contentType !== 'diary' ? <p className="post-dashboard__card-desc">{post.desc || '暂无摘要'}</p> : null}
-                  {(isReadLater || isDiary || isKnowledge) && post.tags.length > 0 ? (
+                  {contentType !== 'diary' ? <p className="post-dashboard__card-desc">{post.desc || (isPitch && post.body ? post.body.slice(0, 80) : '暂无摘要')}</p> : null}
+                  {(isReadLater || isDiary || isKnowledge || isPitch) && post.tags.length > 0 ? (
                     <div className="post-dashboard__card-tags">
                       {post.tags.slice(0, 4).map((tag) => (
                         <TagBadge key={tag} tag={tag} />
@@ -1303,10 +1695,10 @@ export default function PostDashboard({
             <div className="post-dashboard__list-header-main">
               <span className="post-dashboard__list-col post-dashboard__list-col--status">状态</span>
               <span className="post-dashboard__list-col post-dashboard__list-col--title">标题</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : isDiary ? '标记' : isKnowledge ? '来源内容' : '系列'}</span>
-              {(isReadLater || isDiary || isKnowledge) ? <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span> : null}
+              <span className="post-dashboard__list-col post-dashboard__list-col--category">{isReadLater ? '来源' : isDiary ? '标记' : isKnowledge ? '来源内容' : isPitch ? '灵感来源' : '系列'}</span>
+              {(isReadLater || isDiary || isKnowledge || isPitch) ? <span className="post-dashboard__list-col post-dashboard__list-col--tags">标签</span> : null}
               <span className="post-dashboard__list-col post-dashboard__list-col--date">日期</span>
-              <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : isDiary ? '文件' : isKnowledge ? '来源定位' : '链接'}</span>
+              <span className="post-dashboard__list-col post-dashboard__list-col--link">{isReadLater ? '原文链接' : isDiary ? '文件' : isKnowledge ? '来源定位' : isPitch ? '关联状态' : '链接'}</span>
             </div>
             {showQuickActions ? <span className="post-dashboard__list-col post-dashboard__list-col--actions">操作</span> : null}
           </div>
@@ -1357,10 +1749,12 @@ export default function PostDashboard({
                           ? post.tags[0] || '内部记录'
                           : isKnowledge
                             ? post.sourceTitle || (post.sourceType === 'read-later' ? '来自待读' : post.sourceType === 'post' ? '来自文章' : post.sourceType === 'diary' ? '来自日记' : '手动新增')
-                          : post.series || '无系列'}
+                            : isPitch
+                              ? post.pitchInspiration || (post.tags[0] ? `#${post.tags[0]}` : '未填写灵感')
+                              : post.series || '无系列'}
                     </span>
                   </span>
-                  {(isReadLater || isDiary || isKnowledge) ? (
+                  {(isReadLater || isDiary || isKnowledge || isPitch) ? (
                     <span className="post-dashboard__list-col post-dashboard__list-col--tags">
                       {post.tags.length > 0 ? (
                         <span className="post-dashboard__list-tags">
@@ -1378,7 +1772,21 @@ export default function PostDashboard({
                     {post.date ? post.date.slice(0, 10) : '—'}
                   </span>
                   <span className="post-dashboard__list-col post-dashboard__list-col--link">
-                    {isReadLater ? post.externalUrl || '未填写原文链接' : isDiary ? post.path.replace(/^source\/diary\//, '') : isKnowledge ? post.sourceUrl || post.sourcePath || '内部知识库' : post.permalink || '—'}
+                    {isReadLater ? (
+                      post.externalUrl ? (
+                        <span className="post-dashboard__list-link-text">{post.externalUrl}</span>
+                      ) : (
+                        '—'
+                      )
+                    ) : isDiary ? (
+                      post.path.replace(/^source\/diary\//, '')
+                    ) : isKnowledge ? (
+                      post.sourceUrl || post.sourcePath || '内部知识库'
+                    ) : isPitch ? (
+                      post.linkedPostPath ? '已关联文章' : '未关联文章'
+                    ) : (
+                      post.permalink || '—'
+                    )}
                   </span>
                 </button>
                 {showQuickActions ? (
@@ -1413,9 +1821,28 @@ export default function PostDashboard({
 
       {!isIndexing && filteredPosts.length > 0 ? (
         <p className="post-dashboard__count-note">
-          共 {filteredPosts.length} {isReadLater ? '条待读' : isDiary ? '篇日记' : isKnowledge ? '条知识点' : '篇文章'}
-          {filteredPosts.length !== posts.length ? `（全部 ${posts.length} ${isReadLater || isKnowledge ? '条' : '篇'}）` : ''}
+          共 {filteredPosts.length} {isReadLater ? '条待读' : isDiary ? '篇日记' : isKnowledge ? '条知识点' : isPitch ? '条灵感' : '篇文章'}
+          {filteredPosts.length !== posts.length ? `（全部 ${posts.length} ${isReadLater || isKnowledge || isPitch ? '条' : '篇'}）` : ''}
         </p>
+      ) : null}
+
+      {isPitch && onQuickCreatePitch ? (
+        <QuickPitchModal
+          isOpen={isQuickPitchOpen}
+          defaultStatus={quickPitchStatus}
+          availableTags={availableTags}
+          isSaving={isQuickPitchSaving}
+          onClose={() => setIsQuickPitchOpen(false)}
+          onSave={async (data) => {
+            setIsQuickPitchSaving(true)
+            try {
+              await onQuickCreatePitch(data)
+              setIsQuickPitchOpen(false)
+            } finally {
+              setIsQuickPitchSaving(false)
+            }
+          }}
+        />
       ) : null}
     </section>
   )

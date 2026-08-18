@@ -32,6 +32,10 @@ function getContentTypeLabel(contentType: TrashEntry['contentType']) {
     return '知识点'
   }
 
+  if (contentType === 'pitch') {
+    return '选题'
+  }
+
   return '文章'
 }
 

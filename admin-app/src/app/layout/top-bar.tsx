@@ -12,20 +12,7 @@ const TOOL_HUB_URL = 'https://alpacaa1.github.io/json-check/'
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
 
 function AlpacaLogo() {
-  return (
-    <svg className="top-bar__logo-svg" width="38" height="38" viewBox="0 0 38 38" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect width="38" height="38" rx="12" fill="url(#alpaca-grad)" />
-      <path d="M15 19V14.5C15 13.1193 16.1193 12 17.5 12H19.5C20.8807 12 22 13.1193 22 14.5V16" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M13 19H21.5C22.8807 19 24 20.1193 24 21.5V26" stroke="white" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="17.5" cy="15.5" r="1.5" fill="#f7ecdb" />
-      <defs>
-        <linearGradient id="alpaca-grad" x1="0" y1="0" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#e4a358" />
-          <stop offset="1" stopColor="#c77b27" />
-        </linearGradient>
-      </defs>
-    </svg>
-  )
+  return <img className="top-bar__logo" src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`} alt="" />
 }
 
 function SunIcon() {
@@ -202,6 +189,7 @@ const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabe
   { value: 'diary', label: '日记', shortLabel: 'Diary' },
   { value: 'read-later', label: '待读', shortLabel: 'Later' },
   { value: 'knowledge', label: '知识点', shortLabel: 'Know' },
+  { value: 'pitch', label: '灵感', shortLabel: 'Idea' },
 ]
 
 function getDashboardTitle(contentType: ContentType) {
@@ -215,6 +203,10 @@ function getDashboardTitle(contentType: ContentType) {
 
   if (contentType === 'knowledge') {
     return '知识点管理'
+  }
+
+  if (contentType === 'pitch') {
+    return '灵感'
   }
 
   return '文章管理'
@@ -231,6 +223,10 @@ function getCreateLabel(contentType: ContentType) {
 
   if (contentType === 'knowledge') {
     return '新建知识点'
+  }
+
+  if (contentType === 'pitch') {
+    return '新建灵感'
   }
 
   return '新建文章'
@@ -267,6 +263,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
 
   if (contentType === 'knowledge') {
     return '搜索标题、内容、来源或标签'
+  }
+
+  if (contentType === 'pitch') {
+    return '搜索灵感、来源或标签'
   }
 
   return '搜索标题、摘要、正文、标签或链接'
@@ -563,7 +563,7 @@ export default function TopBar({
             aria-pressed={isSettingsPanelOpen}
           >
             <span aria-hidden="true">⚙</span>
-            文章设置
+            {contentType === 'diary' ? '日记设置' : contentType === 'knowledge' ? '知识点设置' : contentType === 'pitch' ? '灵感设置' : '文章设置'}
           </button>
           {showPreviewToggle ? (
             <button className="top-bar__button" type="button" onClick={onTogglePreview} disabled={!hasActiveDocument}>
@@ -715,13 +715,6 @@ export default function TopBar({
     <header className={`top-bar${isEditor ? ' top-bar--editor' : ''}`}>
       <div className="top-bar__identity">
         <AlpacaLogo />
-        <div className="top-bar__identity-text">
-          {isDashboardLike || isTrashView ? <p className="top-bar__eyebrow">Alpaca Notes</p> : null}
-          <div className="top-bar__title-row">
-            <strong>{titleText}</strong>
-            <span className="top-bar__status">{status}</span>
-          </div>
-        </div>
       </div>
 
       <div className={`top-bar__controls${showContentTypeSwitcher ? '' : ' top-bar__controls--editor'}`}>

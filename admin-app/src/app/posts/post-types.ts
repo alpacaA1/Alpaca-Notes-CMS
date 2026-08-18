@@ -1,10 +1,11 @@
 import type { ReadingStatus } from './parse-post'
 
 export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink' | 'external_url' | 'node_key', string>>
-export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge'
+export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge' | 'pitch'
 export type KnowledgeSourceType = 'post' | 'read-later' | 'diary'
 export type KnowledgeKind = 'note' | 'topic'
 export type TopicNodeType = 'book' | 'movie' | 'person' | 'theme'
+export type PitchStatus = 'open' | 'collecting' | 'writing' | 'done' | 'shelved'
 
 export type PostIndexItem = {
   path: string
@@ -36,6 +37,9 @@ export type PostIndexItem = {
   nodeKey?: string | null
   aliases?: string[]
   series?: string | null
+  pitchStatus?: PitchStatus | null
+  pitchInspiration?: string | null
+  linkedPostPath?: string | null
 }
 
 export type PostPublishState = 'all' | 'draft' | 'published'
