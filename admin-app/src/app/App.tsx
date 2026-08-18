@@ -558,6 +558,8 @@ function EmptyState({ error }: { error: string | null }) {
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
 type BookReaderSession = { meta: StoredBookMeta; fileBlob: Blob; targetAnnotationId?: string | null }
 
+const RSS_FEATURE_ENABLED = false
+
 export default function App() {
   const sessionStore = useMemo(() => createSessionStore(readStoredSession()), [])
   const [session, setSession] = useState(() => sessionStore.getSession())
@@ -1036,7 +1038,7 @@ export default function App() {
   }, [adminView, loadTrashEntries, session])
 
   useEffect(() => {
-    if (!session || adminView !== 'feeds' || hasLoadedRssSubscriptions) {
+    if (!RSS_FEATURE_ENABLED || !session || adminView !== 'feeds' || hasLoadedRssSubscriptions) {
       return
     }
 
@@ -1478,7 +1480,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!session || hasLoadedRssSubscriptions) {
+    if (!RSS_FEATURE_ENABLED || !session || hasLoadedRssSubscriptions) {
       return
     }
 
@@ -1512,6 +1514,10 @@ export default function App() {
   }, [hasLoadedRssSubscriptions, session])
 
   const refreshRssSubscriptionsInBackground = async () => {
+    if (!RSS_FEATURE_ENABLED) {
+      return
+    }
+
     const currentDocument = typeof document === 'undefined' ? null : document
     if (
       !session
@@ -1616,7 +1622,8 @@ export default function App() {
 
   useEffect(() => {
     if (
-      !session
+      !RSS_FEATURE_ENABLED
+      || !session
       || !hasLoadedRssSubscriptions
       || rssSubscriptions.length === 0
     ) {
@@ -1894,6 +1901,10 @@ export default function App() {
   }
 
   const handleOpenFeeds = () => {
+    if (!RSS_FEATURE_ENABLED) {
+      return
+    }
+
     setSearch('')
     setSuccessMessage(null)
     setError(null)
@@ -4283,7 +4294,7 @@ export default function App() {
   }
 
   const isDashboard = adminView === 'dashboard'
-  const isFeedsView = adminView === 'feeds'
+  const isFeedsView = RSS_FEATURE_ENABLED && adminView === 'feeds'
   const isAnnotationsView = adminView === 'annotations'
   const isTrashView = adminView === 'trash'
   const isSeriesView = adminView === 'series'
@@ -4365,7 +4376,7 @@ export default function App() {
           backButtonLabel={editorBackButtonLabel}
           onOpenAnnotations={handleOpenAnnotations}
           onOpenTrash={handleOpenTrash}
-          onOpenFeeds={handleOpenFeeds}
+          onOpenFeeds={RSS_FEATURE_ENABLED ? handleOpenFeeds : undefined}
           onOpenBooks={handleOpenBooks}
           rssUnreadCount={rssUnreadCount}
           isRssRefreshing={isRssBackgroundRefreshing}
@@ -4821,7 +4832,7 @@ export default function App() {
           { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: handleNewPost },
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '电子书架', category: '导航', icon: '📚', action: handleOpenBooks },
-          { id: 'feeds', label: 'RSS 订阅与高光', category: '导航', icon: '📡', action: handleOpenFeeds },
+          ...(RSS_FEATURE_ENABLED ? [{ id: 'feeds', label: 'RSS 订阅与高光', category: '导航', icon: '📡', action: handleOpenFeeds }] : []),
           { id: 'trash', label: '回收站', category: '导航', icon: '🗑️', action: handleOpenTrash },
           { id: 'tool-hub', label: '打开 Tool Hub', category: '导航', icon: '🧰', action: () => window.open('https://alpacaa1.github.io/json-check/', '_blank', 'noopener,noreferrer') },
           { id: 'toggle-immersive', label: isImmersive ? '退出沉浸模式' : '进入沉浸模式', category: '视图', icon: '👁️', shortcut: 'Esc / ⌘\\', action: () => setIsImmersive((prev) => !prev) },

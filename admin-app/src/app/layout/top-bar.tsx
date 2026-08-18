@@ -469,7 +469,7 @@ export default function TopBar({
   const showContentTypeSwitcher = isDashboardLike
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
-  const showFeedsToggle = !isEditor && Boolean(onOpenFeeds || onBackToDashboard)
+  const showFeedsToggle = false
   const showBooksToggle = !isEditor && Boolean(onOpenBooks || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showRssRefreshing = !isFeedsView && isRssRefreshing
