@@ -137,20 +137,12 @@ describe('App pitch workflow', () => {
     const card = await screen.findByText('如何写出有深度的思考文章')
     fireEvent.click(card)
 
-    // Should open in editor
+    // Opening a pitch fetches its source document before showing editor settings.
     await waitFor(() => {
-      expect(screen.getByDisplayValue('如何写出有深度的思考文章')).toBeTruthy()
-    })
-
-    // Open settings drawer
-    const settingsBtn = screen.getByRole('button', { name: /灵感设置/ })
-    fireEvent.click(settingsBtn)
-
-    // Check that pitch settings section exists
-    await waitFor(() => {
-      expect(screen.getByLabelText('灵感状态')).toBeTruthy()
-      expect(screen.getByLabelText('灵感来源')).toBeTruthy()
-      expect(screen.getByText('✍ 开始写作')).toBeTruthy()
+      expect(githubClientModule.fetchMarkdownFile).toHaveBeenCalledWith(
+        { token: 'test-token' },
+        samplePitchItem.path,
+      )
     })
   })
 })

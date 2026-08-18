@@ -27,7 +27,7 @@ describe('App auth flow', () => {
 
     render(<App />)
 
-    expect(screen.getByText('文章管理')).toBeTruthy()
+    expect(screen.getByRole('radio', { name: '文章' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '用户与工具菜单' })).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
@@ -46,7 +46,7 @@ describe('App auth flow', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Sign in with GitHub' }))
 
     await waitFor(() => {
-      expect(screen.getByText('文章管理')).toBeTruthy()
+      expect(screen.getByRole('radio', { name: '文章' })).toBeTruthy()
     })
 
     expect(screen.getByRole('button', { name: '用户与工具菜单' })).toBeTruthy()
