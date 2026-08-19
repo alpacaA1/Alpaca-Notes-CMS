@@ -17,3 +17,4 @@ _multiconfig.yml
 .claude/settings.local.json
 .local-preview/
 .tmp-preview/
+downloads/
