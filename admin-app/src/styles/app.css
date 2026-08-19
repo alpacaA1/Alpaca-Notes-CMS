@@ -8052,6 +8052,12 @@ textarea {
   transform: translateY(-1px);
 }
 
+.post-dashboard__kanban-col.is-drag-over {
+  border-color: #d4a574;
+  background: rgba(212, 165, 116, 0.08);
+  box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.22);
+}
+
 .post-dashboard__kanban-card {
   position: relative;
   background: #ffffff;
@@ -8060,11 +8066,26 @@ textarea {
   padding: 13px 14px 11px;
   cursor: pointer;
   text-align: left;
-  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
   display: flex;
   flex-direction: column;
   gap: 7px;
   box-shadow: 0 1px 3px rgba(54, 42, 28, 0.04);
+}
+
+.post-dashboard__kanban-card[draggable="true"] {
+  cursor: grab;
+}
+
+.post-dashboard__kanban-card.is-dragging {
+  opacity: 0.45;
+  transform: scale(0.98);
+  cursor: grabbing;
+}
+
+.post-dashboard__kanban-card.is-updating {
+  opacity: 0.6;
+  pointer-events: none;
 }
 
 .post-dashboard__kanban-card:hover {
@@ -8741,6 +8762,12 @@ textarea {
 .admin-shell--dark .post-dashboard__kanban-col {
   background: rgba(255, 255, 255, 0.02);
   border-color: rgba(255, 255, 255, 0.07);
+}
+
+.admin-shell--dark .post-dashboard__kanban-col.is-drag-over {
+  border-color: rgba(228, 163, 88, 0.5);
+  background: rgba(228, 163, 88, 0.08);
+  box-shadow: 0 0 0 2px rgba(228, 163, 88, 0.2);
 }
 
 .admin-shell--dark .post-dashboard__kanban-col-header {

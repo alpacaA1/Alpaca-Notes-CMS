@@ -41,6 +41,8 @@ type PostDashboardProps = {
   deletingPostPath?: string | null
   isTogglingPinned?: boolean
   togglingPinnedPostPath?: string | null
+  isUpdatingPitchStatus?: boolean
+  updatingPitchStatusPostPath?: string | null
   selectedMaterialPaths?: string[]
   selectedMaterialCounts?: SelectedMaterialCounts
   isOrganizingMaterials?: boolean
@@ -52,6 +54,7 @@ type PostDashboardProps = {
   onQuickCapture?: () => void
   onDeletePost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
+  onUpdatePitchStatus?: (post: PostIndexItem, nextStatus: PitchStatus) => void
   onSelectedMaterialPathsChange?: (paths: string[]) => void
   onClearSelectedMaterials?: () => void
   onOrganizeMaterials?: () => void
@@ -481,23 +484,34 @@ function PitchKanbanCard({
   post,
   isDeleting,
   isTogglingPinned,
+  isUpdatingStatus,
+  isDragging,
   onOpenPost,
   onTogglePinned,
   onDeletePost,
+  onDragStart,
+  onDragEnd,
 }: {
   post: PostIndexItem
   isDeleting: boolean
   isTogglingPinned: boolean
+  isUpdatingStatus?: boolean
+  isDragging?: boolean
   onOpenPost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onDeletePost: (post: PostIndexItem) => void
+  onDragStart?: (event: React.DragEvent<HTMLElement>, post: PostIndexItem) => void
+  onDragEnd?: (event: React.DragEvent<HTMLElement>) => void
 }) {
   const isPinned = Boolean(post.pinned)
   const previewText = post.desc || (post.body ? post.body.trim().slice(0, 90) : '')
 
   return (
     <article
-      className={`post-dashboard__kanban-card${isPinned ? ' post-dashboard__kanban-card--pinned' : ''}`}
+      className={`post-dashboard__kanban-card${isPinned ? ' post-dashboard__kanban-card--pinned' : ''}${isDragging ? ' is-dragging' : ''}${isUpdatingStatus ? ' is-updating' : ''}`}
+      draggable={!isDeleting && !isTogglingPinned && !isUpdatingStatus}
+      onDragStart={(event) => onDragStart?.(event, post)}
+      onDragEnd={onDragEnd}
       onClick={() => onOpenPost(post)}
     >
       <div className="post-dashboard__kanban-card-header">
@@ -510,7 +524,7 @@ function PitchKanbanCard({
             type="button"
             className={`post-dashboard__kanban-icon-btn${isPinned ? ' is-active' : ''}`}
             onClick={() => onTogglePinned(post)}
-            disabled={isTogglingPinned}
+            disabled={isTogglingPinned || isUpdatingStatus}
             title={isPinned ? '取消置顶' : '置顶'}
             aria-label={isPinned ? '取消置顶' : '置顶'}
           >
@@ -520,7 +534,7 @@ function PitchKanbanCard({
             type="button"
             className="post-dashboard__kanban-icon-btn post-dashboard__kanban-icon-btn--delete"
             onClick={() => onDeletePost(post)}
-            disabled={isDeleting}
+            disabled={isDeleting || isUpdatingStatus}
             title="删除灵感"
             aria-label="删除灵感"
           >
@@ -559,23 +573,92 @@ function PitchKanbanBoard({
   posts,
   deletingPostPath,
   togglingPinnedPostPath,
+  updatingPitchStatusPostPath,
   isDeleting,
   isTogglingPinned,
+  isUpdatingPitchStatus,
   onOpenPost,
   onTogglePinned,
   onDeletePost,
+  onUpdatePitchStatus,
   onOpenQuickPitch,
 }: {
   posts: PostIndexItem[]
   deletingPostPath: string | null
   togglingPinnedPostPath: string | null
+  updatingPitchStatusPostPath?: string | null
   isDeleting: boolean
   isTogglingPinned: boolean
+  isUpdatingPitchStatus?: boolean
   onOpenPost: (post: PostIndexItem) => void
   onTogglePinned: (post: PostIndexItem) => void
   onDeletePost: (post: PostIndexItem) => void
+  onUpdatePitchStatus?: (post: PostIndexItem, nextStatus: PitchStatus) => void
   onOpenQuickPitch?: (status: PitchStatus) => void
 }) {
+  const [draggedPitchPath, setDraggedPitchPath] = useState<string | null>(null)
+  const [dragOverColumnStatus, setDragOverColumnStatus] = useState<PitchStatus | null>(null)
+
+  const handleCardDragStart = (event: React.DragEvent<HTMLElement>, post: PostIndexItem) => {
+    if (isUpdatingPitchStatus || isDeleting) {
+      event.preventDefault()
+      return
+    }
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', post.path)
+    event.dataTransfer.setData('application/x-alpaca-pitch-path', post.path)
+    setDraggedPitchPath(post.path)
+  }
+
+  const handleCardDragEnd = () => {
+    setDraggedPitchPath(null)
+    setDragOverColumnStatus(null)
+  }
+
+  const handleColumnDragOver = (event: React.DragEvent<HTMLElement>, targetStatus: PitchStatus) => {
+    if (!draggedPitchPath || isUpdatingPitchStatus) {
+      return
+    }
+    event.preventDefault()
+    event.dataTransfer.dropEffect = 'move'
+    if (dragOverColumnStatus !== targetStatus) {
+      setDragOverColumnStatus(targetStatus)
+    }
+  }
+
+  const handleColumnDragLeave = (event: React.DragEvent<HTMLElement>, targetStatus: PitchStatus) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node)) {
+      setDragOverColumnStatus((current) => (current === targetStatus ? null : current))
+    }
+  }
+
+  const handleColumnDrop = (event: React.DragEvent<HTMLElement>, targetStatus: PitchStatus) => {
+    event.preventDefault()
+    const droppedPitchPath =
+      event.dataTransfer.getData('application/x-alpaca-pitch-path') ||
+      event.dataTransfer.getData('text/plain') ||
+      draggedPitchPath
+
+    setDraggedPitchPath(null)
+    setDragOverColumnStatus(null)
+
+    if (!droppedPitchPath || !onUpdatePitchStatus || isUpdatingPitchStatus) {
+      return
+    }
+
+    const post = (posts || []).find((p) => p.path === droppedPitchPath)
+    if (!post) {
+      return
+    }
+
+    const currentStatus: PitchStatus = !post.pitchStatus || post.pitchStatus === 'open' ? 'collecting' : post.pitchStatus
+    if (currentStatus === targetStatus) {
+      return
+    }
+
+    onUpdatePitchStatus(post, targetStatus)
+  }
+
   const columns: {
     status: PitchStatus
     label: string
@@ -614,63 +697,76 @@ function PitchKanbanBoard({
 
   return (
     <div className="post-dashboard__kanban" aria-label="灵感看板">
-      {columns.map((col) => (
-        <section key={col.status} className={`post-dashboard__kanban-col post-dashboard__kanban-col--${col.tone}`}>
-          <div className="post-dashboard__kanban-col-header">
-            <div className="post-dashboard__kanban-col-title">
-              <span className={`post-status-dot post-status-dot--${col.tone}`} />
-              <strong>{col.label}</strong>
-              <span className="post-dashboard__kanban-col-count">{col.posts.length}</span>
-            </div>
-            {onOpenQuickPitch ? (
-              <button
-                type="button"
-                className="post-dashboard__kanban-col-add-btn"
-                onClick={() => onOpenQuickPitch(col.status)}
-                title={`在「${col.label}」中记录灵感`}
-                aria-label={`在「${col.label}」中记录灵感`}
-              >
-                +
-              </button>
-            ) : null}
-          </div>
-          <div className="post-dashboard__kanban-cards">
-            {col.posts.length === 0 ? (
-              <div
-                className={`post-dashboard__kanban-empty${onOpenQuickPitch ? ' post-dashboard__kanban-empty--actionable' : ''}`}
-                onClick={onOpenQuickPitch ? () => onOpenQuickPitch(col.status) : undefined}
-                role={onOpenQuickPitch ? 'button' : undefined}
-                tabIndex={onOpenQuickPitch ? 0 : undefined}
-                onKeyDown={
-                  onOpenQuickPitch
-                    ? (e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          onOpenQuickPitch(col.status)
-                        }
-                      }
-                    : undefined
-                }
-              >
-                <span className="post-dashboard__kanban-empty-plus">+</span>
-                <span>暂无{col.label}灵感，点击记录</span>
+      {columns.map((col) => {
+        const isColumnDropTarget = dragOverColumnStatus === col.status && Boolean(draggedPitchPath)
+        return (
+          <section
+            key={col.status}
+            className={`post-dashboard__kanban-col post-dashboard__kanban-col--${col.tone}${isColumnDropTarget ? ' is-drag-over' : ''}`}
+            onDragOver={(e) => handleColumnDragOver(e, col.status)}
+            onDragLeave={(e) => handleColumnDragLeave(e, col.status)}
+            onDrop={(e) => handleColumnDrop(e, col.status)}
+          >
+            <div className="post-dashboard__kanban-col-header">
+              <div className="post-dashboard__kanban-col-title">
+                <span className={`post-status-dot post-status-dot--${col.tone}`} />
+                <strong>{col.label}</strong>
+                <span className="post-dashboard__kanban-col-count">{col.posts.length}</span>
               </div>
-            ) : (
-              col.posts.map((post) => (
-                <PitchKanbanCard
-                  key={post.path}
-                  post={post}
-                  isDeleting={deletingPostPath === post.path}
-                  isTogglingPinned={togglingPinnedPostPath === post.path}
-                  onOpenPost={onOpenPost}
-                  onTogglePinned={onTogglePinned}
-                  onDeletePost={onDeletePost}
-                />
-              ))
-            )}
-          </div>
-        </section>
-      ))}
+              {onOpenQuickPitch ? (
+                <button
+                  type="button"
+                  className="post-dashboard__kanban-col-add-btn"
+                  onClick={() => onOpenQuickPitch(col.status)}
+                  title={`在「${col.label}」中记录灵感`}
+                  aria-label={`在「${col.label}」中记录灵感`}
+                >
+                  +
+                </button>
+              ) : null}
+            </div>
+            <div className="post-dashboard__kanban-cards">
+              {col.posts.length === 0 ? (
+                <div
+                  className={`post-dashboard__kanban-empty${onOpenQuickPitch ? ' post-dashboard__kanban-empty--actionable' : ''}`}
+                  onClick={onOpenQuickPitch ? () => onOpenQuickPitch(col.status) : undefined}
+                  role={onOpenQuickPitch ? 'button' : undefined}
+                  tabIndex={onOpenQuickPitch ? 0 : undefined}
+                  onKeyDown={
+                    onOpenQuickPitch
+                      ? (e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            onOpenQuickPitch(col.status)
+                          }
+                        }
+                      : undefined
+                  }
+                >
+                  <span className="post-dashboard__kanban-empty-plus">+</span>
+                  <span>暂无{col.label}灵感，点击记录</span>
+                </div>
+              ) : (
+                col.posts.map((post) => (
+                  <PitchKanbanCard
+                    key={post.path}
+                    post={post}
+                    isDeleting={deletingPostPath === post.path}
+                    isTogglingPinned={togglingPinnedPostPath === post.path}
+                    isUpdatingStatus={updatingPitchStatusPostPath === post.path}
+                    isDragging={draggedPitchPath === post.path}
+                    onOpenPost={onOpenPost}
+                    onTogglePinned={onTogglePinned}
+                    onDeletePost={onDeletePost}
+                    onDragStart={handleCardDragStart}
+                    onDragEnd={handleCardDragEnd}
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        )
+      })}
     </div>
   )
 }
@@ -687,6 +783,8 @@ export default function PostDashboard({
   deletingPostPath = null,
   isTogglingPinned = false,
   togglingPinnedPostPath = null,
+  isUpdatingPitchStatus = false,
+  updatingPitchStatusPostPath = null,
   selectedMaterialPaths = [],
   selectedMaterialCounts = { diary: 0, 'read-later': 0 },
   isOrganizingMaterials = false,
@@ -698,6 +796,7 @@ export default function PostDashboard({
   onQuickCapture,
   onDeletePost,
   onTogglePinned,
+  onUpdatePitchStatus,
   onSelectedMaterialPathsChange,
   onClearSelectedMaterials,
   onOrganizeMaterials,
@@ -1536,11 +1635,14 @@ export default function PostDashboard({
           posts={filteredPosts}
           deletingPostPath={deletingPostPath}
           togglingPinnedPostPath={togglingPinnedPostPath}
+          updatingPitchStatusPostPath={updatingPitchStatusPostPath}
           isDeleting={isDeleting}
           isTogglingPinned={isTogglingPinned}
+          isUpdatingPitchStatus={isUpdatingPitchStatus}
           onOpenPost={onOpenPost}
           onTogglePinned={onTogglePinned}
           onDeletePost={onDeletePost}
+          onUpdatePitchStatus={onUpdatePitchStatus}
           onOpenQuickPitch={
             onQuickCreatePitch
               ? (status) => {

@@ -122,7 +122,7 @@ function getPreviewOutline(document: ParsedPost, documentContentFormat: Resolved
     }
   }
 
-  if (document.contentType === 'post' && documentContentFormat === 'markdown') {
+  if ((document.contentType === 'post' || document.contentType === 'pitch' || document.contentType === 'knowledge') && documentContentFormat === 'markdown') {
     return {
       rootId: POST_PREVIEW_ROOT_ID,
       outlineItems: normalizeOutlineLevels(extractMarkdownHeadings(document.body, 'post-preview-heading')),
@@ -177,7 +177,7 @@ export default function PostListPane({
     document
     && (
       document.contentType === 'read-later'
-      || (isPreviewing && (document.contentType === 'post' || document.contentType === 'diary'))
+      || (isPreviewing && (document.contentType === 'post' || document.contentType === 'diary' || document.contentType === 'pitch' || document.contentType === 'knowledge'))
     ),
   )
 

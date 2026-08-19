@@ -137,12 +137,109 @@ describe('App pitch workflow', () => {
     const card = await screen.findByText('如何写出有深度的思考文章')
     fireEvent.click(card)
 
-    // Opening a pitch fetches its source document before showing editor settings.
     await waitFor(() => {
       expect(githubClientModule.fetchMarkdownFile).toHaveBeenCalledWith(
         { token: 'test-token' },
         samplePitchItem.path,
       )
+    })
+
+    // Switch to preview mode
+    const previewRadio = screen.getByRole('radio', { name: /预览/ })
+    fireEvent.click(previewRadio)
+
+    // Verify left-side table of contents outline is visible and reader layout is active
+    await waitFor(() => {
+      expect(screen.getByText('内容目录')).toBeTruthy()
+      expect(screen.getByRole('button', { name: '← 返回灵感' })).toBeTruthy()
+      expect(screen.getByRole('link', { name: '回到顶部' })).toBeTruthy()
+    })
+  })
+
+  it('drags pitch from writing status to done status and saves updated frontmatter', async () => {
+    const writingPitchItem: PostIndexItem = {
+      path: 'source/_pitches/2026-04-05-writing-pitch.md',
+      sha: 'sha-pitch-w',
+      title: '写作中的技术思考',
+      date: '2026-04-05 10:00:00',
+      desc: '灵感记录',
+      published: false,
+      hasExplicitPublished: false,
+      categories: [],
+      tags: ['技术'],
+      permalink: null,
+      cover: null,
+      contentType: 'pitch',
+      pitchStatus: 'writing',
+    }
+
+    const writingPitchContent = `---
+title: 写作中的技术思考
+date: 2026-04-05 10:00:00
+pitch: true
+pitch_status: writing
+tags:
+  - 技术
+---
+
+写作中的技术思考内容。`
+
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'test-token' })
+    vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(postsModule, 'buildPitchIndex').mockResolvedValue([writingPitchItem])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: writingPitchItem.path,
+      sha: writingPitchItem.sha,
+      content: writingPitchContent,
+    })
+    const saveMock = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: writingPitchItem.path,
+      sha: 'new-sha-done',
+    })
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.queryByText('加载中…')).toBeNull()
+    })
+
+    fireEvent.click(screen.getByRole('radio', { name: '灵感' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('写作中的技术思考')).toBeTruthy()
+    })
+
+    const card = screen.getByText('写作中的技术思考').closest('article')
+    const kanbanBoard = screen.getByLabelText('灵感看板')
+    const doneCol = kanbanBoard.querySelector('.post-dashboard__kanban-col--done')
+
+    if (!card || !doneCol) {
+      throw new Error('missing elements for drag test')
+    }
+
+    const dataTransferData = new Map<string, string>()
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn((type: string, value: string) => {
+        dataTransferData.set(type, value)
+      }),
+      getData: vi.fn((type: string) => dataTransferData.get(type) || ''),
+    }
+
+    fireEvent.dragStart(card, { dataTransfer })
+    fireEvent.dragOver(doneCol, { dataTransfer })
+    fireEvent.drop(doneCol, { dataTransfer })
+
+    await waitFor(() => {
+      expect(saveMock).toHaveBeenCalledWith(
+        { token: 'test-token' },
+        expect.objectContaining({
+          path: writingPitchItem.path,
+          content: expect.stringContaining('pitch_status: done'),
+        }),
+      )
+      expect(screen.getByText(/已将灵感《写作中的技术思考》移动到「已完成」/)).toBeTruthy()
     })
   })
 })

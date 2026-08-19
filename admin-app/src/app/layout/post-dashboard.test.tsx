@@ -613,5 +613,124 @@ describe('post dashboard', () => {
     expect(screen.getByText('未读待读文章')).toBeTruthy()
     expect(screen.getByText('已读待读文章')).toBeTruthy()
   })
+
+  it('supports dragging pitch from writing status to done status', () => {
+    const writingPitch: PostIndexItem = {
+      path: 'source/_pitches/2026-04-05-writing-pitch.md',
+      sha: 'sha-pitch-w',
+      title: '正在撰写的设计模式总结',
+      date: '2026-04-05 10:00:00',
+      desc: '写作中的灵感',
+      published: false,
+      hasExplicitPublished: false,
+      categories: [],
+      tags: ['设计模式'],
+      permalink: null,
+      cover: null,
+      contentType: 'pitch',
+      pitchStatus: 'writing',
+    }
+
+    const onUpdatePitchStatus = vi.fn()
+    const dataTransferData = new Map<string, string>()
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn((type: string, value: string) => {
+        dataTransferData.set(type, value)
+      }),
+      getData: vi.fn((type: string) => dataTransferData.get(type) || ''),
+    }
+
+    render(
+      <PostDashboard
+        posts={[writingPitch]}
+        search=""
+        isIndexing={false}
+        contentType="pitch"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onUpdatePitchStatus={onUpdatePitchStatus}
+      />,
+    )
+
+    expect(screen.getByText('正在撰写的设计模式总结')).toBeTruthy()
+
+    const pitchCard = screen.getByText('正在撰写的设计模式总结').closest('article')
+    const kanbanBoard = screen.getByLabelText('灵感看板')
+    const doneColumn = kanbanBoard.querySelector('.post-dashboard__kanban-col--done')
+
+    if (!pitchCard || !doneColumn) {
+      throw new Error('missing pitch drag test elements')
+    }
+
+    fireEvent.dragStart(pitchCard, { dataTransfer })
+    expect(dataTransfer.setData).toHaveBeenCalledWith('application/x-alpaca-pitch-path', writingPitch.path)
+
+    fireEvent.dragOver(doneColumn, { dataTransfer })
+    expect(doneColumn.className).toContain('is-drag-over')
+
+    fireEvent.drop(doneColumn, { dataTransfer })
+    expect(onUpdatePitchStatus).toHaveBeenCalledWith(writingPitch, 'done')
+  })
+
+  it('does not trigger onUpdatePitchStatus when dragging and dropping into the same status column', () => {
+    const writingPitch: PostIndexItem = {
+      path: 'source/_pitches/2026-04-05-writing-pitch.md',
+      sha: 'sha-pitch-w',
+      title: '正在撰写的设计模式总结',
+      date: '2026-04-05 10:00:00',
+      desc: '写作中的灵感',
+      published: false,
+      hasExplicitPublished: false,
+      categories: [],
+      tags: ['设计模式'],
+      permalink: null,
+      cover: null,
+      contentType: 'pitch',
+      pitchStatus: 'writing',
+    }
+
+    const onUpdatePitchStatus = vi.fn()
+    const dataTransferData = new Map<string, string>()
+    const dataTransfer = {
+      effectAllowed: '',
+      dropEffect: '',
+      setData: vi.fn((type: string, value: string) => {
+        dataTransferData.set(type, value)
+      }),
+      getData: vi.fn((type: string) => dataTransferData.get(type) || ''),
+    }
+
+    render(
+      <PostDashboard
+        posts={[writingPitch]}
+        search=""
+        isIndexing={false}
+        contentType="pitch"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onUpdatePitchStatus={onUpdatePitchStatus}
+      />,
+    )
+
+    const pitchCard = screen.getByText('正在撰写的设计模式总结').closest('article')
+    const kanbanBoard = screen.getByLabelText('灵感看板')
+    const writingColumn = kanbanBoard.querySelector('.post-dashboard__kanban-col--published')
+
+    if (!pitchCard || !writingColumn) {
+      throw new Error('missing pitch drag test elements')
+    }
+
+    fireEvent.dragStart(pitchCard, { dataTransfer })
+    fireEvent.dragOver(writingColumn, { dataTransfer })
+    fireEvent.drop(writingColumn, { dataTransfer })
+
+    expect(onUpdatePitchStatus).not.toHaveBeenCalled()
+  })
 })
 

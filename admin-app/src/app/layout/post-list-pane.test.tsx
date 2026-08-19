@@ -151,6 +151,42 @@ const diaryDocument: ParsedPost = {
   },
 }
 
+const pitchPosts: PostIndexItem[] = [
+  {
+    path: 'source/_pitches/2026-04-05-my-pitch.md',
+    sha: 'sha-pitch-1',
+    title: '架构思考灵感',
+    date: '2026-04-05 10:00:00',
+    desc: '灵感摘要',
+    published: false,
+    hasExplicitPublished: false,
+    categories: [],
+    tags: ['架构'],
+    permalink: null,
+    contentType: 'pitch',
+    pitchStatus: 'writing',
+  },
+]
+
+const pitchDocument: ParsedPost = {
+  path: 'source/_pitches/2026-04-05-my-pitch.md',
+  sha: 'sha-pitch-1',
+  body: `# 选题思考\n灵感详细背景\n\n## 结构规划\n规划细节\n\n## 参考资料\n资料链接`,
+  hasExplicitPublished: false,
+  hasExplicitPermalink: false,
+  contentType: 'pitch',
+  frontmatter: {
+    title: '架构思考灵感',
+    date: '2026-04-05 10:00:00',
+    desc: '灵感摘要',
+    categories: [],
+    tags: ['架构'],
+    permalink: null,
+    pitch: true,
+    pitch_status: 'writing',
+  },
+}
+
 describe('management layout components', () => {
   afterEach(() => {
     cleanup()
@@ -344,6 +380,35 @@ describe('management layout components', () => {
     expect(screen.queryByText('日记归档')).toBeNull()
     expect(screen.getByRole('link', { name: '今日进展' }).getAttribute('href')).toBe('#structured-section-1')
     expect(screen.getByRole('link', { name: '明日计划' }).getAttribute('href')).toBe('#structured-section-2')
+  })
+
+  it('replaces the pitch archive with a reader outline in preview mode', () => {
+    const onNavigateOutline = vi.fn()
+    render(
+      <PostListPane
+        posts={pitchPosts}
+        hidden={false}
+        contentType="pitch"
+        document={pitchDocument}
+        isPreviewing
+        backToListLabel="← 返回灵感"
+        activeOutlineTargetId="post-preview-heading-结构规划"
+        onOpenPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+        onBackToList={vi.fn()}
+        onNavigateOutline={onNavigateOutline}
+      />,
+    )
+
+    expect(screen.getByText('内容目录')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '← 返回灵感' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '回到顶部' }).getAttribute('href')).toBe('#post-preview-content')
+    expect(screen.getByRole('link', { name: '选题思考' }).getAttribute('href')).toBe('#post-preview-heading-选题思考')
+    expect(screen.getByRole('link', { name: '结构规划' }).className).toContain('is-active')
+
+    fireEvent.click(screen.getByRole('link', { name: '参考资料' }))
+    expect(onNavigateOutline).toHaveBeenCalledWith('post-preview-heading-参考资料')
   })
 
   it('highlights the active reader outline item', () => {

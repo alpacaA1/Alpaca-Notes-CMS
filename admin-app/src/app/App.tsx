@@ -656,6 +656,8 @@ export default function App() {
   const [processingTrashPath, setProcessingTrashPath] = useState<string | null>(null)
   const [isTogglingPinned, setIsTogglingPinned] = useState(false)
   const [togglingPinnedPostPath, setTogglingPinnedPostPath] = useState<string | null>(null)
+  const [isUpdatingPitchStatus, setIsUpdatingPitchStatus] = useState(false)
+  const [updatingPitchStatusPostPath, setUpdatingPitchStatusPostPath] = useState<string | null>(null)
   const [batchProgress, setBatchProgress] = useState('')
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
@@ -2807,6 +2809,95 @@ export default function App() {
     }
   }
 
+  const handleUpdatePitchStatus = async (post: PostIndexItem, nextStatus: PitchStatus) => {
+    if (!session || isUpdatingPitchStatus) {
+      return
+    }
+
+    if (document?.path === post.path && !canNavigateAway) {
+      setSuccessMessage(null)
+      setError('当前灵感有未保存的修改，请先保存后再移动状态。')
+      return
+    }
+
+    setIsUpdatingPitchStatus(true)
+    setUpdatingPitchStatusPostPath(post.path)
+    setError(null)
+    setSuccessMessage(null)
+
+    try {
+      const file = readCachedMarkdownFile(post.path, post.sha) ?? await fetchMarkdownFile(session, post.path)
+      const openedPost = parsePost(file)
+      const updatedDocument: ParsedPost = {
+        ...openedPost,
+        frontmatter: {
+          ...openedPost.frontmatter,
+          pitch_status: nextStatus,
+        },
+      }
+      const savedContent = serializePost(updatedDocument)
+      const savedFile = await saveMarkdownFile(session, {
+        path: updatedDocument.path,
+        sha: updatedDocument.sha || undefined,
+        content: savedContent,
+      })
+      const savedDocument: ParsedPost = {
+        ...updatedDocument,
+        path: savedFile.path,
+        sha: savedFile.sha,
+      }
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content: savedContent,
+      })
+      const syncResult = isTopicDocument(savedDocument)
+        ? await syncTopicDocumentsAfterSave({
+            currentPostsByType: postsByType,
+            previousDocument: openedPost.contentType === 'read-later' ? null : openedPost,
+            savedContent,
+            savedDocument,
+            savedPostIndexItem,
+          })
+        : {
+            postsByType: buildNextPostsByType(postsByType, 'pitch', savedPostIndexItem, post.path),
+            savedDocument,
+            savedPostIndexItem,
+          }
+
+      setPostsByType(syncResult.postsByType)
+
+      if (document?.path === post.path && canNavigateAway) {
+        markSaved(syncResult.savedDocument)
+        setActivePostPath(syncResult.savedDocument.path)
+      }
+
+      const statusLabelMap: Record<PitchStatus, string> = {
+        open: '收集中',
+        collecting: '收集中',
+        writing: '写作中',
+        done: '已完成',
+        shelved: '已搁置',
+      }
+      setSuccessMessage(`已将灵感《${post.title || '未命名灵感'}》移动到「${statusLabelMap[nextStatus]}」。`)
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return
+      }
+
+      setError(caughtError instanceof Error ? caughtError.message : '更新灵感状态失败。')
+    } finally {
+      setIsUpdatingPitchStatus(false)
+      setUpdatingPitchStatusPostPath(null)
+    }
+  }
+
   const handleSave = async () => {
     if (!document || !session || isSaving) {
       return
@@ -4265,7 +4356,7 @@ export default function App() {
   }
 
   const saveLabel = isSaving ? '保存中…' : document ? (isDirty ? '保存' : '已保存') : '保存'
-  const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating || isTogglingPinned
+  const isSaveDisabled = !document || isSaving || !isDirty || isBatchUpdating || isTogglingPinned || isUpdatingPitchStatus
   const isSaveQuiet = Boolean(document) && !isDirty && !isSaving
 
   const indexedLabel = getContentTypeLabel(contentType)
@@ -4327,7 +4418,10 @@ export default function App() {
   const isBooksView = adminView === 'books'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
-  const isReaderPreview = Boolean(document && isPreviewing && document.contentType === 'read-later')
+  const isReaderPreview = Boolean(
+    document && isPreviewing && (document.contentType === 'read-later' || document.contentType === 'pitch')
+  )
+  const isReaderDocument = isReadLaterDocument || isReaderPreview
   const hideTopBar = (isReaderPreview && isReadLaterTopBarHidden) || (adminView === 'books' && isBookReaderImmersive)
   const showImmersiveCanvas = Boolean(document) && !isReaderPreview && (isImmersive || isPreviewing)
   const isPostListHidden = showImmersiveCanvas
@@ -4335,7 +4429,11 @@ export default function App() {
   const showDocumentFrame = Boolean(document) && !showImmersiveCanvas && !isReaderPreview
   const canReturnToPreviousDocument = editorNavigationStack.length > 0
   const editorBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回列表'
-  const readerBackButtonLabel = canReturnToPreviousDocument ? '← 返回原文' : '← 返回归档'
+  const readerBackButtonLabel = canReturnToPreviousDocument
+    ? '← 返回原文'
+    : contentType === 'pitch'
+      ? '← 返回灵感'
+      : '← 返回归档'
 
   return (
     <main className={`admin-shell${showImmersiveCanvas ? ' admin-shell--immersive' : ''}${isDark ? ' admin-shell--dark' : ''}${hideTopBar ? ' admin-shell--reader-top-bar-hidden' : ''}`}>
@@ -4479,6 +4577,8 @@ export default function App() {
             deletingPostPath={deletingPostPath}
             isTogglingPinned={isTogglingPinned}
             togglingPinnedPostPath={togglingPinnedPostPath}
+            isUpdatingPitchStatus={isUpdatingPitchStatus}
+            updatingPitchStatusPostPath={updatingPitchStatusPostPath}
             selectedMaterialPaths={
               contentType === 'diary'
                 ? selectedMaterialPaths.diary
@@ -4496,6 +4596,7 @@ export default function App() {
             onQuickCapture={handleQuickCollectReadLater}
             onDeletePost={handleDeletePost}
             onTogglePinned={handleTogglePinned}
+            onUpdatePitchStatus={contentType === 'pitch' ? handleUpdatePitchStatus : undefined}
             onSelectedMaterialPathsChange={(nextPaths) => {
               if (contentType === 'diary' || contentType === 'read-later') {
                 handleSelectedMaterialPathsChange(contentType, nextPaths)
@@ -4628,10 +4729,10 @@ export default function App() {
           </div>
         </section>
       ) : (
-        <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReadLaterDocument ? ' admin-layout--drawers' : ''}`}>
+        <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReaderDocument ? ' admin-layout--drawers' : ''}`}>
           <PostListPane
             posts={filteredPosts}
-            hidden={isPostListHidden || (!isReadLaterDocument && !isPostListDrawerOpen)}
+            hidden={isPostListHidden || (!isReaderDocument && !isPostListDrawerOpen)}
             contentType={contentType}
             activePostPath={activePostPath}
             document={document}
@@ -4651,12 +4752,12 @@ export default function App() {
             onNavigateOutline={handleNavigateOutline}
             isTopBarHidden={hideTopBar}
             onToggleTopBar={() => setIsReadLaterTopBarHidden((current) => !current)}
-            isDrawer={!isReadLaterDocument}
+            isDrawer={!isReaderDocument}
             isOpen={isPostListDrawerOpen}
             onClose={() => setIsPostListDrawerOpen(false)}
           />
-          {!isReadLaterDocument && (isPostListDrawerOpen || isSettingsDrawerOpen) ? <button type="button" className="editor-drawer-backdrop" aria-label="关闭抽屉" onClick={() => { setIsPostListDrawerOpen(false); setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }} /> : null}
-          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReaderPreview ? ' editor-layout--reader' : ''}${!isReadLaterDocument ? ' editor-layout--drawers' : ''}`}>
+          {!isReaderDocument && (isPostListDrawerOpen || isSettingsDrawerOpen) ? <button type="button" className="editor-drawer-backdrop" aria-label="关闭抽屉" onClick={() => { setIsPostListDrawerOpen(false); setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }} /> : null}
+          <section className={`editor-layout${showSettingsPanel ? '' : ' editor-layout--single'}${isReaderPreview ? ' editor-layout--reader' : ''}${!isReaderDocument ? ' editor-layout--drawers' : ''}`}>
             <div className={`editor-stack${isReaderPreview ? ' editor-stack--reader' : ''}`}>
               {document ? (
                 <>
@@ -4776,7 +4877,7 @@ export default function App() {
                 onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
                 onStartWritingFromPitch={handleStartWritingFromPitch}
                 onOpenLinkedArticle={handleOpenLinkedArticle}
-                isDrawer={!isReadLaterDocument}
+                isDrawer={!isReaderDocument}
                 isOpen={isSettingsDrawerOpen}
                 onClose={() => { setIsSettingsDrawerOpen(false); setShouldFocusSettingsTitle(false) }}
                 focusTitle={shouldFocusSettingsTitle}
