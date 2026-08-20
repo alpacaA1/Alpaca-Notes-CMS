@@ -1,11 +1,14 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: 'IBM Plex Sans', 'Segoe UI', sans-serif;
-  background:
-    radial-gradient(circle at top left, rgba(228, 163, 88, 0.12), transparent 26%),
-    radial-gradient(circle at right 18%, rgba(132, 63, 255, 0.12), transparent 28%),
-    #0a0c10;
-  color: #f7f1e8;
+  background-color: #f4efe7;
+  color: #2f2a24;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  background-color: #13110e;
+  color: #ede6dc;
 }
 
 * {
@@ -16,10 +19,14 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent 24%),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.02), transparent 18%),
-    #0a0c10;
+  background-color: #f4efe7;
+  color: #2f2a24;
+}
+
+:root[data-theme='dark'] body,
+body.is-dark {
+  background-color: #13110e;
+  color: #ede6dc;
 }
 
 button,
@@ -38,6 +45,12 @@ textarea {
   display: grid;
   place-items: center;
   padding: 24px;
+  background:
+    radial-gradient(circle at top left, rgba(228, 163, 88, 0.12), transparent 26%),
+    radial-gradient(circle at right 18%, rgba(132, 63, 255, 0.12), transparent 28%),
+    #0a0c10;
+  color: #f7f1e8;
+  color-scheme: dark;
 }
 
 .hero-card {

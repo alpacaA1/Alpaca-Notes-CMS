@@ -43,6 +43,22 @@ export function useColorMode() {
     }
   }, [])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return
+    }
+
+    document.documentElement.setAttribute('data-theme', mode)
+    document.documentElement.style.colorScheme = mode
+    const bgColor = mode === 'dark' ? '#13110e' : '#f4efe7'
+    document.body.style.backgroundColor = bgColor
+
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]')
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', bgColor)
+    }
+  }, [mode])
+
   const toggle = useCallback(() => {
     setMode((current) => {
       const next = current === 'light' ? 'dark' : 'light'
@@ -55,3 +71,4 @@ export function useColorMode() {
 
   return { mode, isDark, toggle }
 }
+

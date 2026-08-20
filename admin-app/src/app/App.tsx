@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
   batchUpdatePostContents,
   fetchMarkdownFile,
@@ -711,17 +711,18 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isPostListDrawerOpen, isSettingsDrawerOpen])
 
+  const deferredSearch = useDeferredValue(search)
   const filteredPosts = useMemo(
     () =>
       filterPostIndex(posts, {
-        query: search,
+        query: deferredSearch,
         publishState: 'all',
         category: null,
         tag: null,
         series: null,
         sort: 'date-desc',
       }),
-    [posts, search],
+    [posts, deferredSearch],
   )
   const { categories: availableCategories, tags: availableTags, seriesList: availableSeries } = useMemo(() => {
     const facets = collectPostIndexFacets(posts)

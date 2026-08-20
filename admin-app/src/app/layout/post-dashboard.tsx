@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { renderContentBlocks } from '../editor/preview-pane'
 import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { QuickPitchModal } from '../pitches/quick-pitch-modal'
@@ -876,9 +876,10 @@ export default function PostDashboard({
     setActiveDiaryMonthKey(DIARY_ALL_MONTHS_KEY)
   }, [contentType])
 
+  const deferredSearch = useDeferredValue(search)
   const filteredPosts = useMemo(() => {
     const basePosts = filterPostIndex(posts, {
-      query: search,
+      query: deferredSearch,
       publishState: isReadLater || isDiary || isKnowledge || isPitch ? 'all' : (statusFilter as PostPublishState),
       category: isReadLater || isDiary || isPitch ? null : selectedCategory,
       tag: selectedTag,
@@ -897,7 +898,7 @@ export default function PostDashboard({
           : basePosts
 
     return sortPostIndex(statusFilteredPosts, sort)
-  }, [posts, search, isDiary, isKnowledge, isPitch, isReadLater, statusFilter, selectedCategory, selectedTag, selectedSeries, sort])
+  }, [posts, deferredSearch, isDiary, isKnowledge, isPitch, isReadLater, statusFilter, selectedCategory, selectedTag, selectedSeries, sort])
 
   const diaryMonthGroups = useMemo(
     () => (isDiary ? groupDiaryPostsByMonth(filteredPosts) : []),
