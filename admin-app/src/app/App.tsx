@@ -4695,6 +4695,7 @@ export default function App() {
                 onImportFile={(file) => { void handleImportBookFile(file) }}
                 onOpenBook={(book) => { void handleOpenBook(book) }}
                 onDeleteBook={(book) => { void handleDeleteBookRequest(book) }}
+                onRestoreSuccess={() => { void refreshBookShelf() }}
               />
             </div>
             {bookReaderSessions.map((book) => {

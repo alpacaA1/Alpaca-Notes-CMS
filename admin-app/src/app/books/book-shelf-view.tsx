@@ -12,6 +12,7 @@ type BookShelfViewProps = {
   onImportFile: (file: File) => void
   onOpenBook: (book: StoredBookMeta) => void
   onDeleteBook: (book: StoredBookMeta) => void
+  onRestoreSuccess?: () => void
 }
 
 function BookCover({ book }: { book: StoredBookMeta }) {
@@ -52,8 +53,11 @@ export default function BookShelfView({
   onImportFile,
   onOpenBook,
   onDeleteBook,
+  onRestoreSuccess,
 }: BookShelfViewProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const restoreFileInputRef = useRef<HTMLInputElement | null>(null)
+  const [isRestoring, setIsRestoring] = useState(false)
 
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -74,6 +78,28 @@ export default function BookShelfView({
 
   const triggerImport = () => fileInputRef.current?.click()
 
+  const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setIsRestoring(true)
+    try {
+      const text = await file.text()
+      const json = JSON.parse(text)
+      const { importBookLibraryBackup } = await import('./book-store')
+      const count = await importBookLibraryBackup(json)
+      alert(`成功恢复了 ${count} 本电子书的元数据与批注！`)
+      onRestoreSuccess?.()
+    } catch (err) {
+      alert(`恢复备份失败：${err instanceof Error ? err.message : '格式错误'}`)
+    } finally {
+      setIsRestoring(false)
+    }
+  }
+
+  const triggerRestore = () => restoreFileInputRef.current?.click()
+
   return (
     <section className="book-shelf" aria-label="电子书书架">
       <input
@@ -84,6 +110,15 @@ export default function BookShelfView({
         aria-hidden="true"
         tabIndex={-1}
         onChange={handleFileChange}
+      />
+      <input
+        ref={restoreFileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="book-shelf__file-input"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleRestoreFileChange}
       />
 
       {isLoading ? (

@@ -285,7 +285,7 @@ export default function BookReaderView({
         // foliate 的 scrolled flow 只负责当前 spine 文档的原生滚动；封面等
         // 内容高度不足一屏的文档不会产生 scroll 事件，也就无法自然进入下一项。
         // 仅当一次向下滚轮没有造成任何原生滚动时，补一次 next() 来连接下一项。
-        const wheelListeners = new Map<Document, EventListener>()
+        const wheelListeners = new Map<Document, (event: WheelEvent) => void>()
         const handleRendererScroll = () => {
           didScrollDuringWheelRef.current = true
         }
@@ -293,7 +293,7 @@ export default function BookReaderView({
         cleanupWheelNavigation = () => {
           view?.renderer?.removeEventListener('scroll', handleRendererScroll)
           for (const [doc, listener] of wheelListeners) {
-            doc.removeEventListener('wheel', listener)
+            doc.removeEventListener('wheel', listener as unknown as EventListener)
           }
           wheelListeners.clear()
         }
