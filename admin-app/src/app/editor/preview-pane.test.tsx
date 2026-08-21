@@ -419,4 +419,35 @@ describe('PreviewPane', () => {
     )
     expect(rawCode.closest('code')).toBeTruthy()
   })
+
+  it('resolves relative image urls to vercel image proxy api when not in memory cache', () => {
+    render(
+      <PreviewPane
+        title="图片代理测试"
+        date="2026-08-21 10:00:00"
+        markdown="![示意图](/Alpaca-Notes-CMS/images/2026/08/sample.webp)"
+      />,
+    )
+
+    const img = screen.getByRole('img', { name: '示意图' })
+    expect(img).toBeTruthy()
+    expect(img.getAttribute('src')).toBe('https://alpaca-notes-cms.vercel.app/api/images?path=images%2F2026%2F08%2Fsample.webp')
+  })
+
+  it('prefers in-memory previewImageUrls over proxy api url', () => {
+    render(
+      <PreviewPane
+        title="内存图片测试"
+        date="2026-08-21 10:00:00"
+        markdown="![示意图](/Alpaca-Notes-CMS/images/2026/08/sample.webp)"
+        previewImageUrls={{
+          '/Alpaca-Notes-CMS/images/2026/08/sample.webp': 'blob:http://localhost/sample-blob',
+        }}
+      />,
+    )
+
+    const img = screen.getByRole('img', { name: '示意图' })
+    expect(img).toBeTruthy()
+    expect(img.getAttribute('src')).toBe('blob:http://localhost/sample-blob')
+  })
 })

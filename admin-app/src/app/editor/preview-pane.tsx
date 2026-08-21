@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
+import { AUTH_BASE_URL } from '../config'
 import type { ResolvedContentFormat } from '../content-format'
 import { parseInternalReferenceTargetKey } from '../internal-links'
 import type { TopicBacklinkItem } from '../knowledge/wiki-links'
@@ -718,6 +719,39 @@ function sanitizeImageSrc(imageSrc: string) {
   return /^https?:|^(#|\/(?!\/)|\.\.?\/|\?)/.test(sanitizedHref) ? sanitizedHref : null
 }
 
+export function resolvePreviewImageSrc(
+  imageSrc?: string | null,
+  previewImageUrls?: Record<string, string>,
+): string | null {
+  if (!imageSrc) {
+    return null
+  }
+
+  if (previewImageUrls?.[imageSrc]) {
+    return previewImageUrls[imageSrc]
+  }
+
+  const sanitized = sanitizeImageSrc(imageSrc)
+  if (!sanitized) {
+    return null
+  }
+
+  if (
+    sanitized.startsWith('/Alpaca-Notes-CMS/images/') ||
+    sanitized.startsWith('/images/') ||
+    sanitized.startsWith('images/') ||
+    sanitized.startsWith('source/images/')
+  ) {
+    const cleanPath = sanitized
+      .replace(/^\/Alpaca-Notes-CMS\//, '')
+      .replace(/^\/?(source\/)?/, '')
+      .replace(/^\//, '')
+    return `${AUTH_BASE_URL}/api/images?path=${encodeURIComponent(cleanPath)}`
+  }
+
+  return sanitized
+}
+
 function parseMarkdownDestination(markdown: string, openParenIndex: number): MarkdownDestinationMatch | null {
   if (markdown[openParenIndex] !== '(') {
     return null
@@ -1094,7 +1128,7 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
       nodes.push(...renderTextInline(markdown.slice(lastIndex, imageMatch.start), wikiLinkOptions))
     }
 
-    const safeSrc = previewImageUrls?.[imageMatch.imageUrl] ?? sanitizeImageSrc(imageMatch.imageUrl)
+    const safeSrc = resolvePreviewImageSrc(imageMatch.imageUrl, previewImageUrls)
     if (safeSrc) {
       nodes.push(<img key={`image-${matchIndex}`} src={safeSrc} alt={imageMatch.altText} referrerPolicy="no-referrer" />)
     }

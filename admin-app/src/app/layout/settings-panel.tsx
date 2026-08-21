@@ -8,6 +8,7 @@ import type { PostValidationErrors } from '../posts/post-types'
 import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-types'
 import { createReadLaterBody } from '../read-later/new-item'
 import { getEditableReadLaterSections } from '../read-later/parse-item'
+import { resolvePreviewImageSrc } from '../editor/preview-pane'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
 import FilterSelect from './filter-select'
 
@@ -817,7 +818,7 @@ export default function SettingsPanel({
               </div>
               {frontmatter.cover ? (
                 <img
-                  src={(previewImageUrls && previewImageUrls[frontmatter.cover]) || frontmatter.cover}
+                  src={resolvePreviewImageSrc(frontmatter.cover, previewImageUrls) || frontmatter.cover}
                   alt="Cover Preview"
                   style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
                   loading="lazy"
