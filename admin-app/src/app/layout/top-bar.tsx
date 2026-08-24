@@ -7,7 +7,7 @@ import {
   READING_FONT_WEIGHTS,
 } from './use-reading-font'
 
-const TOOL_HUB_URL = 'https://alpacaa1.github.io/json-check/'
+const TOOL_HUB_URL = 'https://alpacaa1.github.io/tool-hub/'
 
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
 

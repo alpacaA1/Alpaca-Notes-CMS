@@ -4967,7 +4967,7 @@ export default function App() {
           { id: 'books', label: '电子书架', category: '导航', icon: '📚', action: handleOpenBooks },
           ...(RSS_FEATURE_ENABLED ? [{ id: 'feeds', label: 'RSS 订阅与高光', category: '导航', icon: '📡', action: handleOpenFeeds }] : []),
           { id: 'trash', label: '回收站', category: '导航', icon: '🗑️', action: handleOpenTrash },
-          { id: 'tool-hub', label: '打开 Tool Hub', category: '导航', icon: '🧰', action: () => window.open('https://alpacaa1.github.io/json-check/', '_blank', 'noopener,noreferrer') },
+          { id: 'tool-hub', label: '打开 Tool Hub', category: '导航', icon: '🧰', action: () => window.open('https://alpacaa1.github.io/tool-hub/', '_blank', 'noopener,noreferrer') },
           { id: 'toggle-immersive', label: isImmersive ? '退出沉浸模式' : '进入沉浸模式', category: '视图', icon: '👁️', shortcut: 'Esc / ⌘\\', action: () => setIsImmersive((prev) => !prev) },
           { id: 'toggle-theme', label: isDark ? '切换至浅色模式' : '切换至深色模式', category: '外观', icon: '🌓', action: toggleColorMode },
         ]}

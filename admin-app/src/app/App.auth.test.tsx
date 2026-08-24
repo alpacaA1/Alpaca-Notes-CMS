@@ -33,7 +33,7 @@ describe('App auth flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '用户与工具菜单' }))
     const toolHubLink = screen.getByRole('menuitem', { name: /Tool Hub/ })
     expect(toolHubLink).toBeTruthy()
-    expect(toolHubLink.getAttribute('href')).toBe('https://alpacaa1.github.io/json-check/')
+    expect(toolHubLink.getAttribute('href')).toBe('https://alpacaa1.github.io/tool-hub/')
     expect(screen.getByRole('menuitem', { name: '退出登录' })).toBeTruthy()
   })
 
