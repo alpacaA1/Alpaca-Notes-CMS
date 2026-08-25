@@ -21,12 +21,16 @@ export interface QuickCheckinViewProps {
   session?: SessionState | null
   onOpenTodayDiary?: () => void
   onExitQuickMode?: () => void
+  onClose?: () => void
+  isModal?: boolean
 }
 
 export default function QuickCheckinView({
   session,
   onOpenTodayDiary,
   onExitQuickMode,
+  onClose,
+  isModal = false,
 }: QuickCheckinViewProps) {
   const [kind, setKind] = useState<SelfObservationKind>('emotion')
 
@@ -218,9 +222,9 @@ export default function QuickCheckinView({
   const isBehaviorSubmitEnabled = selectedBehaviors.length > 0 && !isSubmitting
 
   return (
-    <div className="quick-checkin">
+    <div className={`quick-checkin${isModal ? ' quick-checkin--modal' : ''}`}>
       <header className="quick-checkin__header">
-        <div className="quick-checkin__brand" onClick={onExitQuickMode} role="button" tabIndex={0}>
+        <div className="quick-checkin__brand" onClick={onExitQuickMode || onClose} role="button" tabIndex={0}>
           <img
             src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`}
             alt=""
@@ -245,6 +249,16 @@ export default function QuickCheckinView({
           >
             {kind === 'emotion' ? '行为记录' : '情绪签到'}
           </button>
+          {onClose ? (
+            <button
+              type="button"
+              className="quick-checkin__nav-close"
+              onClick={onClose}
+              aria-label="关闭"
+            >
+              ×
+            </button>
+          ) : null}
         </div>
       </header>
 

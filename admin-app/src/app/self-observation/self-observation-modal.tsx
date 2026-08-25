@@ -33,16 +33,10 @@ export default function SelfObservationModal({
   return (
     <div className="self-observation-modal__overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="自我观察签到">
       <div className="self-observation-modal__container" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="self-observation-modal__close-btn"
-          onClick={onClose}
-          aria-label="关闭"
-        >
-          ×
-        </button>
         <QuickCheckinView
           session={session}
+          isModal={true}
+          onClose={onClose}
           onOpenTodayDiary={() => {
             onClose()
             onOpenTodayDiary?.()
