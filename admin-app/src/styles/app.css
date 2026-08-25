@@ -16612,9 +16612,11 @@ textarea {
   .quick-checkin {
     margin: 0;
     min-height: 100vh;
+    min-height: 100dvh;
     border-radius: 0;
     border: none;
     box-shadow: none;
+    background: var(--admin-surface-strong, #faf6f0);
   }
 }
 
@@ -16623,9 +16625,57 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 22px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--admin-line, rgba(141, 113, 77, 0.12));
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+@media (max-width: 600px) {
+  .quick-checkin__header {
+    height: 52px;
+    min-height: 52px;
+    padding: max(8px, env(safe-area-inset-top)) 16px 8px;
+    gap: 8px;
+  }
+
+  .quick-checkin__title {
+    font-size: 15px;
+  }
+
+  .quick-checkin__nav-actions {
+    gap: 6px;
+  }
+
+  .quick-checkin__nav-link {
+    padding: 4px 6px;
+    font-size: 12.5px;
+  }
+
+  .quick-checkin__nav-toggle {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
+
+  .quick-checkin__section {
+    padding: 16px 16px 0;
+  }
+
+  .quick-checkin__chips-grid,
+  .quick-checkin__chips-grid--intentions {
+    gap: 8px 8px;
+  }
+
+  .quick-checkin__chip {
+    padding: 7px 13px;
+    font-size: 13.5px;
+    min-height: 36px;
+  }
+
+  .quick-checkin__submit-box {
+    padding: 20px 16px max(20px, env(safe-area-inset-bottom));
+  }
 }
 
 .quick-checkin__brand {
@@ -16661,7 +16711,7 @@ textarea {
   font-size: 13px;
   font-weight: 500;
   color: var(--admin-muted, #7c7267);
-  text-decoration: none;
+  text-decoration: none !important;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -16669,19 +16719,20 @@ textarea {
 
 .quick-checkin__nav-link:hover {
   color: var(--admin-text, #2a2521);
-  background: rgba(0, 0, 0, 0.04);
+  background: rgba(141, 113, 77, 0.08);
 }
 
 .quick-checkin__nav-toggle {
   background: rgba(141, 113, 77, 0.1);
   border: 1px solid rgba(141, 113, 77, 0.22);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 4px 12px;
   font-size: 12.5px;
   font-weight: 500;
   color: var(--admin-warm, #8d714d);
   cursor: pointer;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .quick-checkin__nav-toggle:hover {
@@ -16824,7 +16875,7 @@ textarea {
 }
 
 .quick-checkin__section {
-  padding: 18px 22px 0;
+  padding: 18px 20px 0;
 }
 
 .quick-checkin__section-title {
@@ -16835,46 +16886,45 @@ textarea {
   letter-spacing: -0.01em;
 }
 
-.quick-checkin__chips-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-}
-
+.quick-checkin__chips-grid,
 .quick-checkin__chips-grid--intentions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 10px;
+  gap: 10px 10px;
 }
 
 .quick-checkin__chip {
   padding: 8px 16px;
   height: auto;
   min-height: 38px;
+  min-width: 52px;
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  white-space: nowrap;
-  background: var(--admin-surface, rgba(255, 255, 255, 0.65));
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+  background: #ffffff;
   border: 1px solid var(--admin-line, rgba(141, 113, 77, 0.18));
-  border-radius: 19px;
-  font-size: 13.5px;
+  border-radius: 20px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--admin-text, #3e362f);
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .quick-checkin__chip:hover {
-  background: rgba(255, 255, 255, 0.95);
+  background: #ffffff;
   border-color: rgba(141, 113, 77, 0.35);
 }
 
 .quick-checkin__chip.is-selected {
-  background: var(--admin-warm, #8d714d);
-  color: #ffffff;
-  border-color: var(--admin-warm, #8d714d);
+  background: var(--admin-warm, #8d714d) !important;
+  color: #ffffff !important;
+  border-color: var(--admin-warm, #8d714d) !important;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(141, 113, 77, 0.25);
 }
@@ -16908,9 +16958,9 @@ textarea {
   box-sizing: border-box;
   width: 100%;
   border: 1px solid var(--admin-line, rgba(141, 113, 77, 0.2));
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 12px 14px;
-  font-size: 14px;
+  font-size: 14.5px;
   line-height: 1.6;
   font-family: inherit;
   background: #ffffff;
@@ -16927,7 +16977,7 @@ textarea {
 
 .quick-checkin__submit-box {
   margin-top: auto;
-  padding: 24px 22px 30px;
+  padding: 24px 20px max(24px, env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -16940,7 +16990,7 @@ textarea {
   border-radius: 14px;
   background: var(--admin-warm, #8d714d);
   color: #ffffff;
-  font-size: 15px;
+  font-size: 15.5px;
   font-weight: 600;
   border: none;
   cursor: pointer;
@@ -16953,9 +17003,11 @@ textarea {
 }
 
 .quick-checkin__submit-btn:disabled {
-  opacity: 0.45;
+  background: #d8cec2;
+  color: #8c8275;
   cursor: not-allowed;
   box-shadow: none;
+  opacity: 0.9;
 }
 
 .quick-checkin__privacy-note {
