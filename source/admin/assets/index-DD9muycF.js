@@ -165,17 +165,17 @@ ${m}
 `}return`${a}
 
 ${n}
-`}function Ln(e){return e.toString().padStart(2,"0")}function gx(e=new Date){const n=e.getFullYear(),a=Ln(e.getMonth()+1),r=Ln(e.getDate()),s=Ln(e.getHours()),i=Ln(e.getMinutes()),l=Ln(e.getSeconds()),d=Math.random().toString(36).slice(2,6);return`so_${n}${a}${r}_${s}${i}${l}_${d}`}function _x(e){const n=new Date(e.createdAt),a=`${Ln(n.getHours())}:${Ln(n.getMinutes())}`,r=`<!-- alpaca:self-observation id="${e.id}" kind="${e.kind}" version="1" -->`,s="<!-- /alpaca:self-observation -->";if(e.kind==="emotion"){const m=e.data,k=[`### 🔖 ${a} · 情绪签到`,""],C=(m.emotions||[]).join("、").trim();k.push(`- 我现在：${C||"说不清"}`);const S=(m.event||"").trim();S&&k.push(`- 发生了什么：${S}`);const y=(m.intention||"").trim();return y&&k.push(`- 我想：${y}`),`${r}
+`}function Ln(e){return e.toString().padStart(2,"0")}function gx(e=new Date){const n=e.getFullYear(),a=Ln(e.getMonth()+1),r=Ln(e.getDate()),s=Ln(e.getHours()),i=Ln(e.getMinutes()),l=Ln(e.getSeconds()),d=Math.random().toString(36).slice(2,6);return`so_${n}${a}${r}_${s}${i}${l}_${d}`}function _x(e){const n=new Date(e.createdAt),a=`${Ln(n.getHours())}:${Ln(n.getMinutes())}`,r=`<!-- alpaca:self-observation id="${e.id}" kind="${e.kind}" version="1" -->`,s="<!-- /alpaca:self-observation -->";if(e.kind==="emotion"){const m=e.data,k=[`### 🔖 ${a} · 情绪签到`,""],C=(m.emotions||[]).join("、").trim();k.push(`> 💭 **我现在**：${C||"说不清"}`);const S=(m.event||"").trim();S&&k.push(`> 📝 **发生了什么**：${S}`);const y=(m.intention||"").trim();return y&&k.push(`> 🎯 **我想**：${y}`),`${r}
 
 ${k.join(`
 `)}
 
-${s}`}const i=e.data,d=[`### 🔖 ${a} · 行为尝试`,""],h=(i.behaviors||[]).join("、").trim();d.push(`- 我做了：${h||"自我观察与练习"}`);const f=(i.actualEvent||"").trim();return f&&d.push(`- 实际发生了什么：${f}`),`${r}
+${s}`}const i=e.data,d=[`### 🔖 ${a} · 行为尝试`,""],h=(i.behaviors||[]).join("、").trim();d.push(`> 🔖 **我做了**：${h||"自我观察与练习"}`);const f=(i.actualEvent||"").trim();return f&&d.push(`> 📝 **实际发生了什么**：${f}`),`${r}
 
 ${d.join(`
 `)}
 
-${s}`}function xx(e,n){if(!e||!n)return!1;const a=n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return new RegExp(`<!--\\s*alpaca:self-observation[^>]*id=["']${a}["']`,"i").test(e)}const bx=/^##\s+(?:🔖\s*)?自我观察\s*$/m;function yx(e,n){const a=(e||"").trim();if(!a)return`## 自我观察
+${s}`}function xx(e,n){if(!e||!n)return!1;const a=n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");return new RegExp(`<!--\\s*alpaca:self-observation[^>]*id=["']${a}["']`,"i").test(e)}const bx=/^##\s+(?:🔖\s*)?(?:自我观察|情绪签到|情绪与行为签到|自我记录)\s*$/m;function yx(e,n){const a=(e||"").trim();if(!a)return`## 自我观察
 
 ${n}
 `;const r=a.match(bx);if(!r||r.index===void 0)return`${a}

@@ -31,16 +31,16 @@ export function formatSelfObservationBlock(record: SelfObservationRecord): strin
     const lines: string[] = [heading, '']
 
     const emotionsText = (data.emotions || []).join('、').trim()
-    lines.push(`- 我现在：${emotionsText || '说不清'}`)
+    lines.push(`> 💭 **我现在**：${emotionsText || '说不清'}`)
 
     const eventText = (data.event || '').trim()
     if (eventText) {
-      lines.push(`- 发生了什么：${eventText}`)
+      lines.push(`> 📝 **发生了什么**：${eventText}`)
     }
 
     const intentionText = (data.intention || '').trim()
     if (intentionText) {
-      lines.push(`- 我想：${intentionText}`)
+      lines.push(`> 🎯 **我想**：${intentionText}`)
     }
 
     return `${boundaryStart}\n\n${lines.join('\n')}\n\n${boundaryEnd}`
@@ -51,11 +51,11 @@ export function formatSelfObservationBlock(record: SelfObservationRecord): strin
   const lines: string[] = [heading, '']
 
   const behaviorsText = (data.behaviors || []).join('、').trim()
-  lines.push(`- 我做了：${behaviorsText || '自我观察与练习'}`)
+  lines.push(`> 🔖 **我做了**：${behaviorsText || '自我观察与练习'}`)
 
   const actualEventText = (data.actualEvent || '').trim()
   if (actualEventText) {
-    lines.push(`- 实际发生了什么：${actualEventText}`)
+    lines.push(`> 📝 **实际发生了什么**：${actualEventText}`)
   }
 
   return `${boundaryStart}\n\n${lines.join('\n')}\n\n${boundaryEnd}`
@@ -68,7 +68,7 @@ export function hasObservationId(diaryBody: string, id: string): boolean {
   return pattern.test(diaryBody)
 }
 
-const DIARY_SELF_OBSERVATION_HEADING_PATTERN = /^##\s+(?:🔖\s*)?自我观察\s*$/m
+const DIARY_SELF_OBSERVATION_HEADING_PATTERN = /^##\s+(?:🔖\s*)?(?:自我观察|情绪签到|情绪与行为签到|自我记录)\s*$/m
 
 export function appendObservationToDiaryBody(existingBody: string, observationBlock: string): string {
   const trimmed = (existingBody || '').trim()

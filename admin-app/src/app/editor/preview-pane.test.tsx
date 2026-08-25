@@ -461,14 +461,14 @@ describe('PreviewPane', () => {
 <!-- alpaca:self-observation id="so_20260825_113353_uh8e" kind="emotion" version="1" -->
 ### 🔖 11:33 · 情绪签到
 
-- 我现在：烦
+> 💭 **我现在**：烦
 <!-- /alpaca:self-observation -->
 `}
       />,
     )
 
     expect(screen.getAllByText(/11:33 · 情绪签到/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText(/我现在：烦/)).toBeTruthy()
+    expect(screen.getByText(/我现在/)).toBeTruthy()
     expect(screen.queryByText(/alpaca:self-observation/)).toBeNull()
     expect(screen.queryByText(/<!--/)).toBeNull()
     expect(screen.queryByText(/-->/)).toBeNull()

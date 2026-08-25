@@ -27,7 +27,7 @@ describe('self-observation-format', () => {
     const block = formatSelfObservationBlock(record)
     expect(block).toContain('<!-- alpaca:self-observation id="so-101" kind="emotion" version="1" -->')
     expect(block).toContain('### 🔖')
-    expect(block).toContain('- 我现在：烦、紧张')
+    expect(block).toContain('> 💭 **我现在**：烦、紧张')
     expect(block).not.toContain('发生了什么')
     expect(block).not.toContain('我想')
     expect(block).toContain('<!-- /alpaca:self-observation -->')
@@ -46,9 +46,9 @@ describe('self-observation-format', () => {
     }
 
     const block = formatSelfObservationBlock(record)
-    expect(block).toContain('- 我现在：烦')
-    expect(block).toContain('- 发生了什么：她说我今天显得有点安静')
-    expect(block).toContain('- 我想：停一下')
+    expect(block).toContain('> 💭 **我现在**：烦')
+    expect(block).toContain('> 📝 **发生了什么**：她说我今天显得有点安静')
+    expect(block).toContain('> 🎯 **我想**：停一下')
   })
 
   it('formats behavior record with all fields', () => {
@@ -66,8 +66,8 @@ describe('self-observation-format', () => {
     expect(block).toContain('<!-- alpaca:self-observation id="so-201" kind="behavior" version="1" -->')
     expect(block).toContain('### 🔖')
     expect(block).toContain('行为尝试')
-    expect(block).toContain('- 我做了：表达需求')
-    expect(block).toContain('- 实际发生了什么：我说想早点回去，对方正常接受。')
+    expect(block).toContain('> 🔖 **我做了**：表达需求')
+    expect(block).toContain('> 📝 **实际发生了什么**：我说想早点回去，对方正常接受。')
     expect(block).toContain('<!-- /alpaca:self-observation -->')
   })
 
