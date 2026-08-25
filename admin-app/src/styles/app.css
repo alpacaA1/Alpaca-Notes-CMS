@@ -17785,44 +17785,29 @@ textarea {
   margin-left: 16px;
 }
 
-.diary-timeline__header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
+.diary-timeline__card-expanded {
+  position: relative;
 }
 
 .diary-timeline__card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 18px;
+  margin-bottom: 2px;
+}
+
+.diary-timeline__time-range {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--admin-muted);
 }
 
 .diary-timeline__actions {
   position: relative;
   flex-shrink: 0;
-}
-
-.diary-timeline__category-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--admin-text);
-}
-
-.diary-timeline__chips {
-  display: flex;
-  gap: 6px;
-}
-
-.diary-timeline__chip {
-  padding: 2px 8px;
-  border-radius: 10px;
-  background: rgba(141, 113, 77, 0.08);
-  color: var(--admin-warm, #8d714d);
-  font-size: 11px;
-  font-weight: 500;
+  margin-left: auto;
 }
 
 .diary-timeline__sections {
@@ -17838,6 +17823,10 @@ textarea {
   align-items: flex-start;
   padding: 14px 0;
   border-bottom: 1px solid var(--admin-line, #eee7de);
+}
+
+.diary-timeline__sec:first-child {
+  padding-top: 0;
 }
 
 .diary-timeline__sec:last-child {

@@ -56,13 +56,9 @@ export default function DiaryTimelinePreview({
         </div>
       ) : (
         itemsWithSummaries.map(({ post, dateStr, dayNumber, weekday, summary }) => {
-        const isExpanded = !collapsedPaths.has(post.path)
-        const categoriesLabel =
-          summary.categoriesSummary.length > 0
-            ? `${summary.categoriesSummary.length} 类内容 · ${summary.categoriesSummary.join(' · ')}`
-            : '日常记录'
+          const isExpanded = !collapsedPaths.has(post.path)
 
-        return (
+          return (
           <div key={post.path} className={`diary-timeline__item${isExpanded ? ' is-expanded' : ''}`}>
             {/* Left date column & timeline track */}
             <div className="diary-timeline__date-col">
@@ -80,21 +76,11 @@ export default function DiaryTimelinePreview({
             <div className="diary-timeline__card">
               {isExpanded ? (
                 <div className="diary-timeline__card-expanded">
-                  {/* Header badges */}
+                  {/* Action Menu / Time Range */}
                   <div className="diary-timeline__card-header">
-                    <div className="diary-timeline__header-info">
-                      <span className="diary-timeline__category-count">
-                        {summary.categoriesSummary.length || 1} 类内容
-                        {summary.timeRangeStr ? ` · ${summary.timeRangeStr}` : ''}
-                      </span>
-                      <div className="diary-timeline__chips">
-                        {summary.categoriesSummary.map((cat) => (
-                          <span key={cat} className="diary-timeline__chip">
-                            {cat}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
+                    {summary.timeRangeStr ? (
+                      <span className="diary-timeline__time-range">{summary.timeRangeStr}</span>
+                    ) : <span />}
                     <DiaryActionMenu
                       post={post}
                       isOpen={actionPath === post.path}
@@ -190,7 +176,6 @@ export default function DiaryTimelinePreview({
                   onClick={() => setExpandedPath(post.path)}
                 >
                   <div className="diary-timeline__collapsed-left">
-                    <span className="diary-timeline__collapsed-meta">{categoriesLabel}</span>
                     <p className="diary-timeline__collapsed-desc">
                       {post.title || post.desc || '日常记录'}
                     </p>

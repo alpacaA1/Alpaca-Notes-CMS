@@ -74,7 +74,7 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
 
   // 3. Extract General Life Notes / Lists
   const cleanBody = text
-    .replace(/<!--\s*alpaca:self-observation[\s\S]*?<!--\s*\/alpaca:self-observation\s*-->/gi, '')
+    .replace(/<!--[\s\S]*?-->/gi, '') // remove all HTML comments
     .replace(/^---[\s\S]*?---/g, '') // remove frontmatter
     .trim()
 
@@ -82,7 +82,15 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
   const lines = cleanBody.split('\n')
   for (const line of lines) {
     const trimmed = line.trim()
-    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('>') || trimmed.startsWith('---')) {
+    if (
+      !trimmed ||
+      trimmed.startsWith('#') ||
+      trimmed.startsWith('>') ||
+      trimmed.startsWith('---') ||
+      trimmed.startsWith('<!--') ||
+      trimmed.startsWith('-->') ||
+      trimmed.includes('alpaca:self-observation')
+    ) {
       continue
     }
     // Match bullet or numbered item or paragraph
