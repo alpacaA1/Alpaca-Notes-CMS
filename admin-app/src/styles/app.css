@@ -15016,6 +15016,50 @@ textarea {
   border-color: var(--admin-line);
 }
 
+.book-shelf__import-btn--danger {
+  border-color: rgba(211, 47, 47, 0.35);
+  background: rgba(211, 47, 47, 0.08);
+  color: #d32f2f;
+}
+
+.book-shelf__import-btn--danger:hover:not(:disabled) {
+  background: #d32f2f;
+  color: #fff;
+  border-color: #d32f2f;
+}
+
+.book-shelf__card.is-batch-mode {
+  cursor: pointer;
+}
+
+.book-shelf__card.is-batch-mode.is-selected {
+  border-color: var(--admin-warm, #8d714d);
+  box-shadow: 0 0 0 2px var(--admin-warm, #8d714d), 0 8px 20px rgba(141, 113, 77, 0.15);
+}
+
+.book-shelf__select-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  display: grid;
+  place-items: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.book-shelf__select-badge input {
+  margin: 0;
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--admin-warm, #8d714d);
+}
+
 .book-shelf__empty {
   max-width: 420px;
   margin: 12vh auto 0;

@@ -16,6 +16,7 @@ type BookShelfViewProps = {
   onRelinkFile?: (book: StoredBookMeta, file: File) => void
   onOpenBook: (book: StoredBookMeta) => void
   onDeleteBook: (book: StoredBookMeta) => void
+  onDeleteMultipleBooks?: (books: StoredBookMeta[]) => void
   onSyncBooks?: () => void
   onWeReadSyncSuccess?: () => void
   onRestoreSuccess?: () => void
@@ -62,6 +63,7 @@ export default function BookShelfView({
   onRelinkFile,
   onOpenBook,
   onDeleteBook,
+  onDeleteMultipleBooks,
   onSyncBooks,
   onWeReadSyncSuccess,
   onRestoreSuccess,
@@ -72,6 +74,8 @@ export default function BookShelfView({
   const [isRestoring, setIsRestoring] = useState(false)
   const [isWeReadSyncOpen, setIsWeReadSyncOpen] = useState(false)
   const [targetRelinkBook, setTargetRelinkBook] = useState<StoredBookMeta | null>(null)
+  const [isBatchMode, setIsBatchMode] = useState(false)
+  const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set())
 
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -81,6 +85,37 @@ export default function BookShelfView({
     return books.filter((book) =>
       book.title.toLowerCase().includes(query) || book.creator.toLowerCase().includes(query))
   }, [books, search])
+
+  const isAllSelected = useMemo(() => {
+    if (filteredBooks.length === 0) return false
+    return filteredBooks.every((book) => selectedBookIds.has(book.id))
+  }, [filteredBooks, selectedBookIds])
+
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedBookIds(new Set())
+    } else {
+      setSelectedBookIds(new Set(filteredBooks.map((b) => b.id)))
+    }
+  }
+
+  const handleToggleBook = (bookId: string) => {
+    const next = new Set(selectedBookIds)
+    if (next.has(bookId)) {
+      next.delete(bookId)
+    } else {
+      next.add(bookId)
+    }
+    setSelectedBookIds(next)
+  }
+
+  const handleBatchDelete = () => {
+    const targetBooks = books.filter((b) => selectedBookIds.has(b.id))
+    if (targetBooks.length === 0) return
+    onDeleteMultipleBooks?.(targetBooks)
+    setSelectedBookIds(new Set())
+    setIsBatchMode(false)
+  }
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -159,9 +194,8 @@ export default function BookShelfView({
       />
 
       {isLoading ? (
-        <div className="book-shelf__empty">
-          <p className="book-shelf__empty-title">正在打开书架…</p>
-          <p className="book-shelf__empty-desc">书籍元数据与批注与云端同步，大文件保存在本机。</p>
+        <div className="book-shelf__loading">
+          <p>正在读取书架…</p>
         </div>
       ) : books.length === 0 ? (
         <div className="book-shelf__empty">
@@ -214,66 +248,109 @@ export default function BookShelfView({
         </div>
       ) : (
         <>
-          <div className="book-shelf__toolbar">
-            <span className="book-shelf__toolbar-meta">
-              共 {books.length} 本{filteredBooks.length !== books.length ? ` · 匹配 ${filteredBooks.length} 本` : ''}
-            </span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className="book-shelf__import-btn book-shelf__import-btn--secondary"
-                onClick={() => setIsWeReadSyncOpen(true)}
-                title="通过微信读书官方 API 同步划线与想法"
-              >
-                微信读书
-              </button>
-              {onSyncBooks ? (
+          {isBatchMode ? (
+            <div className="book-shelf__toolbar book-shelf__toolbar--batch">
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13, color: 'var(--admin-text)' }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  disabled={filteredBooks.length === 0}
+                  onChange={handleToggleSelectAll}
+                />
+                <span>全选 (已选 {selectedBookIds.size}/{filteredBooks.length} 本)</span>
+              </label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--danger"
+                  disabled={selectedBookIds.size === 0}
+                  onClick={handleBatchDelete}
+                  title="批量删除所选的书籍及本地文件"
+                >
+                  批量删除 ({selectedBookIds.size})
+                </button>
                 <button
                   type="button"
                   className="book-shelf__import-btn book-shelf__import-btn--secondary"
-                  onClick={onSyncBooks}
-                  disabled={isSyncing}
-                  title="与 GitHub 仓库同步最新书架元数据与批注"
+                  onClick={() => {
+                    setIsBatchMode(false)
+                    setSelectedBookIds(new Set())
+                  }}
                 >
-                  {isSyncing ? '正在同步…' : '云端同步'}
+                  退出管理
                 </button>
-              ) : null}
-              <button
-                type="button"
-                className="book-shelf__import-btn book-shelf__import-btn--secondary"
-                onClick={async () => {
-                  const { exportBookLibraryBackup } = await import('./book-store')
-                  const data = await exportBookLibraryBackup()
-                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-                  const url = URL.createObjectURL(blob)
-                  const link = document.createElement('a')
-                  link.href = url
-                  link.download = `alpaca-books-backup-${new Date().toISOString().slice(0, 10)}.json`
-                  link.click()
-                  URL.revokeObjectURL(url)
-                }}
-                title="导出所有电子书元数据与批注备份为 JSON 文件"
-              >
-                备份书库
-              </button>
-              <button
-                type="button"
-                className="book-shelf__import-btn book-shelf__import-btn--secondary"
-                onClick={triggerRestore}
-                title="选择先前备份的 JSON 文件恢复书架元数据与批注"
-              >
-                恢复备份
-              </button>
-              <button
-                type="button"
-                className="book-shelf__import-btn"
-                onClick={triggerImport}
-                disabled={isImporting}
-              >
-                {isImporting ? '正在导入…' : '导入电子书'}
-              </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="book-shelf__toolbar">
+              <span className="book-shelf__toolbar-meta">
+                共 {books.length} 本{filteredBooks.length !== books.length ? ` · 匹配 ${filteredBooks.length} 本` : ''}
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                  onClick={() => setIsWeReadSyncOpen(true)}
+                  title="通过微信读书官方 API 同步划线与想法"
+                >
+                  微信读书
+                </button>
+                {onSyncBooks ? (
+                  <button
+                    type="button"
+                    className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                    onClick={onSyncBooks}
+                    disabled={isSyncing}
+                    title="与 GitHub 仓库同步最新书架元数据与批注"
+                  >
+                    {isSyncing ? '正在同步…' : '云端同步'}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                  onClick={() => setIsBatchMode(true)}
+                  title="批量选择并删除书架上的电子书"
+                >
+                  批量管理
+                </button>
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                  onClick={async () => {
+                    const { exportBookLibraryBackup } = await import('./book-store')
+                    const data = await exportBookLibraryBackup()
+                    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                    const url = URL.createObjectURL(blob)
+                    const link = document.createElement('a')
+                    link.href = url
+                    link.download = `alpaca-books-backup-${new Date().toISOString().slice(0, 10)}.json`
+                    link.click()
+                    URL.revokeObjectURL(url)
+                  }}
+                  title="导出所有电子书元数据与批注备份为 JSON 文件"
+                >
+                  备份书库
+                </button>
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                  onClick={triggerRestore}
+                  title="选择先前备份的 JSON 文件恢复书架元数据与批注"
+                >
+                  恢复备份
+                </button>
+                <button
+                  type="button"
+                  className="book-shelf__import-btn"
+                  onClick={triggerImport}
+                  disabled={isImporting}
+                >
+                  {isImporting ? '正在导入…' : '导入电子书'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {filteredBooks.length === 0 ? (
             <div className="book-shelf__empty">
@@ -287,29 +364,52 @@ export default function BookShelfView({
                 const isDeleting = deletingBookId === book.id
                 const isWeReadBook = book.id.startsWith('weread-')
                 const hasLocalFile = localFilesStatus[book.id] !== false
+                const isSelected = selectedBookIds.has(book.id)
 
                 return (
-                  <article key={book.id} className="book-shelf__card">
+                  <article
+                    key={book.id}
+                    className={`book-shelf__card${isBatchMode ? ' is-batch-mode' : ''}${isSelected ? ' is-selected' : ''}`}
+                  >
                     <button
                       type="button"
                       className="book-shelf__card-trigger"
                       onClick={() => {
-                        if (!hasLocalFile) {
+                        if (isBatchMode) {
+                          handleToggleBook(book.id)
+                        } else if (!hasLocalFile) {
                           triggerRelink(book)
                         } else {
                           onOpenBook(book)
                         }
                       }}
-                      aria-label={hasLocalFile ? `打开《${book.title}》` : `关联《${book.title}》的本地文件`}
+                      aria-label={
+                        isBatchMode
+                          ? `${isSelected ? '取消选择' : '选择'}《${book.title}》`
+                          : hasLocalFile
+                            ? `打开《${book.title}》`
+                            : `关联《${book.title}》的本地文件`
+                      }
                     >
                       <div className="book-shelf__cover">
                         <BookCover book={book} />
-                        {annotationCount > 0 ? (
+                        {isBatchMode && (
+                          <div className={`book-shelf__select-badge${isSelected ? ' is-checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              readOnly
+                              tabIndex={-1}
+                              aria-hidden="true"
+                            />
+                          </div>
+                        )}
+                        {!isBatchMode && annotationCount > 0 ? (
                           <span className="book-shelf__annotation-badge" title={`${annotationCount} 条批注`}>
                             {annotationCount}
                           </span>
                         ) : null}
-                        {!hasLocalFile ? (
+                        {!isBatchMode && !hasLocalFile ? (
                           <span
                             className="book-shelf__missing-badge"
                             title={isWeReadBook ? '微信读书导入，点击可选择本地文件关联阅读' : '当前设备未载入该书文件，点击选择本地文件关联'}
@@ -335,16 +435,18 @@ export default function BookShelfView({
                         </p>
                       </div>
                     </button>
-                    <button
-                      type="button"
-                      className="book-shelf__delete-btn"
-                      aria-label={`删除《${book.title}》`}
-                      title="删除"
-                      disabled={isDeleting}
-                      onClick={() => onDeleteBook(book)}
-                    >
-                      {isDeleting ? '…' : '×'}
-                    </button>
+                    {!isBatchMode && (
+                      <button
+                        type="button"
+                        className="book-shelf__delete-btn"
+                        aria-label={`删除《${book.title}》`}
+                        title="删除"
+                        disabled={isDeleting}
+                        onClick={() => onDeleteBook(book)}
+                      >
+                        {isDeleting ? '…' : '×'}
+                      </button>
+                    )}
                   </article>
                 )
               })}

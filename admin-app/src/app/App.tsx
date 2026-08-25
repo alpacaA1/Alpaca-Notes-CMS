@@ -2160,6 +2160,48 @@ export default function App() {
     }
   }
 
+  const handleDeleteMultipleBooksRequest = async (booksToDelete: StoredBookMeta[]) => {
+    if (booksToDelete.length === 0) return
+
+    const count = booksToDelete.length
+    const sampleTitles = booksToDelete.slice(0, 3).map((b) => `《${b.title}》`).join('、')
+    const titleText = count > 3 ? `${sampleTitles} 等 ${count} 本书` : sampleTitles
+
+    const shouldDelete = await requestAppConfirm({
+      title: `批量删除 ${count} 本电子书`,
+      message: `确定从书架删除 ${titleText} 吗？会一并清理本机的离线文件与批注记录，并从云端移除。`,
+      confirmLabel: `删除这 ${count} 本书`,
+      cancelLabel: '取消',
+      isDangerous: true,
+    })
+    if (!shouldDelete) {
+      return
+    }
+
+    setError(null)
+    try {
+      const bookIds = booksToDelete.map((b) => b.id)
+      const { deleteBooks } = await import('./books/book-store')
+      await deleteBooks(bookIds)
+
+      if (session) {
+        const { deleteBooksFromGitHub } = await import('./books/book-sync')
+        void deleteBooksFromGitHub(session, bookIds).catch(() => {})
+      }
+
+      const bookIdsSet = new Set(bookIds)
+      if (activeBook && bookIdsSet.has(activeBook.meta.id)) {
+        setActiveBook(null)
+        setIsBookReaderOpen(false)
+      }
+      setBookReaderSessions((current) => current.filter((item) => !bookIdsSet.has(item.meta.id)))
+      await refreshBookShelf()
+      setSuccessMessage(`已成功删除 ${count} 本书。`)
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : '批量删除书籍失败。')
+    }
+  }
+
   const handleBookProgressChange = useCallback((nextMeta: StoredBookMeta) => {
     setBookMetas((current) => current.map((item) => (item.id === nextMeta.id ? nextMeta : item)))
     setActiveBook((current) => (current && current.meta.id === nextMeta.id ? { ...current, meta: nextMeta } : current))
@@ -4994,6 +5036,7 @@ export default function App() {
                 onRelinkFile={(book, file) => { void handleRelinkBookFile(book, file) }}
                 onOpenBook={(book) => { void handleOpenBook(book) }}
                 onDeleteBook={(book) => { void handleDeleteBookRequest(book) }}
+                onDeleteMultipleBooks={(books) => { void handleDeleteMultipleBooksRequest(books) }}
                 onSyncBooks={() => { void handleSyncBooks(false) }}
                 onWeReadSyncSuccess={() => {
                   void refreshBookShelf().then(() => {

@@ -90,19 +90,31 @@ export function putBookMeta(meta: StoredBookMeta) {
   return withStore(BOOK_META_STORE, 'readwrite', (store) => store.put(meta))
 }
 
-export async function deleteBook(id: string) {
+export async function deleteBooks(ids: string[]) {
+  if (ids.length === 0) return
   const db = await openBookDatabase()
   const tx = db.transaction([BOOK_META_STORE, BOOK_FILE_STORE, ANNOTATION_STORE], 'readwrite')
 
+  const metaStore = tx.objectStore(BOOK_META_STORE)
+  const fileStore = tx.objectStore(BOOK_FILE_STORE)
   const annotationStore = tx.objectStore(ANNOTATION_STORE)
   const annotationIndex = annotationStore.index('bookId')
-  const annotationKeys = await requestToPromise(annotationIndex.getAllKeys() as IDBRequest<IDBValidKey[]>)
 
-  await Promise.all([
-    requestToPromise(tx.objectStore(BOOK_META_STORE).delete(id)),
-    requestToPromise(tx.objectStore(BOOK_FILE_STORE).delete(id)),
-    ...annotationKeys.map((key) => requestToPromise(annotationStore.delete(key))),
-  ])
+  const promises: Promise<unknown>[] = []
+  for (const id of ids) {
+    promises.push(requestToPromise(metaStore.delete(id)))
+    promises.push(requestToPromise(fileStore.delete(id)))
+    const annotationKeys = await requestToPromise(annotationIndex.getAllKeys(id) as IDBRequest<IDBValidKey[]>)
+    for (const key of annotationKeys) {
+      promises.push(requestToPromise(annotationStore.delete(key)))
+    }
+  }
+
+  await Promise.all(promises)
+}
+
+export async function deleteBook(id: string) {
+  return deleteBooks([id])
 }
 
 export async function listBookAnnotations(bookId: string) {

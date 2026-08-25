@@ -275,13 +275,15 @@ export async function syncBooksWithGitHub(session: SessionState): Promise<{
   }
 }
 
-export async function deleteBookFromGitHub(session: SessionState, bookId: string): Promise<void> {
+export async function deleteBooksFromGitHub(session: SessionState, bookIds: string[]): Promise<void> {
+  if (bookIds.length === 0) return
   const remoteResult = await fetchRemoteBooksLibrary(session)
   if (!remoteResult) {
     return
   }
 
-  const remainingBooks = remoteResult.data.books.filter((book) => book.id !== bookId)
+  const idsSet = new Set(bookIds)
+  const remainingBooks = remoteResult.data.books.filter((book) => !idsSet.has(book.id))
   if (remainingBooks.length === remoteResult.data.books.length) {
     return
   }
@@ -293,4 +295,8 @@ export async function deleteBookFromGitHub(session: SessionState, bookId: string
   }
 
   await saveRemoteBooksLibrary(session, nextData, remoteResult.sha)
+}
+
+export async function deleteBookFromGitHub(session: SessionState, bookId: string): Promise<void> {
+  return deleteBooksFromGitHub(session, [bookId])
 }

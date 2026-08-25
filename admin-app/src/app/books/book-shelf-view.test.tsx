@@ -104,4 +104,46 @@ describe('BookShelfView', () => {
 
     expect(handleOpen).toHaveBeenCalledWith(mockBook)
   })
+
+  it('supports batch management mode and multi-select delete', () => {
+    const handleDeleteMultiple = vi.fn()
+    const mockBook2: StoredBookMeta = {
+      ...mockBook,
+      id: 'book-2',
+      title: '重构',
+    }
+
+    render(
+      <BookShelfView
+        books={[mockBook, mockBook2]}
+        annotationCounts={{}}
+        isLoading={false}
+        isImporting={false}
+        isSyncing={false}
+        search=""
+        deletingBookId={null}
+        onImportFile={vi.fn()}
+        onOpenBook={vi.fn()}
+        onDeleteBook={vi.fn()}
+        onDeleteMultipleBooks={handleDeleteMultiple}
+      />,
+    )
+
+    // Enter batch mode
+    fireEvent.click(screen.getByRole('button', { name: '批量管理' }))
+
+    expect(screen.getByText('退出管理')).toBeTruthy()
+    expect(screen.getByText(/全选 \(已选 0\/2 本\)/)).toBeTruthy()
+
+    // Select book-1
+    const book1Trigger = screen.getByRole('button', { name: /选择《设计模式简明教程》/i })
+    fireEvent.click(book1Trigger)
+
+    expect(screen.getByText(/全选 \(已选 1\/2 本\)/)).toBeTruthy()
+    const deleteBtn = screen.getByRole('button', { name: /批量删除 \(1\)/i })
+    expect(deleteBtn).toBeTruthy()
+
+    fireEvent.click(deleteBtn)
+    expect(handleDeleteMultiple).toHaveBeenCalledWith([mockBook])
+  })
 })
