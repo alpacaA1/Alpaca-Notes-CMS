@@ -4819,6 +4819,7 @@ export default function App() {
           onTogglePreview={handleTogglePreview}
           hasActiveDocument={Boolean(document)}
           isPreviewing={isPreviewing}
+          isBookReaderOpen={isBookReaderOpen}
           isDarkMode={isDark}
           previewFontSize={previewReadingFontSize}
           previewFontWeightIndex={previewReadingFontWeightIndex}
@@ -5065,6 +5066,9 @@ export default function App() {
                     <BookReaderView
                       meta={book.meta}
                       fileBlob={book.fileBlob}
+                      readingFontSize={previewReadingFontSize}
+                      readingFontWeight={previewReadingFontWeight}
+                      readingFontFamily={previewReadingFontFamily}
                       onBack={handleBackFromBookReader}
                       onProgressChange={handleBookProgressChange}
                       onAnnotationsChange={handleBookAnnotationsChange}

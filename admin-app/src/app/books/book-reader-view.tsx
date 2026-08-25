@@ -26,6 +26,9 @@ import {
 type BookReaderViewProps = {
   meta: StoredBookMeta
   fileBlob: Blob
+  readingFontSize?: number
+  readingFontWeight?: number
+  readingFontFamily?: string
   onBack: () => void
   onProgressChange: (meta: StoredBookMeta) => void
   onAnnotationsChange: (bookId: string, count: number) => void
@@ -86,13 +89,23 @@ async function findCfiForQuote(view: FoliateViewElement, rawQuote: string): Prom
   return null
 }
 
-const READER_STYLES = `
+function getReaderStyles(fontFamily?: string, fontSize?: number, fontWeight?: number) {
+  const family = fontFamily || "'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', 'SimSun', serif"
+  const size = fontSize ? `${fontSize}px` : '1rem'
+  const weight = fontWeight ? String(fontWeight) : '400'
+
+  return `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
-        font-family: 'Noto Serif SC', 'Songti SC', 'Source Han Serif SC', 'SimSun', serif;
+        font-family: ${family};
+        font-size: ${size};
+        font-weight: ${weight};
     }
-    p, li, blockquote, dd {
-        line-height: 1.8;
+    p, li, blockquote, dd, div {
+        font-family: ${family};
+        font-size: ${size};
+        font-weight: ${weight};
+        line-height: 1.85;
         text-align: justify;
         widows: 2;
     }
@@ -138,6 +151,7 @@ const READER_STYLES = `
         scrollbar-color: rgba(141, 113, 77, 0.22) transparent;
     }
 `
+}
 
 function formatBookDateTime(value: string) {
   const date = new Date(value)
@@ -207,6 +221,9 @@ function TocList({
 export default function BookReaderView({
   meta,
   fileBlob,
+  readingFontSize,
+  readingFontWeight,
+  readingFontFamily,
   onBack,
   onProgressChange,
   onAnnotationsChange,
@@ -305,6 +322,14 @@ export default function BookReaderView({
   }, [isReady, layout])
 
   useEffect(() => {
+    if (!isReady || !viewRef.current?.renderer) return
+    const view = viewRef.current
+    if (!view.renderer?.setStyles) return
+    const styles = getReaderStyles(readingFontFamily, readingFontSize, readingFontWeight)
+    view.renderer.setStyles(styles)
+  }, [isReady, readingFontFamily, readingFontSize, readingFontWeight])
+
+  useEffect(() => {
     let cancelled = false
     let view: FoliateViewElement | null = null
     let cleanupWheelNavigation: (() => void) | undefined
@@ -322,7 +347,7 @@ export default function BookReaderView({
       pageView.renderer?.setAttribute('max-inline-size', '720px')
       pageView.renderer?.setAttribute('gap', '5%')
       pageView.renderer?.setAttribute('margin', '24px')
-      pageView.renderer?.setStyles?.(READER_STYLES)
+      pageView.renderer?.setStyles?.(getReaderStyles(readingFontFamily, readingFontSize, readingFontWeight))
     }
 
     const setup = async () => {

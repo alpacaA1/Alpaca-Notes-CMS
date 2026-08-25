@@ -205,6 +205,7 @@ type TopBarProps = {
   onOpenCommandPalette?: () => void
   onOpenCheckin?: () => void
   checkinPendingCount?: number
+  isBookReaderOpen?: boolean
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
@@ -347,6 +348,7 @@ export default function TopBar({
   onOpenCommandPalette,
   onOpenCheckin,
   checkinPendingCount,
+  isBookReaderOpen = false,
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
@@ -368,7 +370,7 @@ export default function TopBar({
   const createLabel = getCreateLabel(contentType)
   const showPreviewToggle = contentType !== 'read-later'
   const previewToggleLabel = isPreviewing ? '继续编辑' : '预览'
-  const showReadingFontButton = isEditor
+  const showReadingFontButton = isEditor || (isBooksView && isBookReaderOpen)
   const [isReadingFontOpen, setIsReadingFontOpen] = useState(false)
   const readingFontButtonRef = useRef<HTMLButtonElement | null>(null)
   const readingFontPopoverRef = useRef<HTMLDivElement | null>(null)
