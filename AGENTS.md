@@ -36,8 +36,9 @@
 
 ## books（电子书）当前基线
 - books 模块位于 `admin-app/src/app/books/`，顶栏「书架」入口进入，仅登录后可用。
-- 仅支持 EPUB；书文件、书架元数据、阅读进度、批注全部存浏览器 IndexedDB（库名 `alpaca-books`），不进 GitHub 仓库、不上传。
-- 渲染用 foliate-js（懒加载，动态 import `foliate-js/view.js`），分页模式；批注锚点是 EPUB CFI，高亮色 `#D4A574`。
-- IndexedDB 取回的 Blob 没有 `name`，打开前必须包成带 `.epub` 文件名的 `File`，否则 foliate-js 解析会抛错。
+- 支持 EPUB 与 PDF 文件；大文件由浏览器 IndexedDB（库名 `alpaca-books`）本地缓存，不进 Git 仓库。
+- 书架元数据（书名、作者、封面色等）、阅读进度（EPUB CFI / PDF 页码）与划线批注自动双向同步至 GitHub 仓库（`source/_data/books-library.json`）。
+- 换设备时自动拉取书单与历史批注；本地缺少文件时卡片显示「需载入文件」，点击即可关联本地 EPUB/PDF 继续阅读。
+- 渲染用 foliate-js 与 PDF.js（懒加载）；高亮色 `#D4A574`。
+- IndexedDB 取回的 Blob 没有 `name`，打开前必须包成带扩展名文件名的 `File`。
 - 阅读视图布局：左侧目录 / 中央书页 / 右侧 `信息` `评论` 侧栏；「聚焦」沉浸模式只有一个入口，隐藏顶栏与两侧栏。
-- 批注尚未与 read-later 批注面板聚合，也未同步 Markdown 侧车文件，属于后续迭代项。

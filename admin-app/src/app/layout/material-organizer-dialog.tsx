@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type UIEvent } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
 
 type MaterialSourceType = 'diary' | 'read-later'
@@ -129,12 +129,28 @@ function MaterialSelectionSection({
 
     pendingScrollTopRef.current = 0
     setScrollTop(0)
-    setEstimatedRowSpan(MATERIAL_ORGANIZER_LIST_ESTIMATED_ROW_SPAN)
 
     if (listRef.current) {
       listRef.current.scrollTop = 0
     }
   }, [posts])
+
+  useLayoutEffect(() => {
+    if (!listRef.current) {
+      return
+    }
+
+    const firstItem = listRef.current.querySelector<HTMLElement>('.material-organizer-dialog__item')
+    if (!firstItem) {
+      return
+    }
+
+    const measuredHeight = Math.round(firstItem.getBoundingClientRect().height || firstItem.offsetHeight)
+    if (measuredHeight > 0) {
+      const nextRowSpan = measuredHeight + MATERIAL_ORGANIZER_LIST_ITEM_GAP
+      setEstimatedRowSpan((current) => (Math.abs(current - nextRowSpan) <= 2 ? current : nextRowSpan))
+    }
+  }, [posts.length])
 
   useEffect(() => {
     return () => {
@@ -155,20 +171,6 @@ function MaterialSelectionSection({
       scrollFrameRef.current = null
       setScrollTop(pendingScrollTopRef.current)
     })
-  }
-
-  const handleMeasurementRef = (node: HTMLLabelElement | null) => {
-    if (!node) {
-      return
-    }
-
-    const measuredHeight = Math.round(node.getBoundingClientRect().height || node.offsetHeight)
-    if (measuredHeight <= 0) {
-      return
-    }
-
-    const nextRowSpan = measuredHeight + MATERIAL_ORGANIZER_LIST_ITEM_GAP
-    setEstimatedRowSpan((current) => (Math.abs(current - nextRowSpan) <= 2 ? current : nextRowSpan))
   }
 
   const toggleItem = (path: string) => {
@@ -250,7 +252,6 @@ function MaterialSelectionSection({
               return (
                 <label
                   key={post.path}
-                  ref={index === 0 ? handleMeasurementRef : undefined}
                   className={`material-organizer-dialog__item${checked ? ' is-active' : ''}`}
                 >
                   <input

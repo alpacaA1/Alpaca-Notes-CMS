@@ -55,8 +55,10 @@ import {
   countBookAnnotations,
   deleteBook,
   getBookFile,
+  hasBookFile,
   listBookMetas,
   putBook,
+  putBookFile,
   putBookMeta,
 } from './books/book-store'
 import type { StoredBookMeta } from './books/book-types'
@@ -580,8 +582,8 @@ export default function App() {
   } = useReadingFont()
   const [contentType, setContentType] = useState<ContentType>('post')
   const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
-  const posts = postsByType[contentType]
-  const readLaterPosts = postsByType['read-later']
+  const posts = postsByType[contentType] || []
+  const readLaterPosts = postsByType['read-later'] || []
   const [activePostPath, setActivePostPath] = useState<string | null>(null)
   const [editorNavigationStack, setEditorNavigationStack] = useState<EditorNavigationEntry[]>([])
   const [search, setSearch] = useState('')
@@ -596,6 +598,8 @@ export default function App() {
   const [bookReaderSessions, setBookReaderSessions] = useState<BookReaderSession[]>([])
   const [isBookReaderOpen, setIsBookReaderOpen] = useState(false)
   const [isBookReaderImmersive, setIsBookReaderImmersive] = useState(false)
+  const [isBooksSyncing, setIsBooksSyncing] = useState(false)
+  const [localBookFilesStatus, setLocalBookFilesStatus] = useState<Record<string, boolean>>({})
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
@@ -1987,7 +1991,41 @@ export default function App() {
     const [metas, counts] = await Promise.all([listBookMetas(), countBookAnnotations()])
     setBookMetas(metas)
     setBookAnnotationCounts(counts)
+
+    const statusMap: Record<string, boolean> = {}
+    await Promise.all(
+      metas.map(async (meta) => {
+        statusMap[meta.id] = await hasBookFile(meta.id)
+      }),
+    )
+    setLocalBookFilesStatus(statusMap)
   }, [])
+
+  const handleSyncBooks = useCallback(async (silent = false) => {
+    if (!session) {
+      return
+    }
+
+    setIsBooksSyncing(true)
+    if (!silent) {
+      setError(null)
+    }
+
+    try {
+      const { syncBooksWithGitHub } = await import('./books/book-sync')
+      const result = await syncBooksWithGitHub(session)
+      await refreshBookShelf()
+      if (!silent) {
+        setSuccessMessage(`已完成与云端同步（共 ${result.syncedCount} 本书）`)
+      }
+    } catch (syncError) {
+      if (!silent) {
+        setError(syncError instanceof Error ? syncError.message : '与云端同步失败。')
+      }
+    } finally {
+      setIsBooksSyncing(false)
+    }
+  }, [session, refreshBookShelf])
 
   useEffect(() => {
     if (!session || adminView !== 'books') {
@@ -1997,6 +2035,11 @@ export default function App() {
     let cancelled = false
     setIsBooksLoading(true)
     void refreshBookShelf()
+      .then(() => {
+        if (!cancelled) {
+          void handleSyncBooks(true)
+        }
+      })
       .catch((refreshError) => {
         if (!cancelled) {
           setError(refreshError instanceof Error ? refreshError.message : '读取本地书架失败。')
@@ -2011,7 +2054,7 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [session, adminView, refreshBookShelf])
+  }, [session, adminView, refreshBookShelf, handleSyncBooks])
 
   const handleImportBookFile = async (file: File) => {
     setIsBookImporting(true)
@@ -2021,9 +2064,27 @@ export default function App() {
       const imported = await importBookFile(file)
       await putBook(imported.meta, imported.file)
       await refreshBookShelf()
-      setSuccessMessage(`已导入《${imported.meta.title}》，文件仅保存在本机。`)
+      setSuccessMessage(`已导入《${imported.meta.title}》，划线与进度将自动同步。`)
+      void handleSyncBooks(true)
     } catch (importError) {
       setError(importError instanceof Error ? importError.message : '导入电子书失败。')
+    } finally {
+      setIsBookImporting(false)
+    }
+  }
+
+  const handleRelinkBookFile = async (book: StoredBookMeta, file: File) => {
+    setIsBookImporting(true)
+    setError(null)
+    try {
+      await putBookFile(book.id, file)
+      await refreshBookShelf()
+      setSuccessMessage(`已关联《${book.title}》的本地文件。`)
+      const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
+      void putBookMeta(nextMeta)
+      activateBookReader({ meta: nextMeta, fileBlob: file, targetAnnotationId: null })
+    } catch (importError) {
+      setError(importError instanceof Error ? importError.message : '关联电子书文件失败。')
     } finally {
       setIsBookImporting(false)
     }
@@ -2043,7 +2104,7 @@ export default function App() {
     try {
       const file = await getBookFile(book.id)
       if (!file) {
-        throw new Error('本地找不到这本书的文件，可能已被浏览器清理，请重新导入。')
+        throw new Error('本地尚未载入该书文件，请在书架卡片上点击“需载入文件”进行关联。')
       }
       const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
       void putBookMeta(nextMeta)
@@ -2056,7 +2117,7 @@ export default function App() {
   const handleDeleteBookRequest = async (book: StoredBookMeta) => {
     const shouldDelete = await requestAppConfirm({
       title: '删除电子书',
-      message: `确定删除《${book.title}》吗？会一并删除本机的书籍文件与全部批注，且不可恢复。`,
+      message: `确定删除《${book.title}》吗？会一并删除本机的书籍文件与全部批注，并从云端移除。`,
       confirmLabel: '确认删除',
       cancelLabel: '取消',
       isDangerous: true,
@@ -2069,6 +2130,10 @@ export default function App() {
     setError(null)
     try {
       await deleteBook(book.id)
+      if (session) {
+        const { deleteBookFromGitHub } = await import('./books/book-sync')
+        void deleteBookFromGitHub(session, book.id).catch(() => {})
+      }
       if (activeBook?.meta.id === book.id) {
         setActiveBook(null)
         setIsBookReaderOpen(false)
@@ -2097,6 +2162,7 @@ export default function App() {
     setIsBookReaderOpen(false)
     setIsBookReaderImmersive(false)
     void refreshBookShelf()
+    void handleSyncBooks(true)
   }
 
   const handleBackFromSeries = () => {
@@ -4907,11 +4973,20 @@ export default function App() {
                 annotationCounts={bookAnnotationCounts}
                 isLoading={isBooksLoading}
                 isImporting={isBookImporting}
+                isSyncing={isBooksSyncing}
                 search={search}
                 deletingBookId={deletingBookId}
+                localFilesStatus={localBookFilesStatus}
                 onImportFile={(file) => { void handleImportBookFile(file) }}
+                onRelinkFile={(book, file) => { void handleRelinkBookFile(book, file) }}
                 onOpenBook={(book) => { void handleOpenBook(book) }}
                 onDeleteBook={(book) => { void handleDeleteBookRequest(book) }}
+                onSyncBooks={() => { void handleSyncBooks(false) }}
+                onWeReadSyncSuccess={() => {
+                  void refreshBookShelf().then(() => {
+                    void handleSyncBooks(true)
+                  })
+                }}
                 onRestoreSuccess={() => { void refreshBookShelf() }}
               />
             </div>

@@ -65,6 +65,17 @@ export function getBookFile(id: string) {
   return withStore(BOOK_FILE_STORE, 'readonly', (store) => store.get(id) as IDBRequest<StoredBookFile | undefined>)
 }
 
+export async function hasBookFile(id: string): Promise<boolean> {
+  const key = await withStore(BOOK_FILE_STORE, 'readonly', (store) => store.getKey(id))
+  return key !== undefined
+}
+
+export function putBookFile(id: string, blob: Blob) {
+  return withStore(BOOK_FILE_STORE, 'readwrite', (store) =>
+    store.put({ id, blob } satisfies StoredBookFile),
+  )
+}
+
 export async function putBook(meta: StoredBookMeta, blob: Blob) {
   const db = await openBookDatabase()
   const tx = db.transaction([BOOK_META_STORE, BOOK_FILE_STORE], 'readwrite')
@@ -126,6 +137,15 @@ export async function countBookAnnotations() {
     counts[annotation.bookId] = (counts[annotation.bookId] ?? 0) + 1
   }
   return counts
+}
+
+export async function listAllBookAnnotations(): Promise<BookAnnotation[]> {
+  const annotations = await withStore(ANNOTATION_STORE, 'readonly', (store) =>
+    store.getAll() as IDBRequest<BookAnnotation[]>,
+  )
+  return (annotations || [])
+    .filter((annotation) => annotation && typeof annotation.id === 'string')
+    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
 }
 
 export interface BookLibraryBackup {

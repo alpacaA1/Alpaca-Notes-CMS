@@ -18,6 +18,27 @@ export type StoredBookFile = {
   blob: Blob
 }
 
+export type RemoteBookItem = {
+  id: string
+  title: string
+  creator: string
+  format?: 'epub' | 'pdf'
+  coverSeed: number
+  addedAt: string
+  lastOpenedAt: string
+  progressFraction: number
+  progressCfi: string | null
+  progressPage?: number | null
+  pageCount?: number | null
+  annotations: BookAnnotation[]
+}
+
+export type BooksLibraryData = {
+  version: 1
+  updatedAt: string
+  books: RemoteBookItem[]
+}
+
 export type BookAnnotation = {
   id: string
   bookId: string

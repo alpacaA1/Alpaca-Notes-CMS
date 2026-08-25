@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { StoredBookMeta } from './book-types'
 import { formatBookProgress, getFallbackCoverColor } from './book-utils'
+import WeReadSyncDialog from './weread-sync-dialog'
 
 type BookShelfViewProps = {
   books: StoredBookMeta[]
   annotationCounts: Record<string, number>
   isLoading: boolean
   isImporting: boolean
+  isSyncing?: boolean
   search: string
   deletingBookId: string | null
+  localFilesStatus?: Record<string, boolean>
   onImportFile: (file: File) => void
+  onRelinkFile?: (book: StoredBookMeta, file: File) => void
   onOpenBook: (book: StoredBookMeta) => void
   onDeleteBook: (book: StoredBookMeta) => void
+  onSyncBooks?: () => void
+  onWeReadSyncSuccess?: () => void
   onRestoreSuccess?: () => void
 }
 
@@ -48,16 +54,24 @@ export default function BookShelfView({
   annotationCounts,
   isLoading,
   isImporting,
+  isSyncing = false,
   search,
   deletingBookId,
+  localFilesStatus = {},
   onImportFile,
+  onRelinkFile,
   onOpenBook,
   onDeleteBook,
+  onSyncBooks,
+  onWeReadSyncSuccess,
   onRestoreSuccess,
 }: BookShelfViewProps) {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const relinkFileInputRef = useRef<HTMLInputElement | null>(null)
   const restoreFileInputRef = useRef<HTMLInputElement | null>(null)
   const [isRestoring, setIsRestoring] = useState(false)
+  const [isWeReadSyncOpen, setIsWeReadSyncOpen] = useState(false)
+  const [targetRelinkBook, setTargetRelinkBook] = useState<StoredBookMeta | null>(null)
 
   const filteredBooks = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -77,6 +91,20 @@ export default function BookShelfView({
   }
 
   const triggerImport = () => fileInputRef.current?.click()
+
+  const handleRelinkFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (file && targetRelinkBook && onRelinkFile) {
+      onRelinkFile(targetRelinkBook, file)
+      setTargetRelinkBook(null)
+    }
+  }
+
+  const triggerRelink = (book: StoredBookMeta) => {
+    setTargetRelinkBook(book)
+    relinkFileInputRef.current?.click()
+  }
 
   const handleRestoreFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -112,6 +140,15 @@ export default function BookShelfView({
         onChange={handleFileChange}
       />
       <input
+        ref={relinkFileInputRef}
+        type="file"
+        accept=".epub,.pdf,application/epub+zip,application/pdf"
+        className="book-shelf__file-input"
+        aria-hidden="true"
+        tabIndex={-1}
+        onChange={handleRelinkFileChange}
+      />
+      <input
         ref={restoreFileInputRef}
         type="file"
         accept=".json,application/json"
@@ -124,7 +161,7 @@ export default function BookShelfView({
       {isLoading ? (
         <div className="book-shelf__empty">
           <p className="book-shelf__empty-title">正在打开书架…</p>
-          <p className="book-shelf__empty-desc">书籍文件只保存在本机浏览器，不会上传到仓库。</p>
+          <p className="book-shelf__empty-desc">书籍元数据与批注与云端同步，大文件保存在本机。</p>
         </div>
       ) : books.length === 0 ? (
         <div className="book-shelf__empty">
@@ -138,8 +175,8 @@ export default function BookShelfView({
             <path d="M32 14v38" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
           </svg>
           <p className="book-shelf__empty-title">书架还是空的</p>
-          <p className="book-shelf__empty-desc">导入你的第一本 EPUB 或 PDF，文件仅存本机，不会上传。</p>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+          <p className="book-shelf__empty-desc">导入你的第一本 EPUB/PDF，或一键同步微信读书划线与想法。</p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               className="book-shelf__import-btn"
@@ -150,7 +187,25 @@ export default function BookShelfView({
             </button>
             <button
               type="button"
-              className="book-shelf__import-btn"
+              className="book-shelf__import-btn book-shelf__import-btn--secondary"
+              onClick={() => setIsWeReadSyncOpen(true)}
+              title="通过微信读书官方 API 同步划线与想法"
+            >
+              微信读书
+            </button>
+            {onSyncBooks ? (
+              <button
+                type="button"
+                className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                onClick={onSyncBooks}
+                disabled={isSyncing}
+              >
+                {isSyncing ? '正在同步…' : '云端同步'}
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="book-shelf__import-btn book-shelf__import-btn--secondary"
               onClick={triggerRestore}
             >
               恢复备份
@@ -166,7 +221,26 @@ export default function BookShelfView({
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 type="button"
-                className="book-shelf__import-btn"
+                className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                onClick={() => setIsWeReadSyncOpen(true)}
+                title="通过微信读书官方 API 同步划线与想法"
+              >
+                微信读书
+              </button>
+              {onSyncBooks ? (
+                <button
+                  type="button"
+                  className="book-shelf__import-btn book-shelf__import-btn--secondary"
+                  onClick={onSyncBooks}
+                  disabled={isSyncing}
+                  title="与 GitHub 仓库同步最新书架元数据与批注"
+                >
+                  {isSyncing ? '正在同步…' : '云端同步'}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="book-shelf__import-btn book-shelf__import-btn--secondary"
                 onClick={async () => {
                   const { exportBookLibraryBackup } = await import('./book-store')
                   const data = await exportBookLibraryBackup()
@@ -184,7 +258,7 @@ export default function BookShelfView({
               </button>
               <button
                 type="button"
-                className="book-shelf__import-btn"
+                className="book-shelf__import-btn book-shelf__import-btn--secondary"
                 onClick={triggerRestore}
                 title="选择先前备份的 JSON 文件恢复书架元数据与批注"
               >
@@ -211,13 +285,22 @@ export default function BookShelfView({
               {filteredBooks.map((book) => {
                 const annotationCount = annotationCounts[book.id] ?? 0
                 const isDeleting = deletingBookId === book.id
+                const isWeReadBook = book.id.startsWith('weread-')
+                const hasLocalFile = localFilesStatus[book.id] !== false
+
                 return (
                   <article key={book.id} className="book-shelf__card">
                     <button
                       type="button"
                       className="book-shelf__card-trigger"
-                      onClick={() => onOpenBook(book)}
-                      aria-label={`打开《${book.title}》`}
+                      onClick={() => {
+                        if (!hasLocalFile) {
+                          triggerRelink(book)
+                        } else {
+                          onOpenBook(book)
+                        }
+                      }}
+                      aria-label={hasLocalFile ? `打开《${book.title}》` : `关联《${book.title}》的本地文件`}
                     >
                       <div className="book-shelf__cover">
                         <BookCover book={book} />
@@ -226,18 +309,30 @@ export default function BookShelfView({
                             {annotationCount}
                           </span>
                         ) : null}
+                        {!hasLocalFile ? (
+                          <span
+                            className="book-shelf__missing-badge"
+                            title={isWeReadBook ? '微信读书导入，点击可选择本地文件关联阅读' : '当前设备未载入该书文件，点击选择本地文件关联'}
+                          >
+                            {isWeReadBook ? '微信读书笔记' : '需载入文件'}
+                          </span>
+                        ) : null}
                       </div>
                       <div className="book-shelf__card-body">
                         <h3 className="book-shelf__card-title" title={book.title}>{book.title}</h3>
                         <p className="book-shelf__card-creator" title={book.creator}>{book.creator}</p>
-                        <p className="book-shelf__card-format">{(book.format || 'epub').toUpperCase()}</p>
+                        <p className="book-shelf__card-format">
+                          {isWeReadBook ? '微信读书' : (book.format || 'epub').toUpperCase()}
+                        </p>
                         <div className="book-shelf__progress" aria-label={`阅读进度 ${formatBookProgress(book.progressFraction)}`}>
                           <div
                             className="book-shelf__progress-fill"
                             style={{ width: formatBookProgress(book.progressFraction) }}
                           />
                         </div>
-                        <p className="book-shelf__progress-label">已读 {formatBookProgress(book.progressFraction)}</p>
+                        <p className="book-shelf__progress-label">
+                          {annotationCount > 0 ? `${annotationCount} 条笔记` : `已读 ${formatBookProgress(book.progressFraction)}`}
+                        </p>
                       </div>
                     </button>
                     <button
@@ -257,6 +352,18 @@ export default function BookShelfView({
           )}
         </>
       )}
+
+      <WeReadSyncDialog
+        isOpen={isWeReadSyncOpen}
+        onClose={() => setIsWeReadSyncOpen(false)}
+        onSyncComplete={() => {
+          if (onWeReadSyncSuccess) {
+            onWeReadSyncSuccess()
+          } else if (onRestoreSuccess) {
+            onRestoreSuccess()
+          }
+        }}
+      />
     </section>
   )
 }
