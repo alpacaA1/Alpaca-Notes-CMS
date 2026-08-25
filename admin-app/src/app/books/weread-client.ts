@@ -331,15 +331,12 @@ export function transformWeReadBookData(
   return { meta, annotations }
 }
 
-export async function syncAllWeReadNotebooks(
+export async function syncSelectedWeReadNotebooks(
   apiKey: string,
+  notebooks: WeReadNotebookItem[],
   onProgress?: (message: string, current: number, total: number) => void,
 ): Promise<{ booksCount: number; annotationsCount: number }> {
-  onProgress?.('正在连接微信读书网关拉取书单…', 0, 0)
-  const notebooks = await fetchWeReadNotebooks(apiKey)
-
   if (notebooks.length === 0) {
-    setStoredWeReadLastSyncedAt(new Date().toISOString())
     return { booksCount: 0, annotationsCount: 0 }
   }
 
@@ -377,4 +374,13 @@ export async function syncAllWeReadNotebooks(
     booksCount: totalBooks,
     annotationsCount: totalAnnotationsCount,
   }
+}
+
+export async function syncAllWeReadNotebooks(
+  apiKey: string,
+  onProgress?: (message: string, current: number, total: number) => void,
+): Promise<{ booksCount: number; annotationsCount: number }> {
+  onProgress?.('正在连接微信读书网关拉取书单…', 0, 0)
+  const notebooks = await fetchWeReadNotebooks(apiKey)
+  return syncSelectedWeReadNotebooks(apiKey, notebooks, onProgress)
 }
