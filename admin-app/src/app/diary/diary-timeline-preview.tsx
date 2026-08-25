@@ -76,11 +76,8 @@ export default function DiaryTimelinePreview({
             <div className="diary-timeline__card">
               {isExpanded ? (
                 <div className="diary-timeline__card-expanded">
-                  {/* Action Menu / Time Range */}
-                  <div className="diary-timeline__card-header">
-                    {summary.timeRangeStr ? (
-                      <span className="diary-timeline__time-range">{summary.timeRangeStr}</span>
-                    ) : <span />}
+                  {/* Floating Action Menu (top right) */}
+                  <div className="diary-timeline__actions-top">
                     <DiaryActionMenu
                       post={post}
                       isOpen={actionPath === post.path}
@@ -92,6 +89,12 @@ export default function DiaryTimelinePreview({
                     />
                   </div>
 
+                  {summary.timeRangeStr ? (
+                    <div className="diary-timeline__time-range-badge">
+                      <span>{summary.timeRangeStr}</span>
+                    </div>
+                  ) : null}
+
                   {/* Structured Sections */}
                   <div className="diary-timeline__sections">
                     {summary.sections.map((sec, idx) => {
@@ -101,8 +104,8 @@ export default function DiaryTimelinePreview({
                             <div className="diary-timeline__sec-icon">🔖</div>
                             <div className="diary-timeline__sec-body">
                               <div className="diary-timeline__sec-meta">
-                                {sec.timeStr ? <span>{sec.timeStr} · </span> : null}
-                                <span style={{ fontWeight: 600 }}>{sec.title}</span>
+                                <span className="diary-timeline__sec-title">{sec.title}</span>
+                                {sec.timeStr ? <span className="diary-timeline__sec-time">{sec.timeStr}</span> : null}
                                 {sec.emotions?.map((emo) => (
                                   <span key={emo} className="diary-timeline__emotion-badge">
                                     {emo}
@@ -121,8 +124,8 @@ export default function DiaryTimelinePreview({
                             <div className="diary-timeline__sec-icon">📄</div>
                             <div className="diary-timeline__sec-body">
                               <div className="diary-timeline__sec-meta">
-                                {sec.timeStr ? <span>{sec.timeStr} · </span> : null}
-                                <span style={{ fontWeight: 600 }}>待读摘录</span>
+                                <span className="diary-timeline__sec-title">待读摘录</span>
+                                {sec.timeStr ? <span className="diary-timeline__sec-time">{sec.timeStr}</span> : null}
                               </div>
                               <blockquote className="diary-timeline__quote-text">{sec.quote}</blockquote>
                               {sec.source ? (
@@ -138,7 +141,8 @@ export default function DiaryTimelinePreview({
                           <div className="diary-timeline__sec-icon">✏️</div>
                           <div className="diary-timeline__sec-body">
                             <div className="diary-timeline__sec-meta">
-                              <span style={{ fontWeight: 600 }}>{sec.title}</span>
+                              <span className="diary-timeline__sec-title">{sec.title}</span>
+                              {sec.timeStr ? <span className="diary-timeline__sec-time">{sec.timeStr}</span> : null}
                             </div>
                             <ul className="diary-timeline__notes-list">
                               {sec.items?.map((item, itemIdx) => (
