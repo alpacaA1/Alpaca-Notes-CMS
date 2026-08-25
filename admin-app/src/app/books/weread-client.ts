@@ -2,6 +2,7 @@ import { putBookAnnotation, putBookMeta } from './book-store'
 import type { BookAnnotation, StoredBookMeta } from './book-types'
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway'
+const WEREAD_PROXY_URL = '/api/weread'
 const SKILL_VERSION = '1.0.3'
 const WEREAD_API_KEY_STORAGE = 'alpaca-admin:weread-api-key'
 const WEREAD_LAST_SYNCED_STORAGE = 'alpaca-admin:weread-last-synced-at'
@@ -113,18 +114,49 @@ export async function requestWeReadGateway<T>(
     throw new Error('请先提供微信读书 API Key (以 wrk- 开头)。')
   }
 
-  const response = await fetch(WEREAD_GATEWAY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${cleanKey}`,
-    },
-    body: JSON.stringify({
-      api_name: apiName,
-      skill_version: SKILL_VERSION,
-      ...payload,
-    }),
+  const requestBody = JSON.stringify({
+    api_name: apiName,
+    skill_version: SKILL_VERSION,
+    ...payload,
   })
+
+  let response: Response | null = null
+  let lastError: Error | null = null
+
+  // 1. Try serverless / dev proxy first to bypass browser CORS
+  try {
+    response = await fetch(WEREAD_PROXY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${cleanKey}`,
+      },
+      body: requestBody,
+    })
+  } catch (err) {
+    // 2. Fallback to direct gateway (e.g. if testing in Node/CLI or if proxy is not found)
+    try {
+      response = await fetch(WEREAD_GATEWAY_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${cleanKey}`,
+        },
+        body: requestBody,
+      })
+    } catch (directErr) {
+      lastError =
+        directErr instanceof TypeError
+          ? new Error('微信读书接口请求受阻（浏览器跨域限制，需配置 /api/weread 代理服务）。')
+          : directErr instanceof Error
+            ? directErr
+            : new Error('网络请求失败')
+    }
+  }
+
+  if (!response) {
+    throw lastError || new Error('微信读书接口请求失败 (网络或跨域限制)')
+  }
 
   if (!response.ok) {
     if (response.status === 401 || response.status === 403) {

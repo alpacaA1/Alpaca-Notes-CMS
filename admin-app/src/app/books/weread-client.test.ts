@@ -103,7 +103,7 @@ describe('weread-client', () => {
     const result = await requestWeReadGateway<{ books: unknown[] }>('wrk-test-key', '/user/notebooks')
     expect(result.books).toEqual([])
     expect(mockFetch).toHaveBeenCalledWith(
-      'https://i.weread.qq.com/api/agent/gateway',
+      expect.stringMatching(/(\/api\/weread|weread\.qq\.com)/),
       expect.objectContaining({
         method: 'POST',
         headers: {

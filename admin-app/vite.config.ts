@@ -4,6 +4,15 @@ import { sourceAdminDir } from './build-paths'
 
 export default defineConfig({
   base: '/Alpaca-Notes-CMS/admin/',
+  server: {
+    proxy: {
+      '/api/weread': {
+        target: 'https://i.weread.qq.com',
+        changeOrigin: true,
+        rewrite: () => '/api/agent/gateway',
+      },
+    },
+  },
   build: {
     outDir: sourceAdminDir,
     emptyOutDir: true,
