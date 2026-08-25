@@ -944,7 +944,7 @@ export default function App() {
     return appendTopicBacklinksToMarkdown(document.body, activeTopicBacklinks)
   }, [activeTopicBacklinks, activeTopicNodeKey, document])
   const recoverableDrafts = useMemo(() => {
-    const knownPaths = new Set(postsByType[contentType].map((post) => post.path))
+    const knownPaths = new Set((postsByType[contentType] || []).map((post) => post.path))
 
     return listLocalDraftSummaries().filter((draft) => draft.contentType === contentType && !knownPaths.has(draft.path))
   }, [contentType, postsByType, adminView, document?.path, isDirty, isSaving, session])
@@ -1778,6 +1778,18 @@ export default function App() {
               ? createNewPitch()
               : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
+    setAdminView('editor')
+  }
+
+  const handleNewDiaryForDate = async (dateStr: string) => {
+    if (!(await confirmNavigation())) {
+      return
+    }
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const targetDate = new Date(y, m - 1, d, 8, 0, 0)
+    setContentType('diary')
+    setEditorNavigationStack([])
+    openDocument(createNewDiaryEntry(targetDate))
     setAdminView('editor')
   }
 
@@ -4875,6 +4887,7 @@ export default function App() {
             onOpenPost={handleOpenPost}
             onOpenRecoveredDraft={handleOpenRecoveredDraft}
             onNewPost={handleNewPost}
+            onNewPostForDate={handleNewDiaryForDate}
             onQuickCaptureUrlChange={handleQuickReadLaterUrlChange}
             onQuickCapture={handleQuickCollectReadLater}
             onDeletePost={handleDeletePost}

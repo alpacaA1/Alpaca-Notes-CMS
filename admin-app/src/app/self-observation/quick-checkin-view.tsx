@@ -223,32 +223,16 @@ export default function QuickCheckinView({
 
   return (
     <div className={`quick-checkin${isModal ? ' quick-checkin--modal' : ''}`}>
-      <header className="quick-checkin__header">
-        <div className="quick-checkin__brand" onClick={onExitQuickMode || onClose} role="button" tabIndex={0}>
-          <img
-            src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`}
-            alt=""
-            className="quick-checkin__logo"
-          />
-          <span className="quick-checkin__title">Alpaca Notes</span>
-        </div>
-        <div className="quick-checkin__nav-actions">
-          {onOpenTodayDiary ? (
-            <button
-              type="button"
-              className="quick-checkin__nav-link"
-              onClick={onOpenTodayDiary}
-            >
-              今日日记
-            </button>
-          ) : null}
+      {isDrawerOpen ? (
+        <header className="quick-checkin__header">
           <button
             type="button"
-            className="quick-checkin__nav-toggle"
-            onClick={() => setKind(kind === 'emotion' ? 'behavior' : 'emotion')}
+            className="quick-checkin__back-btn"
+            onClick={() => setIsDrawerOpen(false)}
           >
-            {kind === 'emotion' ? '行为记录' : '情绪签到'}
+            ‹ 返回
           </button>
+          <span className="quick-checkin__header-subheading">选择更多感受</span>
           {onClose ? (
             <button
               type="button"
@@ -258,9 +242,48 @@ export default function QuickCheckinView({
             >
               ×
             </button>
-          ) : null}
-        </div>
-      </header>
+          ) : <span style={{ width: 28 }} />}
+        </header>
+      ) : (
+        <header className="quick-checkin__header">
+          <div className="quick-checkin__brand" onClick={onExitQuickMode || onClose} role="button" tabIndex={0}>
+            <img
+              src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`}
+              alt=""
+              className="quick-checkin__logo"
+            />
+            <span className="quick-checkin__title">Alpaca Notes</span>
+          </div>
+          <div className="quick-checkin__nav-actions">
+            {onOpenTodayDiary ? (
+              <button
+                type="button"
+                className="quick-checkin__nav-link"
+                onClick={onOpenTodayDiary}
+              >
+                今日日记
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="quick-checkin__nav-toggle"
+              onClick={() => setKind(kind === 'emotion' ? 'behavior' : 'emotion')}
+            >
+              {kind === 'emotion' ? '行为记录' : '情绪签到'}
+            </button>
+            {onClose ? (
+              <button
+                type="button"
+                className="quick-checkin__nav-close"
+                onClick={onClose}
+                aria-label="关闭"
+              >
+                ×
+              </button>
+            ) : null}
+          </div>
+        </header>
+      )}
 
       {pendingCount > 0 ? (
         <div className="quick-checkin__outbox-banner" role="status">
@@ -283,7 +306,63 @@ export default function QuickCheckinView({
       ) : null}
 
       <main className="quick-checkin__main">
-        {kind === 'emotion' ? (
+        {isDrawerOpen ? (
+          <section
+            className="quick-checkin__drawer-view"
+            role="dialog"
+            aria-label="选择更多情绪词"
+          >
+            <div className="quick-checkin__drawer-group">
+              <span className="quick-checkin__drawer-subtitle">受挫 / 紧张</span>
+              <div className="quick-checkin__chips-grid">
+                {DEFAULT_DRAWER_EMOTIONS.negative.map((emotion) => (
+                  <button
+                    key={emotion}
+                    type="button"
+                    className={`quick-checkin__chip${selectedEmotions.includes(emotion) ? ' is-selected' : ''}`}
+                    onClick={() => handleSelectDrawerEmotion(emotion)}
+                  >
+                    {emotion}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="quick-checkin__drawer-group">
+              <span className="quick-checkin__drawer-subtitle">舒缓 / 向好</span>
+              <div className="quick-checkin__chips-grid">
+                {DEFAULT_DRAWER_EMOTIONS.positive.map((emotion) => (
+                  <button
+                    key={emotion}
+                    type="button"
+                    className={`quick-checkin__chip${selectedEmotions.includes(emotion) ? ' is-selected' : ''}`}
+                    onClick={() => handleSelectDrawerEmotion(emotion)}
+                  >
+                    {emotion}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <form className="quick-checkin__custom-form" onSubmit={handleAddCustomEmotion}>
+              <input
+                type="text"
+                className="quick-checkin__custom-input"
+                placeholder="自己写一个词（限10字）"
+                value={customInputText}
+                onChange={(e) => setCustomInputText(e.target.value)}
+                maxLength={10}
+              />
+              <button
+                type="submit"
+                className="quick-checkin__custom-submit"
+                disabled={!customInputText.trim()}
+              >
+                确定
+              </button>
+            </form>
+          </section>
+        ) : kind === 'emotion' ? (
           <section className="quick-checkin__content" aria-label="情绪签到">
             <div className="quick-checkin__section">
               <h2 className="quick-checkin__section-title">我现在</h2>
@@ -411,82 +490,6 @@ export default function QuickCheckinView({
           </section>
         )}
       </main>
-
-      {/* Drawer for "其他" Emotions */}
-      {isDrawerOpen ? (
-        <div className="quick-checkin__drawer-backdrop" onClick={() => setIsDrawerOpen(false)}>
-          <div
-            className="quick-checkin__drawer"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="选择更多情绪词"
-          >
-            <div className="quick-checkin__drawer-header">
-              <span className="quick-checkin__drawer-title">更多感受</span>
-              <button
-                type="button"
-                className="quick-checkin__drawer-close"
-                onClick={() => setIsDrawerOpen(false)}
-                aria-label="关闭"
-              >
-                ×
-              </button>
-            </div>
-
-            <div className="quick-checkin__drawer-body">
-              <div className="quick-checkin__drawer-group">
-                <span className="quick-checkin__drawer-subtitle">受挫 / 紧张</span>
-                <div className="quick-checkin__chips-grid">
-                  {DEFAULT_DRAWER_EMOTIONS.negative.map((emotion) => (
-                    <button
-                      key={emotion}
-                      type="button"
-                      className={`quick-checkin__chip${selectedEmotions.includes(emotion) ? ' is-selected' : ''}`}
-                      onClick={() => handleSelectDrawerEmotion(emotion)}
-                    >
-                      {emotion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="quick-checkin__drawer-group">
-                <span className="quick-checkin__drawer-subtitle">舒缓 / 向好</span>
-                <div className="quick-checkin__chips-grid">
-                  {DEFAULT_DRAWER_EMOTIONS.positive.map((emotion) => (
-                    <button
-                      key={emotion}
-                      type="button"
-                      className={`quick-checkin__chip${selectedEmotions.includes(emotion) ? ' is-selected' : ''}`}
-                      onClick={() => handleSelectDrawerEmotion(emotion)}
-                    >
-                      {emotion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <form className="quick-checkin__custom-form" onSubmit={handleAddCustomEmotion}>
-                <input
-                  type="text"
-                  className="quick-checkin__custom-input"
-                  placeholder="自己写一个词（限10字）"
-                  value={customInputText}
-                  onChange={(e) => setCustomInputText(e.target.value)}
-                  maxLength={10}
-                />
-                <button
-                  type="submit"
-                  className="quick-checkin__custom-submit"
-                  disabled={!customInputText.trim()}
-                >
-                  确定
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   )
 }

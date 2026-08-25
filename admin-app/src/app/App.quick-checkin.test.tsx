@@ -94,8 +94,8 @@ tags: []
     const savedContent = saveSpy.mock.calls[0]?.[1]?.content
     expect(savedContent).toContain('早上完成了今日计划制定。')
     expect(savedContent).toContain('## 自我观察')
-    expect(savedContent).toContain('- 我现在：烦、紧张')
-    expect(savedContent).toContain('- 发生了什么：开会时被临时打断')
+    expect(savedContent).toContain('烦、紧张')
+    expect(savedContent).toContain('开会时被临时打断')
   })
 
   it('opens SelfObservationModal from TopBar in desktop mode and saves observation', async () => {

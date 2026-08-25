@@ -99,10 +99,10 @@ export default function WeReadSyncDialog({
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 520 }}
       >
-        <div className="confirm-dialog__header" style={{ alignItems: 'flex-start' }}>
+        <div className="weread-sync-dialog__header">
           <div style={{ flex: 1 }}>
-            <p className="confirm-dialog__eyebrow">读书笔记导入</p>
-            <h3 id="weread-sync-title" className="confirm-dialog__title" style={{ fontSize: 18 }}>
+            <p className="weread-sync-dialog__eyebrow">读书笔记导入</p>
+            <h3 id="weread-sync-title" className="weread-sync-dialog__title">
               同步微信读书划线与想法
             </h3>
           </div>

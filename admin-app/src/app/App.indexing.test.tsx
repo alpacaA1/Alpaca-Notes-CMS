@@ -247,7 +247,7 @@ describe('App indexing flow', () => {
     fireEvent.click(screen.getByRole('radio', { name: '日记' }))
 
     await waitFor(() => {
-      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+      expect(screen.getByLabelText('日记月历视图')).toBeTruthy()
     })
   })
 
@@ -288,7 +288,7 @@ describe('App indexing flow', () => {
     fireEvent.click(screen.getByRole('radio', { name: '日记' }))
 
     await waitFor(() => {
-      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+      expect(screen.getByLabelText('日记月历视图')).toBeTruthy()
     })
 
     const materialButtons = screen.getAllByRole('button', { name: '整理素材' }) as HTMLButtonElement[]
@@ -323,8 +323,7 @@ describe('App indexing flow', () => {
 
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: '整理素材' })).toBeNull()
-      expect(screen.getByText('整理结果')).toBeTruthy()
-      expect(screen.getByText(/本周继续推进博客后台/)).toBeTruthy()
+      expect(screen.getByText(/已整理 1 篇日记/)).toBeTruthy()
     })
   })
 
@@ -501,7 +500,7 @@ describe('App indexing flow', () => {
     expect(revokeObjectURL).toHaveBeenCalledWith('blob:open-preview-image')
   })
 
-  it('allows collapsing and expanding diary month sections', async () => {
+  it('allows switching between diary calendar mode and timeline preview mode', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsModule, 'buildPostIndex').mockResolvedValue(indexedPosts)
     vi.spyOn(postsModule, 'buildDiaryIndex').mockResolvedValue(diaryIndexedPosts)
@@ -515,21 +514,22 @@ describe('App indexing flow', () => {
     fireEvent.click(screen.getByRole('radio', { name: '日记' }))
 
     await waitFor(() => {
-      expect(screen.getByText('五月第一则日记')).toBeTruthy()
-    })
-
-    const collapseButton = screen.getByRole('button', { name: '折叠' })
-    fireEvent.click(collapseButton)
-
-    await waitFor(() => {
+      expect(screen.getByLabelText('日记月历视图')).toBeTruthy()
       expect(screen.queryByText('五月第一则日记')).toBeNull()
-      expect(screen.getByText('展开')).toBeTruthy()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '展开' }))
+    fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
 
     await waitFor(() => {
-      expect(screen.getByText('五月第一则日记')).toBeTruthy()
+      expect(screen.getByLabelText('日记时间线预览')).toBeTruthy()
+      expect(screen.getByText('记录最近的状态')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('tab', { name: /月历模式/i }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('日记月历视图')).toBeTruthy()
+      expect(screen.queryByText('记录最近的状态')).toBeNull()
     })
   })
 })

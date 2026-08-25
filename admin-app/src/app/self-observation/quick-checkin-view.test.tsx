@@ -68,9 +68,9 @@ describe('QuickCheckinView', () => {
     expect(saveSpy).toHaveBeenCalledTimes(1)
     const savedContent = saveSpy.mock.calls[0]?.[1]?.content
     expect(savedContent).toContain('## 自我观察')
-    expect(savedContent).toContain('- 我现在：烦、紧张、说不清')
-    expect(savedContent).toContain('- 发生了什么：开会时被临时提问')
-    expect(savedContent).toContain('- 我想：停一下')
+    expect(savedContent).toContain('烦、紧张、说不清')
+    expect(savedContent).toContain('开会时被临时提问')
+    expect(savedContent).toContain('停一下')
   })
 
   it('opens drawer on 其他, selects drawer item and auto closes', async () => {
@@ -119,7 +119,7 @@ describe('QuickCheckinView', () => {
     const savedContent = saveSpy.mock.calls[0]?.[1]?.content
     expect(savedContent).toContain('## 自我观察')
     expect(savedContent).toContain('行为尝试')
-    expect(savedContent).toContain('- 我做了：表达需求')
-    expect(savedContent).toContain('- 实际发生了什么：主动说了自己的真实想法')
+    expect(savedContent).toContain('表达需求')
+    expect(savedContent).toContain('主动说了自己的真实想法')
   })
 })

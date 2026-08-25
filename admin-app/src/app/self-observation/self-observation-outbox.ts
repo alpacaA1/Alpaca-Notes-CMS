@@ -96,7 +96,7 @@ export async function syncObservationOutbox(
   try {
     const now = new Date()
     const currentDiaryPosts =
-      options.diaryPosts && options.diaryPosts.length > 0 ? options.diaryPosts : await buildDiaryIndex(session)
+      options.diaryPosts !== undefined ? options.diaryPosts : await buildDiaryIndex(session)
     const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
 
     let targetDiary = todayPost

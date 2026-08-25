@@ -594,11 +594,9 @@ describe('App editor modes', () => {
     render(<App />)
 
     fireEvent.click(screen.getByRole('radio', { name: '日记' }))
-    await waitFor(() => {
-      expect(screen.getByText('2026-05-06-星期三')).toBeTruthy()
-    })
 
-    fireEvent.click(screen.getByRole('button', { name: /2026-05-06-星期三/i }))
+    const diaryCell = await screen.findByRole('button', { name: /2026-05-06 日记/i })
+    fireEvent.click(diaryCell)
     expect(await screen.findByLabelText('Markdown 编辑器')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))

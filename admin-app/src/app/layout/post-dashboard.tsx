@@ -1,4 +1,5 @@
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import DiaryDashboardView from '../diary/diary-dashboard-view'
 import { renderContentBlocks } from '../editor/preview-pane'
 import { KNOWLEDGE_RANDOM_CATEGORY } from '../knowledge/constants'
 import { QuickPitchModal } from '../pitches/quick-pitch-modal'
@@ -50,6 +51,7 @@ type PostDashboardProps = {
   onOpenPost: (post: PostIndexItem) => void
   onOpenRecoveredDraft?: (path: string) => void
   onNewPost: () => void
+  onNewPostForDate?: (dateStr: string) => void
   onQuickCaptureUrlChange?: (value: string) => void
   onQuickCapture?: () => void
   onDeletePost: (post: PostIndexItem) => void
@@ -792,6 +794,7 @@ export default function PostDashboard({
   onOpenPost,
   onOpenRecoveredDraft,
   onNewPost,
+  onNewPostForDate,
   onQuickCaptureUrlChange,
   onQuickCapture,
   onDeletePost,
@@ -1176,6 +1179,25 @@ export default function PostDashboard({
   }
 
   const helperSelectionSummary = formatSelectedMaterialSummary(selectedMaterialCounts)
+
+  if (isDiary) {
+    return (
+      <main className="post-dashboard" ref={dashboardRef}>
+        <DiaryDashboardView
+          posts={posts}
+          search={search}
+          availableTags={availableTags}
+          selectedTag={selectedTag}
+          onSelectTag={setSelectedTag}
+          onOpenPost={onOpenPost}
+          onNewPost={onNewPost}
+          onNewPostForDate={onNewPostForDate}
+          onOrganizeMaterials={onOrganizeMaterials}
+          onDeletePost={onDeletePost}
+        />
+      </main>
+    )
+  }
 
   return (
     <section className="post-dashboard" ref={dashboardRef}>

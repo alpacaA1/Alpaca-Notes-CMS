@@ -489,9 +489,7 @@ describe('post dashboard', () => {
     expect(container.querySelector('.post-dashboard__card--knowledge.is-active')?.textContent).toContain('关于抽象边界的知识点。')
   })
 
-  it('renders all diary months by default and supports filtering by month', () => {
-    window.localStorage.setItem('alpaca-dashboard-view-mode', 'grid')
-
+  it('renders diary calendar mode by default and supports timeline mode switching', () => {
     render(
       <PostDashboard
         posts={diaryPosts}
@@ -505,39 +503,13 @@ describe('post dashboard', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: '筛选 2026 年 05 月' })).toBeTruthy()
-    expect(screen.getByRole('button', { name: '筛选 2026 年 04 月' })).toBeTruthy()
-    expect(screen.getByText('五月第一则日记')).toBeTruthy()
-    expect(screen.getByText('四月最后一则日记')).toBeTruthy()
-    expect(screen.queryByText('全部日记')).toBeNull()
-    expect(screen.queryByRole('button', { name: '网格视图' })).toBeNull()
-    expect(screen.queryByRole('button', { name: '列表视图' })).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
+    // Defaults to calendar mode with zero text snippets
+    expect(screen.getByLabelText('日记月历视图')).toBeTruthy()
     expect(screen.queryByText('五月第一则日记')).toBeNull()
-    expect(screen.getByText('四月最后一则日记')).toBeTruthy()
-    expect(screen.getAllByText('2026 年 04 月').length).toBeGreaterThan(0)
-    expect(screen.queryByLabelText('选择全部可见日记')).toBeNull()
 
-    fireEvent.click(screen.getByRole('button', { name: '查看全部月份' }))
-    expect(screen.getByText('五月第一则日记')).toBeTruthy()
-  })
-
-  it('keeps diary item selection without rendering the select-all checkbox', () => {
-    const { container } = render(
-      <ControlledDiaryDashboard
-        materialResult="# 月报素材整理\n\n## 本月推进 / 发生了什么\n- 博客开发"
-      />,
-    )
-
-    expect(screen.queryByRole('button', { name: '整理素材' })).toBeNull()
-
-    fireEvent.click(screen.getByRole('button', { name: '筛选 2026 年 04 月' }))
-    expect(screen.queryByLabelText('选择全部可见日记')).toBeNull()
-    fireEvent.click(screen.getByLabelText('选择日记 四月最后一则日记'))
-    expect(container.querySelectorAll('.post-dashboard__diary-row.is-selected')).toHaveLength(1)
-    expect(screen.getByText('整理结果')).toBeTruthy()
-    expect(screen.getByText(/博客开发/)).toBeTruthy()
+    // Switch to Timeline mode
+    fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
+    expect(screen.getByLabelText('日记时间线预览')).toBeTruthy()
   })
 
   it('supports selecting read-later items without rendering the toolbar organizer module', () => {
