@@ -90,6 +90,8 @@ export type FoliateViewElement = HTMLElement & {
   addAnnotation: (annotation: { value: string; color?: string; note?: string }, remove?: boolean) => Promise<unknown>
   deleteAnnotation: (annotation: { value: string }) => Promise<unknown>
   showAnnotation: (annotation: { value: string }) => Promise<unknown>
+  search?: (opts: { query: string; index?: number }) => AsyncGenerator<any, void, unknown>
+  clearSearch?: () => void
   lastLocation?: { cfi?: string | null }
   book?: {
     metadata?: Record<string, unknown>

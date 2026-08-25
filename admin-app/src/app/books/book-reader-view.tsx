@@ -36,6 +36,56 @@ type BookReaderViewProps = {
 
 type ReaderTab = 'info' | 'notes'
 
+const DEFAULT_FONT_STACK =
+  'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif'
+
+async function findCfiForQuote(view: FoliateViewElement, rawQuote: string): Promise<string | null> {
+  const quote = rawQuote.trim().replace(/[\r\n\t]+/g, ' ').replace(/\s{2,}/g, ' ')
+  if (!quote || typeof view.search !== 'function') {
+    return null
+  }
+
+  // Generate candidate query snippets (from longer to shorter for precision)
+  const candidates: string[] = []
+  if (quote.length > 40) {
+    candidates.push(quote.slice(0, 35))
+    candidates.push(quote.slice(5, 40))
+  }
+  if (quote.length > 20) {
+    candidates.push(quote.slice(0, 20))
+  } else {
+    candidates.push(quote)
+  }
+
+  for (const query of candidates) {
+    if (!query || query.length < 3) continue
+    try {
+      const searchIter = view.search({ query })
+      for await (const result of searchIter) {
+        if (result && typeof result === 'object') {
+          if ('subitems' in result && Array.isArray((result as { subitems?: { cfi?: string }[] }).subitems)) {
+            const subitems = (result as { subitems: { cfi?: string }[] }).subitems
+            if (subitems.length > 0 && subitems[0]?.cfi) {
+              const matchedCfi = subitems[0].cfi
+              view.clearSearch?.()
+              return matchedCfi
+            }
+          } else if ('cfi' in result && typeof (result as { cfi?: string }).cfi === 'string') {
+            const matchedCfi = (result as { cfi: string }).cfi
+            view.clearSearch?.()
+            return matchedCfi
+          }
+        }
+      }
+      view.clearSearch?.()
+    } catch {
+      view.clearSearch?.()
+    }
+  }
+
+  return null
+}
+
 const READER_STYLES = `
     @namespace epub "http://www.idpf.org/2007/ops";
     html {
@@ -169,6 +219,7 @@ export default function BookReaderView({
   const [tab, setTab] = useState<ReaderTab>('notes')
   const [selectionInfo, setSelectionInfo] = useState<BookSelectionInfo | null>(null)
   const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null)
+  const [locatingAnnotationId, setLocatingAnnotationId] = useState<string | null>(null)
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [isImmersive, setIsImmersive] = useState(false)
@@ -451,6 +502,30 @@ export default function BookReaderView({
 
         if (!cancelled) {
           setIsReady(true)
+
+          // 自动为未锚定（如微信读书导入）的划线匹配当前 EPUB 的 CFI 并绘制高亮
+          const unanchored = storedAnnotations.filter(
+            (ann) => ann.quote && (!ann.value || !ann.value.startsWith('epubcfi(')),
+          )
+          if (unanchored.length > 0 && typeof view.search === 'function') {
+            void (async () => {
+              let changed = false
+              for (const ann of unanchored) {
+                if (cancelled) break
+                const foundCfi = await findCfiForQuote(view, ann.quote)
+                if (foundCfi) {
+                  ann.value = foundCfi
+                  void view.addAnnotation(ann)
+                  await putBookAnnotation(ann)
+                  changed = true
+                }
+              }
+              if (changed && !cancelled) {
+                const updatedList = await listBookAnnotations(meta.id)
+                notifyAnnotationsChanged(updatedList)
+              }
+            })()
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -571,10 +646,56 @@ export default function BookReaderView({
     setNoteDraft('')
   }, [meta.id, notifyAnnotationsChanged, noteDraft])
 
-  const handleLocateAnnotation = useCallback((annotation: BookAnnotation) => {
-    setActiveAnnotationId(annotation.id)
-    void viewRef.current?.showAnnotation(annotation)
-  }, [])
+  const handleLocateAnnotation = useCallback(
+    async (annotation: BookAnnotation) => {
+      setActiveAnnotationId(annotation.id)
+      const view = viewRef.current
+      if (!view) return
+
+      // 1. 如果已有有效的 CFI 坐标，直接定位跳转
+      if (annotation.value && annotation.value.startsWith('epubcfi(')) {
+        void view.showAnnotation(annotation)
+        return
+      }
+
+      // 2. 如果无 CFI 坐标（如微信读书导入），根据摘录文本实时检索并锚定
+      if (annotation.quote && typeof view.search === 'function') {
+        setLocatingAnnotationId(annotation.id)
+        try {
+          const foundCfi = await findCfiForQuote(view, annotation.quote)
+          if (foundCfi) {
+            const nextAnn: BookAnnotation = {
+              ...annotation,
+              value: foundCfi,
+              updatedAt: new Date().toISOString(),
+            }
+            void view.addAnnotation(nextAnn)
+            void view.showAnnotation(nextAnn)
+            void putBookAnnotation(nextAnn)
+
+            const list = await listBookAnnotations(meta.id)
+            notifyAnnotationsChanged(list)
+            return
+          }
+        } finally {
+          setLocatingAnnotationId(null)
+        }
+      }
+
+      // 3. 兜底方案：如果章节名称与目录项匹配，跳转到对应章节
+      if (annotation.chapter && view.goTo) {
+        const matchedToc = (view.book?.toc || []).find(
+          (item) =>
+            item.label?.trim() === annotation.chapter?.trim() ||
+            annotation.chapter?.trim().includes(item.label?.trim() || ''),
+        )
+        if (matchedToc?.href) {
+          void view.goTo(matchedToc.href)
+        }
+      }
+    },
+    [meta.id, notifyAnnotationsChanged],
+  )
 
   const handleNavigateToc = useCallback((href: string) => {
     void viewRef.current?.goTo(href)
@@ -796,7 +917,7 @@ export default function BookReaderView({
                             <button
                               type="button"
                               className="book-reader__note-quote"
-                              onClick={() => handleLocateAnnotation(annotation)}
+                              onClick={() => { void handleLocateAnnotation(annotation) }}
                               title="定位到原文"
                             >
                               {annotation.quote}
@@ -843,7 +964,13 @@ export default function BookReaderView({
                                 >
                                   {annotation.note.trim() ? '编辑评论' : '写评论'}
                                 </button>
-                                <button type="button" onClick={() => handleLocateAnnotation(annotation)}>定位</button>
+                                <button
+                                  type="button"
+                                  onClick={() => { void handleLocateAnnotation(annotation) }}
+                                  disabled={locatingAnnotationId === annotation.id}
+                                >
+                                  {locatingAnnotationId === annotation.id ? '定位中…' : '定位'}
+                                </button>
                                 <button
                                   type="button"
                                   className="book-reader__note-delete"
