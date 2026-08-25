@@ -125,6 +125,15 @@ function BackIcon() {
   )
 }
 
+function SearchIcon() {
+  return (
+    <svg className="top-bar__search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="4.75" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10.5 10.5L14 14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function PreviewIcon() {
   return (
     <svg className="top-bar__icon" width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -738,6 +747,7 @@ export default function TopBar({
       <div className={`top-bar__controls${showContentTypeSwitcher ? '' : ' top-bar__controls--editor'}`}>
         <label className="top-bar__search" style={{ marginBottom: 0 }}>
           <span className="sr-only">搜索</span>
+          <SearchIcon />
           <input
             ref={searchInputRef}
             aria-label="搜索"
@@ -745,10 +755,20 @@ export default function TopBar({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={searchPlaceholder}
           />
+          {onOpenCommandPalette ? (
+            <button
+              type="button"
+              className="top-bar__search-cmd-k"
+              onClick={onOpenCommandPalette}
+              aria-label="命令面板 (⌘K)"
+              title="命令面板 (⌘K)"
+            >
+              <kbd>⌘K</kbd>
+            </button>
+          ) : null}
         </label>
         {showContentTypeSwitcher ? (
           <div className="top-bar__content-switcher">
-            <span className="top-bar__switcher-label">内容类型</span>
             <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
               {CONTENT_TYPE_OPTIONS.map((option) => {
                 const checked = option.value === contentType
@@ -881,7 +901,7 @@ export default function TopBar({
               ) : null}
             </button>
           ) : null}
-          {onOpenCommandPalette ? (
+          {!showContentTypeSwitcher && onOpenCommandPalette ? (
             <button
               className="top-bar__button top-bar__button--cmd-k"
               type="button"
