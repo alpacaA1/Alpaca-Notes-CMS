@@ -210,7 +210,7 @@ describe('App image upload flow', () => {
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
     const image = await screen.findByRole('img', { name: 'cover' })
-    expect(image.getAttribute('src')).toContain('/Alpaca-Notes-CMS/images/')
+    expect(image.getAttribute('src')).toContain('https://alpaca-notes-cms.vercel.app/api/images?path=images')
   })
 
   it('shows an error and keeps the draft unchanged when upload fails', async () => {

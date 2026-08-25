@@ -50,6 +50,7 @@ type SettingsPanelProps = {
   onCancelAnnotationEdit?: () => void
   topicBacklinks?: TopicBacklinkItem[]
   onOpenLinkedPost?: (post: PostIndexItem) => void
+  onQuoteAnnotationToDiary?: (annotation: ReadLaterAnnotation) => void
   onStartWritingFromPitch?: () => void
   onOpenLinkedArticle?: (path: string) => void
   isDrawer?: boolean
@@ -142,6 +143,7 @@ export default function SettingsPanel({
   onCancelAnnotationEdit,
   topicBacklinks = [],
   onOpenLinkedPost,
+  onQuoteAnnotationToDiary,
   onStartWritingFromPitch,
   onOpenLinkedArticle,
   isDrawer = false,
@@ -978,6 +980,21 @@ export default function SettingsPanel({
                               {renderDocumentNoteValue(annotation.note)}
                             </button>
                           )}
+                        </div>
+                      ) : null}
+
+                      {isActive && onQuoteAnnotationToDiary ? (
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="settings-panel__annotation-quote-diary-button"
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              onQuoteAnnotationToDiary(annotation)
+                            }}
+                          >
+                            引用到今日日记
+                          </button>
                         </div>
                       ) : null}
                     </article>

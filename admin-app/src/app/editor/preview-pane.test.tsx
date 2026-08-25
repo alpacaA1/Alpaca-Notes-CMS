@@ -450,4 +450,27 @@ describe('PreviewPane', () => {
     expect(img).toBeTruthy()
     expect(img.getAttribute('src')).toBe('blob:http://localhost/sample-blob')
   })
+
+  it('does not render HTML comments in preview', () => {
+    render(
+      <PreviewPane
+        title="注释测试"
+        date="2026-08-25 10:00:00"
+        markdown={`## 自我观察
+
+<!-- alpaca:self-observation id="so_20260825_113353_uh8e" kind="emotion" version="1" -->
+### 🔖 11:33 · 情绪签到
+
+- 我现在：烦
+<!-- /alpaca:self-observation -->
+`}
+      />,
+    )
+
+    expect(screen.getAllByText(/11:33 · 情绪签到/).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText(/我现在：烦/)).toBeTruthy()
+    expect(screen.queryByText(/alpaca:self-observation/)).toBeNull()
+    expect(screen.queryByText(/<!--/)).toBeNull()
+    expect(screen.queryByText(/-->/)).toBeNull()
+  })
 })

@@ -86,6 +86,10 @@ import {
   type FeedSubscription,
   type FeedSubscriptionsState,
 } from './rss/feed-subscriptions'
+import { appendQuoteToDiaryBody, findTodayDiaryPost, formatHighlightQuoteForDiary } from './diary/diary-quote'
+import QuickCheckinView from './self-observation/quick-checkin-view'
+import SelfObservationModal from './self-observation/self-observation-modal'
+import { getPendingObservationCount, syncObservationOutbox } from './self-observation/self-observation-outbox'
 import { createNewDiaryEntry, createNewPost, getNextNumericPermalink } from './posts/new-post'
 import { createNewPitch, createPostFromPitch } from './pitches/new-item'
 import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
@@ -605,6 +609,7 @@ export default function App() {
   const [isMaterialOrganizerLoadingSources, setIsMaterialOrganizerLoadingSources] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [toastAction, setToastAction] = useState<{ label: string; onClick: () => void } | null>(null)
   const [materialResult, setMaterialResult] = useState<string | null>(null)
   const [selectedMaterialPaths, setSelectedMaterialPaths] = useState<MaterialSelectionState>(createEmptyMaterialSelectionState)
   const [quickReadLaterUrl, setQuickReadLaterUrl] = useState('')
@@ -662,6 +667,12 @@ export default function App() {
   const [readLaterTab, setReadLaterTab] = useState<ReadLaterTab>('commentary')
   const [isReadLaterTopBarHidden, setIsReadLaterTopBarHidden] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+  const [isQuickCheckinMode, setIsQuickCheckinMode] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false
+    return new URLSearchParams(window.location.search).get('quick') === 'checkin'
+  })
+  const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false)
+  const [checkinPendingCount, setCheckinPendingCount] = useState(() => getPendingObservationCount())
   const [isGlobalQuickPitchOpen, setIsGlobalQuickPitchOpen] = useState(false)
   const [globalQuickPitchStatus, setGlobalQuickPitchStatus] = useState<PitchStatus>('collecting')
   const [isPostListDrawerOpen, setIsPostListDrawerOpen] = useState(false)
@@ -768,11 +779,13 @@ export default function App() {
 
   useEffect(() => {
     if (!successMessage) {
+      setToastAction(null)
       return
     }
 
     const timeoutId = window.setTimeout(() => {
       setSuccessMessage(null)
+      setToastAction(null)
     }, 3200)
 
     return () => {
@@ -793,6 +806,27 @@ export default function App() {
       window.clearTimeout(timeoutId)
     }
   }, [error])
+
+  useEffect(() => {
+    const handleSync = async () => {
+      setCheckinPendingCount(getPendingObservationCount())
+      if (session && navigator.onLine && getPendingObservationCount() > 0) {
+        const result = await syncObservationOutbox(session, {
+          diaryPosts: postsByType.diary,
+        })
+        setCheckinPendingCount(result.remainingCount)
+      }
+    }
+
+    window.addEventListener('online', handleSync)
+    window.addEventListener('focus', handleSync)
+    void handleSync()
+
+    return () => {
+      window.removeEventListener('online', handleSync)
+      window.removeEventListener('focus', handleSync)
+    }
+  }, [session, postsByType.diary])
 
   useEffect(() => {
     const availablePathsByType: Record<MaterialSourceType, Set<string>> = {
@@ -1705,6 +1739,16 @@ export default function App() {
   const handleNewPost = async () => {
     if (!(await confirmNavigation())) {
       return
+    }
+
+    if (contentType === 'diary') {
+      const todayDiary = findTodayDiaryPost(postsByType.diary)
+      if (todayDiary) {
+        setEditorNavigationStack([])
+        await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
+        setAdminView('editor')
+        return
+      }
     }
 
     setEditorNavigationStack([])
@@ -3409,6 +3453,103 @@ export default function App() {
     setEditingAnnotationId(action === 'note' ? annotation.id : null)
   }
 
+  const handleQuoteAnnotationToDiary = async (annotation: {
+    quote: string
+    note?: string
+    postTitle?: string
+  }) => {
+    if (!session) {
+      setError('请先登录后再引用到日记。')
+      return
+    }
+
+    try {
+      const now = new Date()
+      const currentDiaryPosts =
+        postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+      const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
+      const sourceTitle = annotation.postTitle || document?.frontmatter.title || '待读'
+      const quoteBlock = formatHighlightQuoteForDiary({
+        quote: annotation.quote,
+        note: annotation.note,
+        sourceTitle,
+        date: now,
+      })
+
+      let targetDiary: ParsedPost
+      let isNewDiary = false
+
+      if (todayPost) {
+        const file = readCachedMarkdownFile(todayPost.path, todayPost.sha) ?? (await fetchMarkdownFile(session, todayPost.path))
+        const openedDiary = parsePost(file)
+        const updatedBody = appendQuoteToDiaryBody(openedDiary.body, quoteBlock)
+        targetDiary = {
+          ...openedDiary,
+          body: updatedBody,
+        }
+      } else {
+        isNewDiary = true
+        const newDiary = createNewDiaryEntry(now)
+        newDiary.body = appendQuoteToDiaryBody('', quoteBlock)
+        targetDiary = newDiary
+      }
+
+      const savedContent = serializePost(targetDiary)
+      const savedFile = await saveMarkdownFile(session, {
+        path: targetDiary.path,
+        sha: targetDiary.sha || undefined,
+        content: savedContent,
+      })
+
+      const savedDocument: ParsedPost = {
+        ...targetDiary,
+        path: savedFile.path,
+        sha: savedFile.sha,
+      }
+
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content: savedContent,
+      })
+
+      const nextPostsByType = buildNextPostsByType(
+        { ...postsByType, diary: currentDiaryPosts },
+        'diary',
+        savedPostIndexItem,
+        isNewDiary ? undefined : todayPost?.path,
+      )
+      setPostsByType(nextPostsByType)
+
+      const diaryTitle = savedDocument.frontmatter.title || '今日日记'
+      setError(null)
+      setSuccessMessage(`已引用到今日日记《${diaryTitle}》。`)
+      setToastAction({
+        label: '打开日记',
+        onClick: () => {
+          void (async () => {
+            if (await confirmNavigation()) {
+              setEditorNavigationStack([])
+              openDocument(savedDocument)
+              setAdminView('editor')
+              setContentType('diary')
+            }
+          })()
+        },
+      })
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return
+      }
+      setError(caughtError instanceof Error ? caughtError.message : '引用到今日日记失败。')
+    }
+  }
+
   const handleTranslateReadLater = useCallback(
     async (text: string, title?: string) => {
       if (!session) {
@@ -4407,6 +4548,45 @@ export default function App() {
               ? loadingLabel
               : '已就绪'
 
+  if (isQuickCheckinMode) {
+    if (!session) {
+      return <LoginGate isLoading={isLoading} error={error} onLogin={handleLogin} />
+    }
+    return (
+      <main className={`admin-shell${isDark ? ' admin-shell--dark' : ''}`}>
+        <QuickCheckinView
+          session={session}
+          onOpenTodayDiary={async () => {
+            setIsQuickCheckinMode(false)
+            try {
+              const url = new URL(window.location.href)
+              url.searchParams.delete('quick')
+              window.history.pushState({}, '', url.toString())
+            } catch {}
+
+            const diaryPosts = postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+            const todayDiary = findTodayDiaryPost(diaryPosts)
+            if (todayDiary) {
+              setContentType('diary')
+              setAdminView('editor')
+              await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
+            } else {
+              handleNewPost('diary')
+            }
+          }}
+          onExitQuickMode={() => {
+            setIsQuickCheckinMode(false)
+            try {
+              const url = new URL(window.location.href)
+              url.searchParams.delete('quick')
+              window.history.pushState({}, '', url.toString())
+            } catch {}
+          }}
+        />
+      </main>
+    )
+  }
+
   if (!session) {
     return <LoginGate isLoading={isLoading} error={error} onLogin={handleLogin} />
   }
@@ -4445,11 +4625,28 @@ export default function App() {
           {successMessage ? (
             <div className="admin-shell__toast admin-shell__toast--success" role="status" aria-live="polite">
               <span className="admin-shell__toast-message">{successMessage}</span>
+              {toastAction ? (
+                <button
+                  type="button"
+                  className="admin-shell__toast-action"
+                  onClick={() => {
+                    const action = toastAction
+                    setToastAction(null)
+                    setSuccessMessage(null)
+                    action.onClick()
+                  }}
+                >
+                  {toastAction.label}
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="admin-shell__toast-close"
                 aria-label="关闭提示"
-                onClick={() => setSuccessMessage(null)}
+                onClick={() => {
+                  setSuccessMessage(null)
+                  setToastAction(null)
+                }}
               >
                 ×
               </button>
@@ -4474,6 +4671,8 @@ export default function App() {
         <TopBar
           search={search}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenCheckin={() => setIsCheckinModalOpen(true)}
+          checkinPendingCount={checkinPendingCount}
           onSearchChange={setSearch}
           onNewPost={handleTopBarNewPost}
           onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
@@ -4658,6 +4857,7 @@ export default function App() {
             search={search}
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
+            onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
           />
         </section>
       ) : isTrashView ? (
@@ -4877,6 +5077,7 @@ export default function App() {
                 onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                 topicBacklinks={activeTopicBacklinks}
                 onOpenLinkedPost={(post) => { void openIndexedPost(post, { navigationBehavior: 'push' }) }}
+                onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
                 onStartWritingFromPitch={handleStartWritingFromPitch}
                 onOpenLinkedArticle={handleOpenLinkedArticle}
                 isDrawer={!isReaderDocument}
@@ -4958,10 +5159,28 @@ export default function App() {
           onCancel={() => closeAppConfirm(false)}
         />
       ) : null}
+      <SelfObservationModal
+        isOpen={isCheckinModalOpen}
+        onClose={() => setIsCheckinModalOpen(false)}
+        session={session}
+        onOpenTodayDiary={async () => {
+          setIsCheckinModalOpen(false)
+          const diaryPosts = postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+          const todayDiary = findTodayDiaryPost(diaryPosts)
+          if (todayDiary) {
+            setContentType('diary')
+            setAdminView('editor')
+            await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
+          } else {
+            handleNewPost('diary')
+          }
+        }}
+      />
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         options={[
+          { id: 'checkin', label: '自我观察：情绪与行为签到', category: '操作', icon: '✍️', shortcut: 'Alt+S', action: () => setIsCheckinModalOpen(true) },
           { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: handleNewPost },
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '电子书架', category: '导航', icon: '📚', action: handleOpenBooks },

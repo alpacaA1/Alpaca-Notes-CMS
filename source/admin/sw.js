@@ -1,8 +1,21 @@
 const CACHE_NAME = 'alpaca-cms-v2';
+const FONT_CACHE_NAME = 'alpaca-fonts-v1';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
 ];
+
+const FONT_HOSTS = new Set([
+  'fonts.loli.net',
+  'gstatic.loli.net',
+  'fonts.googleapis.com',
+  'fonts.gstatic.com',
+]);
+
+function isFontRequest(url) {
+  if (FONT_HOSTS.has(url.hostname)) return true;
+  return /\.(?:woff2?|ttf|otf|eot)(?:\?.*)?$/i.test(url.pathname);
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -14,7 +27,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => Promise.all(
-      keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))
+      keys
+        .filter((key) => key !== CACHE_NAME && key !== FONT_CACHE_NAME)
+        .map((key) => caches.delete(key))
     ))
   );
   self.clients.claim();
@@ -23,6 +38,29 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
+
+  // Cache-First strategy for Web Fonts (Google Fonts, CDN mirrors, .woff2 font slices)
+  if (isFontRequest(url)) {
+    event.respondWith(
+      caches.open(FONT_CACHE_NAME).then(async (cache) => {
+        const cachedResponse = await cache.match(event.request);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+            cache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch {
+          return cachedResponse || Response.error();
+        }
+      })
+    );
+    return;
+  }
 
   // Skip cross-origin API calls to GitHub or Vercel
   if (url.origin !== self.location.origin) return;

@@ -12,5 +12,20 @@
   "background_color": "#18181b",
   "theme_color": "#18181b",
   "display": "standalone",
-  "orientation": "any"
+  "orientation": "any",
+  "shortcuts": [
+    {
+      "name": "情绪签到",
+      "short_name": "签到",
+      "description": "记录当下的情绪与自我观察",
+      "url": "/Alpaca-Notes-CMS/admin/?quick=checkin",
+      "icons": [
+        {
+          "src": "/Alpaca-Notes-CMS/images/logo.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
 }

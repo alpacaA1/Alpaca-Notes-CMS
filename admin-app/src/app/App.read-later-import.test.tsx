@@ -176,7 +176,7 @@ describe('App read-later import flow', () => {
     })
 
     const image = await screen.findByAltText('图1') as HTMLImageElement
-    expect(image.getAttribute('src')).toMatch(/^\/Alpaca-Notes-CMS\/images\/\d{4}\/\d{2}\/\d+-p735699706\.jpg$/)
+    expect(image.getAttribute('src')).toMatch(/^https:\/\/alpaca-notes-cms\.vercel\.app\/api\/images\?path=images%2F\d{4}%2F\d{2}%2F\d+-p735699706\.jpg$/)
   })
 
   it('confirms before overwriting annotated content and clears highlights after import', async () => {

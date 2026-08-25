@@ -1107,25 +1107,29 @@ function renderPlainTextInline(text: string): ReactNode[] {
 }
 
 function renderInline(markdown: string, previewImageUrls?: Record<string, string>, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
+  const cleanMarkdown = markdown.replace(/<!--[\s\S]*?-->/g, '')
+  if (!cleanMarkdown) {
+    return []
+  }
   const nodes: ReactNode[] = []
   let lastIndex = 0
   let matchIndex = 0
   let searchIndex = 0
 
-  while (searchIndex < markdown.length) {
-    const imageStart = markdown.indexOf('![', searchIndex)
+  while (searchIndex < cleanMarkdown.length) {
+    const imageStart = cleanMarkdown.indexOf('![', searchIndex)
     if (imageStart === -1) {
       break
     }
 
-    const imageMatch = parseMarkdownImage(markdown, imageStart)
+    const imageMatch = parseMarkdownImage(cleanMarkdown, imageStart)
     if (!imageMatch) {
       searchIndex = imageStart + 2
       continue
     }
 
     if (imageMatch.start > lastIndex) {
-      nodes.push(...renderTextInline(markdown.slice(lastIndex, imageMatch.start), wikiLinkOptions))
+      nodes.push(...renderTextInline(cleanMarkdown.slice(lastIndex, imageMatch.start), wikiLinkOptions))
     }
 
     const safeSrc = resolvePreviewImageSrc(imageMatch.imageUrl, previewImageUrls)
@@ -1138,11 +1142,11 @@ function renderInline(markdown: string, previewImageUrls?: Record<string, string
     matchIndex += 1
   }
 
-  if (lastIndex < markdown.length) {
-    nodes.push(...renderTextInline(markdown.slice(lastIndex), wikiLinkOptions))
+  if (lastIndex < cleanMarkdown.length) {
+    nodes.push(...renderTextInline(cleanMarkdown.slice(lastIndex), wikiLinkOptions))
   }
 
-  return nodes.length > 0 ? nodes : [markdown]
+  return nodes.length > 0 ? nodes : [cleanMarkdown]
 }
 
 function parseTaskListItem(markdown: string) {
@@ -1208,6 +1212,16 @@ function parseMarkdownListBlock(lines: string[], startIndex: number) {
 
     const matchedItem = matchMarkdownListItem(line)
     if (!matchedItem) {
+      const trimmedLine = line.trim()
+      if (
+        /^<!--/.test(trimmedLine) ||
+        /^#{1,6}\s+/.test(trimmedLine) ||
+        /^>\s?/.test(trimmedLine) ||
+        /^(```)/.test(trimmedLine) ||
+        /^(-{3,}|\*{3,}|_{3,})$/.test(trimmedLine)
+      ) {
+        break
+      }
       appendMarkdownListContinuation(block.items[block.items.length - 1], line)
       index += 1
       continue
@@ -1618,6 +1632,19 @@ function renderBlocks(
 
     if (!trimmed) {
       flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      continue
+    }
+
+    if (/^<!--[\s\S]*?-->$/.test(trimmed)) {
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      continue
+    }
+
+    if (/^<!--/.test(trimmed)) {
+      flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+      while (index < lines.length && !/-->/.test(lines[index])) {
+        index += 1
+      }
       continue
     }
 

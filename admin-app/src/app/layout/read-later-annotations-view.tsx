@@ -8,6 +8,7 @@ type ReadLaterAnnotationsViewProps = {
   search: string
   onSearchChange?: (value: string) => void
   onOpenAnnotation: (annotation: ReadLaterAnnotationIndexItem) => void
+  onQuoteAnnotationToDiary?: (annotation: ReadLaterAnnotationIndexItem) => void
 }
 
 const ALL_SOURCES = '__all_sources__'
@@ -71,6 +72,7 @@ export default function ReadLaterAnnotationsView({
   search,
   onSearchChange,
   onOpenAnnotation,
+  onQuoteAnnotationToDiary,
 }: ReadLaterAnnotationsViewProps) {
   const [selectedSourcePath, setSelectedSourcePath] = useState(ALL_SOURCES)
   const [selectedTag, setSelectedTag] = useState(ALL_TAGS)
@@ -580,6 +582,16 @@ export default function ReadLaterAnnotationsView({
                   </div>
 
                   <div className="annotation-dashboard__detail-head-actions">
+                    {onQuoteAnnotationToDiary ? (
+                      <button
+                        type="button"
+                        className="annotation-dashboard__open-btn"
+                        onClick={() => onQuoteAnnotationToDiary(selectedAnnotation)}
+                      >
+                        引用到今日日记
+                      </button>
+                    ) : null}
+
                     <button
                       type="button"
                       className="annotation-dashboard__open-btn"

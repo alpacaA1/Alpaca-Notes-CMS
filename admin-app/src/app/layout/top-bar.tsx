@@ -194,6 +194,8 @@ type TopBarProps = {
   onExportCurrent?: () => void
   onDuplicateCurrent?: () => void
   onOpenCommandPalette?: () => void
+  onOpenCheckin?: () => void
+  checkinPendingCount?: number
 }
 
 const CONTENT_TYPE_OPTIONS: Array<{ value: ContentType; label: string; shortLabel: string }> = [
@@ -334,6 +336,8 @@ export default function TopBar({
   onExportCurrent,
   onDuplicateCurrent,
   onOpenCommandPalette,
+  onOpenCheckin,
+  checkinPendingCount,
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
   const isAnnotationsView = adminView === 'annotations'
@@ -863,6 +867,20 @@ export default function TopBar({
           ) : null}
         </div>
         <div className="top-bar__utility-actions">
+          {onOpenCheckin ? (
+            <button
+              className="top-bar__button top-bar__button--checkin"
+              type="button"
+              onClick={onOpenCheckin}
+              aria-label="自我观察签到"
+              title="自我观察签到"
+            >
+              ✍️ 签到
+              {checkinPendingCount && checkinPendingCount > 0 ? (
+                <span className="top-bar__checkin-badge">{checkinPendingCount}</span>
+              ) : null}
+            </button>
+          ) : null}
           {onOpenCommandPalette ? (
             <button
               className="top-bar__button top-bar__button--cmd-k"
