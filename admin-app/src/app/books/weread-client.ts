@@ -1,8 +1,8 @@
+import { WEREAD_PROXY_URL } from '../config'
 import { putBookAnnotation, putBookMeta } from './book-store'
 import type { BookAnnotation, StoredBookMeta } from './book-types'
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway'
-const WEREAD_PROXY_URL = '/api/weread'
 const SKILL_VERSION = '1.0.3'
 const WEREAD_API_KEY_STORAGE = 'alpaca-admin:weread-api-key'
 const WEREAD_LAST_SYNCED_STORAGE = 'alpaca-admin:weread-last-synced-at'

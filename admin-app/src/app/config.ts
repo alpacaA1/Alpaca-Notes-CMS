@@ -20,3 +20,4 @@ export const FEED_IMPORT_URL = `${AUTH_BASE_URL}/api/import-feed`
 export const FEED_DIRECTORY_URL = `${AUTH_BASE_URL}/api/feed-directory`
 export const DIARY_AI_URL = `${AUTH_BASE_URL}/api/diary-ai`
 export const TRANSLATE_READ_LATER_URL = `${AUTH_BASE_URL}/api/translate-read-later`
+export const WEREAD_PROXY_URL = `${AUTH_BASE_URL}/api/weread`
