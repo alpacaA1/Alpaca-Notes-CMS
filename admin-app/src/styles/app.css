@@ -15467,6 +15467,123 @@ textarea {
   background: var(--book-paper);
 }
 
+/* ==========================================================================
+   Book Reader Elegant Floating Scrollbars
+   ========================================================================== */
+
+.book-reader,
+.book-reader__canvas,
+.book-reader__view,
+.book-reader__toc-body,
+.book-reader__sidebar,
+.book-reader__notes,
+.book-reader__info,
+.pdf-reader__canvas,
+foliate-view,
+foliate-view::part(container) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(141, 113, 77, 0.22) transparent;
+}
+
+.book-reader::-webkit-scrollbar,
+.book-reader *::-webkit-scrollbar,
+.book-reader__canvas::-webkit-scrollbar,
+.book-reader__canvas *::-webkit-scrollbar,
+.book-reader__view::-webkit-scrollbar,
+.book-reader__view *::-webkit-scrollbar,
+.book-reader__toc-body::-webkit-scrollbar,
+.book-reader__sidebar::-webkit-scrollbar,
+.book-reader__notes::-webkit-scrollbar,
+.book-reader__info::-webkit-scrollbar,
+.pdf-reader__canvas::-webkit-scrollbar,
+.pdf-reader__canvas *::-webkit-scrollbar,
+foliate-view::-webkit-scrollbar,
+foliate-view *::-webkit-scrollbar,
+foliate-view::part(container)::-webkit-scrollbar,
+foliate-view *::part(container)::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+.book-reader::-webkit-scrollbar-track,
+.book-reader *::-webkit-scrollbar-track,
+.book-reader__canvas::-webkit-scrollbar-track,
+.book-reader__canvas *::-webkit-scrollbar-track,
+.book-reader__view::-webkit-scrollbar-track,
+.book-reader__view *::-webkit-scrollbar-track,
+.book-reader__toc-body::-webkit-scrollbar-track,
+.book-reader__sidebar::-webkit-scrollbar-track,
+.book-reader__notes::-webkit-scrollbar-track,
+.book-reader__info::-webkit-scrollbar-track,
+.pdf-reader__canvas::-webkit-scrollbar-track,
+.pdf-reader__canvas *::-webkit-scrollbar-track,
+foliate-view::-webkit-scrollbar-track,
+foliate-view *::-webkit-scrollbar-track,
+foliate-view::part(container)::-webkit-scrollbar-track,
+foliate-view *::part(container)::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.book-reader::-webkit-scrollbar-thumb,
+.book-reader *::-webkit-scrollbar-thumb,
+.book-reader__canvas::-webkit-scrollbar-thumb,
+.book-reader__canvas *::-webkit-scrollbar-thumb,
+.book-reader__view::-webkit-scrollbar-thumb,
+.book-reader__view *::-webkit-scrollbar-thumb,
+.book-reader__toc-body::-webkit-scrollbar-thumb,
+.book-reader__sidebar::-webkit-scrollbar-thumb,
+.book-reader__notes::-webkit-scrollbar-thumb,
+.book-reader__info::-webkit-scrollbar-thumb,
+.pdf-reader__canvas::-webkit-scrollbar-thumb,
+.pdf-reader__canvas *::-webkit-scrollbar-thumb,
+foliate-view::-webkit-scrollbar-thumb,
+foliate-view *::-webkit-scrollbar-thumb,
+foliate-view::part(container)::-webkit-scrollbar-thumb,
+foliate-view *::part(container)::-webkit-scrollbar-thumb {
+  background: rgba(141, 113, 77, 0.22);
+  border-radius: 999px;
+  border: none;
+}
+
+.book-reader::-webkit-scrollbar-thumb:hover,
+.book-reader *::-webkit-scrollbar-thumb:hover,
+.book-reader__canvas::-webkit-scrollbar-thumb:hover,
+.book-reader__canvas *::-webkit-scrollbar-thumb:hover,
+.book-reader__view::-webkit-scrollbar-thumb:hover,
+.book-reader__view *::-webkit-scrollbar-thumb:hover,
+.book-reader__toc-body::-webkit-scrollbar-thumb:hover,
+.book-reader__sidebar::-webkit-scrollbar-thumb:hover,
+.book-reader__notes::-webkit-scrollbar-thumb:hover,
+.book-reader__info::-webkit-scrollbar-thumb:hover,
+.pdf-reader__canvas::-webkit-scrollbar-thumb:hover,
+.pdf-reader__canvas *::-webkit-scrollbar-thumb:hover,
+foliate-view::-webkit-scrollbar-thumb:hover,
+foliate-view *::-webkit-scrollbar-thumb:hover,
+foliate-view::part(container)::-webkit-scrollbar-thumb:hover,
+foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
+  background: rgba(141, 113, 77, 0.45);
+}
+
+.admin-shell--dark .book-reader::-webkit-scrollbar-thumb,
+.admin-shell--dark .book-reader *::-webkit-scrollbar-thumb,
+.admin-shell--dark foliate-view::part(container)::-webkit-scrollbar-thumb,
+.admin-shell--dark foliate-view *::part(container)::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.admin-shell--dark .book-reader::-webkit-scrollbar-thumb:hover,
+.admin-shell--dark .book-reader *::-webkit-scrollbar-thumb:hover,
+.admin-shell--dark foliate-view::part(container)::-webkit-scrollbar-thumb:hover,
+.admin-shell--dark foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.admin-shell--dark .book-reader,
+.admin-shell--dark .book-reader *,
+.admin-shell--dark foliate-view::part(container) {
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
 .book-reader__view {
   position: absolute;
   inset: 0;

@@ -118,6 +118,25 @@ const READER_STYLES = `
     .section, .page, .calibre1, .calibre2 {
         overflow: visible !important;
     }
+    /* 优雅超细半透明滚动条，融入纸质色系 */
+    ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: rgba(141, 113, 77, 0.22);
+        border-radius: 999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(141, 113, 77, 0.45);
+    }
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(141, 113, 77, 0.22) transparent;
+    }
 `
 
 function formatBookDateTime(value: string) {
