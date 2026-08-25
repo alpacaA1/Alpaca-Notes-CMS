@@ -36,6 +36,7 @@ export function parseBooksLibrary(content: string): BooksLibraryData {
       title: typeof item.title === 'string' ? item.title : '未命名书籍',
       creator: typeof item.creator === 'string' ? item.creator : '未知作者',
       format: item.format === 'pdf' ? 'pdf' : 'epub',
+      coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : null,
       coverSeed: typeof item.coverSeed === 'number' ? item.coverSeed : 0,
       addedAt: typeof item.addedAt === 'string' ? item.addedAt : new Date().toISOString(),
       lastOpenedAt: typeof item.lastOpenedAt === 'string' ? item.lastOpenedAt : new Date().toISOString(),
@@ -152,6 +153,7 @@ export function mergeBooksData(
         title: local.meta.title,
         creator: local.meta.creator,
         format: local.meta.format || 'epub',
+        coverUrl: local.meta.coverUrl || null,
         coverSeed: local.meta.coverSeed,
         addedAt: local.meta.addedAt,
         lastOpenedAt: local.meta.lastOpenedAt,
@@ -171,6 +173,7 @@ export function mergeBooksData(
         creator: remote.creator,
         format: remote.format,
         coverBlob: null,
+        coverUrl: remote.coverUrl || null,
         coverSeed: remote.coverSeed,
         addedAt: remote.addedAt,
         lastOpenedAt: remote.lastOpenedAt,
@@ -187,13 +190,17 @@ export function mergeBooksData(
       const activeMeta = remoteIsNewer
         ? {
             ...local.meta,
+            coverUrl: local.meta.coverUrl || remote.coverUrl || null,
             lastOpenedAt: remote.lastOpenedAt,
             progressFraction: remote.progressFraction,
             progressCfi: remote.progressCfi,
             progressPage: remote.progressPage,
             pageCount: remote.pageCount,
           }
-        : local.meta
+        : {
+            ...local.meta,
+            coverUrl: local.meta.coverUrl || remote.coverUrl || null,
+          }
 
       const mergedAnns = mergeAnnotations(local.annotations, remote.annotations)
 
@@ -202,6 +209,7 @@ export function mergeBooksData(
         title: activeMeta.title,
         creator: activeMeta.creator,
         format: activeMeta.format || 'epub',
+        coverUrl: activeMeta.coverUrl || null,
         coverSeed: activeMeta.coverSeed,
         addedAt: activeMeta.addedAt,
         lastOpenedAt: activeMeta.lastOpenedAt,

@@ -77,6 +77,7 @@ describe('weread-client', () => {
     expect(meta.id).toBe('weread-1001')
     expect(meta.title).toBe('置身事内')
     expect(meta.creator).toBe('兰小欢')
+    expect(meta.coverUrl).toBe('https://example.com/cover.jpg')
 
     // Expect 3 annotations (bm-1 merged with th-1, bm-2 standalone, th-2 standalone)
     expect(annotations).toHaveLength(3)

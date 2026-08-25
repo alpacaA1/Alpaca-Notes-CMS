@@ -226,6 +226,7 @@ export function transformWeReadBookData(
   const bookId = `weread-${notebook.bookId || rawBook.bookId || computeHashSeed(rawBook.title)}`
   const title = rawBook.title || '未命名微信读书'
   const creator = rawBook.author || '未知作者'
+  const coverUrl = (rawBook.cover || notebook.book?.cover || '').trim() || null
   const coverSeed = computeHashSeed(`${title}-${creator}`)
 
   const annotationsMap = new Map<string, BookAnnotation>()
@@ -321,6 +322,7 @@ export function transformWeReadBookData(
     creator,
     format: 'epub',
     coverBlob: null,
+    coverUrl,
     coverSeed,
     addedAt: nowIso,
     lastOpenedAt: latestTime !== new Date(0).toISOString() ? latestTime : nowIso,

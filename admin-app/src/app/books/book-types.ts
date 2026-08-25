@@ -4,6 +4,7 @@ export type StoredBookMeta = {
   title: string
   creator: string
   coverBlob: Blob | null
+  coverUrl?: string | null
   coverSeed: number
   addedAt: string
   lastOpenedAt: string
@@ -23,6 +24,7 @@ export type RemoteBookItem = {
   title: string
   creator: string
   format?: 'epub' | 'pdf'
+  coverUrl?: string | null
   coverSeed: number
   addedAt: string
   lastOpenedAt: string

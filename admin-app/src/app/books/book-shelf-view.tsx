@@ -23,20 +23,31 @@ type BookShelfViewProps = {
 }
 
 function BookCover({ book }: { book: StoredBookMeta }) {
-  const [coverUrl, setCoverUrl] = useState<string | null>(null)
+  const [blobUrl, setBlobUrl] = useState<string | null>(null)
+  const [imgError, setImgError] = useState(false)
 
   useEffect(() => {
     if (!book.coverBlob) {
-      setCoverUrl(null)
+      setBlobUrl(null)
       return
     }
     const url = URL.createObjectURL(book.coverBlob)
-    setCoverUrl(url)
+    setBlobUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [book.coverBlob])
 
-  if (coverUrl) {
-    return <img className="book-shelf__cover-image" src={coverUrl} alt={`《${book.title}》封面`} />
+  const displaySrc = blobUrl || (!imgError && book.coverUrl ? book.coverUrl : null)
+
+  if (displaySrc) {
+    return (
+      <img
+        className="book-shelf__cover-image"
+        src={displaySrc}
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        alt={`《${book.title}》封面`}
+      />
+    )
   }
 
   return (
