@@ -45,6 +45,22 @@ describe('diary-quote utilities', () => {
     expect(matched).toBeDefined()
     expect(matched?.path).toBe('source/diary/20260825083000.md')
 
+    // Matches by path even if date string is missing
+    const postsWithPathOnly: PostIndexItem[] = [
+      {
+        path: 'source/diary/20260825101041.md',
+        sha: 'sha-25-a',
+        title: '日记',
+        date: '',
+        published: false,
+        hasExplicitPublished: true,
+        categories: [],
+        tags: [],
+        contentType: 'diary',
+      },
+    ]
+    expect(findTodayDiaryPost(postsWithPathOnly, today)?.path).toBe('source/diary/20260825101041.md')
+
     const tomorrow = new Date(2026, 7, 26, 10, 0, 0)
     expect(findTodayDiaryPost(posts, tomorrow)).toBeUndefined()
   })

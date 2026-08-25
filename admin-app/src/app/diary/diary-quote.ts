@@ -10,10 +10,17 @@ export function getTodayDateString(now = new Date()): string {
 
 export function findTodayDiaryPost(diaryPosts: readonly PostIndexItem[], now = new Date()): PostIndexItem | undefined {
   const todayStr = getTodayDateString(now)
+  const todayCompact = todayStr.replace(/-/g, '')
   return diaryPosts.find((post) => {
     const postDatePrefix = (post.date || '').slice(0, 10)
     const postTitle = (post.title || '').trim()
-    return postDatePrefix === todayStr || postTitle.startsWith(todayStr)
+    const postPath = (post.path || '').trim()
+    return (
+      postDatePrefix === todayStr ||
+      postTitle.startsWith(todayStr) ||
+      postPath.includes(todayCompact) ||
+      postPath.includes(todayStr)
+    )
   })
 }
 

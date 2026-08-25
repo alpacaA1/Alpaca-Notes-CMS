@@ -1736,14 +1736,24 @@ export default function App() {
     }
   }
 
-  const handleNewPost = async () => {
+  const handleNewPost = async (targetType?: ContentType) => {
     if (!(await confirmNavigation())) {
       return
     }
 
-    if (contentType === 'diary') {
-      const todayDiary = findTodayDiaryPost(postsByType.diary)
+    const effectiveContentType = targetType || contentType
+
+    if (effectiveContentType === 'diary') {
+      let diaryPosts = postsByType.diary
+      if (diaryPosts.length === 0 && session) {
+        try {
+          diaryPosts = await buildDiaryIndex(session)
+          setPostsByType((prev) => ({ ...prev, diary: diaryPosts }))
+        } catch {}
+      }
+      const todayDiary = findTodayDiaryPost(diaryPosts)
       if (todayDiary) {
+        setContentType('diary')
         setEditorNavigationStack([])
         await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
         setAdminView('editor')
@@ -1751,15 +1761,16 @@ export default function App() {
       }
     }
 
+    setContentType(effectiveContentType)
     setEditorNavigationStack([])
     openDocument(
-      contentType === 'read-later'
+      effectiveContentType === 'read-later'
         ? createNewReadLaterItem()
-        : contentType === 'diary'
+        : effectiveContentType === 'diary'
           ? createNewDiaryEntry()
-          : contentType === 'knowledge'
+          : effectiveContentType === 'knowledge'
             ? createNewKnowledgeItem()
-            : contentType === 'pitch'
+            : effectiveContentType === 'pitch'
               ? createNewPitch()
               : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
@@ -4564,14 +4575,20 @@ export default function App() {
               window.history.pushState({}, '', url.toString())
             } catch {}
 
-            const diaryPosts = postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+            let diaryPosts = postsByType.diary
+            if (diaryPosts.length === 0 && session) {
+              try {
+                diaryPosts = await buildDiaryIndex(session)
+                setPostsByType((prev) => ({ ...prev, diary: diaryPosts }))
+              } catch {}
+            }
             const todayDiary = findTodayDiaryPost(diaryPosts)
             if (todayDiary) {
               setContentType('diary')
               setAdminView('editor')
               await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
             } else {
-              handleNewPost('diary')
+              await handleNewPost('diary')
             }
           }}
           onExitQuickMode={() => {
@@ -5165,14 +5182,20 @@ export default function App() {
         session={session}
         onOpenTodayDiary={async () => {
           setIsCheckinModalOpen(false)
-          const diaryPosts = postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+          let diaryPosts = postsByType.diary
+          if (diaryPosts.length === 0 && session) {
+            try {
+              diaryPosts = await buildDiaryIndex(session)
+              setPostsByType((prev) => ({ ...prev, diary: diaryPosts }))
+            } catch {}
+          }
           const todayDiary = findTodayDiaryPost(diaryPosts)
           if (todayDiary) {
             setContentType('diary')
             setAdminView('editor')
             await openIndexedPost(todayDiary, { navigationBehavior: 'reset' })
           } else {
-            handleNewPost('diary')
+            await handleNewPost('diary')
           }
         }}
       />
