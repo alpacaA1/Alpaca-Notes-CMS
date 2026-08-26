@@ -301,8 +301,7 @@ describe('App diary quote and single-day convergence flow', () => {
     fireEvent.click(await screen.findByText('元认知是人类最高级别的认知能力。'))
 
     // In the detail panel, click "引用到今日日记"
-    const detailPanel = screen.getByRole('dialog', { name: '批注详情' })
-    const quoteButton = within(detailPanel).getByRole('button', { name: '引用到今日日记' })
+    const quoteButton = await screen.findByRole('button', { name: '引用到今日日记' })
     fireEvent.click(quoteButton)
 
     await waitFor(() => {

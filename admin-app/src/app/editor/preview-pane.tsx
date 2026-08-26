@@ -192,7 +192,7 @@ const BALANCED_BARE_URL_PAIRS = [
   ['{', '}'],
   ['｛', '｝'],
 ] as const
-const ANNOTATION_CONTEXT_LENGTH = 48
+const ANNOTATION_CONTEXT_LENGTH = 200
 const ACTIVE_OUTLINE_OFFSET = 120
 const MERMAID_RUNTIME_SCRIPT_ID = 'admin-preview-mermaid-runtime'
 const MERMAID_RUNTIME_SRC = 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js'

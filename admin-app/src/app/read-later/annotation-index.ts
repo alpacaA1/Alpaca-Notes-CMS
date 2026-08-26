@@ -2,7 +2,7 @@ import { fetchMarkdownFile, readCachedMarkdownFile } from '../github-client'
 import type { ReadingStatus } from '../posts/parse-post'
 import type { SessionState } from '../session'
 import type { ReadLaterAnnotation } from './item-types'
-import { parseReadLaterItem } from './parse-item'
+import { getEditableReadLaterSections, parseReadLaterItem } from './parse-item'
 
 export type ReadLaterAnnotationSourceFile = {
   path: string
@@ -67,6 +67,42 @@ function resolveSortTimestamp(annotation: Pick<ReadLaterAnnotationIndexItem, 'up
   return 0
 }
 
+function extractFullAnnotationContext(
+  sectionContent: string,
+  annotation: ReadLaterAnnotation,
+  contextRadius = 180,
+): { prefix: string; suffix: string } {
+  if (!sectionContent || !annotation.quote) {
+    return { prefix: annotation.prefix || '', suffix: annotation.suffix || '' }
+  }
+
+  let quoteIndex = -1
+  if (annotation.prefix) {
+    const combined = annotation.prefix + annotation.quote
+    const combinedIndex = sectionContent.indexOf(combined)
+    if (combinedIndex !== -1) {
+      quoteIndex = combinedIndex + annotation.prefix.length
+    }
+  }
+
+  if (quoteIndex === -1) {
+    quoteIndex = sectionContent.indexOf(annotation.quote)
+  }
+
+  if (quoteIndex === -1) {
+    return { prefix: annotation.prefix || '', suffix: annotation.suffix || '' }
+  }
+
+  const rawPrefix = sectionContent.slice(Math.max(0, quoteIndex - contextRadius), quoteIndex)
+  const quoteEnd = quoteIndex + annotation.quote.length
+  const rawSuffix = sectionContent.slice(quoteEnd, Math.min(sectionContent.length, quoteEnd + contextRadius))
+
+  return {
+    prefix: rawPrefix.length >= (annotation.prefix || '').length ? rawPrefix : (annotation.prefix || rawPrefix),
+    suffix: rawSuffix.length >= (annotation.suffix || '').length ? rawSuffix : (annotation.suffix || rawSuffix),
+  }
+}
+
 export async function buildReadLaterAnnotationIndex(
   session: SessionState,
   sourceFiles: ReadLaterAnnotationSourceFile[],
@@ -76,38 +112,45 @@ export async function buildReadLaterAnnotationIndex(
       const file = readCachedMarkdownFile(sourceFile.path, sourceFile.sha) ?? await fetchMarkdownFile(session, sourceFile.path)
       const item = parseReadLaterItem(file)
 
-      return item.annotations.map<ReadLaterAnnotationIndexItem>((annotation) => ({
-        id: `${item.path}::${annotation.id}`,
-        sourceType: 'read-later',
-        annotationId: annotation.id,
-        postPath: item.path,
-        postTitle: item.frontmatter.title.trim() || '未命名待读',
-        postDate: item.frontmatter.date || '',
-        sourceName: item.frontmatter.source_name?.trim() || null,
-        externalUrl: item.frontmatter.external_url?.trim() || null,
-        tags: item.frontmatter.tags,
-        readingStatus: item.frontmatter.reading_status,
-        sectionKey: annotation.sectionKey,
-        sectionLabel: resolveSectionLabel(annotation.sectionKey),
-        quote: annotation.quote,
-        prefix: annotation.prefix,
-        suffix: annotation.suffix,
-        note: annotation.note,
-        createdAt: annotation.createdAt,
-        updatedAt: annotation.updatedAt,
-        searchText: normalizeSearchText([
-          item.frontmatter.title,
-          item.frontmatter.source_name || '',
-          item.frontmatter.external_url || '',
-          ...item.frontmatter.tags,
-          resolveReadingStatusLabel(item.frontmatter.reading_status),
-          resolveSectionLabel(annotation.sectionKey),
-          annotation.prefix,
-          annotation.quote,
-          annotation.suffix,
-          annotation.note,
-        ].join('\n')),
-      }))
+      const sections = getEditableReadLaterSections(item.body)
+
+      return item.annotations.map<ReadLaterAnnotationIndexItem>((annotation) => {
+        const sectionText = sections[annotation.sectionKey] || item.body || ''
+        const { prefix, suffix } = extractFullAnnotationContext(sectionText, annotation)
+
+        return {
+          id: `${item.path}::${annotation.id}`,
+          sourceType: 'read-later',
+          annotationId: annotation.id,
+          postPath: item.path,
+          postTitle: item.frontmatter.title.trim() || '未命名待读',
+          postDate: item.frontmatter.date || '',
+          sourceName: item.frontmatter.source_name?.trim() || null,
+          externalUrl: item.frontmatter.external_url?.trim() || null,
+          tags: item.frontmatter.tags,
+          readingStatus: item.frontmatter.reading_status,
+          sectionKey: annotation.sectionKey,
+          sectionLabel: resolveSectionLabel(annotation.sectionKey),
+          quote: annotation.quote,
+          prefix,
+          suffix,
+          note: annotation.note,
+          createdAt: annotation.createdAt,
+          updatedAt: annotation.updatedAt,
+          searchText: normalizeSearchText([
+            item.frontmatter.title,
+            item.frontmatter.source_name || '',
+            item.frontmatter.external_url || '',
+            ...item.frontmatter.tags,
+            resolveReadingStatusLabel(item.frontmatter.reading_status),
+            resolveSectionLabel(annotation.sectionKey),
+            prefix,
+            annotation.quote,
+            suffix,
+            annotation.note,
+          ].join('\n')),
+        }
+      })
     }),
   )
 

@@ -56,12 +56,14 @@ import {
   deleteBook,
   getBookFile,
   hasBookFile,
+  listBookAnnotations,
   listBookMetas,
   putBook,
+  putBookAnnotation,
   putBookFile,
   putBookMeta,
 } from './books/book-store'
-import type { StoredBookMeta } from './books/book-types'
+import type { BookAnnotation, StoredBookMeta } from './books/book-types'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
@@ -1008,6 +1010,14 @@ export default function App() {
       setIsAnnotationIndexing(true)
 
       try {
+        if (typeof indexedDB !== 'undefined' && session) {
+          try {
+            const { syncBooksWithGitHub } = await import('./books/book-sync')
+            await syncBooksWithGitHub(session)
+          } catch {
+            // Ignore offline / remote sync failure and continue with local IDB
+          }
+        }
         const books = typeof indexedDB === 'undefined' ? [] : await listBookMetas()
         const [readLaterAnnotations, bookAnnotations] = await Promise.all([
           buildReadLaterAnnotationIndex(session, readLaterPosts),
@@ -3392,6 +3402,80 @@ export default function App() {
     setEditingAnnotationId(null)
   }
 
+  const handleSaveAnnotationComment = async (
+    annotation: ReadLaterAnnotationIndexItem,
+    note: string,
+  ) => {
+    const trimmedNote = note.trim()
+
+    if (annotation.sourceType === 'book' && annotation.bookId) {
+      const bookAnnotations = await listBookAnnotations(annotation.bookId)
+      const target = bookAnnotations.find((item) => item.id === annotation.annotationId)
+      if (target) {
+        const nextTarget: BookAnnotation = {
+          ...target,
+          note: trimmedNote,
+          updatedAt: new Date().toISOString(),
+        }
+        await putBookAnnotation(nextTarget)
+      }
+      if (session) {
+        void import('./books/book-sync')
+          .then(({ syncBooksWithGitHub }) => syncBooksWithGitHub(session))
+          .catch(() => {})
+      }
+      setReadLaterAnnotationIndex((currentList) =>
+        currentList.map((item) =>
+          item.id === annotation.id
+            ? { ...item, note: trimmedNote, updatedAt: new Date().toISOString() }
+            : item,
+        ),
+      )
+      setSuccessMessage('批注评论已保存。')
+      return
+    }
+
+    if (!session) {
+      throw new Error('GitHub 会话已过期，请重新登录。')
+    }
+
+    const sourcePost = readLaterPosts.find((post) => post.path === annotation.postPath)
+    const file = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha) ?? (await fetchMarkdownFile(session, annotation.postPath))
+    const parsed = parseReadLaterItem(file)
+    const nextAnnotations = parsed.annotations.map((item) =>
+      item.id === annotation.annotationId
+        ? {
+            ...item,
+            note: trimmedNote,
+            updatedAt: new Date().toISOString(),
+          }
+        : item,
+    )
+    const nextItem: ParsedReadLaterItem = {
+      ...parsed,
+      annotations: nextAnnotations,
+    }
+    const savedContent = serializeReadLaterItem(nextItem)
+    const savedFile = await saveMarkdownFile(session, {
+      path: nextItem.path,
+      sha: nextItem.sha || undefined,
+      content: savedContent,
+    })
+
+    if (document && document.path === nextItem.path) {
+      updateReadLaterAnnotations(nextAnnotations)
+    }
+
+    setReadLaterAnnotationIndex((currentList) =>
+      currentList.map((item) =>
+        item.id === annotation.id
+          ? { ...item, note: trimmedNote, updatedAt: new Date().toISOString() }
+          : item,
+      ),
+    )
+    setSuccessMessage('批注评论已保存。')
+  }
+
   const saveDocumentToRepo = async (targetDocument: ParsedPost) => {
     if (!session) {
       throw new Error('GitHub 会话已过期，请重新登录。')
@@ -4997,6 +5081,7 @@ export default function App() {
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
             onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
+            onSaveAnnotationComment={(annotation, note) => { void handleSaveAnnotationComment(annotation, note) }}
           />
         </section>
       ) : isTrashView ? (

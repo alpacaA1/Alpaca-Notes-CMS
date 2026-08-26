@@ -2,9 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 import * as githubClientModule from './github-client'
-import ReadLaterAnnotationsView from './layout/read-later-annotations-view'
 import * as postsIndexModule from './posts/index-posts'
-import type { ReadLaterAnnotationIndexItem } from './read-later/annotation-index'
 import * as readLaterIndexModule from './read-later/index-items'
 import type { ReadLaterAnnotation, ReadLaterIndexItem } from './read-later/item-types'
 import * as sessionModule from './session'
@@ -68,29 +66,6 @@ const designAnnotation: ReadLaterAnnotation = {
   updatedAt: '2026-04-30T08:00:00.000Z',
 }
 
-function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexItem> = {}): ReadLaterAnnotationIndexItem {
-  return {
-    id: overrides.id || 'annotation-id',
-    annotationId: overrides.annotationId || 'annotation-id',
-    postPath: overrides.postPath || 'source/read-later-items/default.md',
-    postTitle: overrides.postTitle || '默认文章',
-    postDate: overrides.postDate || '2026-05-01 10:00:00',
-    sourceName: overrides.sourceName ?? null,
-    externalUrl: overrides.externalUrl ?? null,
-    tags: overrides.tags || ['默认标签'],
-    readingStatus: overrides.readingStatus || 'unread',
-    sectionKey: overrides.sectionKey || 'articleExcerpt',
-    sectionLabel: overrides.sectionLabel || '原文摘录',
-    quote: overrides.quote || '默认摘录',
-    prefix: overrides.prefix || '',
-    suffix: overrides.suffix || '',
-    note: overrides.note || '默认评论',
-    createdAt: overrides.createdAt || '2026-05-01T10:00:00.000Z',
-    updatedAt: overrides.updatedAt || '2026-05-01T10:00:00.000Z',
-    searchText: overrides.searchText || '默认文章 默认摘录 默认评论',
-  }
-}
-
 function createReadLaterContent(options: {
   title: string
   date: string
@@ -141,10 +116,14 @@ describe('App read-later annotations view', () => {
     window.localStorage.clear()
   })
 
-  it('aggregates annotations, supports filters and opens the original read-later item', async () => {
+  it('aggregates annotations, supports 3-column interaction, comment save, and opening original item', async () => {
     vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
     vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
     vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue(readLaterPosts)
+    const saveMarkdownSpy = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'new-sha',
+    }))
     vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
       if (path === readLaterPosts[0].path) {
         return {
@@ -189,114 +168,49 @@ describe('App read-later annotations view', () => {
     fireEvent.click(screen.getByRole('button', { name: '批注' }))
 
     expect(await screen.findByRole('heading', { name: '批注管理' })).toBeTruthy()
-    expect(await screen.findByText('当前结果 2 条')).toBeTruthy()
-    expect(screen.getByText('要回看的句子')).toBeTruthy()
-    expect(screen.getByText('交互上的提醒')).toBeTruthy()
-    expect(screen.getByText('写作切入点')).toBeTruthy()
-    expect(screen.getByText('交互观察')).toBeTruthy()
-    expect(screen.queryByText('我的评论')).toBeNull()
-    expect(screen.queryByText('跳回原文')).toBeNull()
-    expect(screen.getByText('在读')).toBeTruthy()
-    expect(screen.getByText('已读')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '筛选排序规则' })).toBeTruthy()
-    expect(screen.queryByText('Product Weekly')).toBeNull()
-    expect(screen.queryByText('Design Notes')).toBeNull()
-    expect(screen.getByRole('button', { name: '打开原文：产品研究 A' })).toBeTruthy()
-    expect(screen.queryByRole('dialog', { name: '批注详情' })).toBeNull()
+    expect(await screen.findByText('2 条批注 · 来自 2 篇文章')).toBeTruthy()
 
-    fireEvent.click(screen.getByText('要回看的句子'))
+    // 3 Columns verification
+    const sourceRail = screen.getByLabelText('来源文章列表')
+    const listSection = screen.getByLabelText('批注列表区')
+    const detailSection = screen.getByLabelText('批注详情与评论')
 
-    const detailPanel = screen.getByRole('dialog', { name: '批注详情' })
-    expect(within(detailPanel).getByRole('button', { name: '打开原文' })).toBeTruthy()
-    expect(within(detailPanel).getByRole('button', { name: '关闭详情' })).toBeTruthy()
-    expect(within(detailPanel).getByText('完整摘录')).toBeTruthy()
-    expect(within(detailPanel).getByText('完整评论')).toBeTruthy()
-    expect(within(detailPanel).getByText('来源文章')).toBeTruthy()
-    expect(within(detailPanel).getByText('上下文片段')).toBeTruthy()
-    expect(within(detailPanel).getByText('Product Weekly')).toBeTruthy()
-    expect(
-      within(detailPanel).getByText((_, element) => element?.textContent === '这是上文，要回看的句子这里是下文。'),
-    ).toBeTruthy()
-    fireEvent.click(within(detailPanel).getByRole('button', { name: '关闭详情' }))
-    expect(screen.queryByRole('dialog', { name: '批注详情' })).toBeNull()
+    expect(sourceRail).toBeTruthy()
+    expect(listSection).toBeTruthy()
+    expect(detailSection).toBeTruthy()
 
-    const articleRail = screen.getByLabelText('批注文章列表')
-    fireEvent.click(within(articleRail).getByRole('button', { name: /设计研究 B/ }))
-    expect(screen.queryByText('要回看的句子')).toBeNull()
-    expect(screen.getByText('交互上的提醒')).toBeTruthy()
+    expect(within(sourceRail).getByText('产品研究 A')).toBeTruthy()
+    expect(within(sourceRail).getByText('设计研究 B')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '收起文章栏' }))
-    expect(articleRail.textContent?.trim()).toBe('')
-    expect(within(articleRail).queryByRole('button', { name: /设计研究 B/ })).toBeNull()
-    expect(screen.getByRole('button', { name: '展开文章栏' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '展开文章栏' }))
-    expect(screen.getByRole('button', { name: '收起文章栏' })).toBeTruthy()
+    expect(within(listSection).getByText('要回看的句子')).toBeTruthy()
+    expect(within(listSection).getByText('交互上的提醒')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
-    fireEvent.click(screen.getByRole('option', { name: '产品研究 A' }))
-    expect(screen.getByText('要回看的句子')).toBeTruthy()
-    expect(screen.queryByText('交互上的提醒')).toBeNull()
+    // Right detail pane contains first annotation
+    expect(within(detailSection).getByText('完整摘录')).toBeTruthy()
+    expect(within(detailSection).getByText('我的评论')).toBeTruthy()
+    expect(within(detailSection).getByText('上下文')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
-    fireEvent.click(screen.getByRole('option', { name: '全部来源文章' }))
-    fireEvent.click(screen.getByRole('button', { name: '筛选标签' }))
-    fireEvent.click(screen.getByRole('option', { name: '设计' }))
-    expect(screen.queryByText('要回看的句子')).toBeNull()
-    expect(screen.getByText('交互上的提醒')).toBeTruthy()
+    // Test editing and saving comment directly in right pane
+    const textarea = within(detailSection).getByPlaceholderText('写下你的想法...')
+    fireEvent.change(textarea, { target: { value: '更新后的深入评论' } })
 
-    fireEvent.click(screen.getByRole('button', { name: '筛选标签' }))
-    fireEvent.click(screen.getByRole('option', { name: '全部标签' }))
-    fireEvent.change(screen.getByRole('textbox', { name: '搜索' }), {
-      target: { value: '写作切入点' },
-    })
-    expect(screen.getByText('要回看的句子')).toBeTruthy()
-    expect(screen.queryByText('交互上的提醒')).toBeNull()
+    const saveCommentBtn = within(detailSection).getByRole('button', { name: '保存评论' })
+    fireEvent.click(saveCommentBtn)
 
-    fireEvent.click(screen.getByRole('button', { name: '清空筛选' }))
     await waitFor(() => {
-      expect((screen.getByRole('textbox', { name: '搜索' }) as HTMLInputElement).value).toBe('')
-      expect(screen.getByText('交互上的提醒')).toBeTruthy()
+      expect(saveMarkdownSpy).toHaveBeenCalled()
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '筛选排序规则' }))
-    fireEvent.click(screen.getByRole('option', { name: '来源文章 A-Z' }))
-    const sortedCards = screen.getAllByRole('article')
-    expect(within(sortedCards[0]).getByText('产品研究 A')).toBeTruthy()
-    expect(within(sortedCards[1]).getByText('设计研究 B')).toBeTruthy()
+    // Test filtering by source article
+    fireEvent.click(within(sourceRail).getByRole('button', { name: /设计研究 B/ }))
+    expect(within(listSection).queryByText('要回看的句子')).toBeNull()
+    expect(within(listSection).getByText('交互上的提醒')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: '筛选来源文章' }))
-    fireEvent.click(screen.getByRole('option', { name: '产品研究 A' }))
-    fireEvent.click(screen.getByText('要回看的句子'))
-    fireEvent.click(within(screen.getByRole('dialog', { name: '批注详情' })).getByRole('button', { name: '打开原文' }))
+    // Test Open Original Read Later Item
+    const openOriginalBtn = within(detailSection).getByRole('button', { name: /打开原文/ })
+    fireEvent.click(openOriginalBtn)
 
-    expect(await screen.findByRole('button', { name: '要回看的句子' })).toBeTruthy()
-    expect(screen.getByRole('heading', { name: '原文摘录' })).toBeTruthy()
-  })
-
-  it('caps the annotations board at four columns', () => {
-    const annotations = Array.from({ length: 5 }, (_, index) =>
-      createAnnotationIndexItem({
-        id: `annotation-${index + 1}`,
-        annotationId: `annotation-${index + 1}`,
-        postPath: `source/read-later-items/item-${index + 1}.md`,
-        postTitle: `文章 ${index + 1}`,
-        quote: `摘录 ${index + 1}`,
-        note: `评论 ${index + 1}`,
-        searchText: `文章 ${index + 1} 摘录 ${index + 1} 评论 ${index + 1}`,
-      }),
-    )
-
-    render(
-      <ReadLaterAnnotationsView
-        annotations={annotations}
-        isLoading={false}
-        search=""
-        onOpenAnnotation={vi.fn()}
-      />,
-    )
-
-    const annotationList = screen.getByLabelText('批注列表') as HTMLDivElement
-    expect(annotationList.style.gridTemplateColumns).toBe('repeat(4, var(--annotation-card-width))')
-    expect(annotationList.style.width).toBe('calc(4 * var(--annotation-card-width) + 3 * var(--annotation-grid-gap))')
+    // Should navigate to reader / editor view
+    expect(await screen.findByRole('heading', { name: '原文摘录' })).toBeTruthy()
   })
 })
