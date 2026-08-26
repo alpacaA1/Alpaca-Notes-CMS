@@ -40,6 +40,7 @@ describe('self-observation-format', () => {
       createdAt: '2026-08-25T14:20:00.000Z',
       data: {
         emotions: ['烦'],
+        intensity: 7,
         event: '她说我今天显得有点安静',
         intention: '停一下',
       },
@@ -47,6 +48,7 @@ describe('self-observation-format', () => {
 
     const block = formatSelfObservationBlock(record)
     expect(block).toContain('> 💭 **我现在**：烦')
+    expect(block).toContain('> 📊 **强度**：7/10')
     expect(block).toContain('> 📝 **发生了什么**：她说我今天显得有点安静')
     expect(block).toContain('> 🎯 **我想**：停一下')
   })

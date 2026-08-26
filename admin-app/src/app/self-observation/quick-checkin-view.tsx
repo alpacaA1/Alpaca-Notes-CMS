@@ -36,6 +36,7 @@ export default function QuickCheckinView({
 
   // Emotion Form State
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([])
+  const [selectedIntensity, setSelectedIntensity] = useState<number | null>(null)
   const [customEmotions, setCustomEmotions] = useState<string[]>([])
   const [isEventExpanded, setIsEventExpanded] = useState<boolean>(false)
   const [eventText, setEventText] = useState<string>('')
@@ -156,6 +157,7 @@ export default function QuickCheckinView({
     if (kind === 'emotion') {
       const data: EmotionCheckinData = {
         emotions: selectedEmotions,
+        intensity: selectedIntensity ?? undefined,
         event: eventText.trim() || undefined,
         intention: selectedIntention || undefined,
       }
@@ -185,6 +187,7 @@ export default function QuickCheckinView({
     // Clear form state immediately
     if (kind === 'emotion') {
       setSelectedEmotions([])
+      setSelectedIntensity(null)
       setEventText('')
       setSelectedIntention('')
       setIsEventExpanded(false)
@@ -384,6 +387,28 @@ export default function QuickCheckinView({
               </div>
             </div>
 
+            <div className="quick-checkin__section">
+              <h2 className="quick-checkin__section-title">情绪强度（可选）</h2>
+              <div className="quick-checkin__intensity-scale" role="group" aria-label="情绪强度">
+                {Array.from({ length: 10 }, (_, index) => index + 1).map((intensity) => {
+                  const isSelected = selectedIntensity === intensity
+                  return (
+                    <button
+                      key={intensity}
+                      type="button"
+                      className={`quick-checkin__intensity-btn${isSelected ? ' is-selected' : ''}`}
+                      onClick={() => setSelectedIntensity(isSelected ? null : intensity)}
+                      aria-pressed={isSelected}
+                      aria-label={`强度 ${intensity} / 10`}
+                    >
+                      {intensity}
+                    </button>
+                  )
+                })}
+              </div>
+              <span className="quick-checkin__intensity-hint">1 很轻，10 很强</span>
+            </div>
+
             <div className="quick-checkin__section quick-checkin__section--collapsible">
               <button
                 type="button"
@@ -392,7 +417,7 @@ export default function QuickCheckinView({
                 aria-expanded={isEventExpanded}
               >
                 <span className="quick-checkin__accordion-icon">🪶</span>
-                <span className="quick-checkin__accordion-label">补充一句（可选）</span>
+                <span className="quick-checkin__accordion-label">发生了什么 / 我想到什么（可选）</span>
                 <span className={`quick-checkin__accordion-chevron${isEventExpanded ? ' is-expanded' : ''}`}>
                   {isEventExpanded ? '▴' : '▾'}
                 </span>
@@ -402,7 +427,7 @@ export default function QuickCheckinView({
                 <div className="quick-checkin__accordion-body">
                   <textarea
                     className="quick-checkin__textarea"
-                    placeholder="发生了什么…"
+                    placeholder="发生了什么，或脑中闪过的一句话…"
                     value={eventText}
                     onChange={(e) => setEventText(e.target.value)}
                     rows={3}

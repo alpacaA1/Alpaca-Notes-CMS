@@ -78,9 +78,9 @@ tags: []
     fireEvent.click(screen.getByRole('button', { name: '烦' }))
     fireEvent.click(screen.getByRole('button', { name: '紧张' }))
 
-    // Expand "补充一句"
-    fireEvent.click(screen.getByRole('button', { name: /补充一句/ }))
-    const textarea = screen.getByPlaceholderText('发生了什么…')
+    // Expand the optional context field
+    fireEvent.click(screen.getByRole('button', { name: /发生了什么 \/ 我想到什么/ }))
+    const textarea = screen.getByPlaceholderText('发生了什么，或脑中闪过的一句话…')
     fireEvent.change(textarea, { target: { value: '开会时被临时打断' } })
 
     // Save

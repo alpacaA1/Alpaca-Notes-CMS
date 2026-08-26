@@ -48,10 +48,11 @@ describe('QuickCheckinView', () => {
     fireEvent.click(screen.getByRole('button', { name: '烦' }))
     fireEvent.click(screen.getByRole('button', { name: '紧张' }))
     fireEvent.click(screen.getByRole('button', { name: '说不清' }))
+    fireEvent.click(screen.getByRole('button', { name: '强度 7 / 10' }))
 
-    // Expand "补充一句（可选）"
-    fireEvent.click(screen.getByRole('button', { name: /补充一句/ }))
-    const textarea = screen.getByPlaceholderText('发生了什么…')
+    // Expand the optional context field
+    fireEvent.click(screen.getByRole('button', { name: /发生了什么 \/ 我想到什么/ }))
+    const textarea = screen.getByPlaceholderText('发生了什么，或脑中闪过的一句话…')
     fireEvent.change(textarea, { target: { value: '开会时被临时提问' } })
 
     // Pick "我想"
@@ -69,6 +70,7 @@ describe('QuickCheckinView', () => {
     const savedContent = saveSpy.mock.calls[0]?.[1]?.content
     expect(savedContent).toContain('## 自我观察')
     expect(savedContent).toContain('烦、紧张、说不清')
+    expect(savedContent).toContain('强度**：7/10')
     expect(savedContent).toContain('开会时被临时提问')
     expect(savedContent).toContain('停一下')
   })

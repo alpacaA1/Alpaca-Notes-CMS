@@ -33,6 +33,10 @@ export function formatSelfObservationBlock(record: SelfObservationRecord): strin
     const emotionsText = (data.emotions || []).join('、').trim()
     lines.push(`> 💭 **我现在**：${emotionsText || '说不清'}`)
 
+    if (typeof data.intensity === 'number' && data.intensity >= 1 && data.intensity <= 10) {
+      lines.push(`> 📊 **强度**：${data.intensity}/10`)
+    }
+
     const eventText = (data.event || '').trim()
     if (eventText) {
       lines.push(`> 📝 **发生了什么**：${eventText}`)

@@ -2,6 +2,7 @@ export type SelfObservationKind = 'emotion' | 'behavior'
 
 export interface EmotionCheckinData {
   emotions: string[] // 1~3 items
+  intensity?: number // 1~10, optional
   event?: string // 发生了什么
   intention?: string // 我想
 }
