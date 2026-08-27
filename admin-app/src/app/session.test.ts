@@ -24,6 +24,9 @@ describe('session config and popup flow', () => {
     vi.useRealTimers()
     window.sessionStorage.clear()
     window.localStorage.clear()
+    if (typeof document !== 'undefined') {
+      document.cookie = `${getSessionStorageKey()}=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+    }
   })
 
   it('exposes the approved production config defaults', () => {
@@ -45,7 +48,7 @@ describe('session config and popup flow', () => {
     expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
       JSON.stringify({
         token: 'test-token',
-        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+        expiresAt: Date.parse('2026-11-03T00:00:00.000Z'),
       }),
     )
     expect(window.sessionStorage.getItem(getSessionStorageKey())).toBeNull()
@@ -66,7 +69,7 @@ describe('session config and popup flow', () => {
     expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
       JSON.stringify({
         token: 'legacy-token',
-        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+        expiresAt: Date.parse('2026-11-03T00:00:00.000Z'),
       }),
     )
   })
@@ -82,7 +85,7 @@ describe('session config and popup flow', () => {
     expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
       JSON.stringify({
         token: 'session-token',
-        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+        expiresAt: Date.parse('2026-11-03T00:00:00.000Z'),
       }),
     )
   })
@@ -105,9 +108,21 @@ describe('session config and popup flow', () => {
     expect(window.localStorage.getItem(getSessionStorageKey())).toBe(
       JSON.stringify({
         token: 'fresh-token',
-        expiresAt: Date.parse('2026-05-14T00:00:00.000Z'),
+        expiresAt: Date.parse('2026-11-03T00:00:00.000Z'),
       }),
     )
+  })
+
+  it('recovers session from cookie if localStorage was cleared', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-07T00:00:00.000Z'))
+
+    persistSession({ token: 'cookie-backed-token' })
+    // Simulate Safari clearing localStorage
+    window.localStorage.clear()
+
+    expect(readStoredSession()).toEqual({ token: 'cookie-backed-token' })
+    expect(window.localStorage.getItem(getSessionStorageKey())).toBeTruthy()
   })
 
   it('rejects login when the popup is blocked', async () => {

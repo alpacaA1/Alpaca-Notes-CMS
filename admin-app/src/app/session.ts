@@ -7,7 +7,8 @@ const AUTH_ERROR_PREFIX = 'authorization:github:error:'
 const DEFAULT_POPUP_TIMEOUT_MS = 60_000
 const POPUP_POLL_INTERVAL_MS = 250
 const POPUP_FEATURES = 'popup=yes,width=640,height=760,resizable=yes,scrollbars=yes'
-const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const SESSION_TTL_DAYS = 180
+const SESSION_TTL_MS = SESSION_TTL_DAYS * 24 * 60 * 60 * 1000
 
 export type SessionState = {
   token: string
@@ -15,6 +16,37 @@ export type SessionState = {
 
 type PersistedSessionState = SessionState & {
   expiresAt?: number
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === 'undefined' || !document.cookie) {
+    return null
+  }
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
+function writeCookie(name: string, value: string, expiresAt: number) {
+  if (typeof document === 'undefined') {
+    return
+  }
+  try {
+    const expiresUtc = new Date(expiresAt).toUTCString()
+    document.cookie = `${name}=${encodeURIComponent(value)}; path=/; expires=${expiresUtc}`
+  } catch {
+    // Ignore cookie write failure in restricted environments
+  }
+}
+
+function deleteCookie(name: string) {
+  if (typeof document === 'undefined') {
+    return
+  }
+  try {
+    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`
+  } catch {
+    // Ignore cookie delete failure
+  }
 }
 
 export class AuthError extends Error {
@@ -89,13 +121,13 @@ function clearStoredSessionFrom(storage: Pick<Storage, 'removeItem'>) {
 }
 
 function writeSessionToStorage(session: SessionState, storage: Pick<Storage, 'setItem'>) {
-  storage.setItem(
-    SESSION_STORAGE_KEY,
-    JSON.stringify({
-      ...session,
-      expiresAt: Date.now() + SESSION_TTL_MS,
-    } satisfies PersistedSessionState),
-  )
+  const expiresAt = Date.now() + SESSION_TTL_MS
+  const payload: PersistedSessionState = {
+    ...session,
+    expiresAt,
+  }
+  storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(payload))
+  writeCookie(SESSION_STORAGE_KEY, JSON.stringify(payload), expiresAt)
 }
 
 export function readStoredSession(storage?: Pick<Storage, 'getItem'>): SessionState | null {
@@ -106,13 +138,31 @@ export function readStoredSession(storage?: Pick<Storage, 'getItem'>): SessionSt
 
   const localSession = resolveStoredSession(window.localStorage)
   if (localSession.status === 'valid') {
-    if (localSession.session.expiresAt === undefined) {
+    const expiresAt = localSession.session.expiresAt
+    // Sliding renewal: renew if expiresAt is undefined or more than 1 day old
+    if (expiresAt === undefined || expiresAt - Date.now() < SESSION_TTL_MS - 24 * 60 * 60 * 1000) {
       writeSessionToStorage({ token: localSession.session.token }, window.localStorage)
     }
     return { token: localSession.session.token }
   }
   if (localSession.status === 'invalid' || localSession.status === 'expired') {
     clearStoredSessionFrom(window.localStorage)
+  }
+
+  // Check fallback cookie (safeguard against iOS Safari localStorage eviction)
+  const cookieValue = readCookie(SESSION_STORAGE_KEY)
+  if (cookieValue) {
+    try {
+      const parsed = JSON.parse(cookieValue) as Partial<PersistedSessionState>
+      if (typeof parsed.token === 'string' && parsed.token.length > 0) {
+        if (parsed.expiresAt === undefined || parsed.expiresAt > Date.now()) {
+          persistSession({ token: parsed.token })
+          return { token: parsed.token }
+        }
+      }
+    } catch {
+      deleteCookie(SESSION_STORAGE_KEY)
+    }
   }
 
   const sessionSession = resolveStoredSession(window.sessionStorage)
@@ -149,6 +199,7 @@ export function clearStoredSession(storage?: Pick<Storage, 'removeItem'>) {
 
   clearStoredSessionFrom(window.localStorage)
   clearStoredSessionFrom(window.sessionStorage)
+  deleteCookie(SESSION_STORAGE_KEY)
 }
 
 export function createSessionStore(initialSession: SessionState | null = null) {
