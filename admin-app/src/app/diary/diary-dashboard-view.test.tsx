@@ -80,6 +80,46 @@ describe('DiaryDashboardView', () => {
     expect(screen.queryByText('发现了小汤的钢琴教材')).toBeNull()
   })
 
+  it('groups consecutive read-later quotes under one timeline heading', () => {
+    const postWithBatchQuotes: PostIndexItem = {
+      ...mockDiaryPosts[0],
+      body: `
+## 待读摘录
+
+> 摘录一
+
+来源：《同一本书》
+
+---
+
+> 摘录二
+
+来源：《同一本书》
+
+---
+
+> 摘录三
+
+来源：《同一本书》
+`,
+    }
+
+    render(
+      <DiaryDashboardView
+        posts={[postWithBatchQuotes]}
+        search=""
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
+
+    expect(screen.getAllByText('待读摘录')).toHaveLength(1)
+    expect(screen.getAllByText('来源: 《同一本书》')).toHaveLength(3)
+  })
+
   it('triggers onNewPostForDate when clicking an empty calendar cell', () => {
     const handleNewForDate = vi.fn()
 

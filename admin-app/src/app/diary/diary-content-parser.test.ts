@@ -48,4 +48,39 @@ date: 2026-08-25 08:00:00
     const noteSec = summary.sections.find((s) => s.type === 'note')
     expect(noteSec?.items).toContain('今天天气很好')
   })
+
+  it('does not duplicate batch quote metadata into life notes', () => {
+    const markdown = `
+## 生活记录
+
+今天培训萃取机。
+
+## 待读摘录
+
+> 摘录一
+
+来源：《同一本书》
+
+---
+
+> 摘录二
+
+来源：《同一本书》
+
+想法：第二条思考
+
+---
+
+> 摘录三
+
+来源：《同一本书》
+`
+
+    const summary = parseDiarySummaryFromMarkdown(markdown)
+    const quoteSections = summary.sections.filter((section) => section.type === 'read-later')
+    const noteSection = summary.sections.find((section) => section.type === 'note')
+
+    expect(quoteSections).toHaveLength(3)
+    expect(noteSection?.items).toEqual(['今天培训萃取机。'])
+  })
 })

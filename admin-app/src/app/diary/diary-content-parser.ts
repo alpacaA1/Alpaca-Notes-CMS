@@ -1,5 +1,8 @@
 import type { DiaryStructuredSection, ParsedDiarySummary } from './diary-view-types'
 
+const STRUCTURED_QUOTE_METADATA_PATTERN =
+  /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)(?:\*\*)?\s*[：:]|^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)(?:\*\*)?\s*[：:]/
+
 export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): ParsedDiarySummary {
   const sections: DiaryStructuredSection[] = []
   const text = (content || postDesc || '').trim()
@@ -89,7 +92,8 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
       trimmed.startsWith('---') ||
       trimmed.startsWith('<!--') ||
       trimmed.startsWith('-->') ||
-      trimmed.includes('alpaca:self-observation')
+      trimmed.includes('alpaca:self-observation') ||
+      STRUCTURED_QUOTE_METADATA_PATTERN.test(trimmed)
     ) {
       continue
     }

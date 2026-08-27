@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
 import { parseDiarySummaryFromMarkdown } from './diary-content-parser'
 import { extractDateStrFromPost } from './diary-calendar-utils'
+import type { DiaryStructuredSection } from './diary-view-types'
 
 interface DiaryTimelinePreviewProps {
   posts: PostIndexItem[]
@@ -21,6 +22,19 @@ function formatWeekday(dateStr: string): string {
 function formatDayNumber(dateStr: string): string {
   const match = dateStr.match(/\d{4}-\d{2}-(\d{2})/)
   return match ? match[1] : dateStr.slice(-2)
+}
+
+function groupTimelineSections(sections: DiaryStructuredSection[]): DiaryStructuredSection[][] {
+  return sections.reduce<DiaryStructuredSection[][]>((groups, section) => {
+    const previousGroup = groups.at(-1)
+    if (section.type === 'read-later' && previousGroup?.[0]?.type === 'read-later') {
+      previousGroup.push(section)
+      return groups
+    }
+
+    groups.push([section])
+    return groups
+  }, [])
 }
 
 export default function DiaryTimelinePreview({
@@ -97,7 +111,8 @@ export default function DiaryTimelinePreview({
 
                   {/* Structured Sections */}
                   <div className="diary-timeline__sections">
-                    {summary.sections.map((sec, idx) => {
+                    {groupTimelineSections(summary.sections).map((sectionGroup, idx) => {
+                      const sec = sectionGroup[0]
                       if (sec.type === 'emotion') {
                         return (
                           <div key={idx} className="diary-timeline__sec diary-timeline__sec--emotion">
@@ -127,10 +142,16 @@ export default function DiaryTimelinePreview({
                                 <span className="diary-timeline__sec-title">待读摘录</span>
                                 {sec.timeStr ? <span className="diary-timeline__sec-time">{sec.timeStr}</span> : null}
                               </div>
-                              <blockquote className="diary-timeline__quote-text">{sec.quote}</blockquote>
-                              {sec.source ? (
-                                <p className="diary-timeline__quote-source">来源: {sec.source}</p>
-                              ) : null}
+                              <div className="diary-timeline__quote-list">
+                                {sectionGroup.map((quoteSection, quoteIdx) => (
+                                  <div key={quoteIdx} className="diary-timeline__quote-item">
+                                    <blockquote className="diary-timeline__quote-text">{quoteSection.quote}</blockquote>
+                                    {quoteSection.source ? (
+                                      <p className="diary-timeline__quote-source">来源: {quoteSection.source}</p>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
                             </div>
                           </div>
                         )

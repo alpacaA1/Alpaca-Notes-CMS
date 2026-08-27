@@ -18434,6 +18434,24 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   font-style: normal;
 }
 
+.diary-timeline__quote-list {
+  display: grid;
+}
+
+.diary-timeline__quote-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--admin-line, #eee7de);
+}
+
+.diary-timeline__quote-item:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.diary-timeline__quote-item:last-child {
+  padding-bottom: 0;
+}
+
 .diary-timeline__quote-source {
   margin: 0;
   font-size: 11px;
