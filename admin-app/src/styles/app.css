@@ -13279,27 +13279,35 @@ textarea {
 /* Multi-select & Batch Quote Styling */
 .annotation-dashboard__multi-select-btn {
   appearance: none;
-  border: 1px solid var(--admin-line, #e2dfd8);
-  background: var(--admin-panel-bg, #fff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-line, rgba(111, 87, 57, 0.12));
+  border-radius: 10px;
+  background: var(--admin-surface-strong, #ffffff);
   color: var(--admin-text, #2b2825);
-  padding: 4px 10px;
-  border-radius: 6px;
-  font-size: 0.82rem;
-  font-weight: 500;
+  font-size: 0.84rem;
+  font-weight: 560;
+  line-height: 1.2;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .annotation-dashboard__multi-select-btn:hover {
   background: var(--admin-warm-soft, #f7f4ef);
   border-color: var(--admin-border-focus, #d4a574);
+  color: var(--admin-text, #2b2825);
 }
 
 .annotation-dashboard__multi-select-btn.is-active {
   background: var(--admin-warm, #c07d3e);
-  color: #fff;
+  color: #ffffff;
   border-color: var(--admin-warm, #c07d3e);
+  box-shadow: 0 1px 4px rgba(192, 125, 62, 0.2);
 }
 
 .annotation-dashboard__item-checkbox {
