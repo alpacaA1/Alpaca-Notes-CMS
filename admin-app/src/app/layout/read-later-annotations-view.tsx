@@ -435,24 +435,24 @@ export default function ReadLaterAnnotationsView({
   // Batch Quote Confirmation Flow
   const handleOpenQuoteConfirmModal = () => {
     if (selectedAnnotationIds.size === 0) return
-    // Collect all selected items in order of original annotations / sorted annotations
-    const queue: ReadLaterAnnotationIndexItem[] = []
-    // Keep order based on sortedAnnotations first, then others
-    const seen = new Set<string>()
-    sortedAnnotations.forEach((item) => {
-      if (selectedAnnotationIds.has(item.id)) {
-        queue.push(item)
-        seen.add(item.id)
+
+    // Collect all selected items
+    const selectedItems = annotations.filter((item) => selectedAnnotationIds.has(item.id))
+
+    // Sort: 1. Group by Source Article/Book
+    //       2. Chronological ascending order by annotation timestamp (earliest to latest)
+    selectedItems.sort((a, b) => {
+      const sourceA = (a.postTitle || a.sourceName || '').trim()
+      const sourceB = (b.postTitle || b.sourceName || '').trim()
+      if (sourceA !== sourceB) {
+        return sourceA.localeCompare(sourceB, 'zh-CN')
       }
-    })
-    annotations.forEach((item) => {
-      if (selectedAnnotationIds.has(item.id) && !seen.has(item.id)) {
-        queue.push(item)
-        seen.add(item.id)
-      }
+      const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime()
+      const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime()
+      return timeA - timeB
     })
 
-    setQuoteItemsQueue(queue)
+    setQuoteItemsQueue(selectedItems)
     setIsQuoteConfirmOpen(true)
   }
 
