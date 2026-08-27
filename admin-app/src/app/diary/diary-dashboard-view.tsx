@@ -18,26 +18,24 @@ interface DiaryDashboardViewProps {
   onDeletePost: (post: PostIndexItem) => void
 }
 
-function LockIcon() {
+function CalendarGridIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <rect x="4" y="9" width="12" height="9" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M7 9V6a3 3 0 0 1 6 0v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="10" cy="13.5" r="1.2" fill="currentColor" />
+    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="3.5" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="11" y="3.5" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="3.5" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="11" y="11" width="5.5" height="5.5" rx="1.2" stroke="currentColor" strokeWidth="1.6" />
     </svg>
   )
 }
 
-function EyeIcon() {
+function FocusFrameIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M2.5 10c2.5-5 12.5-5 15 0-2.5 5-12.5 5-15 0Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <circle cx="10" cy="10" r="2.75" stroke="currentColor" strokeWidth="1.6" />
+    <svg width="17" height="17" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path d="M4 7.5V4.5a1 1 0 0 1 1-1h3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 3.5h3a1 1 0 0 1 1 1v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 12.5v3a1 1 0 0 1-1 1h-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M8 16.5H5a1 1 0 0 1-1-1v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }
@@ -269,29 +267,29 @@ export default function DiaryDashboardView({
           </span>
         </div>
 
-        {/* Right Icon Mode Tabs: 🔒 (Lock) vs 👁️ (Eye) */}
+        {/* Right Icon Mode Tabs: 网格 (Calendar) vs 聚焦框 (Timeline / Preview) */}
         <div className="diary-dashboard__mode-tabs" role="tablist" aria-label="视图模式切换">
           <button
             type="button"
             role="tab"
             aria-selected={viewMode === 'calendar'}
-            aria-label="月历模式 (安全索引)"
-            title="月历模式 (安全索引)"
+            aria-label="月历模式 (日历网格)"
+            title="月历模式 (日历网格)"
             className={`diary-dashboard__mode-tab${viewMode === 'calendar' ? ' is-active' : ''}`}
             onClick={() => setViewMode('calendar')}
           >
-            <LockIcon />
+            <CalendarGridIcon />
           </button>
           <button
             type="button"
             role="tab"
             aria-selected={viewMode === 'timeline'}
-            aria-label="时间线模式 (内容回顾)"
-            title="时间线模式 (内容回顾)"
+            aria-label="时间线模式 (内容预览)"
+            title="时间线模式 (内容预览)"
             className={`diary-dashboard__mode-tab${viewMode === 'timeline' ? ' is-active' : ''}`}
             onClick={() => setViewMode('timeline')}
           >
-            <EyeIcon />
+            <FocusFrameIcon />
           </button>
         </div>
       </div>
