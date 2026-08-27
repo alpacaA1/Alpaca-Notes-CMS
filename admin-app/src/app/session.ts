@@ -178,6 +178,78 @@ export function readStoredSession(storage?: Pick<Storage, 'getItem'>): SessionSt
   return null
 }
 
+const IDB_AUTH_DB_NAME = 'alpaca-auth-store'
+const IDB_AUTH_STORE_NAME = 'auth'
+const IDB_AUTH_KEY = 'session'
+
+function openAuthDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      return reject(new Error('IndexedDB not supported'))
+    }
+    try {
+      const request = indexedDB.open(IDB_AUTH_DB_NAME, 1)
+      request.onupgradeneeded = () => {
+        const db = request.result
+        if (!db.objectStoreNames.contains(IDB_AUTH_STORE_NAME)) {
+          db.createObjectStore(IDB_AUTH_STORE_NAME)
+        }
+      }
+      request.onsuccess = () => resolve(request.result)
+      request.onerror = () => reject(request.error || new Error('Failed to open auth database'))
+    } catch (caughtError) {
+      reject(caughtError)
+    }
+  })
+}
+
+export async function saveSessionToIndexedDB(session: SessionState): Promise<void> {
+  try {
+    const db = await openAuthDatabase()
+    const tx = db.transaction(IDB_AUTH_STORE_NAME, 'readwrite')
+    const store = tx.objectStore(IDB_AUTH_STORE_NAME)
+    const expiresAt = Date.now() + SESSION_TTL_MS
+    store.put({ token: session.token, expiresAt }, IDB_AUTH_KEY)
+  } catch {
+    // Best-effort storage fallback
+  }
+}
+
+export async function readSessionFromIndexedDB(): Promise<SessionState | null> {
+  try {
+    const db = await openAuthDatabase()
+    const tx = db.transaction(IDB_AUTH_STORE_NAME, 'readonly')
+    const store = tx.objectStore(IDB_AUTH_STORE_NAME)
+    return await new Promise<SessionState | null>((resolve) => {
+      const request = store.get(IDB_AUTH_KEY)
+      request.onsuccess = () => {
+        const result = request.result as Partial<PersistedSessionState> | undefined
+        if (result && typeof result.token === 'string' && result.token.length > 0) {
+          if (result.expiresAt === undefined || result.expiresAt > Date.now()) {
+            resolve({ token: result.token })
+            return
+          }
+        }
+        resolve(null)
+      }
+      request.onerror = () => resolve(null)
+    })
+  } catch {
+    return null
+  }
+}
+
+export async function clearSessionFromIndexedDB(): Promise<void> {
+  try {
+    const db = await openAuthDatabase()
+    const tx = db.transaction(IDB_AUTH_STORE_NAME, 'readwrite')
+    const store = tx.objectStore(IDB_AUTH_STORE_NAME)
+    store.delete(IDB_AUTH_KEY)
+  } catch {
+    // Best-effort cleanup
+  }
+}
+
 export function persistSession(
   session: SessionState,
   storage?: Pick<Storage, 'setItem'>,
@@ -189,6 +261,7 @@ export function persistSession(
 
   writeSessionToStorage(session, window.localStorage)
   clearStoredSessionFrom(window.sessionStorage)
+  void saveSessionToIndexedDB(session)
 }
 
 export function clearStoredSession(storage?: Pick<Storage, 'removeItem'>) {
@@ -200,6 +273,7 @@ export function clearStoredSession(storage?: Pick<Storage, 'removeItem'>) {
   clearStoredSessionFrom(window.localStorage)
   clearStoredSessionFrom(window.sessionStorage)
   deleteCookie(SESSION_STORAGE_KEY)
+  void clearSessionFromIndexedDB()
 }
 
 export function createSessionStore(initialSession: SessionState | null = null) {

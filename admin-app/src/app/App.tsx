@@ -102,7 +102,7 @@ import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
 import type { ContentType, PostIndexItem } from './posts/post-types'
 import { findPostsWithTaxonomy, renameTaxonomyInContent, deleteTaxonomyFromContent, findPostsWithSeries, renameSeriesInContent, deleteSeriesFromContent } from './posts/taxonomy-operations'
-import { AuthError, createSessionStore, loginWithPopup, readStoredSession } from './session'
+import { AuthError, createSessionStore, loginWithPopup, readSessionFromIndexedDB, readStoredSession } from './session'
 
 type IndexedPostsByType = Record<ContentType, PostIndexItem[]>
 type ReadLaterTab = 'info' | 'commentary'
@@ -706,6 +706,24 @@ export default function App() {
     validate,
     markSaved,
   } = useEditorDocument()
+
+  useEffect(() => {
+    if (session) {
+      return
+    }
+
+    let cancelled = false
+    void readSessionFromIndexedDB().then((recoveredSession) => {
+      if (!cancelled && recoveredSession) {
+        sessionStore.setSession(recoveredSession)
+        setSession(recoveredSession)
+      }
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [session, sessionStore])
 
   useEffect(() => {
     if (!isPostListDrawerOpen && !isSettingsDrawerOpen) {
