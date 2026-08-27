@@ -111,25 +111,45 @@ export function formatBatchHighlightQuotesForDiary(items: BatchHighlightQuoteIte
     return ''
   }
 
-  const quoteBlocks = items.map((item) => {
-    const rawQuote = (item.quote || '').trim()
-    const quoteLines = rawQuote
-      ? rawQuote
-          .split('\n')
-          .map((line) => (line.trim() ? `> ${line}` : '>'))
-          .join('\n')
-      : '> (未命名摘录)'
+  // Group consecutive items that share the same cleaned source title
+  const groups: Array<{
+    sourceTitle: string
+    items: Array<{ quote: string; note?: string }>
+  }> = []
 
-    const cleanSourceTitle = cleanSourceTitleForDiary(item.sourceTitle)
-    const parts = [quoteLines, `来源：《${cleanSourceTitle}》`]
-
-    const note = (item.note || '').trim()
-    if (note) {
-      parts.push(`想法：${note}`)
+  for (const item of items) {
+    const cleanTitle = cleanSourceTitleForDiary(item.sourceTitle)
+    const currentGroup = groups[groups.length - 1]
+    if (currentGroup && currentGroup.sourceTitle === cleanTitle) {
+      currentGroup.items.push({ quote: item.quote, note: item.note })
+    } else {
+      groups.push({
+        sourceTitle: cleanTitle,
+        items: [{ quote: item.quote, note: item.note }],
+      })
     }
+  }
 
-    return parts.join('\n\n')
+  const groupBlocks = groups.map((group) => {
+    const itemStrings = group.items.map((item) => {
+      const rawQuote = (item.quote || '').trim()
+      const quoteLines = rawQuote
+        ? rawQuote
+            .split('\n')
+            .map((line) => (line.trim() ? `> ${line}` : '>'))
+            .join('\n')
+        : '> (未命名摘录)'
+
+      const note = (item.note || '').trim()
+      if (note) {
+        return `${quoteLines}\n\n💭 ${note}`
+      }
+      return quoteLines
+    })
+
+    const allQuotesContent = itemStrings.join('\n\n')
+    return `${allQuotesContent}\n\n来源：《${group.sourceTitle}》`
   })
 
-  return quoteBlocks.join('\n\n---\n\n')
+  return groupBlocks.join('\n\n---\n\n')
 }

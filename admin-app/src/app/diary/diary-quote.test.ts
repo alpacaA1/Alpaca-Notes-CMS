@@ -135,22 +135,45 @@ describe('diary-quote utilities', () => {
     expect(cleanSourceTitleForDiary('干净的主标题')).toBe('干净的主标题')
   })
 
-  it('formats batch highlight quotes for diary', () => {
-    const items = [
+  it('formats batch highlight quotes for diary by merging same source into a single footer source', () => {
+    const itemsSameSource = [
       {
         quote: '第一条批注摘录内容',
-        sourceTitle: '认知觉醒精读 | 少数派',
+        sourceTitle: '纳瓦尔宝典精读 | 少数派',
       },
       {
         quote: '第二条批注摘录内容\n包含换行',
         note: '这是关于第二条的思考',
-        sourceTitle: '系统思考笔记',
+        sourceTitle: '纳瓦尔宝典精读',
       },
     ]
 
-    const formatted = formatBatchHighlightQuotesForDiary(items)
-    expect(formatted).toBe(
-      '> 第一条批注摘录内容\n\n来源：《认知觉醒精读》\n\n---\n\n> 第二条批注摘录内容\n> 包含换行\n\n来源：《系统思考笔记》\n\n想法：这是关于第二条的思考',
+    const formattedSame = formatBatchHighlightQuotesForDiary(itemsSameSource)
+    expect(formattedSame).toBe(
+      '> 第一条批注摘录内容\n\n> 第二条批注摘录内容\n> 包含换行\n\n💭 这是关于第二条的思考\n\n来源：《纳瓦尔宝典精读》',
+    )
+  })
+
+  it('formats batch highlight quotes across multiple sources with separators', () => {
+    const itemsMultiSource = [
+      {
+        quote: '纳瓦尔的第一句话',
+        sourceTitle: '纳瓦尔宝典',
+      },
+      {
+        quote: '纳瓦尔的第二句话',
+        sourceTitle: '纳瓦尔宝典',
+      },
+      {
+        quote: '阿德勒的观点',
+        note: '很有启发',
+        sourceTitle: '被讨厌的勇气',
+      },
+    ]
+
+    const formattedMulti = formatBatchHighlightQuotesForDiary(itemsMultiSource)
+    expect(formattedMulti).toBe(
+      '> 纳瓦尔的第一句话\n\n> 纳瓦尔的第二句话\n\n来源：《纳瓦尔宝典》\n\n---\n\n> 阿德勒的观点\n\n💭 很有启发\n\n来源：《被讨厌的勇气》',
     )
   })
 })
