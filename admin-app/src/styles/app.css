@@ -13276,6 +13276,327 @@ textarea {
   background: #c9302c;
 }
 
+/* Multi-select & Batch Quote Styling */
+.annotation-dashboard__multi-select-btn {
+  appearance: none;
+  border: 1px solid var(--admin-line, #e2dfd8);
+  background: var(--admin-panel-bg, #fff);
+  color: var(--admin-text, #2b2825);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.annotation-dashboard__multi-select-btn:hover {
+  background: var(--admin-warm-soft, #f7f4ef);
+  border-color: var(--admin-border-focus, #d4a574);
+}
+
+.annotation-dashboard__multi-select-btn.is-active {
+  background: var(--admin-warm, #c07d3e);
+  color: #fff;
+  border-color: var(--admin-warm, #c07d3e);
+}
+
+.annotation-dashboard__item-checkbox {
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid var(--admin-line-strong, #c8c3ba);
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  color: #fff;
+  flex-shrink: 0;
+  margin-right: 4px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.annotation-dashboard__item-checkbox.is-checked {
+  background: var(--admin-warm, #c07d3e);
+  border-color: var(--admin-warm, #c07d3e);
+}
+
+.annotation-dashboard__item-checkbox svg {
+  width: 11px;
+  height: 11px;
+}
+
+.annotation-dashboard__item-card.is-checked {
+  background: #fcf7ef;
+}
+
+.annotation-dashboard__item-card.is-checked.is-selected {
+  background: #f5eee4;
+}
+
+.annotation-dashboard__item-time {
+  font-size: 0.78rem;
+  color: var(--admin-muted, #857f77);
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+
+.annotation-dashboard__batch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--admin-panel-bg, #fff);
+  border-top: 1px solid var(--admin-line, #eceae5);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.03);
+  flex-shrink: 0;
+  gap: 10px;
+}
+
+.annotation-dashboard__batch-count {
+  font-size: 0.86rem;
+  color: var(--admin-text, #1f1f1f);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.annotation-dashboard__batch-count strong {
+  color: var(--admin-warm, #c07d3e);
+  font-weight: 600;
+}
+
+.annotation-dashboard__batch-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.annotation-dashboard__batch-btn {
+  appearance: none;
+  border: 1px solid var(--admin-line, #e2dfd8);
+  background: var(--admin-panel-bg, #fff);
+  color: var(--admin-text, #2b2825);
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.annotation-dashboard__batch-btn:hover:not(:disabled) {
+  background: var(--admin-warm-soft, #f7f4ef);
+  border-color: var(--admin-border-focus, #d4a574);
+}
+
+.annotation-dashboard__batch-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.annotation-dashboard__batch-primary-btn {
+  appearance: none;
+  border: none;
+  background: var(--admin-warm, #c07d3e);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+  white-space: nowrap;
+}
+
+.annotation-dashboard__batch-primary-btn:hover:not(:disabled) {
+  background: #aa6b30;
+}
+
+.annotation-dashboard__batch-primary-btn:disabled {
+  background: #dfcfbc;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+/* Quote Confirmation Modal */
+.annotation-dashboard__quote-modal {
+  background: var(--admin-panel-bg, #fff);
+  border-radius: 12px;
+  padding: 0;
+  max-width: 580px;
+  width: 100%;
+  max-height: 80vh;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.annotation-dashboard__quote-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--admin-line, #eceae5);
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__quote-modal-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--admin-text, #1f1f1f);
+}
+
+.annotation-dashboard__quote-modal-desc {
+  margin: 4px 0 0;
+  font-size: 0.82rem;
+  color: var(--admin-muted, #7c7770);
+}
+
+.annotation-dashboard__quote-modal-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-size: 1.3rem;
+  color: var(--admin-muted, #7c7770);
+  cursor: pointer;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.annotation-dashboard__quote-modal-close:hover {
+  color: var(--admin-text, #1f1f1f);
+  background: var(--admin-warm-soft, #f7f4ef);
+}
+
+.annotation-dashboard__quote-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.annotation-dashboard__quote-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.annotation-dashboard__quote-queue-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--admin-bg, #fbfaf8);
+  border: 1px solid var(--admin-line, #eceae5);
+}
+
+.annotation-dashboard__quote-queue-index {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-warm, #c07d3e);
+  width: 20px;
+  padding-top: 2px;
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__quote-queue-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.annotation-dashboard__quote-queue-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.48;
+  color: var(--admin-text, #1f1f1f);
+  font-weight: 500;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+.annotation-dashboard__quote-queue-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.78rem;
+  color: var(--admin-muted, #7c7770);
+}
+
+.annotation-dashboard__quote-queue-source {
+  color: var(--admin-muted, #7c7770);
+}
+
+.annotation-dashboard__quote-queue-note {
+  color: var(--admin-warm, #c07d3e);
+}
+
+.annotation-dashboard__quote-queue-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__quote-order-btn,
+.annotation-dashboard__quote-remove-btn {
+  appearance: none;
+  border: 1px solid var(--admin-line, #e2dfd8);
+  background: #fff;
+  color: var(--admin-text, #333);
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.annotation-dashboard__quote-order-btn:hover:not(:disabled) {
+  background: var(--admin-warm-soft, #f7f4ef);
+  border-color: var(--admin-border-focus, #d4a574);
+}
+
+.annotation-dashboard__quote-order-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.annotation-dashboard__quote-remove-btn {
+  color: #c9302c;
+  border-color: #f1cfce;
+  background: #fdf5f5;
+}
+
+.annotation-dashboard__quote-remove-btn:hover {
+  background: #fae2e2;
+  border-color: #d9534f;
+}
+
+.annotation-dashboard__quote-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--admin-line, #eceae5);
+  background: var(--admin-panel-bg, #fff);
+  flex-shrink: 0;
+}
+
 @media (max-width: 960px) {
   .material-organizer-dialog__filter-bar {
     align-items: flex-start;
@@ -14279,6 +14600,73 @@ textarea {
 
 .admin-shell--dark .annotation-dashboard__source-icon {
   background: rgba(255, 255, 255, 0.05);
+}
+
+.admin-shell--dark .annotation-dashboard__item-card.is-checked {
+  background: rgba(192, 125, 62, 0.16);
+}
+
+.admin-shell--dark .annotation-dashboard__item-card.is-checked.is-selected {
+  background: rgba(192, 125, 62, 0.24);
+}
+
+.admin-shell--dark .annotation-dashboard__item-checkbox {
+  background: #25221f;
+  border-color: #555048;
+}
+
+.admin-shell--dark .annotation-dashboard__multi-select-btn {
+  background: #25221f;
+  border-color: #44403a;
+  color: #ece6dc;
+}
+
+.admin-shell--dark .annotation-dashboard__multi-select-btn:hover {
+  background: #2f2a24;
+  border-color: #d4a574;
+}
+
+.admin-shell--dark .annotation-dashboard__batch-bar {
+  background: #1e1c1a;
+  border-top-color: #33302a;
+}
+
+.admin-shell--dark .annotation-dashboard__batch-btn {
+  background: #25221f;
+  border-color: #44403a;
+  color: #ece6dc;
+}
+
+.admin-shell--dark .annotation-dashboard__batch-btn:hover:not(:disabled) {
+  background: #2f2a24;
+  border-color: #d4a574;
+}
+
+.admin-shell--dark .annotation-dashboard__quote-modal {
+  background: #1e1c1a;
+  border: 1px solid #38342e;
+}
+
+.admin-shell--dark .annotation-dashboard__quote-modal-header,
+.admin-shell--dark .annotation-dashboard__quote-modal-footer {
+  border-color: #33302a;
+  background: #1e1c1a;
+}
+
+.admin-shell--dark .annotation-dashboard__quote-queue-item {
+  background: #25221f;
+  border-color: #38342e;
+}
+
+.admin-shell--dark .annotation-dashboard__quote-order-btn {
+  background: #25221f;
+  border-color: #44403a;
+  color: #ece6dc;
+}
+
+.admin-shell--dark .annotation-dashboard__quote-order-btn:hover:not(:disabled) {
+  background: #2f2a24;
+  border-color: #d4a574;
 }
 
 .admin-shell :is(

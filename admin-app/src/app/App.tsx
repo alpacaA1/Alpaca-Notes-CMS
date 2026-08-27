@@ -90,7 +90,13 @@ import {
   type FeedSubscription,
   type FeedSubscriptionsState,
 } from './rss/feed-subscriptions'
-import { appendQuoteToDiaryBody, findTodayDiaryPost, formatHighlightQuoteForDiary } from './diary/diary-quote'
+import {
+  appendQuoteToDiaryBody,
+  findTodayDiaryPost,
+  formatBatchHighlightQuotesForDiary,
+  formatHighlightQuoteForDiary,
+  type BatchHighlightQuoteItem,
+} from './diary/diary-quote'
 import QuickCheckinView from './self-observation/quick-checkin-view'
 import SelfObservationModal from './self-observation/self-observation-modal'
 import { getPendingObservationCount, syncObservationOutbox } from './self-observation/self-observation-outbox'
@@ -3783,6 +3789,110 @@ export default function App() {
     }
   }
 
+  const handleBatchQuoteAnnotationsToDiary = async (annotationsToQuote: Array<{
+    quote: string
+    note?: string
+    postTitle?: string
+  }>): Promise<boolean> => {
+    if (!session) {
+      setError('请先登录后再引用到日记。')
+      return false
+    }
+
+    if (annotationsToQuote.length === 0) {
+      return false
+    }
+
+    try {
+      const now = new Date()
+      const currentDiaryPosts =
+        postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+      const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
+
+      const quoteItems: BatchHighlightQuoteItem[] = annotationsToQuote.map((item) => ({
+        quote: item.quote,
+        note: item.note,
+        sourceTitle: item.postTitle || document?.frontmatter.title || '待读',
+      }))
+
+      const quoteBlock = formatBatchHighlightQuotesForDiary(quoteItems)
+
+      let targetDiary: ParsedPost
+      let isNewDiary = false
+
+      if (todayPost) {
+        const file = readCachedMarkdownFile(todayPost.path, todayPost.sha) ?? (await fetchMarkdownFile(session, todayPost.path))
+        const openedDiary = parsePost(file)
+        const updatedBody = appendQuoteToDiaryBody(openedDiary.body, quoteBlock)
+        targetDiary = {
+          ...openedDiary,
+          body: updatedBody,
+        }
+      } else {
+        isNewDiary = true
+        const newDiary = createNewDiaryEntry(now)
+        newDiary.body = appendQuoteToDiaryBody('', quoteBlock)
+        targetDiary = newDiary
+      }
+
+      const savedContent = serializePost(targetDiary)
+      const savedFile = await saveMarkdownFile(session, {
+        path: targetDiary.path,
+        sha: targetDiary.sha || undefined,
+        content: savedContent,
+      })
+
+      const savedDocument: ParsedPost = {
+        ...targetDiary,
+        path: savedFile.path,
+        sha: savedFile.sha,
+      }
+
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content: savedContent,
+      })
+
+      const nextPostsByType = buildNextPostsByType(
+        { ...postsByType, diary: currentDiaryPosts },
+        'diary',
+        savedPostIndexItem,
+        isNewDiary ? undefined : todayPost?.path,
+      )
+      setPostsByType(nextPostsByType)
+
+      const diaryTitle = savedDocument.frontmatter.title || '今日日记'
+      setError(null)
+      setSuccessMessage(`已引用 ${annotationsToQuote.length} 条批注到今日日记《${diaryTitle}》。`)
+      setToastAction({
+        label: '打开日记',
+        onClick: () => {
+          void (async () => {
+            if (await confirmNavigation()) {
+              setEditorNavigationStack([])
+              openDocument(savedDocument)
+              setAdminView('editor')
+              setContentType('diary')
+            }
+          })()
+        },
+      })
+      return true
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return false
+      }
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return false
+      }
+      setError(caughtError instanceof Error ? caughtError.message : '批量引用到今日日记失败。')
+      return false
+    }
+  }
+
   const handleTranslateReadLater = useCallback(
     async (text: string, title?: string) => {
       if (!session) {
@@ -5099,6 +5209,7 @@ export default function App() {
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
             onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
+            onBatchQuoteAnnotationsToDiary={handleBatchQuoteAnnotationsToDiary}
             onSaveAnnotationComment={(annotation, note) => { void handleSaveAnnotationComment(annotation, note) }}
           />
         </section>

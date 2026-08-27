@@ -213,4 +213,116 @@ describe('App read-later annotations view', () => {
     // Should navigate to reader / editor view
     expect(await screen.findByRole('heading', { name: '原文摘录' })).toBeTruthy()
   })
+
+  it('supports multi-select mode, batch bar operations, confirmation modal, and batch quote to diary', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(postsIndexModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(postsIndexModule, 'buildDiaryIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue(readLaterPosts)
+    const saveMarkdownSpy = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'new-sha',
+    }))
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockImplementation(async (_session, path) => {
+      if (path === readLaterPosts[0].path) {
+        return {
+          path,
+          sha: readLaterPosts[0].sha,
+          content: createReadLaterContent({
+            title: readLaterPosts[0].title,
+            date: readLaterPosts[0].date,
+            sourceName: readLaterPosts[0].sourceName || '',
+            externalUrl: readLaterPosts[0].externalUrl || '',
+            readingStatus: readLaterPosts[0].readingStatus,
+            tags: readLaterPosts[0].tags,
+            annotations: [productAnnotation],
+          }),
+        }
+      }
+
+      return {
+        path,
+        sha: readLaterPosts[1].sha,
+        content: createReadLaterContent({
+          title: readLaterPosts[1].title,
+          date: readLaterPosts[1].date,
+          sourceName: readLaterPosts[1].sourceName || '',
+          externalUrl: readLaterPosts[1].externalUrl || '',
+          readingStatus: readLaterPosts[1].readingStatus,
+          tags: readLaterPosts[1].tags,
+          annotations: [designAnnotation],
+        }),
+      }
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('产品研究 A')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: '批注' }))
+
+    expect(await screen.findByRole('heading', { name: '批注管理' })).toBeTruthy()
+
+    const listSection = screen.getByLabelText('批注列表区')
+
+    // Click "多选" to enter multi-select mode
+    const multiSelectBtn = within(listSection).getByRole('button', { name: '多选' })
+    fireEvent.click(multiSelectBtn)
+
+    // Button should now be "退出多选"
+    expect(within(listSection).getByRole('button', { name: '退出多选' })).toBeTruthy()
+
+    // Checkboxes should be present
+    const checkboxes = within(listSection).getAllByRole('checkbox')
+    expect(checkboxes.length).toBe(2)
+
+    // Click "全选当前结果"
+    const selectAllBtn = within(listSection).getByRole('button', { name: '全选当前结果' })
+    fireEvent.click(selectAllBtn)
+
+    expect(
+      within(listSection).getByText((_content, element) =>
+        Boolean(element?.classList?.contains('annotation-dashboard__batch-count') && element.textContent?.includes('2')),
+      ),
+    ).toBeTruthy()
+
+    // Click "清空"
+    const clearBtn = within(listSection).getByRole('button', { name: '清空' })
+    fireEvent.click(clearBtn)
+    expect(
+      within(listSection).getByText((_content, element) =>
+        Boolean(element?.classList?.contains('annotation-dashboard__batch-count') && element.textContent?.includes('0')),
+      ),
+    ).toBeTruthy()
+
+    // Select first checkbox
+    fireEvent.click(checkboxes[0])
+    expect(
+      within(listSection).getByText((_content, element) =>
+        Boolean(element?.classList?.contains('annotation-dashboard__batch-count') && element.textContent?.includes('1')),
+      ),
+    ).toBeTruthy()
+
+    // Click "引用到今日日记" in batch bar
+    const quoteBatchBtn = within(listSection).getByRole('button', { name: '引用到今日日记' })
+    fireEvent.click(quoteBatchBtn)
+
+    // Modal should appear
+    const modal = screen.getByRole('dialog')
+    expect(within(modal).getByRole('heading', { name: '引用到今日日记' })).toBeTruthy()
+    expect(within(modal).getByText(/已选 1 条批注/)).toBeTruthy()
+
+    // Confirm quote
+    const confirmBtn = within(modal).getByRole('button', { name: /确认引用/ })
+    fireEvent.click(confirmBtn)
+
+    await waitFor(() => {
+      expect(saveMarkdownSpy).toHaveBeenCalled()
+      expect(screen.getByText(/已引用 1 条批注到今日日记/)).toBeTruthy()
+    })
+  })
 })

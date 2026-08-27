@@ -75,14 +75,60 @@ function getAnnotationTimestamp(annotation: ReadLaterAnnotationIndexItem) {
   return 0
 }
 
+export function formatAnnotationTime(
+  timestampValue: string | number | undefined,
+  now = new Date(),
+): string {
+  if (!timestampValue) return ''
+  const date = typeof timestampValue === 'number' ? new Date(timestampValue) : new Date(timestampValue)
+  if (Number.isNaN(date.getTime())) return ''
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const hours = pad(date.getHours())
+  const minutes = pad(date.getMinutes())
+  const month = pad(date.getMonth() + 1)
+  const day = pad(date.getDate())
+  const year = date.getFullYear()
+
+  const nowYear = now.getFullYear()
+  const nowMonth = now.getMonth()
+  const nowDate = now.getDate()
+
+  // Check if today
+  if (year === nowYear && date.getMonth() === nowMonth && date.getDate() === nowDate) {
+    return `今天 ${hours}:${minutes}`
+  }
+
+  // Check if yesterday
+  const yesterday = new Date(nowYear, nowMonth, nowDate - 1)
+  if (
+    year === yesterday.getFullYear() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getDate() === yesterday.getDate()
+  ) {
+    return `昨天 ${hours}:${minutes}`
+  }
+
+  // Same year
+  if (year === nowYear) {
+    return `${month}-${day} ${hours}:${minutes}`
+  }
+
+  // Cross year
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
 export default function ReadLaterAnnotationsView({
   annotations,
   isLoading,
   search,
   onOpenAnnotation,
   onQuoteAnnotationToDiary,
+  onBatchQuoteAnnotationsToDiary,
   onSaveAnnotationComment,
-}: ReadLaterAnnotationsViewProps) {
+}: ReadLaterAnnotationsViewProps & {
+  onBatchQuoteAnnotationsToDiary?: (annotations: ReadLaterAnnotationIndexItem[]) => Promise<boolean | void> | boolean | void
+}) {
   const [selectedSourcePath, setSelectedSourcePath] = useState(ALL_SOURCES)
   const [sourceSearch, setSourceSearch] = useState('')
   const [commentStatus, setCommentStatus] = useState<CommentFilterStatus>(() =>
@@ -96,6 +142,13 @@ export default function ReadLaterAnnotationsView({
   const [isSavingComment, setIsSavingComment] = useState(false)
   const [pendingAnnotationId, setPendingAnnotationId] = useState<string | null>(null)
   const [showUnsavedPrompt, setShowUnsavedPrompt] = useState(false)
+
+  // Multi-select & Batch Quote state
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
+  const [selectedAnnotationIds, setSelectedAnnotationIds] = useState<Set<string>>(() => new Set())
+  const [isQuoteConfirmOpen, setIsQuoteConfirmOpen] = useState(false)
+  const [quoteItemsQueue, setQuoteItemsQueue] = useState<ReadLaterAnnotationIndexItem[]>([])
+  const [isSubmittingBatchQuote, setIsSubmittingBatchQuote] = useState(false)
 
   const commentTextareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -208,7 +261,7 @@ export default function ReadLaterAnnotationsView({
     return nextAnnotations
   }, [filteredAnnotations, sortOrder])
 
-  // Find currently selected annotation
+  // Find currently selected annotation for preview
   const selectedAnnotation = useMemo(
     () => sortedAnnotations.find((item) => item.id === selectedAnnotationId) || null,
     [selectedAnnotationId, sortedAnnotations],
@@ -265,8 +318,54 @@ export default function ReadLaterAnnotationsView({
     savePreference(STORAGE_KEY_SORT_ORDER, nextOrder)
   }
 
+  // Multi-select handlers
+  const handleToggleMultiSelect = () => {
+    setIsMultiSelectMode((prev) => {
+      const next = !prev
+      if (!next) {
+        setSelectedAnnotationIds(new Set())
+      }
+      return next
+    })
+  }
+
+  const handleExitMultiSelect = () => {
+    setIsMultiSelectMode(false)
+    setSelectedAnnotationIds(new Set())
+  }
+
+  const toggleAnnotationSelection = (id: string) => {
+    setSelectedAnnotationIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleSelectAllVisible = () => {
+    setSelectedAnnotationIds((prev) => {
+      const next = new Set(prev)
+      sortedAnnotations.forEach((item) => next.add(item.id))
+      return next
+    })
+  }
+
+  const handleClearSelection = () => {
+    setSelectedAnnotationIds(new Set())
+  }
+
   // Safe navigation with unsaved change check
   const requestSelectAnnotation = (targetId: string) => {
+    if (isMultiSelectMode) {
+      toggleAnnotationSelection(targetId)
+      setSelectedAnnotationId(targetId)
+      return
+    }
+
     if (targetId === selectedAnnotationId) return
 
     if (isCommentDirty) {
@@ -330,6 +429,78 @@ export default function ReadLaterAnnotationsView({
   const handleCancelComment = () => {
     if (selectedAnnotation) {
       setNoteDraft(selectedAnnotation.note || '')
+    }
+  }
+
+  // Batch Quote Confirmation Flow
+  const handleOpenQuoteConfirmModal = () => {
+    if (selectedAnnotationIds.size === 0) return
+    // Collect all selected items in order of original annotations / sorted annotations
+    const queue: ReadLaterAnnotationIndexItem[] = []
+    // Keep order based on sortedAnnotations first, then others
+    const seen = new Set<string>()
+    sortedAnnotations.forEach((item) => {
+      if (selectedAnnotationIds.has(item.id)) {
+        queue.push(item)
+        seen.add(item.id)
+      }
+    })
+    annotations.forEach((item) => {
+      if (selectedAnnotationIds.has(item.id) && !seen.has(item.id)) {
+        queue.push(item)
+        seen.add(item.id)
+      }
+    })
+
+    setQuoteItemsQueue(queue)
+    setIsQuoteConfirmOpen(true)
+  }
+
+  const handleMoveQuoteItem = (index: number, direction: 'up' | 'down') => {
+    setQuoteItemsQueue((prev) => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev
+      const next = [...prev]
+      const [item] = next.splice(index, 1)
+      next.splice(targetIndex, 0, item)
+      return next
+    })
+  }
+
+  const handleRemoveQuoteItem = (index: number) => {
+    setQuoteItemsQueue((prev) => {
+      const next = [...prev]
+      const [removed] = next.splice(index, 1)
+      if (removed) {
+        setSelectedAnnotationIds((prevIds) => {
+          const nextIds = new Set(prevIds)
+          nextIds.delete(removed.id)
+          return nextIds
+        })
+      }
+      return next
+    })
+  }
+
+  const handleConfirmBatchQuote = async () => {
+    if (quoteItemsQueue.length === 0) return
+
+    setIsSubmittingBatchQuote(true)
+    try {
+      if (onBatchQuoteAnnotationsToDiary) {
+        await onBatchQuoteAnnotationsToDiary(quoteItemsQueue)
+      } else if (onQuoteAnnotationToDiary) {
+        for (const item of quoteItemsQueue) {
+          await onQuoteAnnotationToDiary(item)
+        }
+      }
+      setIsQuoteConfirmOpen(false)
+      setIsMultiSelectMode(false)
+      setSelectedAnnotationIds(new Set())
+    } catch {
+      // Handled by parent
+    } finally {
+      setIsSubmittingBatchQuote(false)
     }
   }
 
@@ -444,6 +615,14 @@ export default function ReadLaterAnnotationsView({
                   onChange={handleSortOrderChange}
                 />
               </div>
+
+              <button
+                type="button"
+                className={`annotation-dashboard__multi-select-btn${isMultiSelectMode ? ' is-active' : ''}`}
+                onClick={handleToggleMultiSelect}
+              >
+                {isMultiSelectMode ? '退出多选' : '多选'}
+              </button>
             </div>
 
             <div className="annotation-dashboard__list-count">
@@ -464,12 +643,14 @@ export default function ReadLaterAnnotationsView({
             ) : (
               sortedAnnotations.map((annotation) => {
                 const isSelected = annotation.id === selectedAnnotationId
+                const isChecked = selectedAnnotationIds.has(annotation.id)
                 const hasComment = annotation.note.trim().length > 0
+                const formattedTime = formatAnnotationTime(getAnnotationTimestamp(annotation))
 
                 return (
                   <article
                     key={annotation.id}
-                    className={`annotation-dashboard__item-card${isSelected ? ' is-selected' : ''}`}
+                    className={`annotation-dashboard__item-card${isSelected ? ' is-selected' : ''}${isChecked ? ' is-checked' : ''}`}
                     onClick={() => requestSelectAnnotation(annotation.id)}
                     role="button"
                     tabIndex={0}
@@ -480,6 +661,32 @@ export default function ReadLaterAnnotationsView({
                       }
                     }}
                   >
+                    {isMultiSelectMode ? (
+                      <div
+                        className={`annotation-dashboard__item-checkbox${isChecked ? ' is-checked' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleAnnotationSelection(annotation.id)
+                        }}
+                        role="checkbox"
+                        aria-checked={isChecked}
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            toggleAnnotationSelection(annotation.id)
+                          }
+                        }}
+                      >
+                        {isChecked ? (
+                          <svg viewBox="0 0 16 16" fill="currentColor">
+                            <path d="M13.485 3.515a1 1 0 0 1 0 1.414l-7 7a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L6.07 10.515l6.0-6a1 1 0 0 1 1.414 0Z" />
+                          </svg>
+                        ) : null}
+                      </div>
+                    ) : null}
+
                     <div className="annotation-dashboard__item-main">
                       <p className="annotation-dashboard__item-quote">
                         {getAnnotationQuoteText(annotation.quote)}
@@ -496,16 +703,64 @@ export default function ReadLaterAnnotationsView({
                         ) : null}
                       </div>
                     </div>
-                    <span className="annotation-dashboard__item-chevron" aria-hidden="true">
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M6 3.5l4.5 4.5-4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
+
+                    {formattedTime ? (
+                      <span className="annotation-dashboard__item-time">{formattedTime}</span>
+                    ) : null}
+
+                    {!isMultiSelectMode ? (
+                      <span className="annotation-dashboard__item-chevron" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8">
+                          <path d="M6 3.5l4.5 4.5-4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </span>
+                    ) : null}
                   </article>
                 )
               })
             )}
           </div>
+
+          {/* Batch Action Bar */}
+          {isMultiSelectMode ? (
+            <div className="annotation-dashboard__batch-bar">
+              <div className="annotation-dashboard__batch-count">
+                已选 <strong>{selectedAnnotationIds.size}</strong> 条
+              </div>
+              <div className="annotation-dashboard__batch-actions">
+                <button
+                  type="button"
+                  className="annotation-dashboard__batch-btn"
+                  onClick={handleSelectAllVisible}
+                >
+                  全选当前结果
+                </button>
+                <button
+                  type="button"
+                  className="annotation-dashboard__batch-btn"
+                  onClick={handleClearSelection}
+                  disabled={selectedAnnotationIds.size === 0}
+                >
+                  清空
+                </button>
+                <button
+                  type="button"
+                  className="annotation-dashboard__batch-btn"
+                  onClick={handleExitMultiSelect}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="annotation-dashboard__batch-primary-btn"
+                  onClick={handleOpenQuoteConfirmModal}
+                  disabled={selectedAnnotationIds.size === 0}
+                >
+                  引用到今日日记
+                </button>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         {/* Right Column: 批注详情与评论编辑区 */}
@@ -649,6 +904,102 @@ export default function ReadLaterAnnotationsView({
           )}
         </section>
       </div>
+
+      {/* Batch Quote Confirmation Modal */}
+      {isQuoteConfirmOpen ? (
+        <div className="annotation-dashboard__prompt-overlay" role="dialog" aria-modal="true">
+          <div className="annotation-dashboard__quote-modal">
+            <header className="annotation-dashboard__quote-modal-header">
+              <div>
+                <h3 className="annotation-dashboard__quote-modal-title">引用到今日日记</h3>
+                <p className="annotation-dashboard__quote-modal-desc">
+                  已选 {quoteItemsQueue.length} 条批注，可拖动或点击箭头调整顺序
+                </p>
+              </div>
+              <button
+                type="button"
+                className="annotation-dashboard__quote-modal-close"
+                onClick={() => setIsQuoteConfirmOpen(false)}
+                aria-label="关闭"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="annotation-dashboard__quote-modal-body">
+              <div className="annotation-dashboard__quote-queue-list">
+                {quoteItemsQueue.map((item, index) => (
+                  <div key={item.id} className="annotation-dashboard__quote-queue-item">
+                    <div className="annotation-dashboard__quote-queue-index">{index + 1}</div>
+                    <div className="annotation-dashboard__quote-queue-content">
+                      <p className="annotation-dashboard__quote-queue-text">
+                        {getAnnotationQuoteText(item.quote)}
+                      </p>
+                      <div className="annotation-dashboard__quote-queue-meta">
+                        <span className="annotation-dashboard__quote-queue-source">
+                          来源：《{item.postTitle}》
+                        </span>
+                        {item.note.trim() ? (
+                          <span className="annotation-dashboard__quote-queue-note">
+                            想法：{item.note.trim()}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="annotation-dashboard__quote-queue-actions">
+                      <button
+                        type="button"
+                        className="annotation-dashboard__quote-order-btn"
+                        onClick={() => handleMoveQuoteItem(index, 'up')}
+                        disabled={index === 0}
+                        title="上移"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        type="button"
+                        className="annotation-dashboard__quote-order-btn"
+                        onClick={() => handleMoveQuoteItem(index, 'down')}
+                        disabled={index === quoteItemsQueue.length - 1}
+                        title="下移"
+                      >
+                        ↓
+                      </button>
+                      <button
+                        type="button"
+                        className="annotation-dashboard__quote-remove-btn"
+                        onClick={() => handleRemoveQuoteItem(index)}
+                        title="移除"
+                      >
+                        移除
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <footer className="annotation-dashboard__quote-modal-footer">
+              <button
+                type="button"
+                className="annotation-dashboard__prompt-btn annotation-dashboard__prompt-btn--cancel"
+                onClick={() => setIsQuoteConfirmOpen(false)}
+                disabled={isSubmittingBatchQuote}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="annotation-dashboard__batch-primary-btn"
+                onClick={() => { void handleConfirmBatchQuote() }}
+                disabled={quoteItemsQueue.length === 0 || isSubmittingBatchQuote}
+              >
+                {isSubmittingBatchQuote ? '正在写入日记…' : `确认引用 (${quoteItemsQueue.length} 条)`}
+              </button>
+            </footer>
+          </div>
+        </div>
+      ) : null}
 
       {/* Unsaved Comment Confirmation Prompt */}
       {showUnsavedPrompt ? (

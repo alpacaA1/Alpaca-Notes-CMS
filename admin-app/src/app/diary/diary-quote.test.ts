@@ -4,6 +4,7 @@ import {
   appendQuoteToDiaryBody,
   cleanSourceTitleForDiary,
   findTodayDiaryPost,
+  formatBatchHighlightQuotesForDiary,
   formatHighlightQuoteForDiary,
   getTodayDateString,
 } from './diary-quote'
@@ -132,5 +133,24 @@ describe('diary-quote utilities', () => {
     expect(cleanSourceTitleForDiary('AI 发展年度回顾 — 36氪')).toBe('AI 发展年度回顾')
     expect(cleanSourceTitleForDiary('独立开发的思考 _ 知乎')).toBe('独立开发的思考')
     expect(cleanSourceTitleForDiary('干净的主标题')).toBe('干净的主标题')
+  })
+
+  it('formats batch highlight quotes for diary', () => {
+    const items = [
+      {
+        quote: '第一条批注摘录内容',
+        sourceTitle: '认知觉醒精读 | 少数派',
+      },
+      {
+        quote: '第二条批注摘录内容\n包含换行',
+        note: '这是关于第二条的思考',
+        sourceTitle: '系统思考笔记',
+      },
+    ]
+
+    const formatted = formatBatchHighlightQuotesForDiary(items)
+    expect(formatted).toBe(
+      '> 第一条批注摘录内容\n\n来源：《认知觉醒精读》\n\n---\n\n> 第二条批注摘录内容\n> 包含换行\n\n来源：《系统思考笔记》\n\n想法：这是关于第二条的思考',
+    )
   })
 })

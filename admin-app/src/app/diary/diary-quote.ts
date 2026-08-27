@@ -99,3 +99,37 @@ export function appendQuoteToDiaryBody(existingBody: string, quoteBlock: string)
 
   return `${trimmed}\n\n${quoteBlock}\n`
 }
+
+export type BatchHighlightQuoteItem = {
+  quote: string
+  note?: string
+  sourceTitle: string
+}
+
+export function formatBatchHighlightQuotesForDiary(items: BatchHighlightQuoteItem[]): string {
+  if (items.length === 0) {
+    return ''
+  }
+
+  const quoteBlocks = items.map((item) => {
+    const rawQuote = (item.quote || '').trim()
+    const quoteLines = rawQuote
+      ? rawQuote
+          .split('\n')
+          .map((line) => (line.trim() ? `> ${line}` : '>'))
+          .join('\n')
+      : '> (未命名摘录)'
+
+    const cleanSourceTitle = cleanSourceTitleForDiary(item.sourceTitle)
+    const parts = [quoteLines, `来源：《${cleanSourceTitle}》`]
+
+    const note = (item.note || '').trim()
+    if (note) {
+      parts.push(`想法：${note}`)
+    }
+
+    return parts.join('\n\n')
+  })
+
+  return quoteBlocks.join('\n\n---\n\n')
+}
