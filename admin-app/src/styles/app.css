@@ -18446,38 +18446,96 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   line-height: 1.6;
 }
 
-.diary-timeline__quote-text {
-  margin: 0 0 6px;
-  padding-left: 10px;
-  border-left: 3px solid var(--admin-warm, #8d714d);
-  color: var(--admin-text);
-  font-size: 13px;
-  line-height: 1.6;
-  font-style: normal;
+.diary-timeline__quote-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 6px;
 }
 
-.diary-timeline__quote-list {
-  display: grid;
+.diary-timeline__quote-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diary-timeline__quote-group-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--admin-muted, #7c7267);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.diary-timeline__quote-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .diary-timeline__quote-item {
-  padding: 12px 0;
-  border-top: 1px solid var(--admin-line, #eee7de);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.diary-timeline__quote-item:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.diary-timeline__quote-item:last-child {
-  padding-bottom: 0;
-}
-
-.diary-timeline__quote-source {
+.diary-timeline__quote-text {
   margin: 0;
-  font-size: 11px;
-  color: var(--admin-muted);
+  color: var(--admin-text, #2b2825);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  font-style: normal;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+.diary-timeline__quote-text--full {
+  -webkit-line-clamp: unset;
+  display: block;
+}
+
+.diary-timeline__quote-note {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--admin-warm, #c07d3e);
+}
+
+.diary-timeline__quote-expand-btn,
+.diary-timeline__quote-collapse-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  padding: 4px 0;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--admin-warm, #c07d3e);
+  cursor: pointer;
+  text-align: left;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  transition: color 150ms ease;
+}
+
+.diary-timeline__quote-expand-btn:hover,
+.diary-timeline__quote-collapse-btn:hover {
+  color: #aa6b30;
+  text-decoration: underline;
+}
+
+.diary-timeline__expand-btn:focus-visible,
+.diary-timeline__open-btn:focus-visible,
+.diary-timeline__collapse-btn:focus-visible,
+.diary-timeline__quote-expand-btn:focus-visible,
+.diary-timeline__quote-collapse-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(192, 125, 62, 0.35);
+  border-radius: 4px;
 }
 
 .diary-timeline__notes-list {
@@ -18493,6 +18551,64 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   align-items: center;
   padding-top: 12px;
   border-top: 1px solid var(--admin-line);
+}
+
+/* 📖 Single Diary Reader Quotes (无边框留白型) */
+.diary-reader-quotes {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 680px;
+  width: 100%;
+  margin-top: 14px;
+  margin-bottom: 20px;
+}
+
+.diary-reader-quotes__group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diary-reader-quotes__source-header {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--admin-muted, #7c7267);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.diary-reader-quotes__items {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.diary-reader-quotes__item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.diary-reader-quotes__text {
+  margin: 0;
+  font-size: 1.02rem;
+  line-height: 1.82;
+  color: var(--admin-text, #1f1f1f);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.diary-reader-quotes__note {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--admin-warm, #c07d3e);
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 /* 📚 WeRead Sync Dialog */

@@ -20,7 +20,7 @@ import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { translateReadLaterContent } from './read-later/translate-client'
 import { useEditorDocument, type EditorMode } from './editor/use-editor-document'
-import { buildInternalReferenceCandidates, buildInternalReferenceLookup } from './internal-links'
+import { buildInternalReferenceCandidates, buildInternalReferenceLookup, parseInternalReferenceTargetKey } from './internal-links'
 import { createKnowledgeFromSelection, createNewKnowledgeItem } from './knowledge/new-item'
 import { KNOWLEDGE_RANDOM_CATEGORY } from './knowledge/constants'
 import {
@@ -934,12 +934,16 @@ export default function App() {
     return [activeDocumentPost, ...indexedPosts.filter((post) => post.path !== activeDocumentPost.path)]
   }, [document, postsByType.diary, postsByType.knowledge, postsByType.post, postsByType['read-later']])
   const internalReferenceCandidates = useMemo(
-    () => buildInternalReferenceCandidates(internalReferencePosts),
-    [internalReferencePosts],
+    () => buildInternalReferenceCandidates(internalReferencePosts, bookMetas),
+    [bookMetas, internalReferencePosts],
   )
   const internalReferenceLookup = useMemo(
     () => buildInternalReferenceLookup(internalReferencePosts),
     [internalReferencePosts],
+  )
+  const internalReferenceBookLookup = useMemo(
+    () => new Map(bookMetas.map((book) => [`book:${book.id}`, book])),
+    [bookMetas],
   )
   const activeTopicNodeKey =
     document?.contentType === 'post' && document.frontmatter.topic === true
@@ -1939,6 +1943,23 @@ export default function App() {
   }
 
   const handleOpenInternalReference = (targetKey: string) => {
+    const parsedTarget = parseInternalReferenceTargetKey(targetKey)
+    if (parsedTarget?.contentType === 'book') {
+      const targetBook = internalReferenceBookLookup.get(targetKey)
+      if (!targetBook) {
+        setSuccessMessage(null)
+        setError(`未找到书架条目 ${targetKey}。`)
+        return
+      }
+
+      setSearch('')
+      setSuccessMessage(null)
+      setError(null)
+      setAdminView('books')
+      void handleOpenBook(targetBook)
+      return
+    }
+
     const targetPost = internalReferenceLookup.get(targetKey)
     if (!targetPost) {
       setSuccessMessage(null)
@@ -2032,6 +2053,27 @@ export default function App() {
     setError(null)
     setAdminView('books')
   }
+
+  useEffect(() => {
+    if (!session || typeof indexedDB === 'undefined') {
+      return
+    }
+
+    let cancelled = false
+    void listBookMetas()
+      .then((books) => {
+        if (!cancelled) {
+          setBookMetas(books)
+        }
+      })
+      .catch(() => {
+        // 书架元数据预载失败不阻塞文章编辑；进入书架时会展示明确错误。
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [session])
 
   const refreshBookShelf = useCallback(async () => {
     const [metas, counts] = await Promise.all([listBookMetas(), countBookAnnotations()])
@@ -5365,7 +5407,11 @@ export default function App() {
                       onDeleteAnnotation={handleDeleteAnnotation}
                       resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
                       onOpenWikiLink={handleOpenTopicNode}
-                      resolveInternalReferenceTitle={(targetKey) => internalReferenceLookup.get(targetKey)?.title || null}
+                      resolveInternalReferenceTitle={(targetKey) => (
+                        internalReferenceLookup.get(targetKey)?.title
+                        || internalReferenceBookLookup.get(targetKey)?.title
+                        || null
+                      )}
                       onOpenInternalReference={handleOpenInternalReference}
                       onToggleTask={handlePreviewTaskToggle}
                       topicBacklinks={activeTopicBacklinks}

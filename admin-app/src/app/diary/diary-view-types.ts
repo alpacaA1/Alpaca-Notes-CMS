@@ -22,12 +22,31 @@ export interface DiaryMonthStats {
 
 export type DiarySectionType = 'emotion' | 'read-later' | 'note' | 'reading'
 
+export interface DiaryReadLaterQuoteItem {
+  id: string
+  quote: string
+  note?: string
+  sourceTitle: string
+  sourceUrl?: string
+  sourcePath?: string
+  order: number
+}
+
+export interface DiaryReadLaterSourceGroup {
+  sourceTitle: string
+  sourceUrl?: string
+  sourcePath?: string
+  items: DiaryReadLaterQuoteItem[]
+}
+
 export interface DiaryStructuredSection {
   type: DiarySectionType
   timeStr?: string
   title: string
   emotions?: string[]
   event?: string
+  groups?: DiaryReadLaterSourceGroup[]
+  totalQuotesCount?: number
   quote?: string
   source?: string
   items?: string[]

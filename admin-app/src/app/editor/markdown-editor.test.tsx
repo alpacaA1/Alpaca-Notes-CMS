@@ -244,6 +244,33 @@ describe('markdown editor', () => {
     })
   })
 
+  it('inserts a book reference from the suggestion panel after typing [[ query', async () => {
+    const editor = renderControlledEditorWithReferences('', [
+      {
+        targetKey: 'book:book-123',
+        title: '悉达多',
+        contentType: 'book',
+        identifier: 'book-123',
+        keywords: '悉达多 赫尔曼·黑塞',
+        date: '2026-05-11T08:00:00.000Z',
+        path: 'book-123',
+      },
+    ])
+
+    fireEvent.change(editor, { target: { value: '最近在读 [[悉达' } })
+    editor.focus()
+    editor.setSelectionRange(editor.value.length, editor.value.length)
+    fireEvent.select(editor)
+
+    const option = await screen.findByRole('option', { name: /悉达多/ })
+    expect(option.textContent).toContain('书籍')
+    fireEvent.keyDown(editor, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(editor.value).toBe('最近在读 [[book:book-123|悉达多]]')
+    })
+  })
+
   it('dismisses the internal reference suggestion panel without changing the editor value', async () => {
     const editor = renderControlledEditorWithReferences('', [
       {

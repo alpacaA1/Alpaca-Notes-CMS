@@ -80,7 +80,67 @@ date: 2026-08-25 08:00:00
     const quoteSections = summary.sections.filter((section) => section.type === 'read-later')
     const noteSection = summary.sections.find((section) => section.type === 'note')
 
-    expect(quoteSections).toHaveLength(3)
+    expect(quoteSections).toHaveLength(1)
+    expect(quoteSections[0].groups).toHaveLength(1)
+    expect(quoteSections[0].groups?.[0].sourceTitle).toBe('同一本书')
+    expect(quoteSections[0].groups?.[0].items).toHaveLength(3)
     expect(noteSection?.items).toEqual(['今天培训萃取机。'])
+  })
+
+  it('keeps five quotes as five distinct independent items without concatenation', () => {
+    const markdown = `
+## 待读摘录
+
+> 摘录 1：逃避焦虑有四种主要的方法。
+
+> 摘录 2：如果一种抑制强大到足以阻碍我们的愿望。
+
+> 摘录 3：在认为谦虚是一种美德的教条基础之上。
+
+来源：《我们时代的神经症人格》
+
+---
+
+> 摘录 4：智能手机把童年带进了一个无限延伸的扑克机。
+
+> 摘录 5：社交剥夺正在以前所未有的规模重塑童年。
+
+来源：《焦虑的一代》
+`
+    const summary = parseDiarySummaryFromMarkdown(markdown)
+    const quoteSec = summary.sections.find((s) => s.type === 'read-later')
+
+    expect(quoteSec).toBeDefined()
+    expect(quoteSec?.totalQuotesCount).toBe(5)
+    expect(quoteSec?.groups).toHaveLength(2)
+
+    // Group 1: 3 items
+    const g1 = quoteSec?.groups?.[0]
+    expect(g1?.sourceTitle).toBe('我们时代的神经症人格')
+    expect(g1?.items).toHaveLength(3)
+    expect(g1?.items[0].quote).toBe('摘录 1：逃避焦虑有四种主要的方法。')
+    expect(g1?.items[1].quote).toBe('摘录 2：如果一种抑制强大到足以阻碍我们的愿望。')
+    expect(g1?.items[2].quote).toBe('摘录 3：在认为谦虚是一种美德的教条基础之上。')
+
+    // Group 2: 2 items
+    const g2 = quoteSec?.groups?.[1]
+    expect(g2?.sourceTitle).toBe('焦虑的一代')
+    expect(g2?.items).toHaveLength(2)
+    expect(g2?.items[0].quote).toBe('摘录 4：智能手机把童年带进了一个无限延伸的扑克机。')
+    expect(g2?.items[1].quote).toBe('摘录 5：社交剥夺正在以前所未有的规模重塑童年。')
+  })
+
+  it('falls back to 未知来源 when source metadata is missing', () => {
+    const markdown = `
+## 待读摘录
+
+> 孤立的摘录内容
+`
+    const summary = parseDiarySummaryFromMarkdown(markdown)
+    const quoteSec = summary.sections.find((s) => s.type === 'read-later')
+
+    expect(quoteSec).toBeDefined()
+    expect(quoteSec?.groups?.[0].sourceTitle).toBe('未知来源')
+    expect(quoteSec?.groups?.[0].items[0].quote).toBe('孤立的摘录内容')
   })
 })

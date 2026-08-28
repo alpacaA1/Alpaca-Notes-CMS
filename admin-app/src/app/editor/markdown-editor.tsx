@@ -1702,7 +1702,7 @@ export default function MarkdownEditor({
                             {getInternalReferenceTypeLabel(candidate.contentType, candidate.isTopicNode)}
                           </span>
                         </span>
-                        <span className="markdown-editor__reference-option-meta">{candidate.identifier}</span>
+                        <span className="markdown-editor__reference-option-meta">{candidate.displayMeta || candidate.identifier}</span>
                       </button>
                     )
                   })}

@@ -1,19 +1,23 @@
 import type { ContentType, PostIndexItem } from './posts/post-types'
+import type { StoredBookMeta } from './books/book-types'
+
+export type InternalReferenceContentType = ContentType | 'book'
 
 export type InternalReferenceCandidate = {
   targetKey: string
   title: string
-  contentType: ContentType
+  contentType: InternalReferenceContentType
   isTopicNode?: boolean
   identifier: string
   keywords: string
   date: string
   path: string
+  displayMeta?: string
   search?: InternalReferenceCandidateSearchFields
 }
 
 type InternalReferenceSearch = {
-  contentType: ContentType | null
+  contentType: InternalReferenceContentType | null
   query: string
 }
 
@@ -26,7 +30,7 @@ type InternalReferenceCandidateSearchFields = {
   bodyText: string
 }
 
-const INTERNAL_REFERENCE_TYPES: ContentType[] = ['read-later', 'knowledge', 'diary', 'post']
+const INTERNAL_REFERENCE_TYPES: InternalReferenceContentType[] = ['read-later', 'knowledge', 'diary', 'post', 'book']
 const INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH = 3
 
 function normalizeText(value: string) {
@@ -58,7 +62,7 @@ function isTopicNodeCandidate(
   return (post.contentType === 'knowledge' && post.knowledgeKind === 'topic') || (post.contentType === 'post' && post.isTopic === true)
 }
 
-export function getInternalReferenceTypeLabel(contentType: ContentType, isTopicNode = false) {
+export function getInternalReferenceTypeLabel(contentType: InternalReferenceContentType, isTopicNode = false) {
   if (isTopicNode) {
     return '主题'
   }
@@ -75,6 +79,10 @@ export function getInternalReferenceTypeLabel(contentType: ContentType, isTopicN
     return '知识点'
   }
 
+  if (contentType === 'book') {
+    return '书籍'
+  }
+
   return '文章'
 }
 
@@ -85,7 +93,7 @@ export function parseInternalReferenceTargetKey(targetKey: string) {
     return null
   }
 
-  const contentType = trimmedTargetKey.slice(0, separatorIndex) as ContentType
+  const contentType = trimmedTargetKey.slice(0, separatorIndex) as InternalReferenceContentType
   const identifier = trimmedTargetKey.slice(separatorIndex + 1).trim()
   if (!INTERNAL_REFERENCE_TYPES.includes(contentType) || !identifier) {
     return null
@@ -248,7 +256,7 @@ function shouldSearchBody(normalizedQuery: string) {
   return Array.from(compactQuery).length >= INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH
 }
 
-export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
+export function buildInternalReferenceCandidates(posts: PostIndexItem[], books: StoredBookMeta[] = []) {
   const dedupedCandidates = new Map<string, InternalReferenceCandidate>()
 
   posts.forEach((post) => {
@@ -272,6 +280,35 @@ export function buildInternalReferenceCandidates(posts: PostIndexItem[]) {
       date: post.date,
       path: post.path,
       search: buildInternalReferenceCandidateSearchFields(post, title, identifier, targetKeys),
+    })
+  })
+
+  books.forEach((book) => {
+    const targetKey = `book:${book.id}`
+    if (dedupedCandidates.has(targetKey)) {
+      return
+    }
+
+    const title = book.title.trim() || '未命名书籍'
+    const identifier = book.id.trim()
+    const creator = book.creator.trim()
+    dedupedCandidates.set(targetKey, {
+      targetKey,
+      title,
+      contentType: 'book',
+      identifier,
+      keywords: joinSearchSegments([title, creator, identifier, targetKey]),
+      date: book.lastOpenedAt || book.addedAt,
+      path: book.id,
+      displayMeta: creator || book.format?.toUpperCase() || '电子书',
+      search: {
+        normalizedTitle: normalizeText(title),
+        normalizedIdentifier: normalizeText(identifier),
+        normalizedTargetKey: normalizeText(targetKey),
+        strongTerms: normalizeTerms([creator, identifier, targetKey]),
+        auxiliaryTerms: [],
+        bodyText: '',
+      },
     })
   })
 

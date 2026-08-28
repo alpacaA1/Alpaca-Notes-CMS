@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { buildInternalReferenceCandidates, buildInternalReferenceLookup, searchInternalReferenceCandidates } from './internal-links'
+import {
+  buildInternalReferenceCandidates,
+  buildInternalReferenceLookup,
+  parseInternalReferenceTargetKey,
+  searchInternalReferenceCandidates,
+} from './internal-links'
 import { parsePostIndexItem } from './posts/index-posts'
 
 describe('internal reference search', () => {
@@ -133,5 +138,31 @@ aliases:
     })
     expect(lookup.get('book/影响力')?.path).toBe(topicPost.path)
     expect(lookup.get('post:influence/')?.path).toBe(topicPost.path)
+  })
+
+  it('builds searchable book references with a stable book id target', () => {
+    const candidates = buildInternalReferenceCandidates([], [{
+      id: 'book-123',
+      format: 'epub',
+      title: '悉达多',
+      creator: '赫尔曼·黑塞',
+      coverBlob: null,
+      coverSeed: 3,
+      addedAt: '2026-05-01T08:00:00.000Z',
+      lastOpenedAt: '2026-05-11T08:00:00.000Z',
+      progressFraction: 0.4,
+      progressCfi: null,
+    }])
+
+    expect(searchInternalReferenceCandidates(candidates, '悉达多')).toMatchObject([{
+      targetKey: 'book:book-123',
+      title: '悉达多',
+      contentType: 'book',
+    }])
+    expect(searchInternalReferenceCandidates(candidates, '黑塞')).toHaveLength(1)
+    expect(parseInternalReferenceTargetKey('book:book-123')).toEqual({
+      contentType: 'book',
+      identifier: 'book-123',
+    })
   })
 })

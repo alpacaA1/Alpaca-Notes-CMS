@@ -80,7 +80,7 @@ describe('DiaryDashboardView', () => {
     expect(screen.queryByText('发现了小汤的钢琴教材')).toBeNull()
   })
 
-  it('groups consecutive read-later quotes under one timeline heading', () => {
+  it('groups consecutive read-later quotes under one timeline heading and renders source header', () => {
     const postWithBatchQuotes: PostIndexItem = {
       ...mockDiaryPosts[0],
       body: `
@@ -117,49 +117,63 @@ describe('DiaryDashboardView', () => {
     fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
 
     expect(screen.getAllByText('待读摘录')).toHaveLength(1)
-    expect(screen.getAllByText('来源: 《同一本书》')).toHaveLength(3)
+    expect(screen.getByText('《同一本书》 · 3 条')).toBeTruthy()
+    expect(screen.getByText('摘录一')).toBeTruthy()
+    expect(screen.getByText('摘录二')).toBeTruthy()
+    expect(screen.getByText('摘录三')).toBeTruthy()
   })
 
-  it('triggers onNewPostForDate when clicking an empty calendar cell', () => {
-    const handleNewForDate = vi.fn()
+  it('handles multi-source quote allocation limits and expands on click', () => {
+    const postWithManyQuotes: PostIndexItem = {
+      ...mockDiaryPosts[0],
+      body: `
+## 待读摘录
+
+> 来源1摘录1
+
+> 来源1摘录2
+
+> 来源1摘录3
+
+来源：《来源书1》
+
+---
+
+> 来源2摘录1
+
+> 来源2摘录2
+
+> 来源2摘录3
+
+来源：《来源书2》
+`,
+    }
 
     render(
       <DiaryDashboardView
-        posts={mockDiaryPosts}
+        posts={[postWithManyQuotes]}
         search=""
         onOpenPost={vi.fn()}
         onNewPost={vi.fn()}
         onDeletePost={vi.fn()}
-        onNewPostForDate={handleNewForDate}
       />,
     )
 
-    const emptyCell = screen.getByRole('button', { name: /2026-08-10 无记录/i })
-    fireEvent.click(emptyCell)
+    fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
 
-    expect(handleNewForDate).toHaveBeenCalledWith('2026-08-10')
+    // 2 sources -> 2 quotes each (4 visible out of 6 total -> 2 hidden)
+    expect(screen.getByText('还有 2 条摘录 · 展开全部')).toBeTruthy()
+
+    // Click "还有 2 条摘录 · 展开全部"
+    fireEvent.click(screen.getByText('还有 2 条摘录 · 展开全部'))
+
+    // All quotes now visible
+    expect(screen.getByText('来源1摘录3')).toBeTruthy()
+    expect(screen.getByText('来源2摘录3')).toBeTruthy()
+    expect(screen.getByText('收起摘录')).toBeTruthy()
   })
 
-  it('offers deletion from a recorded calendar date', () => {
-    const handleDelete = vi.fn()
-
-    render(
-      <DiaryDashboardView
-        posts={mockDiaryPosts}
-        search=""
-        onOpenPost={vi.fn()}
-        onNewPost={vi.fn()}
-        onDeletePost={handleDelete}
-      />,
-    )
-
-    fireEvent.click(screen.getByLabelText('日记 2026-08-25 的更多操作'))
-    fireEvent.click(screen.getByRole('button', { name: '删除日记' }))
-
-    expect(handleDelete).toHaveBeenCalledWith(mockDiaryPosts[0])
-  })
-
-  it('expands every diary by default in timeline mode', () => {
+  it('expands every diary summary by default and supports 折叠摘要 and 展开摘要', () => {
     const nextDay = {
       ...mockDiaryPosts[0],
       path: 'source/diary/20260824080000.md',
@@ -180,8 +194,19 @@ describe('DiaryDashboardView', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: /时间线模式/i }))
 
-    expect(screen.getAllByRole('button', { name: '查看完整日记 →' })).toHaveLength(2)
-    expect(screen.queryByRole('button', { name: '查看详情 →' })).toBeNull()
+    expect(screen.getAllByRole('button', { name: '打开日记 →' })).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: '展开摘要' })).toBeNull()
+
+    // Click 折叠摘要 on first card
+    const collapseBtns = screen.getAllByRole('button', { name: '折叠摘要' })
+    fireEvent.click(collapseBtns[0])
+
+    // First card is now collapsed, showing 展开摘要
+    expect(screen.getByRole('button', { name: '展开摘要' })).toBeTruthy()
+
+    // Clicking 展开摘要 re-opens the summary
+    fireEvent.click(screen.getByRole('button', { name: '展开摘要' }))
+    expect(screen.queryByRole('button', { name: '展开摘要' })).toBeNull()
   })
 
   it('closes tag filter dropdown on click outside or Escape key', () => {

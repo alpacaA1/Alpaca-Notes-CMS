@@ -1,7 +1,156 @@
-import type { DiaryStructuredSection, ParsedDiarySummary } from './diary-view-types'
+import type {
+  DiaryReadLaterGroup,
+  DiaryReadLaterQuoteItem,
+  DiaryReadLaterSourceGroup,
+  DiaryStructuredSection,
+  ParsedDiarySummary,
+} from './diary-view-types'
 
 const STRUCTURED_QUOTE_METADATA_PATTERN =
   /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)(?:\*\*)?\s*[：:]|^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)(?:\*\*)?\s*[：:]/
+
+export function extractCleanSourceTitle(raw: string): string {
+  let title = (raw || '').trim()
+  if (!title) return '未知来源'
+
+  // If 《书名》, extract inside
+  const bookMatch = title.match(/《([^》]+)》/)
+  if (bookMatch) {
+    title = bookMatch[1].trim()
+  } else {
+    // If [[文章名]], extract inside
+    const wikiMatch = title.match(/\[\[([^\]]+)\]\]/)
+    if (wikiMatch) {
+      title = wikiMatch[1].trim()
+    }
+  }
+
+  // Strip prefixes like 🔗 **来源**： or 来源：
+  title = title.replace(/^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)(?:\*\*)?[：:]\s*/, '').trim()
+
+  // Strip trailing site/author suffix with pipe/underscore/dash:
+  title = title.replace(/\s*[|｜丨_]\s*.*$/, '').trim()
+  title = title.replace(/\s+-\s+[^\-\n]+$/, '').trim()
+  title = title.replace(/\s+(?<!—)—(?!—)\s+[^—\n]+$/, '').trim()
+
+  // Clean remaining wrapping brackets if any
+  title = title.replace(/^[《\["']+|[》\]"']+$/g, '').trim()
+
+  return title || '未知来源'
+}
+
+export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourceGroup[] {
+  const text = (markdown || '').trim()
+  if (!text) return []
+
+  // Extract content within ## 待读摘录 if present, or scan whole text
+  let targetContent = text
+  const h2Match = text.match(/^##\s+(?:(?:🔖|📄)\s*)?待读摘录\s*$/m)
+  if (h2Match && h2Match.index !== undefined) {
+    const startIndex = h2Match.index + h2Match[0].length
+    const rest = text.slice(startIndex)
+    const nextH2 = rest.match(/\n(##\s+[^\n]+)/)
+    if (nextH2 && nextH2.index !== undefined) {
+      targetContent = rest.slice(0, nextH2.index).trim()
+    } else {
+      targetContent = rest.trim()
+    }
+  }
+
+  if (!targetContent) return []
+
+  // Split by horizontal rules `---`
+  const chunks = targetContent.split(/\n\s*---\s*\n/).map((c) => c.trim()).filter(Boolean)
+  const groups: DiaryReadLaterSourceGroup[] = []
+  let globalOrder = 0
+
+  for (const chunk of chunks) {
+    // Check if chunk contains quotes
+    if (!chunk.includes('>')) {
+      continue
+    }
+
+    const lines = chunk.split('\n')
+    let currentSource = ''
+    const quoteItems: Array<{ quote: string; note?: string }> = []
+    let currentQuoteLines: string[] = []
+    let currentNote: string | undefined
+
+    const flushCurrentQuote = () => {
+      if (currentQuoteLines.length > 0) {
+        const fullQuote = currentQuoteLines.join('\n').trim()
+        if (fullQuote && !fullQuote.includes('alpaca:self-observation') && !fullQuote.includes('我现在')) {
+          quoteItems.push({
+            quote: fullQuote,
+            note: currentNote?.trim() || undefined,
+          })
+        }
+        currentQuoteLines = []
+        currentNote = undefined
+      }
+    }
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim()
+
+      // Source line detection: e.g. 来源：《书名》 or 🔗 **来源**：[[书名]]
+      if (STRUCTURED_QUOTE_METADATA_PATTERN.test(line) || /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)/.test(line)) {
+        if (/^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)/.test(line) || /^💭\s*/.test(line)) {
+          // It's a note line
+          const noteText = line.replace(/^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)(?:\*\*)?[：:]\s*|^💭\s*/, '').trim()
+          currentNote = currentNote ? `${currentNote}\n${noteText}` : noteText
+        } else {
+          // It's a source line
+          const sourceRaw = line.replace(/^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)(?:\*\*)?[：:]\s*/, '').trim()
+          currentSource = extractCleanSourceTitle(sourceRaw)
+        }
+        continue
+      }
+
+      if (line.startsWith('💭')) {
+        const noteText = line.replace(/^💭\s*/, '').trim()
+        currentNote = currentNote ? `${currentNote}\n${noteText}` : noteText
+        continue
+      }
+
+      if (line.startsWith('>')) {
+        const quoteText = line.replace(/^>\s?/, '')
+        currentQuoteLines.push(quoteText)
+      } else if (!line) {
+        // Blank line separates distinct quotes
+        flushCurrentQuote()
+      } else if (line.startsWith('###') && line.includes('待读摘录')) {
+        // Sub-heading separator
+        flushCurrentQuote()
+      }
+    }
+    flushCurrentQuote()
+
+    if (quoteItems.length > 0) {
+      const resolvedSource = currentSource || '未知来源'
+      const itemsWithMeta: DiaryReadLaterQuoteItem[] = quoteItems.map((q) => ({
+        id: `quote-${++globalOrder}`,
+        quote: q.quote,
+        note: q.note,
+        sourceTitle: resolvedSource,
+        order: globalOrder,
+      }))
+
+      // Merge with previous group if same source
+      const lastGroup = groups[groups.length - 1]
+      if (lastGroup && lastGroup.sourceTitle === resolvedSource) {
+        lastGroup.items.push(...itemsWithMeta)
+      } else {
+        groups.push({
+          sourceTitle: resolvedSource,
+          items: itemsWithMeta,
+        })
+      }
+    }
+  }
+
+  return groups
+}
 
 export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): ParsedDiarySummary {
   const sections: DiaryStructuredSection[] = []
@@ -51,28 +200,19 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
     })
   }
 
-  // 2. Extract Read-Later Quotes / Blockquotes with source
-  const quoteRegex = /(?:^|\n)(?:###\s*(?:📄\s*)?(\d{1,2}:\d{2})?[^\n]*待读摘录[^\n]*\n+)?((?:>[^\n]+\n*)+)(?:\s*(?:来源|出处)[：:]\s*([^\n]+))?/g
-  let quoteMatch: RegExpExecArray | null
-
-  while ((quoteMatch = quoteRegex.exec(text)) !== null) {
-    const timeStr = quoteMatch[1]
-    const rawQuote = quoteMatch[2]
-      .split('\n')
-      .map((line) => line.replace(/^>\s*/, '').trim())
-      .filter(Boolean)
-      .join('\n')
-    const source = quoteMatch[3]?.trim()
-
-    if (rawQuote && !rawQuote.includes('alpaca:self-observation') && !rawQuote.includes('我现在')) {
-      sections.push({
-        type: 'read-later',
-        timeStr,
-        title: '待读摘录',
-        quote: rawQuote.length > 150 ? `${rawQuote.slice(0, 150)}…` : rawQuote,
-        source: source || '待读收录',
-      })
-    }
+  // 2. Extract Read-Later Quotes with Sources and Groups
+  const readLaterGroups = parseDiaryReadLaterGroups(text)
+  if (readLaterGroups.length > 0) {
+    const totalQuotesCount = readLaterGroups.reduce((acc, g) => acc + g.items.length, 0)
+    sections.push({
+      type: 'read-later',
+      title: '待读摘录',
+      groups: readLaterGroups,
+      totalQuotesCount,
+      quote: readLaterGroups[0]?.items[0]?.quote,
+      source: readLaterGroups[0]?.sourceTitle,
+      quoteCount: totalQuotesCount,
+    })
   }
 
   // 3. Extract General Life Notes / Lists

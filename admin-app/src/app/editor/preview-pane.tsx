@@ -7,6 +7,7 @@ import type { TopicBacklinkItem } from '../knowledge/wiki-links'
 import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
+import { parseDiaryReadLaterGroups } from '../diary/diary-content-parser'
 import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
@@ -1896,6 +1897,9 @@ function renderCollapsibleHeadingSection(
   previewImageUrls?: Record<string, string>,
   wikiLinkOptions?: WikiLinkRenderOptions,
 ): ReactNode {
+  const isReadLaterHeading = /待读摘录/.test(section.title)
+  const readLaterGroups = isReadLaterHeading ? parseDiaryReadLaterGroups(section.body) : []
+
   return (
     <details key={key} className={`preview-heading-group preview-heading-group--level-${section.level}`} open>
       <summary className="preview-heading-group__summary">
@@ -1907,7 +1911,33 @@ function renderCollapsibleHeadingSection(
         </span>
       </summary>
       <div className="preview-heading-group__body">
-        {section.body ? renderMarkdownContent(section.body, previewImageUrls, undefined, wikiLinkOptions) : null}
+        {readLaterGroups.length > 0 ? (
+          <div className="diary-reader-quotes">
+            {readLaterGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="diary-reader-quotes__group">
+                <div className="diary-reader-quotes__source-header">
+                  《{group.sourceTitle}》 · {group.items.length} 条
+                </div>
+                <div className="diary-reader-quotes__items">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="diary-reader-quotes__item">
+                      <p className="diary-reader-quotes__text">
+                        {renderInlineWithLineBreaks(item.quote, previewImageUrls, wikiLinkOptions)}
+                      </p>
+                      {item.note ? (
+                        <p className="diary-reader-quotes__note">
+                          💭 {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : section.body ? (
+          renderMarkdownContent(section.body, previewImageUrls, undefined, wikiLinkOptions)
+        ) : null}
         {section.children.map((childSection, index) =>
           renderCollapsibleHeadingSection(
             childSection,
@@ -2077,6 +2107,9 @@ function renderStructuredMarkdownSection(
   previewImageUrls: Record<string, string> | undefined,
   wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
+  const isReadLaterHeading = /待读摘录/.test(section.title)
+  const readLaterGroups = isReadLaterHeading ? parseDiaryReadLaterGroups(section.body) : []
+
   return (
     <details key={section.id} className="preview-content__section preview-content__section--collapsible" open>
       <summary className="preview-content__section-summary preview-heading-group__summary">
@@ -2088,7 +2121,33 @@ function renderStructuredMarkdownSection(
         </span>
       </summary>
       <div className="preview-content__section-body">
-        {renderContentBlocks(section.body, 'markdown', previewImageUrls, section.id, wikiLinkOptions)}
+        {readLaterGroups.length > 0 ? (
+          <div className="diary-reader-quotes">
+            {readLaterGroups.map((group, groupIdx) => (
+              <div key={groupIdx} className="diary-reader-quotes__group">
+                <div className="diary-reader-quotes__source-header">
+                  《{group.sourceTitle}》 · {group.items.length} 条
+                </div>
+                <div className="diary-reader-quotes__items">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="diary-reader-quotes__item">
+                      <p className="diary-reader-quotes__text">
+                        {renderInlineWithLineBreaks(item.quote, previewImageUrls, wikiLinkOptions)}
+                      </p>
+                      {item.note ? (
+                        <p className="diary-reader-quotes__note">
+                          💭 {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          renderContentBlocks(section.body, 'markdown', previewImageUrls, section.id, wikiLinkOptions)
+        )}
       </div>
     </details>
   )
