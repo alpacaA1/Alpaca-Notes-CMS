@@ -13305,7 +13305,8 @@ textarea {
 
 .annotation-dashboard__multi-select-btn.is-active {
   background: var(--admin-warm, #c07d3e);
-  color: #ffffff;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
   border-color: var(--admin-warm, #c07d3e);
   box-shadow: 0 1px 4px rgba(192, 125, 62, 0.2);
 }
@@ -13384,21 +13385,28 @@ textarea {
 
 .annotation-dashboard__batch-btn {
   appearance: none;
-  border: 1px solid var(--admin-line, #e2dfd8);
-  background: var(--admin-panel-bg, #fff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--admin-line, rgba(111, 87, 57, 0.12));
+  border-radius: 10px;
+  background: var(--admin-surface-strong, #ffffff);
   color: var(--admin-text, #2b2825);
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 0.82rem;
-  font-weight: 500;
+  font-size: 0.84rem;
+  font-weight: 560;
+  line-height: 1.2;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .annotation-dashboard__batch-btn:hover:not(:disabled) {
   background: var(--admin-warm-soft, #f7f4ef);
   border-color: var(--admin-border-focus, #d4a574);
+  color: var(--admin-text, #2b2825);
 }
 
 .annotation-dashboard__batch-btn:disabled {
@@ -13408,28 +13416,40 @@ textarea {
 
 .annotation-dashboard__batch-primary-btn {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 16px;
   border: 1px solid var(--admin-warm, #c07d3e);
+  border-radius: 10px;
   background: var(--admin-warm, #c07d3e);
-  color: #fff;
-  padding: 5px 14px;
-  border-radius: 6px;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
   font-size: 0.84rem;
-  font-weight: 600;
+  font-weight: 560;
+  line-height: 1.2;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: border-color 180ms ease, background 180ms ease, color 180ms ease, box-shadow 180ms ease;
   white-space: nowrap;
+  box-sizing: border-box;
+  box-shadow: 0 1px 4px rgba(192, 125, 62, 0.2);
 }
 
 .annotation-dashboard__batch-primary-btn:hover:not(:disabled) {
   background: #aa6b30;
   border-color: #aa6b30;
-  color: #fff;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .annotation-dashboard__batch-primary-btn:disabled {
   background: var(--admin-warm-soft, #f7f4ef);
-  color: var(--admin-muted, #a8a29a);
-  border: 1px solid var(--admin-line, #e2dfd8);
+  color: var(--admin-muted, #a8a29a) !important;
+  -webkit-text-fill-color: var(--admin-muted, #a8a29a);
+  border: 1px solid var(--admin-line, rgba(111, 87, 57, 0.12));
+  border-radius: 10px;
+  box-shadow: none;
   opacity: 1;
   cursor: not-allowed;
 }
@@ -14657,12 +14677,14 @@ textarea {
 .admin-shell--dark .annotation-dashboard__batch-primary-btn {
   background: var(--admin-warm, #c07d3e);
   border-color: var(--admin-warm, #c07d3e);
-  color: #fff;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff;
 }
 
 .admin-shell--dark .annotation-dashboard__batch-primary-btn:disabled {
   background: #25221f;
-  color: #6d675e;
+  color: #6d675e !important;
+  -webkit-text-fill-color: #6d675e;
   border-color: #38342e;
 }
 
