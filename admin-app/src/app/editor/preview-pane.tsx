@@ -2761,13 +2761,6 @@ export default function PreviewPane({
           : '',
   ].filter(Boolean).join(' ')
 
-  const [activeDiaryMark, setActiveDiaryMark] = useState<{
-    top: number
-    left: number
-    quote: string
-    context?: HighlightContext
-  } | null>(null)
-
   const handleSelectionChange = () => {
     const article = articleRef.current
     const canAnnotateReadLater = isReadLater && Boolean(onCreateAnnotation)
@@ -2880,11 +2873,14 @@ export default function PreviewPane({
             }
           }
         }
-        setActiveDiaryMark({
-          top: rect.top > 72 ? Math.max(12, rect.top - 44) : rect.bottom + 12,
-          left: rect.left + rect.width / 2,
+        setSelectionToolbar({
+          top: Math.max(12, (rect.top || 12) - 52),
+          left: (rect.left || 0) + (rect.width || 0) / 2,
           quote,
-          context: highlightContext,
+          annotationDraft: null,
+          isMarkdownHighlight: true,
+          isExistingHighlight: true,
+          highlightContext,
         })
         return
       }
@@ -2894,7 +2890,6 @@ export default function PreviewPane({
       return
     }
 
-    setActiveDiaryMark(null)
     setAnnotationDeleteTargetId(null)
     onClearActiveAnnotation?.()
     handleSelectionChange()
@@ -2968,27 +2963,6 @@ export default function PreviewPane({
             </button>
           ) : null}
         </div>
-      ) : null}
-      {activeDiaryMark && onUpdateMarkdown ? (
-        <button
-          type="button"
-          className="preview-content__annotation-delete"
-          style={{ top: `${activeDiaryMark.top}px`, left: `${activeDiaryMark.left}px` }}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() => {
-            const nextMarkdown = removeDiaryMarkdownHighlight(
-              markdown,
-              activeDiaryMark.quote,
-              activeDiaryMark.context,
-            )
-            if (nextMarkdown) {
-              onUpdateMarkdown(nextMarkdown)
-            }
-            setActiveDiaryMark(null)
-          }}
-        >
-          取消高亮
-        </button>
       ) : null}
       {activeAnnotationAction && onDeleteAnnotation ? (
         <button
