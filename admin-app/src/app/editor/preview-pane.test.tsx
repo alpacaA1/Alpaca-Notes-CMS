@@ -473,4 +473,90 @@ describe('PreviewPane', () => {
     expect(screen.queryByText(/<!--/)).toBeNull()
     expect(screen.queryByText(/-->/)).toBeNull()
   })
+
+  describe('Article (post) markdown highlighting', () => {
+    it('supports selecting text in article preview and applying markdown highlight ==quote==', async () => {
+      const handleUpdateMarkdown = vi.fn()
+      const markdown = '这是一个关于前端工程化的核心思想解析。'
+
+      const { container } = render(
+        <PreviewPane
+          title="前端工程化"
+          date="2026-08-28 10:00:00"
+          markdown={markdown}
+          contentType="post"
+          onUpdateMarkdown={handleUpdateMarkdown}
+        />,
+      )
+
+      const p = screen.getByText('这是一个关于前端工程化的核心思想解析。')
+      const textNode = p.firstChild as Text
+
+      const rangeMock = {
+        collapsed: false,
+        commonAncestorContainer: p,
+        startContainer: textNode,
+        startOffset: 12,
+        endContainer: textNode,
+        endOffset: 16,
+        getBoundingClientRect: () => ({
+          top: 100,
+          left: 100,
+          width: 40,
+          height: 18,
+          right: 140,
+          bottom: 118,
+        }),
+      }
+
+      const selectionMock = {
+        rangeCount: 1,
+        isCollapsed: false,
+        toString: () => '核心思想',
+        getRangeAt: (_index = 0) => rangeMock,
+        removeAllRanges: vi.fn(),
+      }
+
+      vi.spyOn(window, 'getSelection').mockReturnValue(selectionMock as unknown as Selection)
+
+      const article = container.querySelector('article')!
+      fireEvent.mouseUp(article)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '高亮' })).toBeTruthy()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: '高亮' }))
+
+      expect(handleUpdateMarkdown).toHaveBeenCalledWith('这是一个关于前端工程化的==核心思想==解析。')
+    })
+
+    it('supports cancelling highlight on click of an existing mark in article preview', async () => {
+      const handleUpdateMarkdown = vi.fn()
+      const markdown = '这是一个关于前端工程化的==核心思想==解析。'
+
+      render(
+        <PreviewPane
+          title="前端工程化"
+          date="2026-08-28 10:00:00"
+          markdown={markdown}
+          contentType="post"
+          onUpdateMarkdown={handleUpdateMarkdown}
+        />,
+      )
+
+      const mark = screen.getByText('核心思想')
+      expect(mark.tagName.toLowerCase()).toBe('mark')
+
+      fireEvent.click(mark)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '取消高亮' })).toBeTruthy()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: '取消高亮' }))
+
+      expect(handleUpdateMarkdown).toHaveBeenCalledWith('这是一个关于前端工程化的核心思想解析。')
+    })
+  })
 })

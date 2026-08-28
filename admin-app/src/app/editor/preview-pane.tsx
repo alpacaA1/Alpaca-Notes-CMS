@@ -24,7 +24,7 @@ type SelectionToolbarState = {
   left: number
   quote: string
   annotationDraft: ReadLaterAnnotationDraft | null
-  isDiaryMarkdownHighlight?: boolean
+  isMarkdownHighlight?: boolean
   isExistingHighlight?: boolean
   highlightContext?: HighlightContext
 }
@@ -604,7 +604,7 @@ function getSelectionToolbarState(
   selection: Selection,
   article: HTMLElement,
   isReadLater: boolean,
-  isDiary = false,
+  canHighlightMarkdown = false,
 ) {
   if (selection.rangeCount === 0 || selection.isCollapsed) {
     return null
@@ -651,11 +651,11 @@ function getSelectionToolbarState(
     }
   }
 
-  let isDiaryMarkdownHighlight = false
+  let isMarkdownHighlight = false
   let isExistingHighlight = false
   let highlightContext: HighlightContext | undefined
 
-  if (isDiary) {
+  if (canHighlightMarkdown) {
     const startBlock = getClosestBlockElement(range.startContainer)
     const endBlock = getClosestBlockElement(range.endContainer)
 
@@ -669,7 +669,7 @@ function getSelectionToolbarState(
       return null
     }
 
-    isDiaryMarkdownHighlight = true
+    isMarkdownHighlight = true
     const startElement =
       range.startContainer instanceof HTMLElement
         ? range.startContainer
@@ -692,7 +692,7 @@ function getSelectionToolbarState(
     left: (rect.left || 0) + (rect.width || 0) / 2,
     quote,
     annotationDraft,
-    isDiaryMarkdownHighlight,
+    isMarkdownHighlight,
     isExistingHighlight,
     highlightContext,
   }
@@ -2771,9 +2771,9 @@ export default function PreviewPane({
   const handleSelectionChange = () => {
     const article = articleRef.current
     const canAnnotateReadLater = isReadLater && Boolean(onCreateAnnotation)
-    const canHighlightDiary = isDiary && Boolean(onUpdateMarkdown)
+    const canHighlightMarkdown = (isDiary || !isReadLater) && Boolean(onUpdateMarkdown)
 
-    if (!canAnnotateReadLater && !canCreateKnowledge && !canHighlightDiary) {
+    if (!canAnnotateReadLater && !canCreateKnowledge && !canHighlightMarkdown) {
       if (selectionToolbar) {
         setSelectionToolbar(null)
       }
@@ -2792,7 +2792,7 @@ export default function PreviewPane({
       return
     }
 
-    const nextToolbar = getSelectionToolbarState(selection, article, isReadLater, isDiary)
+    const nextToolbar = getSelectionToolbarState(selection, article, isReadLater, canHighlightMarkdown)
     setSelectionToolbar(nextToolbar)
   }
 
@@ -2862,7 +2862,8 @@ export default function PreviewPane({
       return
     }
 
-    if (isDiary) {
+    const canHighlightMarkdown = (isDiary || !isReadLater) && Boolean(onUpdateMarkdown)
+    if (canHighlightMarkdown) {
       const mark = target.closest<HTMLElement>('mark.preview-content__markdown-highlight')
       if (mark) {
         const rect = mark.getBoundingClientRect()
@@ -2940,7 +2941,7 @@ export default function PreviewPane({
           style={{ top: `${selectionToolbar.top}px`, left: `${selectionToolbar.left}px` }}
           onMouseDown={(event) => event.preventDefault()}
         >
-          {selectionToolbar.isDiaryMarkdownHighlight && onUpdateMarkdown ? (
+          {selectionToolbar.isMarkdownHighlight && onUpdateMarkdown ? (
             selectionToolbar.isExistingHighlight ? (
               <button type="button" onClick={handleCancelDiaryHighlight}>
                 取消高亮
