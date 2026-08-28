@@ -5397,6 +5397,7 @@ export default function App() {
                       onActiveOutlineTargetChange={setActiveOutlineTargetId}
                       onCreateAnnotation={handleCreateReadLaterAnnotation}
                       onCreateKnowledge={handleCreateKnowledgeFromSelection}
+                      onUpdateMarkdown={updateBody}
                       onTranslateReadLater={handleTranslateReadLater}
                       onSelectAnnotation={handleSelectAnnotation}
                       onClearActiveAnnotation={handleClearActiveAnnotation}

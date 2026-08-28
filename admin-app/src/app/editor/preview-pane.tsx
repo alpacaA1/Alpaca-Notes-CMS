@@ -8,6 +8,11 @@ import type { ReadLaterSectionKey, ReadingStatus } from '../posts/parse-post'
 import type { ContentType, KnowledgeSourceType } from '../posts/post-types'
 import type { ReadLaterAnnotation } from '../read-later/item-types'
 import { parseDiaryReadLaterGroups } from '../diary/diary-content-parser'
+import {
+  applyDiaryMarkdownHighlight,
+  removeDiaryMarkdownHighlight,
+  type HighlightContext,
+} from '../diary/diary-highlight'
 import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
@@ -19,6 +24,9 @@ type SelectionToolbarState = {
   left: number
   quote: string
   annotationDraft: ReadLaterAnnotationDraft | null
+  isDiaryMarkdownHighlight?: boolean
+  isExistingHighlight?: boolean
+  highlightContext?: HighlightContext
 }
 
 type AnnotationActionPosition = {
@@ -99,6 +107,7 @@ type PreviewPaneProps = {
   onActiveOutlineTargetChange?: (targetId: string) => void
   onCreateAnnotation?: (draft: ReadLaterAnnotationDraft, action: ReadLaterAnnotationAction) => void
   onCreateKnowledge?: (quote: string) => void
+  onUpdateMarkdown?: (nextMarkdown: string) => void
   onTranslateReadLater?: (text: string, title?: string) => Promise<string>
   onSelectAnnotation?: (annotationId: string) => void
   onClearActiveAnnotation?: () => void
@@ -403,18 +412,20 @@ function unwrapHighlight(mark: HTMLElement) {
   parent.normalize()
 }
 
-function collectTextNodes(root: Node) {
+function collectTextNodes(root: Node): Text[] {
   const nodes: Text[] = []
-  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  let currentNode = walker.nextNode()
-
-  while (currentNode) {
-    if (currentNode.textContent) {
-      nodes.push(currentNode as Text)
+  const traverse = (node: Node) => {
+    if (node.nodeType === 3) {
+      if (node.textContent) {
+        nodes.push(node as Text)
+      }
+    } else {
+      for (let i = 0; i < node.childNodes.length; i++) {
+        traverse(node.childNodes[i])
+      }
     }
-    currentNode = walker.nextNode()
   }
-
+  traverse(root)
   return nodes
 }
 
@@ -551,29 +562,60 @@ function highlightAnnotationInSection(
   })
 }
 
-function getClosestSectionElement(node: Node | null) {
+function getClosestSectionElement(node: Node | null): HTMLElement | null {
   if (!node) {
     return null
   }
 
-  if (node instanceof HTMLElement) {
-    return node.closest<HTMLElement>('[data-read-later-section-key]')
-  }
-
-  return node.parentElement?.closest<HTMLElement>('[data-read-later-section-key]') || null
+  const element =
+    node instanceof HTMLElement ? node : (node.parentElement || (node.parentNode as HTMLElement | null))
+  return element?.closest<HTMLElement>('[data-read-later-section-key]') || null
 }
 
-function getSelectionToolbarState(selection: Selection, article: HTMLElement, isReadLater: boolean) {
+function getClosestBlockElement(node: Node | null): HTMLElement | null {
+  if (!node) {
+    return null
+  }
+  const element =
+    node instanceof HTMLElement ? node : (node.parentElement || (node.parentNode as HTMLElement | null))
+  if (!element) {
+    return null
+  }
+  return element.closest<HTMLElement>(
+    'p, blockquote, li, .diary-reader-quotes__item, .diary-reader-quotes__text, h1, h2, h3, h4, h5, h6, pre, code, a',
+  )
+}
+
+function isNodeInsideArticle(article: HTMLElement, node: Node | null): boolean {
+  if (!node) {
+    return false
+  }
+  let current: Node | null = node
+  while (current) {
+    if (current === article) {
+      return true
+    }
+    current = current.parentNode
+  }
+  return false
+}
+
+function getSelectionToolbarState(
+  selection: Selection,
+  article: HTMLElement,
+  isReadLater: boolean,
+  isDiary = false,
+) {
   if (selection.rangeCount === 0 || selection.isCollapsed) {
     return null
   }
 
   const range = selection.getRangeAt(0)
-  if (range.collapsed) {
+  if (!range || range.collapsed) {
     return null
   }
 
-  if (!article.contains(range.commonAncestorContainer)) {
+  if (!isNodeInsideArticle(article, range.commonAncestorContainer)) {
     return null
   }
 
@@ -582,10 +624,7 @@ function getSelectionToolbarState(selection: Selection, article: HTMLElement, is
     return null
   }
 
-  const rect = range.getBoundingClientRect()
-  if (!rect.width && !rect.height) {
-    return null
-  }
+  const rect = range.getBoundingClientRect?.() || { top: 12, left: 12, width: 0, height: 0 }
 
   let annotationDraft: ReadLaterAnnotationDraft | null = null
   if (isReadLater) {
@@ -612,11 +651,50 @@ function getSelectionToolbarState(selection: Selection, article: HTMLElement, is
     }
   }
 
+  let isDiaryMarkdownHighlight = false
+  let isExistingHighlight = false
+  let highlightContext: HighlightContext | undefined
+
+  if (isDiary) {
+    const startBlock = getClosestBlockElement(range.startContainer)
+    const endBlock = getClosestBlockElement(range.endContainer)
+
+    // Selection must be contained within a single paragraph / quote block
+    if (!startBlock || startBlock !== endBlock) {
+      return null
+    }
+
+    // Do not highlight code blocks or hyperlinks
+    if (startBlock.closest('pre, code, a')) {
+      return null
+    }
+
+    isDiaryMarkdownHighlight = true
+    const startElement =
+      range.startContainer instanceof HTMLElement
+        ? range.startContainer
+        : (range.startContainer.parentElement || (range.startContainer.parentNode as HTMLElement | null))
+    isExistingHighlight = Boolean(startElement?.closest('mark'))
+
+    const startOffset = getBoundaryTextOffset(startBlock, range.startContainer, range.startOffset)
+    const endOffset = getBoundaryTextOffset(startBlock, range.endContainer, range.endOffset)
+    if (startOffset !== null && endOffset !== null && endOffset > startOffset) {
+      const fullText = startBlock.textContent || ''
+      highlightContext = {
+        prefix: fullText.slice(Math.max(0, startOffset - 20), startOffset),
+        suffix: fullText.slice(endOffset, Math.min(fullText.length, endOffset + 20)),
+      }
+    }
+  }
+
   return {
-    top: Math.max(12, rect.top - 52),
-    left: rect.left + rect.width / 2,
+    top: Math.max(12, (rect.top || 12) - 52),
+    left: (rect.left || 0) + (rect.width || 0) / 2,
     quote,
     annotationDraft,
+    isDiaryMarkdownHighlight,
+    isExistingHighlight,
+    highlightContext,
   }
 }
 
@@ -2196,6 +2274,8 @@ function parseStructuredMarkdownSections(markdown: string): { lead: string; sect
   }
 }
 
+const EMPTY_ANNOTATIONS: ReadLaterAnnotation[] = []
+
 export default function PreviewPane({
   title,
   date,
@@ -2212,7 +2292,7 @@ export default function PreviewPane({
   sourceUrl,
   contentType = 'post',
   previewImageUrls,
-  annotations = [],
+  annotations = EMPTY_ANNOTATIONS,
   activeAnnotationId = null,
   editingAnnotationId = null,
   annotationNoteDraft,
@@ -2221,6 +2301,7 @@ export default function PreviewPane({
   onActiveOutlineTargetChange,
   onCreateAnnotation,
   onCreateKnowledge,
+  onUpdateMarkdown,
   onTranslateReadLater,
   onSelectAnnotation,
   onClearActiveAnnotation,
@@ -2680,23 +2761,71 @@ export default function PreviewPane({
           : '',
   ].filter(Boolean).join(' ')
 
+  const [activeDiaryMark, setActiveDiaryMark] = useState<{
+    top: number
+    left: number
+    quote: string
+    context?: HighlightContext
+  } | null>(null)
+
   const handleSelectionChange = () => {
     const article = articleRef.current
-    if ((!isReadLater || !onCreateAnnotation) && !canCreateKnowledge) {
+    const canAnnotateReadLater = isReadLater && Boolean(onCreateAnnotation)
+    const canHighlightDiary = isDiary && Boolean(onUpdateMarkdown)
+
+    if (!canAnnotateReadLater && !canCreateKnowledge && !canHighlightDiary) {
       if (selectionToolbar) {
         setSelectionToolbar(null)
       }
       return
     }
 
-    const selection = window.getSelection()
-    if (!selection || !article) {
+    if (!article) {
       setSelectionToolbar(null)
       return
     }
 
-    const nextToolbar = getSelectionToolbarState(selection, article, isReadLater)
+    const selection = typeof window !== 'undefined' && window.getSelection ? window.getSelection() : null
+
+    if (!selection) {
+      setSelectionToolbar(null)
+      return
+    }
+
+    const nextToolbar = getSelectionToolbarState(selection, article, isReadLater, isDiary)
     setSelectionToolbar(nextToolbar)
+  }
+
+  const handleApplyDiaryHighlight = () => {
+    if (!selectionToolbar?.quote || !onUpdateMarkdown) {
+      return
+    }
+    const nextMarkdown = applyDiaryMarkdownHighlight(
+      markdown,
+      selectionToolbar.quote,
+      selectionToolbar.highlightContext,
+    )
+    if (nextMarkdown) {
+      onUpdateMarkdown(nextMarkdown)
+    }
+    clearSelection()
+    setSelectionToolbar(null)
+  }
+
+  const handleCancelDiaryHighlight = () => {
+    if (!selectionToolbar?.quote || !onUpdateMarkdown) {
+      return
+    }
+    const nextMarkdown = removeDiaryMarkdownHighlight(
+      markdown,
+      selectionToolbar.quote,
+      selectionToolbar.highlightContext,
+    )
+    if (nextMarkdown) {
+      onUpdateMarkdown(nextMarkdown)
+    }
+    clearSelection()
+    setSelectionToolbar(null)
   }
 
   const handleCreateAnnotationClick = (action: ReadLaterAnnotationAction) => {
@@ -2733,12 +2862,41 @@ export default function PreviewPane({
       return
     }
 
+    if (isDiary) {
+      const mark = target.closest<HTMLElement>('mark.preview-content__markdown-highlight')
+      if (mark) {
+        const rect = mark.getBoundingClientRect()
+        const quote = mark.textContent?.trim() || ''
+        const block = getClosestBlockElement(mark)
+        let highlightContext: HighlightContext | undefined
+        if (block) {
+          const fullText = block.textContent || ''
+          const idx = fullText.indexOf(quote)
+          if (idx !== -1) {
+            highlightContext = {
+              prefix: fullText.slice(Math.max(0, idx - 20), idx),
+              suffix: fullText.slice(idx + quote.length, Math.min(fullText.length, idx + quote.length + 20)),
+            }
+          }
+        }
+        setActiveDiaryMark({
+          top: rect.top > 72 ? Math.max(12, rect.top - 44) : rect.bottom + 12,
+          left: rect.left + rect.width / 2,
+          quote,
+          context: highlightContext,
+        })
+        return
+      }
+    }
+
     if (target.closest('mark[data-reader-annotation-id]')) {
       return
     }
 
+    setActiveDiaryMark(null)
     setAnnotationDeleteTargetId(null)
     onClearActiveAnnotation?.()
+    handleSelectionChange()
   }
 
   const handleDeleteAnnotationClick = (event: ReactMouseEvent<HTMLButtonElement>) => {
@@ -2782,6 +2940,17 @@ export default function PreviewPane({
           style={{ top: `${selectionToolbar.top}px`, left: `${selectionToolbar.left}px` }}
           onMouseDown={(event) => event.preventDefault()}
         >
+          {selectionToolbar.isDiaryMarkdownHighlight && onUpdateMarkdown ? (
+            selectionToolbar.isExistingHighlight ? (
+              <button type="button" onClick={handleCancelDiaryHighlight}>
+                取消高亮
+              </button>
+            ) : (
+              <button type="button" onClick={handleApplyDiaryHighlight}>
+                高亮
+              </button>
+            )
+          ) : null}
           {selectionToolbar.annotationDraft && onCreateAnnotation ? (
             <>
               <button type="button" onClick={() => handleCreateAnnotationClick('highlight')}>
@@ -2798,6 +2967,27 @@ export default function PreviewPane({
             </button>
           ) : null}
         </div>
+      ) : null}
+      {activeDiaryMark && onUpdateMarkdown ? (
+        <button
+          type="button"
+          className="preview-content__annotation-delete"
+          style={{ top: `${activeDiaryMark.top}px`, left: `${activeDiaryMark.left}px` }}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            const nextMarkdown = removeDiaryMarkdownHighlight(
+              markdown,
+              activeDiaryMark.quote,
+              activeDiaryMark.context,
+            )
+            if (nextMarkdown) {
+              onUpdateMarkdown(nextMarkdown)
+            }
+            setActiveDiaryMark(null)
+          }}
+        >
+          取消高亮
+        </button>
       ) : null}
       {activeAnnotationAction && onDeleteAnnotation ? (
         <button

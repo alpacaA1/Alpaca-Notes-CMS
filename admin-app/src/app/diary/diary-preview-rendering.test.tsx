@@ -1,10 +1,16 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { computeTimelineQuoteDisplay } from './diary-timeline-preview'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import DiaryTimelinePreview, { computeTimelineQuoteDisplay } from './diary-timeline-preview'
 import PreviewPane from '../editor/preview-pane'
 import type { DiaryReadLaterSourceGroup } from './diary-view-types'
+import type { PostIndexItem } from '../posts/post-types'
 
 describe('diary-preview-rendering', () => {
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
+
   describe('computeTimelineQuoteDisplay', () => {
     it('allocates max 4 items for 1 source', () => {
       const groups: DiaryReadLaterSourceGroup[] = [
@@ -153,6 +159,128 @@ describe('diary-preview-rendering', () => {
       expect(container.querySelector('.diary-reader-quotes')).toBeTruthy()
       expect(container.querySelectorAll('.diary-reader-quotes__group')).toHaveLength(2)
       expect(container.querySelectorAll('.diary-reader-quotes__item')).toHaveLength(5)
+    })
+  })
+
+  describe('Diary text highlighting in single preview', () => {
+    it('supports selecting text and applying markdown highlight ==quote==', async () => {
+      const handleUpdateMarkdown = vi.fn()
+      const markdown = '今天完成了一个核心功能的开发。'
+
+      render(
+        <PreviewPane
+          title="2026-08-28-星期五"
+          date="2026-08-28 08:00:00"
+          markdown={markdown}
+          contentType="diary"
+          onUpdateMarkdown={handleUpdateMarkdown}
+        />,
+      )
+
+      const p = screen.getByText('今天完成了一个核心功能的开发。')
+      const textNode = p.firstChild as Text
+
+      const rangeMock = {
+        collapsed: false,
+        commonAncestorContainer: p,
+        startContainer: textNode,
+        startOffset: 6,
+        endContainer: textNode,
+        endOffset: 10,
+        getBoundingClientRect: () => ({
+          top: 100,
+          left: 100,
+          width: 40,
+          height: 18,
+          right: 140,
+          bottom: 118,
+        }),
+      }
+
+      const selectionMock = {
+        rangeCount: 1,
+        isCollapsed: false,
+        toString: () => '核心功能',
+        getRangeAt: (_index = 0) => rangeMock,
+        removeAllRanges: vi.fn(),
+      }
+
+      vi.spyOn(window, 'getSelection').mockReturnValue(selectionMock as unknown as Selection)
+      vi.spyOn(document, 'getSelection').mockReturnValue(selectionMock as unknown as Selection)
+      if (document.defaultView) {
+        vi.spyOn(document.defaultView, 'getSelection').mockReturnValue(selectionMock as unknown as Selection)
+      }
+
+      const article = p.closest('article')!
+      fireEvent.mouseUp(article)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '高亮' })).toBeTruthy()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: '高亮' }))
+
+      expect(handleUpdateMarkdown).toHaveBeenCalledWith('今天完成了一个==核心功能==的开发。')
+    })
+
+    it('supports cancelling highlight on click of an existing mark', async () => {
+      const handleUpdateMarkdown = vi.fn()
+      const markdown = '今天完成了一个==核心功能==的开发。'
+
+      render(
+        <PreviewPane
+          title="2026-08-28-星期五"
+          date="2026-08-28 08:00:00"
+          markdown={markdown}
+          contentType="diary"
+          onUpdateMarkdown={handleUpdateMarkdown}
+        />,
+      )
+
+      const mark = screen.getByText('核心功能')
+      expect(mark.tagName.toLowerCase()).toBe('mark')
+
+      // Click on the highlighted mark
+      fireEvent.click(mark)
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: '取消高亮' })).toBeTruthy()
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: '取消高亮' }))
+
+      expect(handleUpdateMarkdown).toHaveBeenCalledWith('今天完成了一个核心功能的开发。')
+    })
+  })
+
+  describe('Diary timeline list preview highlight restriction', () => {
+    it('renders existing ==highlight== in timeline list as mark without floating toolbar', () => {
+      const diaryPost: PostIndexItem = {
+        path: 'source/diary/20260828080000.md',
+        sha: 'sha-1',
+        title: '2026-08-28-星期五',
+        date: '2026-08-28 08:00:00',
+        desc: '今天完成了一个==核心功能==的开发。',
+        published: false,
+        hasExplicitPublished: true,
+        categories: [],
+        tags: [],
+        permalink: null,
+        cover: null,
+        body: '今天完成了一个==核心功能==的开发。',
+      }
+
+      render(
+        <DiaryTimelinePreview
+          posts={[diaryPost]}
+          onOpenPost={vi.fn()}
+          onDeletePost={vi.fn()}
+        />,
+      )
+
+      const mark = screen.getByText('核心功能')
+      expect(mark.tagName.toLowerCase()).toBe('mark')
+      expect(screen.queryByRole('toolbar', { name: '文本批注工具栏' })).toBeNull()
     })
   })
 })

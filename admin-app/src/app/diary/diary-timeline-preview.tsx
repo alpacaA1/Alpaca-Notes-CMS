@@ -24,6 +24,33 @@ function formatDayNumber(dateStr: string): string {
   return match ? match[1] : dateStr.slice(-2)
 }
 
+function renderTimelineInline(text: string) {
+  const nodes: (string | JSX.Element)[] = []
+  const pattern = /==([^=]+)==/g
+  let lastIndex = 0
+  let matchIndex = 0
+
+  for (const match of text.matchAll(pattern)) {
+    const [fullMatch, highlightText] = match
+    const start = match.index || 0
+    if (start > lastIndex) {
+      nodes.push(text.slice(lastIndex, start))
+    }
+    nodes.push(
+      <mark key={`hl-${matchIndex++}`} className="preview-content__markdown-highlight">
+        {highlightText}
+      </mark>,
+    )
+    lastIndex = start + fullMatch.length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex))
+  }
+
+  return nodes.length > 0 ? nodes : text
+}
+
 export function computeTimelineQuoteDisplay(
   groups: DiaryReadLaterSourceGroup[],
   isExpandedAll: boolean,
@@ -212,10 +239,10 @@ export default function DiaryTimelinePreview({
                                                 isQuotesExpanded ? ' diary-timeline__quote-text--full' : ''
                                               }`}
                                             >
-                                              {item.quote}
+                                              {renderTimelineInline(item.quote)}
                                             </p>
                                             {item.note ? (
-                                              <p className="diary-timeline__quote-note">💭 {item.note}</p>
+                                              <p className="diary-timeline__quote-note">💭 {renderTimelineInline(item.note)}</p>
                                             ) : null}
                                           </div>
                                         ))}
@@ -263,7 +290,7 @@ export default function DiaryTimelinePreview({
                               </div>
                               <ul className="diary-timeline__notes-list">
                                 {sec.items?.map((item, itemIdx) => (
-                                  <li key={itemIdx}>{item}</li>
+                                  <li key={itemIdx}>{renderTimelineInline(item)}</li>
                                 ))}
                               </ul>
                             </div>
