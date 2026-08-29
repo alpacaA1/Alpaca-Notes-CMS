@@ -37,6 +37,13 @@ function ExpandIcon() {
   return <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.1 2.5H2.5v3.6M9.9 2.5h3.6v3.6M6.1 13.5H2.5V9.9M9.9 13.5h3.6V9.9" stroke="currentColor" strokeWidth="1.45" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
 
+function RailIcon({ type }: { type: 'all' | MovieStatus }) {
+  const common = { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', 'aria-hidden': true }
+  if (type === 'all') return <svg {...common}><rect x="2.2" y="2.8" width="11.6" height="10.4" rx="1.4" stroke="currentColor" strokeWidth="1.25"/><path d="m2.5 5 2.1-1.8L6.7 5l2.1-1.8L11 5l2.1-1.8" stroke="currentColor" strokeWidth="1.05" strokeLinejoin="round"/></svg>
+  if (type === 'wish') return <svg {...common}><path d="M8 13.2S2.6 10.1 2.6 6.25C2.6 4.35 4 3.1 5.7 3.1c1.02 0 1.9.5 2.3 1.3.4-.8 1.28-1.3 2.3-1.3 1.7 0 3.1 1.25 3.1 3.15C13.4 10.1 8 13.2 8 13.2Z" stroke="currentColor" strokeWidth="1.25" strokeLinejoin="round"/></svg>
+  return <svg {...common}><circle cx="8" cy="8" r="5.4" stroke="currentColor" strokeWidth="1.25"/><path d="m5.4 8.1 1.65 1.65 3.6-3.6" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round"/></svg>
+}
+
 export default function MovieJournalView({ movies, search, isLoading, isSaving, onAdd, onTmdbSearch, onSave, onDelete }: Props) {
   const [statusFilter, setStatusFilter] = useState<'all' | MovieStatus>('all')
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -52,6 +59,11 @@ export default function MovieJournalView({ movies, search, isLoading, isSaving, 
     const query = search.trim().toLowerCase()
     return movies.filter((movie) => (statusFilter === 'all' || movie.status === statusFilter) && (!query || [movie.title, movie.originalTitle, movie.director, movie.tags.join(' ')].join(' ').toLowerCase().includes(query)))
   }, [movies, search, statusFilter])
+  const railFilters: Array<{ value: 'all' | MovieStatus; label: string; count: number }> = [
+    { value: 'all', label: '全部影片', count: movies.length },
+    { value: 'wish', label: '想看', count: movies.filter((movie) => movie.status === 'wish').length },
+    { value: 'watched', label: '已看', count: movies.filter((movie) => movie.status === 'watched').length },
+  ]
 
   const update = <K extends keyof MovieEntry>(key: K, value: MovieEntry[K]) => setDraft((current) => current ? { ...current, [key]: value } : current)
   const save = () => { if (draft?.title.trim()) onSave({ ...draft, title: draft.title.trim(), updatedAt: new Date().toISOString() }) }
@@ -73,9 +85,9 @@ export default function MovieJournalView({ movies, search, isLoading, isSaving, 
   if (isLoading) return <section className="movie-journal__loading">正在整理光影记录…</section>
   if (isWriting && draft) return <section className="movie-journal movie-journal--writing" aria-label="观后感沉浸写作">
     <aside className="movie-journal__rail movie-journal__rail--writing">
-      <p className="movie-journal__eyebrow">FILM JOURNAL</p><h1>光影</h1><p>把看过的故事，写成自己的记忆。</p>
-      <div className="movie-journal__filters">
-        {(['all', 'wish', 'watched'] as const).map((item) => <button key={item} type="button" className={statusFilter === item ? 'is-active' : ''} onClick={() => { setStatusFilter(item); setIsWriting(false) }}>{item === 'all' ? `全部 · ${movies.length}` : `${statusLabel[item]} · ${movies.filter((movie) => movie.status === item).length}`}</button>)}
+      <p className="movie-journal__eyebrow">FILM JOURNAL</p><h1>光影</h1>
+      <div className="movie-journal__filters movie-journal__filters--rail">
+        {railFilters.map((item) => <button key={item.value} type="button" className={statusFilter === item.value ? 'is-active' : ''} onClick={() => { setStatusFilter(item.value); setIsWriting(false) }}><RailIcon type={item.value} /><span>{item.label}</span><em>{item.count}</em></button>)}
       </div>
     </aside>
     <section className="movie-journal__writing-canvas">
@@ -89,9 +101,9 @@ export default function MovieJournalView({ movies, search, isLoading, isSaving, 
   </section>
   return <section className="movie-journal" aria-label="光影观影笔记">
     <aside className="movie-journal__rail">
-      <p className="movie-journal__eyebrow">FILM JOURNAL</p><h1>光影</h1><p>把看过的故事，写成自己的记忆。</p><button type="button" className="movie-journal__new" onClick={add}>+ 留下观影笔记</button>
-      <div className="movie-journal__filters">
-        {(['all', 'wish', 'watched'] as const).map((item) => <button key={item} type="button" className={statusFilter === item ? 'is-active' : ''} onClick={() => setStatusFilter(item)}>{item === 'all' ? `全部 · ${movies.length}` : `${statusLabel[item]} · ${movies.filter((movie) => movie.status === item).length}`}</button>)}
+      <p className="movie-journal__eyebrow">FILM JOURNAL</p><h1>光影</h1><button type="button" className="movie-journal__new" onClick={add}>+ 新增观影记录</button>
+      <div className="movie-journal__filters movie-journal__filters--rail">
+        {railFilters.map((item) => <button key={item.value} type="button" className={statusFilter === item.value ? 'is-active' : ''} onClick={() => setStatusFilter(item.value)}><RailIcon type={item.value} /><span>{item.label}</span><em>{item.count}</em></button>)}
       </div>
     </aside>
     <div className="movie-journal__gallery">
