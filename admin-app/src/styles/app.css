@@ -15700,32 +15700,30 @@ textarea {
 
 .movie-journal__new,
 .movie-journal__save {
-  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  padding: 0 18px;
-  border: 1px solid var(--admin-new-post-line);
-  border-radius: var(--admin-button-radius);
-  background: linear-gradient(180deg, rgba(255, 250, 243, 0.96), var(--admin-new-post));
-  color: var(--admin-warm) !important;
-  -webkit-text-fill-color: var(--admin-warm);
-  box-shadow: 0 8px 18px rgba(141, 113, 77, 0.1);
+  min-height: 0;
+  padding: 8px 18px;
+  border: 1px solid var(--admin-save);
+  border-radius: 8px;
+  background: var(--admin-save);
+  color: var(--admin-save-text) !important;
+  -webkit-text-fill-color: var(--admin-save-text);
+  box-shadow: none;
   cursor: pointer;
   font: inherit;
-  font-size: 0.9rem;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .movie-journal__new { justify-content: flex-start; }
 .movie-journal__new:hover:not(:disabled),
 .movie-journal__save:hover:not(:disabled) {
-  border-color: var(--admin-warm);
-  background: #f7ecdb;
-  color: #6f5537 !important;
-  -webkit-text-fill-color: #6f5537;
-  box-shadow: 0 14px 28px rgba(141, 113, 77, 0.16);
+  border-color: var(--admin-save-hover);
+  background: var(--admin-save-hover);
+  color: var(--admin-save-text) !important;
+  -webkit-text-fill-color: var(--admin-save-text);
 }
 .movie-journal__filters { display: grid; gap: 3px; margin-top: 16px; }
 .movie-journal__filters button { padding: 9px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--film-muted); cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
