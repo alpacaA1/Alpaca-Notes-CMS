@@ -9,7 +9,7 @@ import {
 
 const TOOL_HUB_URL = 'https://alpacaa1.github.io/tool-hub/'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies'
 
 function AlpacaLogo() {
   return <img className="top-bar__logo" src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`} alt="" />
@@ -168,6 +168,7 @@ type TopBarProps = {
   onOpenTrash?: () => void
   onOpenFeeds?: () => void
   onOpenBooks?: () => void
+  onOpenMovies?: () => void
   rssUnreadCount?: number
   isRssRefreshing?: boolean
   onContentTypeChange: (value: ContentType) => void
@@ -277,6 +278,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
     return '搜索书名或作者'
   }
 
+  if (adminView === 'movies') {
+    return '搜索片名、导演或标签'
+  }
+
   if (contentType === 'read-later') {
     return '搜索标题、摘要、正文、来源或原文链接'
   }
@@ -311,6 +316,7 @@ export default function TopBar({
   onOpenTrash,
   onOpenFeeds,
   onOpenBooks,
+  onOpenMovies,
   rssUnreadCount = 0,
   isRssRefreshing = false,
   onContentTypeChange,
@@ -355,13 +361,16 @@ export default function TopBar({
   const isTrashView = adminView === 'trash'
   const isFeedsView = adminView === 'feeds'
   const isBooksView = adminView === 'books'
-  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView
+  const isMoviesView = adminView === 'movies'
+  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView && !isMoviesView
   const titleText = isTrashView
     ? '回收站'
     : isFeedsView
       ? 'RSS 工作台'
     : isBooksView
       ? '电子书'
+    : isMoviesView
+      ? '光影'
     : isAnnotationsView
       ? '批注管理'
       : isDashboardLike
@@ -498,6 +507,7 @@ export default function TopBar({
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = false
   const showBooksToggle = !isEditor && Boolean(onOpenBooks || onBackToDashboard)
+  const showMoviesToggle = !isEditor && Boolean(onOpenMovies || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showRssRefreshing = !isFeedsView && isRssRefreshing
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
@@ -847,6 +857,15 @@ export default function TopBar({
               {isBooksView ? '返回内容' : '书架'}
             </button>
           ) : null}
+          {showMoviesToggle ? (
+            <button
+              className={`top-bar__button${isMoviesView ? ' top-bar__button--active' : ''}`}
+              type="button"
+              onClick={isMoviesView ? onBackToDashboard : onOpenMovies}
+            >
+              {isMoviesView ? '返回内容' : '光影'}
+            </button>
+          ) : null}
           {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
@@ -865,7 +884,7 @@ export default function TopBar({
               整理素材
             </button>
           ) : null}
-          {!isTrashView && !isFeedsView && !isBooksView ? (
+          {!isTrashView && !isFeedsView && !isBooksView && !isMoviesView ? (
             <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
               {createLabel}
             </button>

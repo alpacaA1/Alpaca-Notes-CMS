@@ -64,6 +64,10 @@ import {
   putBookMeta,
 } from './books/book-store'
 import type { BookAnnotation, StoredBookMeta } from './books/book-types'
+import MovieJournalView from './movies/movie-journal-view'
+import { createMovieEntry, type MovieEntry } from './movies/movie-types'
+import { fetchMoviesLibrary, saveMoviesLibrary } from './movies/movie-sync'
+import { searchTmdbMovies } from './movies/tmdb-client'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
@@ -569,7 +573,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies'
 type BookReaderSession = { meta: StoredBookMeta; fileBlob: Blob; targetAnnotationId?: string | null }
 
 const RSS_FEATURE_ENABLED = false
@@ -608,6 +612,10 @@ export default function App() {
   const [isBookReaderImmersive, setIsBookReaderImmersive] = useState(false)
   const [isBooksSyncing, setIsBooksSyncing] = useState(false)
   const [localBookFilesStatus, setLocalBookFilesStatus] = useState<Record<string, boolean>>({})
+  const [movies, setMovies] = useState<MovieEntry[]>([])
+  const [moviesSha, setMoviesSha] = useState<string | undefined>()
+  const [isMoviesLoading, setIsMoviesLoading] = useState(false)
+  const [isMoviesSaving, setIsMoviesSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
@@ -2052,6 +2060,56 @@ export default function App() {
     setSuccessMessage(null)
     setError(null)
     setAdminView('books')
+  }
+
+  const handleOpenMovies = () => {
+    setSearch('')
+    setSuccessMessage(null)
+    setError(null)
+    setAdminView('movies')
+  }
+
+  const refreshMovies = useCallback(async () => {
+    if (!session) return
+    const result = await fetchMoviesLibrary(session)
+    setMovies(result.data.movies.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)))
+    setMoviesSha(result.sha)
+  }, [session])
+
+  useEffect(() => {
+    if (adminView !== 'movies') return
+    setIsMoviesLoading(true)
+    void refreshMovies().catch((movieError) => {
+      setError(movieError instanceof Error ? movieError.message : '读取光影记录失败。')
+    }).finally(() => setIsMoviesLoading(false))
+  }, [adminView, refreshMovies])
+
+  const handleSaveMovie = async (movie: MovieEntry) => {
+    if (!session) return
+    const nextMovies = [movie, ...movies.filter((item) => item.id !== movie.id)].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    setIsMoviesSaving(true)
+    try {
+      const saved = await saveMoviesLibrary(session, nextMovies, moviesSha)
+      setMovies(nextMovies)
+      setMoviesSha(saved.sha)
+      setSuccessMessage(`已保存《${movie.title}》的观影笔记。`)
+    } catch (movieError) {
+      setError(movieError instanceof Error ? movieError.message : '保存观影笔记失败。')
+    } finally { setIsMoviesSaving(false) }
+  }
+
+  const handleDeleteMovie = async (movie: MovieEntry) => {
+    if (!session || !window.confirm(`确定删除《${movie.title}》的观影笔记吗？`)) return
+    setIsMoviesSaving(true)
+    try {
+      const nextMovies = movies.filter((item) => item.id !== movie.id)
+      const saved = await saveMoviesLibrary(session, nextMovies, moviesSha)
+      setMovies(nextMovies)
+      setMoviesSha(saved.sha)
+      setSuccessMessage('观影笔记已删除。')
+    } catch (movieError) {
+      setError(movieError instanceof Error ? movieError.message : '删除观影笔记失败。')
+    } finally { setIsMoviesSaving(false) }
   }
 
   useEffect(() => {
@@ -4917,7 +4975,11 @@ export default function App() {
       ? activeBook
         ? `正在阅读《${activeBook.meta.title}》`
         : `共 ${bookMetas.length} 本电子书`
-      : isOrganizingMaterials
+    : adminView === 'movies'
+      ? isMoviesSaving
+        ? '正在保存观影笔记…'
+        : `共 ${movies.length} 条观影记录`
+    : isOrganizingMaterials
         ? '正在整理月报素材…'
       : isSaving && document
         ? `正在保存 ${document.path}`
@@ -4988,6 +5050,7 @@ export default function App() {
   const isTrashView = adminView === 'trash'
   const isSeriesView = adminView === 'series'
   const isBooksView = adminView === 'books'
+  const isMoviesView = adminView === 'movies'
   const isPreviewing = mode === 'preview'
   const isReadLaterDocument = document?.contentType === 'read-later'
   const isReaderPreview = Boolean(
@@ -5094,6 +5157,7 @@ export default function App() {
           onOpenTrash={handleOpenTrash}
           onOpenFeeds={RSS_FEATURE_ENABLED ? handleOpenFeeds : undefined}
           onOpenBooks={handleOpenBooks}
+          onOpenMovies={handleOpenMovies}
           rssUnreadCount={rssUnreadCount}
           isRssRefreshing={isRssBackgroundRefreshing}
           onContentTypeChange={(value) => {
@@ -5337,6 +5401,23 @@ export default function App() {
               )
             })}
           </div>
+        </section>
+      ) : isMoviesView ? (
+        <section className="admin-shell__viewport admin-shell__viewport--movies">
+          <MovieJournalView
+            movies={movies}
+            search={search}
+            isLoading={isMoviesLoading}
+            isSaving={isMoviesSaving}
+            onAdd={() => {
+              const movie = createMovieEntry()
+              setMovies((current) => [movie, ...current])
+              return movie
+            }}
+            onTmdbSearch={(query) => searchTmdbMovies(session, query)}
+            onSave={(movie) => { void handleSaveMovie(movie) }}
+            onDelete={(movie) => { void handleDeleteMovie(movie) }}
+          />
         </section>
       ) : (
         <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReaderDocument ? ' admin-layout--drawers' : ''}`}>
