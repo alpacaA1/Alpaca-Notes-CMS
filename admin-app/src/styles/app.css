@@ -1667,6 +1667,22 @@ textarea {
 .top-bar__collection-switch {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
+}
+
+.top-bar__collection-label {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 3px;
+  color: var(--admin-text);
+  font-family: 'Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', Georgia, 'Songti SC', serif;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.top-bar__collection-tabs {
+  display: inline-flex;
   height: 40px;
   overflow: hidden;
   border: 1px solid var(--admin-line-strong);
@@ -1674,29 +1690,20 @@ textarea {
   background: var(--admin-surface-strong);
 }
 
-.top-bar__collection-label {
-  align-self: stretch;
-  display: inline-flex;
-  align-items: center;
-  padding: 0 12px;
-  border-right: 1px solid var(--admin-line);
-  color: var(--admin-text);
-  font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-}
-
 .top-bar__collection-tab {
-  align-self: stretch;
-  padding: 0 11px;
+  min-width: 74px;
+  padding: 0 14px;
   border: 0;
-  border-right: 1px solid var(--admin-line);
   background: transparent;
   color: var(--admin-muted);
   font: inherit;
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.top-bar__collection-tab + .top-bar__collection-tab {
+  border-left: 1px solid var(--admin-line);
 }
 
 .top-bar__collection-tab:hover:not(:disabled) {
@@ -1707,19 +1714,6 @@ textarea {
 .top-bar__collection-tab.is-active {
   background: var(--admin-save);
   color: var(--admin-save-text);
-}
-
-.top-bar__collection-switch .top-bar__button--back {
-  align-self: stretch;
-  height: 38px;
-  min-height: 38px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-}
-
-.top-bar__collection-switch .top-bar__button--back:hover:not(:disabled) {
-  background: var(--admin-accent-soft);
 }
 
 .top-bar__button,

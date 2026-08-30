@@ -850,24 +850,28 @@ export default function TopBar({
           ) : null}
           {showCollectionNavigation ? (
             isCollectionView ? (
-              <div className="top-bar__collection-switch" aria-label="藏馆分类">
-                <span className="top-bar__collection-label">藏馆</span>
-                <button
-                  className={`top-bar__collection-tab${isBooksView ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={onOpenBooks}
-                  aria-current={isBooksView ? 'page' : undefined}
-                >
-                  书架
-                </button>
-                <button
-                  className={`top-bar__collection-tab${isMoviesView ? ' is-active' : ''}`}
-                  type="button"
-                  onClick={onOpenMovies}
-                  aria-current={isMoviesView ? 'page' : undefined}
-                >
-                  光影
-                </button>
+              <>
+                <div className="top-bar__collection-switch" aria-label="藏馆分类">
+                  <span className="top-bar__collection-label">藏馆</span>
+                  <div className="top-bar__collection-tabs" role="tablist" aria-label="藏馆分类">
+                    <button
+                      className={`top-bar__collection-tab${isBooksView ? ' is-active' : ''}`}
+                      type="button"
+                      onClick={onOpenBooks}
+                      aria-current={isBooksView ? 'page' : undefined}
+                    >
+                      书架
+                    </button>
+                    <button
+                      className={`top-bar__collection-tab${isMoviesView ? ' is-active' : ''}`}
+                      type="button"
+                      onClick={onOpenMovies}
+                      aria-current={isMoviesView ? 'page' : undefined}
+                    >
+                      光影
+                    </button>
+                  </div>
+                </div>
                 <button
                   className="top-bar__button top-bar__button--back"
                   type="button"
@@ -875,7 +879,7 @@ export default function TopBar({
                 >
                   返回内容
                 </button>
-              </div>
+              </>
             ) : (
               <button
                 className="top-bar__button"
