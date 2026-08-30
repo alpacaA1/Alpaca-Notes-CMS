@@ -362,6 +362,7 @@ export default function TopBar({
   const isFeedsView = adminView === 'feeds'
   const isBooksView = adminView === 'books'
   const isMoviesView = adminView === 'movies'
+  const isCollectionView = isBooksView || isMoviesView
   const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView && !isMoviesView
   const titleText = isTrashView
     ? '回收站'
@@ -506,8 +507,7 @@ export default function TopBar({
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = false
-  const showBooksToggle = !isEditor && Boolean(onOpenBooks || onBackToDashboard)
-  const showMoviesToggle = !isEditor && Boolean(onOpenMovies || onBackToDashboard)
+  const showCollectionNavigation = !isEditor && Boolean(onOpenBooks || onOpenMovies || onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showRssRefreshing = !isFeedsView && isRssRefreshing
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
@@ -848,23 +848,43 @@ export default function TopBar({
               ) : null}
             </button>
           ) : null}
-          {showBooksToggle ? (
-            <button
-              className={`top-bar__button${isBooksView ? ' top-bar__button--active' : ''}`}
-              type="button"
-              onClick={isBooksView ? onBackToDashboard : onOpenBooks}
-            >
-              {isBooksView ? '返回内容' : '书架'}
-            </button>
-          ) : null}
-          {showMoviesToggle ? (
-            <button
-              className={`top-bar__button${isMoviesView ? ' top-bar__button--active' : ''}`}
-              type="button"
-              onClick={isMoviesView ? onBackToDashboard : onOpenMovies}
-            >
-              {isMoviesView ? '返回内容' : '光影'}
-            </button>
+          {showCollectionNavigation ? (
+            isCollectionView ? (
+              <div className="top-bar__collection-switch" aria-label="藏馆分类">
+                <span className="top-bar__collection-label">藏馆</span>
+                <button
+                  className={`top-bar__collection-tab${isBooksView ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={onOpenBooks}
+                  aria-current={isBooksView ? 'page' : undefined}
+                >
+                  书架
+                </button>
+                <button
+                  className={`top-bar__collection-tab${isMoviesView ? ' is-active' : ''}`}
+                  type="button"
+                  onClick={onOpenMovies}
+                  aria-current={isMoviesView ? 'page' : undefined}
+                >
+                  光影
+                </button>
+                <button
+                  className="top-bar__button top-bar__button--back"
+                  type="button"
+                  onClick={onBackToDashboard}
+                >
+                  返回内容
+                </button>
+              </div>
+            ) : (
+              <button
+                className="top-bar__button"
+                type="button"
+                onClick={onOpenBooks}
+              >
+                藏馆
+              </button>
+            )
           ) : null}
           {isEditor && onBackToDashboard ? (
             <button

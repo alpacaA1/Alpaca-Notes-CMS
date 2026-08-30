@@ -1664,6 +1664,64 @@ textarea {
   justify-content: flex-start;
 }
 
+.top-bar__collection-switch {
+  display: inline-flex;
+  align-items: center;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--admin-line-strong);
+  border-radius: var(--admin-button-radius);
+  background: var(--admin-surface-strong);
+}
+
+.top-bar__collection-label {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border-right: 1px solid var(--admin-line);
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.top-bar__collection-tab {
+  align-self: stretch;
+  padding: 0 11px;
+  border: 0;
+  border-right: 1px solid var(--admin-line);
+  background: transparent;
+  color: var(--admin-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.top-bar__collection-tab:hover:not(:disabled) {
+  background: var(--admin-accent-soft);
+  color: var(--admin-text);
+}
+
+.top-bar__collection-tab.is-active {
+  background: var(--admin-save);
+  color: var(--admin-save-text);
+}
+
+.top-bar__collection-switch .top-bar__button--back {
+  align-self: stretch;
+  height: 38px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.top-bar__collection-switch .top-bar__button--back:hover:not(:disabled) {
+  background: var(--admin-accent-soft);
+}
+
 .top-bar__button,
 .editor-mode-bar button {
   font: inherit;
