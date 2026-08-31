@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import MarkdownEditor from '../editor/markdown-editor'
 import type { InternalReferenceCandidate } from '../internal-links'
+import MovieDatePicker from '../movies/movie-date-picker'
 import type { PersonEntry } from './people-types'
 
 type Props = {
@@ -96,7 +97,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
       {!draft ? <div className="people-book__detail-empty"><Portrait person={{ name: '人' } as PersonEntry}/><h2>选择一个人</h2><p>记录关系、近况与被文章提起的时刻。</p></div> : <div className="people-book__form">
         <header><p>人物卡</p><button type="button" onClick={() => onDelete(draft)}>删除</button></header>
         <div className="people-book__heading"><Portrait person={draft}/><input value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="名字或称呼" /></div>
-        <label className="people-book__birthday-field"><span><PersonIcon type="birthday"/>生日</span><input type="date" value={draft.birthday} onChange={(event) => update('birthday', event.target.value)} /></label>
+        <div className="people-book__birthday-field"><span><PersonIcon type="birthday"/>生日</span><MovieDatePicker value={draft.birthday} onChange={(value) => update('birthday', value)} ariaLabel="选择生日" dialogLabel="选择生日" /></div>
         <div className="people-book__meta-grid">
           <label><span><PersonIcon type="profile"/>关系</span><input value={draft.relationship} onChange={(event) => update('relationship', event.target.value)} placeholder="朋友、同事、家人…" /></label>
           <label><span><PersonIcon type="tag"/>别名</span><input value={draft.aliases.join('、')} onChange={(event) => update('aliases', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="昵称、外号" /></label>

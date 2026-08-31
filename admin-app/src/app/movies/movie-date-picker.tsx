@@ -4,6 +4,7 @@ type Props = {
   value: string
   onChange: (value: string) => void
   ariaLabel: string
+  dialogLabel?: string
 }
 
 const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日']
@@ -23,7 +24,7 @@ function formatDisplay(value: string) {
   return value ? value.replaceAll('-', '/') : '选择日期'
 }
 
-export default function MovieDatePicker({ value, onChange, ariaLabel }: Props) {
+export default function MovieDatePicker({ value, onChange, ariaLabel, dialogLabel = '选择观影日期' }: Props) {
   const initialDate = parseDate(value) || new Date()
   const [isOpen, setIsOpen] = useState(false)
   const [visibleMonth, setVisibleMonth] = useState(() => new Date(initialDate.getFullYear(), initialDate.getMonth(), 1))
@@ -71,7 +72,7 @@ export default function MovieDatePicker({ value, onChange, ariaLabel }: Props) {
       <span>{formatDisplay(value)}</span>
       <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="2.4" y="3.1" width="11.2" height="10.2" rx="1.4" stroke="currentColor" strokeWidth="1.3"/><path d="M5 2v2.4M11 2v2.4M2.5 6.2h11" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
     </button>
-    {isOpen ? <div className="movie-date-picker__panel" role="dialog" aria-label="选择观影日期">
+    {isOpen ? <div className="movie-date-picker__panel" role="dialog" aria-label={dialogLabel}>
       <header><button type="button" aria-label="上个月" onClick={() => setVisibleMonth(new Date(year, month - 1, 1))}>‹</button><strong>{year} 年 {month + 1} 月</strong><button type="button" aria-label="下个月" onClick={() => setVisibleMonth(new Date(year, month + 1, 1))}>›</button></header>
       <div className="movie-date-picker__weekdays">{WEEKDAYS.map((day) => <span key={day}>{day}</span>)}</div>
       <div className="movie-date-picker__days">{days.map((day, index) => {

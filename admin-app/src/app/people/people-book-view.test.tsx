@@ -4,7 +4,7 @@ import PeopleBookView from './people-book-view'
 import type { PersonEntry } from './people-types'
 
 const person: PersonEntry = {
-  id: 'person-lin', name: '林夏', aliases: [], relationship: '朋友', tags: [], birthday: '', notes: '- 第一项', moments: [],
+  id: 'person-lin', name: '林夏', aliases: [], relationship: '朋友', tags: [], birthday: '1997-09-28', notes: '- 第一项', moments: [],
   createdAt: '2026-08-31T08:00:00.000Z', updatedAt: '2026-08-31T08:00:00.000Z',
 }
 
@@ -22,5 +22,14 @@ describe('PeopleBookView', () => {
 
     expect(textarea.value).toBe('- 第一项\n- ')
     expect(screen.getByRole('toolbar', { name: '文章格式工具栏' })).toBeTruthy()
+  })
+
+  it('opens a birthday calendar card from the person profile', async () => {
+    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={vi.fn()} onDelete={vi.fn()} />)
+
+    fireEvent.click(await screen.findByLabelText('选择生日'))
+
+    expect(screen.getByRole('dialog', { name: '选择生日' })).toBeTruthy()
+    expect(screen.getByText('1997 年 9 月')).toBeTruthy()
   })
 })
