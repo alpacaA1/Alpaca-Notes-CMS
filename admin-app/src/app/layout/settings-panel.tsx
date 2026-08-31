@@ -376,7 +376,152 @@ export default function SettingsPanel({
 
       {showInfoFields ? (
         <div className={`settings-panel__section-stack${isReadLater ? ' settings-panel__section-stack--reader' : ''}`}>
-          {!isReadLater ? (
+          {isReadLater ? (
+            <>
+              <MetadataSection title="基础信息" defaultOpen>
+                <label>
+                  <span>标题</span>
+                  <input
+                    aria-label="标题"
+                    value={frontmatter.title}
+                    placeholder="文章标题"
+                    onChange={(event) => onFieldChange('title', event.target.value)}
+                  />
+                  {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
+                </label>
+                <label>
+                  <span>日期</span>
+                  <input
+                    aria-label="日期"
+                    type="datetime-local"
+                    step="1"
+                    value={toPostDateTimeInputValue(frontmatter.date)}
+                    onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
+                  />
+
+                  {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
+                </label>
+                <label>
+                  <span>原文链接</span>
+                  <input
+                    aria-label="原文链接"
+                    value={frontmatter.external_url || ''}
+                    placeholder="https://example.com/article"
+                    onChange={(event) => onFieldChange('external_url', event.target.value)}
+                  />
+                  <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-start' }}>
+                    <button
+                      type="button"
+                      className="top-bar__button"
+                      disabled={!frontmatter.external_url?.trim() || isImportingFromUrl}
+                      onClick={onImportFromUrl}
+                    >
+                      {isImportingFromUrl ? '导入中…' : '从链接导入正文'}
+                    </button>
+                  </div>
+                  {validationErrors.external_url ? <span className="error-message">{validationErrors.external_url}</span> : null}
+                </label>
+                <label>
+                  <span>来源</span>
+                  <input
+                    aria-label="来源"
+                    value={frontmatter.source_name || ''}
+                    placeholder="文章来源 / 网站名"
+                    onChange={(event) => onFieldChange('source_name', event.target.value)}
+                  />
+                </label>
+              </MetadataSection>
+
+              <MetadataSection title="阅读设置" defaultOpen>
+                <div className="settings-panel__field">
+                  <span>阅读状态</span>
+                  <FilterSelect
+                    label="阅读状态"
+                    value={frontmatter.reading_status || 'unread'}
+                    options={READING_STATUS_OPTIONS}
+                    onChange={(value) => onFieldChange('reading_status', value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
+                    triggerAriaLabel="阅读状态"
+                  />
+                </div>
+
+                <label className="settings-panel__toggle">
+                  <span>置顶</span>
+                  <input
+                    aria-label="置顶"
+                    type="checkbox"
+                    checked={Boolean(frontmatter.pinned)}
+                    onChange={(event) => onFieldChange('pinned', event.target.checked)}
+                  />
+                </label>
+
+                <div className="settings-panel__field settings-panel__taxonomy">
+                  <span>标签</span>
+                  <TaxonomyMultiSelect
+                    label="标签"
+                    value={frontmatter.tags}
+                    availableOptions={availableTags}
+                    onChange={(value) => onFieldChange('tags', value)}
+                    onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
+                    onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
+                    onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
+                  />
+                </div>
+              </MetadataSection>
+
+              <MetadataSection title="高级设置">
+                {onUploadImage || frontmatter.cover ? (
+                  <label className="settings-panel__field">
+                    <span>封面图</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        style={{ flex: 1 }}
+                        aria-label="封面图"
+                        value={frontmatter.cover || ''}
+                        placeholder="图片 URL 或系统外链"
+                        onChange={(event) => onFieldChange('cover', event.target.value)}
+                      />
+                      {onUploadImage ? (
+                        <button
+                          type="button"
+                          className="top-bar__button"
+                          style={{ minHeight: '36px', padding: '0 12px' }}
+                          onClick={handleUploadClick}
+                        >
+                          上传封面
+                        </button>
+                      ) : null}
+                    </div>
+                    {frontmatter.cover ? (
+                      <img
+                        src={resolvePreviewImageSrc(frontmatter.cover, previewImageUrls) || frontmatter.cover}
+                        alt="Cover Preview"
+                        style={{ marginTop: '12px', width: '100%', borderRadius: '12px', objectFit: 'cover', maxHeight: '160px', border: '1px solid var(--admin-line)' }}
+                        loading="lazy"
+                      />
+                    ) : null}
+                  </label>
+                ) : null}
+
+                <label>
+                  <span>手动粘贴正文</span>
+                  <textarea
+                    aria-label="手动粘贴正文"
+                    rows={8}
+                    readOnly={!onBodyChange}
+                    value={readLaterSections?.articleExcerpt || ''}
+                    placeholder="链接无法识别正文时，把原文粘贴到这里"
+                    onChange={(event) => handleReadLaterSectionChange('articleExcerpt', event.target.value)}
+                  />
+                  <p className="settings-panel__field-note">会写入“原文摘录”，不会覆盖“我的总结”和“我的评论”。</p>
+                </label>
+
+                <label>
+                  <span>站内详情链接</span>
+                  <input aria-label="站内详情链接" value={frontmatter.permalink || ''} readOnly disabled />
+                </label>
+              </MetadataSection>
+            </>
+          ) : (
             <MetadataSection title="基础信息" defaultOpen>
               <label>
                 <span>日期</span>
@@ -391,114 +536,9 @@ export default function SettingsPanel({
                 {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
               </label>
             </MetadataSection>
-          ) : (
-            <>
-              <label>
-                <span>标题</span>
-                <input aria-label="标题" value={frontmatter.title} onChange={(event) => onFieldChange('title', event.target.value)} />
-                {validationErrors.title ? <span className="error-message">{validationErrors.title}</span> : null}
-              </label>
-              <label>
-                <span>日期</span>
-                <input
-                  aria-label="日期"
-                  type="datetime-local"
-                  step="1"
-                  value={toPostDateTimeInputValue(frontmatter.date)}
-                  onChange={(event) => onFieldChange('date', fromPostDateTimeInputValue(event.target.value))}
-                />
-
-                {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
-              </label>
-            </>
           )}
 
-          {isReadLater ? (
-            <>
-              <label>
-                <span>原文链接</span>
-                <input
-                  aria-label="原文链接"
-                  value={frontmatter.external_url || ''}
-                  placeholder="https://example.com/article"
-                  onChange={(event) => onFieldChange('external_url', event.target.value)}
-                />
-                <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-start' }}>
-                  <button
-                    type="button"
-                    className="top-bar__button"
-                    disabled={!frontmatter.external_url?.trim() || isImportingFromUrl}
-                    onClick={onImportFromUrl}
-                  >
-                    {isImportingFromUrl ? '导入中…' : '从链接导入正文'}
-                  </button>
-                </div>
-                {validationErrors.external_url ? <span className="error-message">{validationErrors.external_url}</span> : null}
-              </label>
-
-              <label>
-                <span>手动粘贴正文</span>
-                <textarea
-                  aria-label="手动粘贴正文"
-                  rows={12}
-                  readOnly={!onBodyChange}
-                  value={readLaterSections?.articleExcerpt || ''}
-                  placeholder="链接无法识别正文时，把原文粘贴到这里"
-                  onChange={(event) => handleReadLaterSectionChange('articleExcerpt', event.target.value)}
-                />
-                <p className="settings-panel__field-note">会写入“原文摘录”，不会覆盖“我的总结”和“我的评论”。</p>
-              </label>
-
-              <label>
-                <span>来源</span>
-                <input
-                  aria-label="来源"
-                  value={frontmatter.source_name || ''}
-                  placeholder="文章来源 / 网站名"
-                  onChange={(event) => onFieldChange('source_name', event.target.value)}
-                />
-              </label>
-
-              <div className="settings-panel__field">
-                <span>阅读状态</span>
-                <FilterSelect
-                  label="阅读状态"
-                  value={frontmatter.reading_status || 'unread'}
-                  options={READING_STATUS_OPTIONS}
-                  onChange={(value) => onFieldChange('reading_status', value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
-                  triggerAriaLabel="阅读状态"
-                />
-              </div>
-
-              <label className="settings-panel__toggle">
-                <span>置顶</span>
-                <input
-                  aria-label="置顶"
-                  type="checkbox"
-                  checked={Boolean(frontmatter.pinned)}
-                  onChange={(event) => onFieldChange('pinned', event.target.checked)}
-                />
-              </label>
-
-              <div className="settings-panel__field settings-panel__taxonomy">
-                <span>标签</span>
-                <TaxonomyMultiSelect
-                  label="标签"
-                  value={frontmatter.tags}
-                  availableOptions={availableTags}
-                  onChange={(value) => onFieldChange('tags', value)}
-                  onCreateOption={onTaxonomyCreate ? (name) => onTaxonomyCreate('tags', name) : undefined}
-                  onRenameOption={onTaxonomyRename ? (oldName, newName) => onTaxonomyRename('tags', oldName, newName) : undefined}
-                  onDeleteOption={onTaxonomyDelete ? (name) => onTaxonomyDelete('tags', name) : undefined}
-                />
-              </div>
-
-              <label>
-                <span>站内详情链接</span>
-                <input aria-label="站内详情链接" value={frontmatter.permalink || ''} readOnly disabled />
-              </label>
-            </>
-          ) : (
+          {!isReadLater ? (
             <MetadataSection title={isPitch ? '选题设置' : '发布设置'} defaultOpen>
               <label className="settings-panel__toggle">
                 <span>置顶</span>
@@ -636,7 +676,7 @@ export default function SettingsPanel({
                 </div>
               ) : null}
             </MetadataSection>
-          )}
+          ) : null}
 
           {!isReadLater ? <MetadataSection title="高级设置">
           {isPost ? (
