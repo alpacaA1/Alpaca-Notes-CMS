@@ -54,8 +54,8 @@ function readSection(body: string, heading: string, nextHeading: string | null) 
   const escapedHeading = heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const escapedNextHeading = nextHeading?.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const pattern = nextHeading
-    ? new RegExp(`## ${escapedHeading}\\n([\\s\\S]*?)\\n## ${escapedNextHeading}(?:\\n|$)`)
-    : new RegExp(`## ${escapedHeading}\\n([\\s\\S]*)$`)
+    ? new RegExp(`(?:^|\\n)##[ \\t]*${escapedHeading}[ \\t]*\\r?\\n([\\s\\S]*?)(?:\\r?\\n##[ \\t]*${escapedNextHeading}[ \\t]*(?:\\r?\\n|$)|$)`)
+    : new RegExp(`(?:^|\\n)##[ \\t]*${escapedHeading}[ \\t]*(?:\\r?\\n|$)([\\s\\S]*)$`)
   const match = body.match(pattern)
   return (match?.[1] || '').trim()
 }

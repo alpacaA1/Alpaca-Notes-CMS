@@ -882,16 +882,26 @@ export default function SettingsPanel({
               <div className="settings-panel__document-note-editor settings-panel__document-note-editor--bare">
                 <textarea
                   aria-label="Document note"
-                  placeholder="Add a document note..."
+                  placeholder="写下关于本文的总结、评论或思考..."
                   value={documentNoteDraft}
                   onChange={(event) => setDocumentNoteDraft(event.target.value)}
                 />
                 <div className="settings-panel__document-note-actions">
-                  <button type="button" className="settings-panel__document-note-action" onClick={handleCancelDocumentNote}>
-                    Cancel
+                  <button
+                    type="button"
+                    aria-label="Cancel"
+                    className="settings-panel__document-note-action"
+                    onClick={handleCancelDocumentNote}
+                  >
+                    取消
                   </button>
-                  <button type="button" className="settings-panel__document-note-action settings-panel__document-note-action--primary" onClick={handleSaveDocumentNote}>
-                    Save
+                  <button
+                    type="button"
+                    aria-label="Save"
+                    className="settings-panel__document-note-action settings-panel__document-note-action--primary"
+                    onClick={handleSaveDocumentNote}
+                  >
+                    保存
                   </button>
                 </div>
               </div>
@@ -902,7 +912,7 @@ export default function SettingsPanel({
                 className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__document-note-entry--commentary"
                 onClick={handleOpenDocumentNoteEditor}
               >
-                {renderDocumentNoteValue(currentDocumentNote)}
+                {renderDocumentNoteValue(currentDocumentNote, 'Add a document note...')}
               </button>
             )}
           </section>
@@ -954,7 +964,7 @@ export default function SettingsPanel({
                             <div className="settings-panel__document-note-editor settings-panel__document-note-editor--bare settings-panel__document-note-editor--annotation">
                               <textarea
                                 aria-label="Highlight document note"
-                                placeholder="Add a document note..."
+                                placeholder="为这条划线添加批注..."
                                 value={currentAnnotationNoteDraft}
                                 onChange={(event) => {
                                   setInternalAnnotationNoteDraft(event.target.value)
@@ -962,15 +972,21 @@ export default function SettingsPanel({
                                 }}
                               />
                               <div className="settings-panel__document-note-actions">
-                                <button type="button" className="settings-panel__document-note-action" onClick={handleCancelAnnotation}>
-                                  Cancel
+                                <button
+                                  type="button"
+                                  aria-label="Cancel"
+                                  className="settings-panel__document-note-action"
+                                  onClick={handleCancelAnnotation}
+                                >
+                                  取消
                                 </button>
                                 <button
                                   type="button"
+                                  aria-label="Save"
                                   className="settings-panel__document-note-action settings-panel__document-note-action--primary"
                                   onClick={handleSaveAnnotation}
                                 >
-                                  Save
+                                  保存
                                 </button>
                               </div>
                             </div>
@@ -981,7 +997,7 @@ export default function SettingsPanel({
                               className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__annotation-note-entry"
                               onClick={() => onEditAnnotation?.(annotation.id)}
                             >
-                              {renderDocumentNoteValue(annotation.note)}
+                              {renderDocumentNoteValue(annotation.note, '添加划线批注 (Add a note)...')}
                             </button>
                           )}
                         </div>

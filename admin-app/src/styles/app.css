@@ -4259,51 +4259,154 @@ textarea {
 }
 
 .settings-panel--reader-lite .settings-panel__document-note {
-  gap: 8px;
+  gap: 10px;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-header {
-  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-label,
 .settings-panel--reader-lite .settings-panel__annotation-note-label,
 .settings-panel--reader-lite .settings-panel__annotation-empty {
   color: var(--admin-soft);
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-}
-
-.settings-panel--reader-lite .settings-panel__document-note-entry,
-.settings-panel--reader-lite .settings-panel__document-note-entry:hover {
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-entry {
-  min-height: 30px;
-  padding: 5px 0 5px 8px;
-  color: var(--admin-soft);
-  font-size: 0.82rem;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid rgba(180, 150, 115, 0.22);
+  border-left: 3px solid #D4A574;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 1px 4px rgba(110, 85, 55, 0.03);
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  transition: all 180ms ease;
 }
 
-.settings-panel--reader-lite .settings-panel__document-note-content,
+.settings-panel--reader-lite .settings-panel__document-note-entry:hover {
+  border-color: rgba(180, 150, 115, 0.42);
+  border-left-color: #C28E58;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 2px 8px rgba(110, 85, 55, 0.06);
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-content {
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  line-height: 1.68;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .settings-panel--reader-lite .settings-panel__document-note-placeholder {
-  line-height: 1.65;
+  color: var(--admin-soft);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-editor {
+  padding: 12px 14px;
+  border: 1px solid rgba(180, 150, 115, 0.28);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 2px 10px rgba(110, 85, 55, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-editor:focus-within {
+  border-color: rgba(141, 113, 77, 0.5);
+  box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-editor textarea,
+.settings-panel--reader-lite .settings-panel__document-note-editor textarea:focus,
+.settings-panel--reader-lite .settings-panel__document-note-editor textarea:focus-visible {
+  display: block;
+  width: 100%;
+  min-height: 110px;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  color: var(--admin-text) !important;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.68;
+  resize: vertical;
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(180, 150, 115, 0.16);
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-action {
+  appearance: none;
+  min-height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(180, 150, 115, 0.25);
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--admin-soft);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-action:hover {
+  border-color: rgba(180, 150, 115, 0.45);
+  background: rgba(255, 255, 255, 0.95);
+  color: var(--admin-text);
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-action--primary {
+  border-color: #8D714D;
+  background: #8D714D;
+  color: #FFFFFF !important;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(141, 113, 77, 0.25);
+}
+
+.settings-panel--reader-lite .settings-panel__document-note-action--primary:hover {
+  border-color: #7D6341;
+  background: #7D6341;
+  color: #FFFFFF !important;
+  transform: translateY(-0.5px);
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-list {
-  gap: 7px;
+  gap: 8px;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-card {
   gap: 6px;
+  border-left: 3px solid #D4A574;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.45);
+  padding: 2px 4px;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-card-trigger {
   gap: 6px;
-  padding: 5px 0 5px 8px;
+  padding: 6px 8px;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-separator {
@@ -4323,14 +4426,7 @@ textarea {
 
 .settings-panel--reader-lite .settings-panel__annotation-note-block {
   gap: 6px;
-  padding-left: 8px;
-}
-
-.settings-panel--reader-lite .settings-panel__document-note-editor {
-  padding: 8px;
-  border: 1px solid rgba(126, 111, 92, 0.12);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.18);
+  padding: 4px 6px 8px;
 }
 
 .admin-shell--dark .post-pane--reader .post-outline,
@@ -4360,13 +4456,7 @@ textarea {
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__tab,
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__tab:hover,
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__tab.is-active,
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry,
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry:hover,
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-card,
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-card.is-active {
-  border-color: transparent;
-  background: transparent;
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__tab.is-active {
   box-shadow: none;
 }
 
@@ -4383,9 +4473,59 @@ textarea {
   background: rgba(255, 255, 255, 0.14);
 }
 
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3px solid #D4A574;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  border-left-color: #E5B887;
+  background: rgba(255, 255, 255, 0.07);
+}
+
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-editor {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(30, 28, 26, 0.7);
+  box-shadow: none;
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-editor:focus-within {
+  border-color: rgba(228, 163, 88, 0.5);
+  box-shadow: 0 0 0 3px rgba(228, 163, 88, 0.12);
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-actions {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action {
+  border-color: rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.06);
+  color: var(--admin-soft);
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action:hover {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--admin-text);
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action--primary {
+  border-color: #D4A574;
+  background: #D4A574;
+  color: #1a1816 !important;
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action--primary:hover {
+  background: #E5B887;
+  color: #1a1816 !important;
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-card {
+  border-left: 3px solid #D4A574;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .settings-panel__header {
