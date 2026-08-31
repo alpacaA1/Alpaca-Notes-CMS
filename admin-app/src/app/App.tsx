@@ -2213,7 +2213,15 @@ export default function App() {
   }
 
   const handleDeleteMovie = async (movie: MovieEntry) => {
-    if (!session || !window.confirm(`确定删除《${movie.title}》的观影笔记吗？`)) return
+    if (!session) return
+    const shouldDelete = await requestAppConfirm({
+      title: '删除观影笔记',
+      message: `确定删除《${movie.title}》的观影笔记吗？`,
+      confirmLabel: '确认删除',
+      cancelLabel: '取消',
+      isDangerous: true,
+    })
+    if (!shouldDelete) return
     setIsMoviesSaving(true)
     try {
       const nextMovies = movies.filter((item) => item.id !== movie.id)
@@ -2241,7 +2249,15 @@ export default function App() {
   }
 
   const handleDeletePerson = async (person: PersonEntry) => {
-    if (!session || !window.confirm(`确定删除 ${person.name || '这位人物'} 的人物卡吗？文章中的引用不会被自动删除。`)) return
+    if (!session) return
+    const shouldDelete = await requestAppConfirm({
+      title: '删除人物卡',
+      message: `确定删除 ${person.name || '这位人物'} 的人物卡吗？文章中的引用不会被自动删除。`,
+      confirmLabel: '确认删除',
+      cancelLabel: '取消',
+      isDangerous: true,
+    })
+    if (!shouldDelete) return
     setIsPeopleSaving(true)
     try {
       const nextPeople = people.filter((item) => item.id !== person.id)
@@ -2530,13 +2546,13 @@ export default function App() {
 
     const trimmedName = name.trim()
     if (!trimmedName) {
-      setError('请先填写 folder 名称。')
+      setError('请先填写文件夹名称。')
       return
     }
 
     const currentFolders = rssSubscriptionsState.folders || []
     if (currentFolders.some((folder) => folder.name === trimmedName)) {
-      setError(`Folder「${trimmedName}」已存在。`)
+      setError(`文件夹「${trimmedName}」已存在。`)
       return
     }
 
@@ -5516,7 +5532,13 @@ export default function App() {
                     void handleSyncBooks(true)
                   })
                 }}
-                onRestoreSuccess={() => { void refreshBookShelf() }}
+                onRestoreSuccess={(msg) => {
+                  setSuccessMessage(msg || '已恢复电子书备份。')
+                  void refreshBookShelf()
+                }}
+                onRestoreError={(err) => {
+                  setError(err || '恢复电子书备份失败。')
+                }}
               />
             </div>
             {bookReaderSessions.map((book) => {

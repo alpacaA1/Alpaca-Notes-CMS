@@ -706,7 +706,7 @@ export default function FeedDashboard({
                 onClick={() => markSubscriptionViewed(subscription)}
                 disabled={unreadCount === 0}
               >
-                Mark as read
+                全部标为已读
               </button>
               <button
                 type="button"
@@ -719,7 +719,7 @@ export default function FeedDashboard({
                   })
                 }}
               >
-                Delete
+                删除
               </button>
             </div>
           ) : null}
@@ -764,7 +764,7 @@ export default function FeedDashboard({
             {folderViewModel.unreadCount > 0 ? (
               <span
                 className="feed-dashboard__subscription-count"
-                aria-label={`${folderViewModel.unreadCount} 条 folder 待读`}
+                aria-label={`${folderViewModel.unreadCount} 条分组待读`}
               >
                 {folderViewModel.unreadCount}
               </span>
@@ -797,7 +797,7 @@ export default function FeedDashboard({
                     role="menuitem"
                     onClick={() => handleRenameFolderClick(folderViewModel.folder as FeedFolder)}
                   >
-                    Rename
+                    重命名
                   </button>
                   <button
                     type="button"
@@ -811,7 +811,7 @@ export default function FeedDashboard({
                       })
                     }}
                   >
-                    Delete
+                    删除
                   </button>
                 </div>
               ) : null}
@@ -824,7 +824,7 @@ export default function FeedDashboard({
               {folderViewModel.subscriptions.map((item) => renderSubscriptionItem(item))}
             </div>
           ) : (
-            <div className="feed-dashboard__folder-empty">空 folder</div>
+            <div className="feed-dashboard__folder-empty">暂无订阅源</div>
           )
         ) : null}
       </section>
@@ -942,7 +942,7 @@ export default function FeedDashboard({
                 onClick={handleCreateFolderClick}
                 disabled={isSavingFeed}
               >
-                + New Folder
+                + 新建文件夹
               </button>
             </div>
 

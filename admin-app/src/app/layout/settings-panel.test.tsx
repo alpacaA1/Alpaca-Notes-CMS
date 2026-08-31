@@ -329,11 +329,12 @@ describe('settings panel', () => {
 
     const importButton = screen.getByRole('button', { name: '从链接导入正文' }) as HTMLButtonElement
     expect(importButton.disabled).toBe(true)
-    expect(screen.getByLabelText('阅读状态').className).toContain('settings-panel__filter-like-select')
+    expect(screen.getByRole('button', { name: '阅读状态' })).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('原文链接'), { target: { value: 'https://example.com/article' } })
     fireEvent.change(screen.getByLabelText('来源'), { target: { value: 'Example Source' } })
-    fireEvent.change(screen.getByLabelText('阅读状态'), { target: { value: 'reading' } })
+    fireEvent.click(screen.getByRole('button', { name: '阅读状态' }))
+    fireEvent.click(screen.getByRole('option', { name: '在读' }))
     fireEvent.click(screen.getByRole('checkbox', { name: '置顶' }))
 
     expect(onFieldChange).toHaveBeenCalledWith('external_url', 'https://example.com/article')
@@ -440,13 +441,13 @@ describe('settings panel', () => {
     expect(screen.queryByLabelText('我的总结')).toBeNull()
     expect(screen.queryByLabelText('我的评论')).toBeNull()
     expect(screen.getByText('Document note')).toBeTruthy()
-    expect(screen.getByText('Add a document note...')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Document note' }).className).toContain('settings-panel__document-note-entry--borderless')
+    expect(screen.getByText('写下这篇的总结或思考…')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '文档批注' }).className).toContain('settings-panel__document-note-entry--borderless')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    fireEvent.click(screen.getByRole('button', { name: '文档批注' }))
     expect(screen.getByLabelText('Document note').closest('div')?.className).toContain('settings-panel__document-note-editor--bare')
     fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '补一条评论' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存文档批注' }))
 
     expect(onBodyChange).toHaveBeenCalledWith(
       createReadLaterBody({
@@ -455,7 +456,7 @@ describe('settings panel', () => {
         commentary: '补一条评论',
       }),
     )
-    expect(screen.getByRole('button', { name: 'Document note' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '文档批注' })).toBeTruthy()
     expect(screen.getByText('补一条评论')).toBeTruthy()
   })
 
@@ -506,14 +507,14 @@ describe('settings panel', () => {
       />,
     )
 
-    expect(screen.getByText('Highlights')).toBeTruthy()
+    expect(screen.getByText('划线摘录')).toBeTruthy()
     expect(screen.getByText(annotation.quote)).toBeTruthy()
     expect(screen.getByText(annotation.quote).className).toContain('settings-panel__annotation-quote')
-    expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
-    expect(screen.getByLabelText('Highlight document note').closest('div')?.className).toContain('settings-panel__document-note-editor--bare')
+    expect(screen.getByLabelText('划线文档批注')).toBeTruthy()
+    expect(screen.getByLabelText('划线文档批注').closest('div')?.className).toContain('settings-panel__document-note-editor--bare')
 
-    fireEvent.change(screen.getByLabelText('Highlight document note'), { target: { value: '新的高亮批注' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(screen.getByLabelText('划线文档批注'), { target: { value: '新的高亮批注' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
 
     expect(onSaveAnnotationNote).toHaveBeenCalledWith(annotation.id, '新的高亮批注')
   })

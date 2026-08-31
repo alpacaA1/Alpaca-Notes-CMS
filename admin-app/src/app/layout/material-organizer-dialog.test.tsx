@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { useState } from 'react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import MaterialOrganizerDialog from './material-organizer-dialog'
 import type { PostIndexItem } from '../posts/post-types'
 
@@ -111,16 +111,24 @@ function renderDialog(initialSelectedDiaryPaths: string[] = []) {
 }
 
 describe('material organizer dialog', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-10T12:00:00.000Z'))
+  })
+
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.restoreAllMocks()
   })
 
   it('filters diary and read-later materials by date range', () => {
     renderDialog()
 
-    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-05-10' } })
-    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-05-10' } })
+    fireEvent.click(screen.getByRole('button', { name: '开始日期' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '选择开始日期' })).getByRole('button', { name: '10' }))
+    fireEvent.click(screen.getByRole('button', { name: '结束日期' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '选择结束日期' })).getByRole('button', { name: '10' }))
 
     expect(screen.getByText('五月十日日记')).toBeTruthy()
     expect(screen.getByText('五月十日待读')).toBeTruthy()
@@ -131,8 +139,8 @@ describe('material organizer dialog', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '清空日期筛选' }))
 
-    expect((screen.getByLabelText('开始日期') as HTMLInputElement).value).toBe('')
-    expect((screen.getByLabelText('结束日期') as HTMLInputElement).value).toBe('')
+    expect(screen.getByRole('button', { name: '开始日期' }).textContent).toContain('选择日期')
+    expect(screen.getByRole('button', { name: '结束日期' }).textContent).toContain('选择日期')
     expect(screen.getByText('五月十一日日记')).toBeTruthy()
     expect(screen.getByText('四月末待读')).toBeTruthy()
   })
@@ -140,8 +148,10 @@ describe('material organizer dialog', () => {
   it('applies section full select and clear only to the currently visible diary items', () => {
     renderDialog([diaryPosts[2].path])
 
-    fireEvent.change(screen.getByLabelText('开始日期'), { target: { value: '2026-05-10' } })
-    fireEvent.change(screen.getByLabelText('结束日期'), { target: { value: '2026-05-10' } })
+    fireEvent.click(screen.getByRole('button', { name: '开始日期' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '选择开始日期' })).getByRole('button', { name: '10' }))
+    fireEvent.click(screen.getByRole('button', { name: '结束日期' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: '选择结束日期' })).getByRole('button', { name: '10' }))
 
     const diarySection = screen.getByRole('region', { name: '日记' })
 

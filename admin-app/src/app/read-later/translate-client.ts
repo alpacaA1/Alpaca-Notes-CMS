@@ -115,7 +115,7 @@ export async function translateReadLaterContent(
       body: JSON.stringify(payloadData),
     })
   } catch {
-    throw new Error('无法连接翻译接口（接口未部署或 404 预检失败），请检查 Vercel 部署。')
+    throw new Error('翻译服务暂时不可用，请稍后再试。')
   }
 
   let payload: TranslateReadLaterResponse | null = null
@@ -130,7 +130,7 @@ export async function translateReadLaterContent(
   }
 
   if (response.status === 404) {
-    throw new Error('翻译服务接口未部署或返回 404，请确认 Vercel 部署。')
+    throw new Error('翻译服务暂时不可用，请稍后再试。')
   }
 
   if (!response.ok) {

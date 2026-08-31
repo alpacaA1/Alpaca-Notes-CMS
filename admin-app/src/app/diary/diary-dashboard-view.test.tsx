@@ -221,21 +221,21 @@ describe('DiaryDashboardView', () => {
       />,
     )
 
-    const tagFilterBtn = screen.getByRole('button', { name: /全部标签/i })
+    const tagFilterBtn = screen.getByRole('button', { name: '标签筛选' })
     fireEvent.click(tagFilterBtn)
 
-    expect(screen.getByRole('menu')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '生活' })).toBeTruthy()
+    expect(screen.getByRole('listbox')).toBeTruthy()
+    expect(screen.getByRole('option', { name: '生活' })).toBeTruthy()
 
     // Click outside
     fireEvent.mouseDown(document.body)
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('listbox')).toBeNull()
 
     // Reopen and test Escape
     fireEvent.click(tagFilterBtn)
-    expect(screen.getByRole('menu')).toBeTruthy()
+    expect(screen.getByRole('listbox')).toBeTruthy()
 
     fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByRole('menu')).toBeNull()
+    expect(screen.queryByRole('listbox')).toBeNull()
   })
 })

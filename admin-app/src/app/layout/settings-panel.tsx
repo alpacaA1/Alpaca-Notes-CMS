@@ -79,7 +79,27 @@ function buildDefaultNodeKey(topicType: NonNullable<ParsedPost['frontmatter']['t
   return trimmedTitle ? `${topicType}/${trimmedTitle}` : ''
 }
 
-function renderDocumentNoteValue(note: string, placeholder = 'Add a document note...') {
+const READING_STATUS_OPTIONS = [
+  { value: 'unread', label: '未读' },
+  { value: 'reading', label: '在读' },
+  { value: 'done', label: '已读' },
+]
+
+const PITCH_STATUS_OPTIONS = [
+  { value: 'collecting', label: '收集中' },
+  { value: 'writing', label: '写作中' },
+  { value: 'done', label: '已完成' },
+  { value: 'shelved', label: '已搁置' },
+]
+
+const TOPIC_TYPE_OPTIONS = [
+  { value: 'theme', label: '主题' },
+  { value: 'book', label: '书' },
+  { value: 'movie', label: '电影' },
+  { value: 'person', label: '人物' },
+]
+
+function renderDocumentNoteValue(note: string, placeholder = '写下这篇的总结或思考…') {
   if (!note.trim()) {
     return <span className="settings-panel__document-note-placeholder">{placeholder}</span>
   }
@@ -439,19 +459,16 @@ export default function SettingsPanel({
                 />
               </label>
 
-              <label>
+              <div className="settings-panel__field">
                 <span>阅读状态</span>
-                <select
-                  className="settings-panel__filter-like-select"
-                  aria-label="阅读状态"
+                <FilterSelect
+                  label="阅读状态"
                   value={frontmatter.reading_status || 'unread'}
-                  onChange={(event) => onFieldChange('reading_status', event.target.value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
-                >
-                  <option value="unread">未读</option>
-                  <option value="reading">在读</option>
-                  <option value="done">已读</option>
-                </select>
-              </label>
+                  options={READING_STATUS_OPTIONS}
+                  onChange={(value) => onFieldChange('reading_status', value as NonNullable<ParsedPost['frontmatter']['reading_status']>)}
+                  triggerAriaLabel="阅读状态"
+                />
+              </div>
 
               <label className="settings-panel__toggle">
                 <span>置顶</span>
@@ -495,19 +512,16 @@ export default function SettingsPanel({
 
               {isPitch ? (
                 <>
-                  <label className="settings-panel__field">
+                  <div className="settings-panel__field">
                     <span>状态</span>
-                    <select
-                      aria-label="灵感状态"
+                    <FilterSelect
+                      label="灵感状态"
                       value={frontmatter.pitch_status === 'open' ? 'collecting' : (frontmatter.pitch_status || 'collecting')}
-                      onChange={(event) => onFieldChange('pitch_status', event.target.value as NonNullable<ParsedPost['frontmatter']['pitch_status']>)}
-                    >
-                      <option value="collecting">收集中</option>
-                      <option value="writing">写作中</option>
-                      <option value="done">已完成</option>
-                      <option value="shelved">已搁置</option>
-                    </select>
-                  </label>
+                      options={PITCH_STATUS_OPTIONS}
+                      onChange={(value) => onFieldChange('pitch_status', value as NonNullable<ParsedPost['frontmatter']['pitch_status']>)}
+                      triggerAriaLabel="灵感状态"
+                    />
+                  </div>
 
                   <label className="settings-panel__field">
                     <span>灵感来源</span>
@@ -643,19 +657,16 @@ export default function SettingsPanel({
             <>
               {isLegacyTopicKnowledge ? (
                 <>
-                  <label className="settings-panel__field">
+                  <div className="settings-panel__field">
                     <span>主题类型</span>
-                    <select
-                      aria-label="主题类型"
+                    <FilterSelect
+                      label="主题类型"
                       value={frontmatter.topic_type || 'theme'}
-                      onChange={(event) => onFieldChange('topic_type', event.target.value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
-                    >
-                      <option value="theme">主题</option>
-                      <option value="book">书</option>
-                      <option value="movie">电影</option>
-                      <option value="person">人物</option>
-                    </select>
-                  </label>
+                      options={TOPIC_TYPE_OPTIONS}
+                      onChange={(value) => onFieldChange('topic_type', value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
+                      triggerAriaLabel="主题类型"
+                    />
+                  </div>
 
                   <label className="settings-panel__field">
                     <span>节点 Key</span>
@@ -737,19 +748,16 @@ export default function SettingsPanel({
 
           {isPost && isTopicDocument ? (
             <>
-              <label className="settings-panel__field">
+              <div className="settings-panel__field">
                 <span>主题类型</span>
-                <select
-                  aria-label="主题类型"
+                <FilterSelect
+                  label="主题类型"
                   value={frontmatter.topic_type || 'theme'}
-                  onChange={(event) => onFieldChange('topic_type', event.target.value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
-                >
-                  <option value="theme">主题</option>
-                  <option value="book">书</option>
-                  <option value="movie">电影</option>
-                  <option value="person">人物</option>
-                </select>
-              </label>
+                  options={TOPIC_TYPE_OPTIONS}
+                  onChange={(value) => onFieldChange('topic_type', value as NonNullable<ParsedPost['frontmatter']['topic_type']>)}
+                  triggerAriaLabel="主题类型"
+                />
+              </div>
 
               <label className="settings-panel__field">
                 <span>节点 Key</span>
@@ -889,7 +897,7 @@ export default function SettingsPanel({
                 <div className="settings-panel__document-note-actions">
                   <button
                     type="button"
-                    aria-label="Cancel"
+                    aria-label="取消文档批注"
                     className="settings-panel__document-note-action"
                     onClick={handleCancelDocumentNote}
                   >
@@ -897,7 +905,7 @@ export default function SettingsPanel({
                   </button>
                   <button
                     type="button"
-                    aria-label="Save"
+                    aria-label="保存文档批注"
                     className="settings-panel__document-note-action settings-panel__document-note-action--primary"
                     onClick={handleSaveDocumentNote}
                   >
@@ -908,18 +916,18 @@ export default function SettingsPanel({
             ) : (
               <button
                 type="button"
-                aria-label="Document note"
+                aria-label="文档批注"
                 className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__document-note-entry--commentary"
                 onClick={handleOpenDocumentNoteEditor}
               >
-                {renderDocumentNoteValue(currentDocumentNote, 'Add a document note...')}
+                {renderDocumentNoteValue(currentDocumentNote, '写下这篇的总结或思考…')}
               </button>
             )}
           </section>
 
-          <section className="settings-panel__annotation-group" aria-label="Highlights">
+          <section className="settings-panel__annotation-group" aria-label="划线摘录">
             <div className="settings-panel__document-note-header">
-              <span className="settings-panel__document-note-label">Highlights</span>
+              <span className="settings-panel__document-note-label">划线摘录</span>
             </div>
 
             {annotations.length > 0 ? (
@@ -958,12 +966,12 @@ export default function SettingsPanel({
                       {isActive ? (
                         <div className="settings-panel__annotation-note-block">
                           <div className="settings-panel__annotation-note-header">
-                            <span className="settings-panel__annotation-note-label">Document note</span>
+                            <span className="settings-panel__annotation-note-label">文档批注</span>
                           </div>
                           {isEditing ? (
                             <div className="settings-panel__document-note-editor settings-panel__document-note-editor--bare settings-panel__document-note-editor--annotation">
                               <textarea
-                                aria-label="Highlight document note"
+                                aria-label="划线文档批注"
                                 placeholder="为这条划线添加批注..."
                                 value={currentAnnotationNoteDraft}
                                 onChange={(event) => {
@@ -974,7 +982,6 @@ export default function SettingsPanel({
                               <div className="settings-panel__document-note-actions">
                                 <button
                                   type="button"
-                                  aria-label="Cancel"
                                   className="settings-panel__document-note-action"
                                   onClick={handleCancelAnnotation}
                                 >
@@ -982,7 +989,6 @@ export default function SettingsPanel({
                                 </button>
                                 <button
                                   type="button"
-                                  aria-label="Save"
                                   className="settings-panel__document-note-action settings-panel__document-note-action--primary"
                                   onClick={handleSaveAnnotation}
                                 >
@@ -993,11 +999,11 @@ export default function SettingsPanel({
                           ) : (
                             <button
                               type="button"
-                              aria-label="Highlight document note"
+                              aria-label="划线文档批注"
                               className="settings-panel__document-note-entry settings-panel__document-note-entry--borderless settings-panel__annotation-note-entry"
                               onClick={() => onEditAnnotation?.(annotation.id)}
                             >
-                              {renderDocumentNoteValue(annotation.note, '添加划线批注 (Add a note)...')}
+                              {renderDocumentNoteValue(annotation.note, '为这条划线写下想法…')}
                             </button>
                           )}
                         </div>

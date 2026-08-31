@@ -18,8 +18,8 @@ type BookShelfViewProps = {
   onDeleteBook: (book: StoredBookMeta) => void
   onDeleteMultipleBooks?: (books: StoredBookMeta[]) => void
   onSyncBooks?: () => void
-  onWeReadSyncSuccess?: () => void
-  onRestoreSuccess?: () => void
+  onRestoreSuccess?: (message?: string) => void
+  onRestoreError?: (message: string) => void
 }
 
 function BookCover({ book }: { book: StoredBookMeta }) {
@@ -163,10 +163,9 @@ export default function BookShelfView({
       const json = JSON.parse(text)
       const { importBookLibraryBackup } = await import('./book-store')
       const count = await importBookLibraryBackup(json)
-      alert(`成功恢复了 ${count} 本电子书的元数据与批注！`)
-      onRestoreSuccess?.()
+      onRestoreSuccess?.(`已恢复 ${count} 本电子书的备份。`)
     } catch (err) {
-      alert(`恢复备份失败：${err instanceof Error ? err.message : '格式错误'}`)
+      onRestoreError?.(err instanceof Error ? err.message : '备份格式有误，恢复失败。')
     } finally {
       setIsRestoring(false)
     }

@@ -162,8 +162,7 @@ export async function requestWeReadGateway<T>(
     if (response.status === 401 || response.status === 403) {
       throw new Error('微信读书 API Key 无效或未授权，请前往 weread.qq.com/r/weread-skills 重新获取。')
     }
-    const errText = await response.text().catch(() => '')
-    throw new Error(`微信读书接口请求失败 (${response.status}): ${errText || response.statusText}`)
+    throw new Error('微信读书服务连接失败，请检查网络或稍后重试。')
   }
 
   return (await response.json()) as T

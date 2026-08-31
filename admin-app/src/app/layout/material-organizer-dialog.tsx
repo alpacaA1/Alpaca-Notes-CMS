@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type UIEvent } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
+import MovieDatePicker from '../movies/movie-date-picker'
 
 type MaterialSourceType = 'diary' | 'read-later'
 type MaterialSelectionState = Record<MaterialSourceType, string[]>
@@ -351,39 +352,25 @@ export default function MaterialOrganizerDialog({
           <div className="material-organizer-dialog__filter-bar">
             <div className="material-organizer-dialog__date-range">
               <span className="post-dashboard__filter-label">日期范围</span>
-              <label className="material-organizer-dialog__date-input">
-                <span className="sr-only">开始日期</span>
-                <input
-                  type="date"
-                  aria-label="开始日期"
+              <div className="material-organizer-dialog__date-input">
+                <MovieDatePicker
                   value={dateFilter.start}
-                  disabled={isProcessing}
-                  onChange={(event) => {
-                    setDateFilter((current) => ({
-                      ...current,
-                      start: event.target.value,
-                    }))
-                  }}
+                  onChange={(val) => setDateFilter((current) => ({ ...current, start: val }))}
+                  ariaLabel="开始日期"
+                  dialogLabel="选择开始日期"
                 />
-              </label>
+              </div>
               <span className="material-organizer-dialog__date-separator" aria-hidden="true">
                 至
               </span>
-              <label className="material-organizer-dialog__date-input">
-                <span className="sr-only">结束日期</span>
-                <input
-                  type="date"
-                  aria-label="结束日期"
+              <div className="material-organizer-dialog__date-input">
+                <MovieDatePicker
                   value={dateFilter.end}
-                  disabled={isProcessing}
-                  onChange={(event) => {
-                    setDateFilter((current) => ({
-                      ...current,
-                      end: event.target.value,
-                    }))
-                  }}
+                  onChange={(val) => setDateFilter((current) => ({ ...current, end: val }))}
+                  ariaLabel="结束日期"
+                  dialogLabel="选择结束日期"
                 />
-              </label>
+              </div>
             </div>
             <div className="material-organizer-dialog__filter-summary">
               <span>当前显示 {filteredDiaryPosts.length} 篇日记 · {filteredReadLaterPosts.length} 条待读</span>

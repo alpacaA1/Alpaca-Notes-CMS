@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { PostIndexItem } from '../posts/post-types'
+import FilterSelect from '../layout/filter-select'
 import DiaryCalendarGrid from './diary-calendar-grid'
 import DiaryTimelinePreview from './diary-timeline-preview'
 import { buildMonthCalendarGrid, extractDateStrFromPost } from './diary-calendar-utils'
@@ -113,47 +114,19 @@ export default function DiaryDashboardView({
     setCurrentMonth(initialYearMonth.month)
   }, [initialYearMonth])
 
-  // Tag filter dropdown state
-  const [isTagMenuOpen, setIsTagMenuOpen] = useState(false)
-  const tagFilterRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!isTagMenuOpen) {
-      return
-    }
-
-    const handleDocumentClick = (event: MouseEvent | TouchEvent) => {
-      if (tagFilterRef.current && !tagFilterRef.current.contains(event.target as Node)) {
-        setIsTagMenuOpen(false)
-      }
-    }
-
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsTagMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleDocumentClick)
-    document.addEventListener('touchstart', handleDocumentClick)
-    window.addEventListener('keydown', handleEscape)
-
-    return () => {
-      document.removeEventListener('mousedown', handleDocumentClick)
-      document.removeEventListener('touchstart', handleDocumentClick)
-      window.removeEventListener('keydown', handleEscape)
-    }
-  }, [isTagMenuOpen])
+  const tagOptions = useMemo(() => [
+    { value: '', label: '全部标签' },
+    ...availableTags.map((tag) => ({ value: tag, label: tag })),
+  ], [availableTags])
 
   // Filter posts by tag & search
   const filteredPosts = useMemo(() => {
     return posts.filter((post) => {
-      if (selectedTag && (!post.tags || !post.tags.includes(selectedTag))) {
-        return false
-      }
-      return true
+      const matchTag = !selectedTag || (post.tags && post.tags.includes(selectedTag))
+      const matchSearch = !search || (post.title && post.title.includes(search)) || (post.desc && post.desc.includes(search))
+      return matchTag && matchSearch
     })
-  }, [posts, selectedTag])
+  }, [posts, selectedTag, search])
 
   // Filter posts belonging to the currently selected month
   const monthTargetPrefix = `${currentYear}-${String(currentMonth).padStart(2, '0')}`
@@ -208,44 +181,16 @@ export default function DiaryDashboardView({
       <div className="diary-dashboard__toolbar">
         <div className="diary-dashboard__toolbar-left">
           {/* Tag filter */}
-          <div className="diary-dashboard__tag-filter" ref={tagFilterRef}>
-            <button
-              type="button"
-              className={`diary-dashboard__filter-btn${selectedTag ? ' is-active' : ''}`}
-              onClick={() => setIsTagMenuOpen((prev) => !prev)}
-              aria-expanded={isTagMenuOpen}
-            >
-              <TagIcon />
-              <span>{selectedTag ? `标签: ${selectedTag}` : '全部标签'}</span>
-              <ChevronDownIcon />
-            </button>
-            {isTagMenuOpen ? (
-              <div className="diary-dashboard__tag-menu" role="menu">
-                <button
-                  type="button"
-                  className={`diary-dashboard__tag-menu-item${!selectedTag ? ' is-active' : ''}`}
-                  onClick={() => {
-                    onSelectTag?.(null)
-                    setIsTagMenuOpen(false)
-                  }}
-                >
-                  全部标签
-                </button>
-                {availableTags.length > 0 ? availableTags.map((tag) => (
-                  <button
-                    key={tag}
-                    type="button"
-                    className={`diary-dashboard__tag-menu-item${selectedTag === tag ? ' is-active' : ''}`}
-                    onClick={() => {
-                      onSelectTag?.(tag)
-                      setIsTagMenuOpen(false)
-                    }}
-                  >
-                    {tag}
-                  </button>
-                )) : <span className="diary-dashboard__tag-menu-empty">暂无可筛选标签</span>}
-              </div>
-            ) : null}
+          <div className="diary-dashboard__tag-filter">
+            <FilterSelect
+              label="标签"
+              value={selectedTag || ''}
+              options={tagOptions}
+              onChange={(value) => onSelectTag?.(value ? value : null)}
+              placeholder="全部标签"
+              triggerAriaLabel="标签筛选"
+              searchable={availableTags.length > 8}
+            />
           </div>
 
           {/* Quick Organize Materials */}

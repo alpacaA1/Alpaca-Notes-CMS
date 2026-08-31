@@ -162,7 +162,7 @@ describe('App diary quote and single-day convergence flow', () => {
     fireEvent.click(await screen.findByRole('tab', { name: '评论' }))
 
     // Click the highlight card to activate it
-    const highlightsSection = await screen.findByRole('region', { name: 'Highlights' })
+    const highlightsSection = await screen.findByRole('region', { name: '划线摘录' })
     const highlightCard = within(highlightsSection).getByRole('button', { name: '元认知是人类最高级别的认知能力。' })
     fireEvent.click(highlightCard)
 
@@ -229,7 +229,7 @@ describe('App diary quote and single-day convergence flow', () => {
     fireEvent.click(await screen.findByRole('tab', { name: '评论' }))
 
     // Click highlight card to activate
-    const highlightsSection = await screen.findByRole('region', { name: 'Highlights' })
+    const highlightsSection = await screen.findByRole('region', { name: '划线摘录' })
     const highlightCard = within(highlightsSection).getByRole('button', { name: '元认知是人类最高级别的认知能力。' })
     fireEvent.click(highlightCard)
 

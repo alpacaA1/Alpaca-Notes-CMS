@@ -475,9 +475,9 @@ describe('App editor modes', () => {
     await screen.findByText('这里是原文摘录。')
 
     fireEvent.click(screen.getByRole('tab', { name: '评论' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Document note' }))
+    fireEvent.click(screen.getByRole('button', { name: '文档批注' }))
     fireEvent.change(screen.getByLabelText('Document note'), { target: { value: '新的待读评论' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.click(screen.getByRole('button', { name: '保存文档批注' }))
 
     expect(screen.getAllByText('新的待读评论').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: '← 返回归档' })).toBeTruthy()
@@ -514,10 +514,10 @@ describe('App editor modes', () => {
     expect(await screen.findByRole('button', { name: '这里是原文摘录。' })).toBeTruthy()
     expect(screen.getByRole('button', { name: '高亮：这里是原文摘录。' })).toBeTruthy()
     expect(screen.getByLabelText('Inline highlight document note')).toBeTruthy()
-    expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
+    expect(screen.getByLabelText('划线文档批注')).toBeTruthy()
 
     fireEvent.change(screen.getByLabelText('Inline highlight document note'), { target: { value: '选区批注' } })
-    expect((screen.getByLabelText('Highlight document note') as HTMLTextAreaElement).value).toBe('选区批注')
+    expect((screen.getByLabelText('划线文档批注') as HTMLTextAreaElement).value).toBe('选区批注')
     fireEvent.click(screen.getByRole('button', { name: '保存批注' }))
 
     expect(await screen.findByText('选区批注')).toBeTruthy()
@@ -649,8 +649,8 @@ describe('App editor modes', () => {
 
     selectReadLaterText('这里是原文摘录。')
     fireEvent.click(await screen.findByRole('button', { name: '批注' }))
-    fireEvent.change(await screen.findByLabelText('Highlight document note'), { target: { value: '选区批注' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    fireEvent.change(await screen.findByLabelText('划线文档批注'), { target: { value: '选区批注' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存批注' }))
 
     expect(await screen.findByText('选区批注')).toBeTruthy()
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
@@ -665,11 +665,11 @@ describe('App editor modes', () => {
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))
     expect(scrollIntoView).not.toHaveBeenCalled()
     expect(screen.getByRole('button', { name: '删除高亮' })).toBeTruthy()
-    expect(screen.getByLabelText('Highlight document note')).toBeTruthy()
+    expect(screen.getByLabelText('划线文档批注')).toBeTruthy()
 
     fireEvent.click(screen.getByText('这里是我的总结。'))
     expect(screen.queryByRole('button', { name: '删除高亮' })).toBeNull()
-    expect(screen.queryByLabelText('Highlight document note')).toBeNull()
+    expect(screen.queryByLabelText('划线文档批注')).toBeNull()
     expect(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }).className).not.toContain('is-active')
 
     fireEvent.click(screen.getByRole('button', { name: '高亮：这里是原文摘录。' }))

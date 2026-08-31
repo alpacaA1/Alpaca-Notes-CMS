@@ -10374,8 +10374,8 @@ textarea {
   height: 22px;
   padding: 0 7px;
   border-radius: 999px;
-  background: rgba(24, 132, 240, 0.94);
-  color: #ffffff;
+  background: var(--admin-warm);
+  color: var(--admin-save-text);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
@@ -10586,8 +10586,8 @@ textarea {
   min-height: 18px;
   padding: 0 6px;
   border-radius: 999px;
-  background: rgba(24, 132, 240, 0.12);
-  color: #1473d1;
+  background: var(--admin-warm-soft);
+  color: var(--admin-warm);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1;
@@ -11712,8 +11712,8 @@ textarea {
   align-items: center;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(132, 108, 178, 0.08);
-  color: #7a6b94;
+  background: var(--admin-warm-soft);
+  color: var(--admin-warm);
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.03em;
@@ -17228,12 +17228,12 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 }
 
 .top-bar__user-dropdown-item--danger:hover {
-  background: rgba(185, 28, 28, 0.08);
-  color: #c93b2b;
+  background: var(--admin-button-danger-bg);
+  color: var(--admin-button-danger);
 }
 
 .top-bar__user-dropdown-item--danger:hover .top-bar__menu-item-icon {
-  color: #c93b2b;
+  color: var(--admin-button-danger);
 }
 
 .top-bar__user-dropdown-divider {
@@ -17553,8 +17553,8 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   min-width: 16px;
   height: 16px;
   padding: 0 4px;
-  background: #936037;
-  color: #fff;
+  background: var(--admin-save);
+  color: var(--admin-save-text);
   font-size: 11px;
   font-weight: 700;
   border-radius: 8px;
@@ -18333,8 +18333,8 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 }
 
 .diary-dashboard__mode-tab.is-active {
-  background: #775333;
-  color: #ffffff;
+  background: var(--admin-save);
+  color: var(--admin-save-text);
   box-shadow: 0 1px 4px rgba(89, 59, 33, 0.2);
 }
 
@@ -18872,8 +18872,8 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 .diary-timeline__emotion-badge {
   padding: 2px 7px;
   border-radius: 6px;
-  background: #f3d8ae;
-  color: #775333;
+  background: var(--admin-warm-soft);
+  color: var(--admin-warm);
   font-size: 11.5px;
   font-weight: 600;
 }
@@ -18963,7 +18963,7 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 
 .diary-timeline__quote-expand-btn:hover,
 .diary-timeline__quote-collapse-btn:hover {
-  color: #aa6b30;
+  color: var(--admin-save-hover);
   text-decoration: underline;
 }
 

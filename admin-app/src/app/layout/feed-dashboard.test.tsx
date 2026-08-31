@@ -610,12 +610,12 @@ describe('FeedDashboard', () => {
     expect(within(sidebar).queryByRole('button', { name: '删除 设计 Feed' })).toBeNull()
 
     fireEvent.click(within(sidebar).getByRole('button', { name: '设计 Feed 更多操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '全部标为已读' }))
 
     expect(within(sidebar).queryByLabelText('0 条待读')).toBeNull()
 
     fireEvent.click(within(sidebar).getByRole('button', { name: '设计 Feed 更多操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除' }))
 
     expect(onRemoveSubscription).toHaveBeenCalledWith(subscription)
   })
@@ -655,7 +655,7 @@ describe('FeedDashboard', () => {
     const sidebar = screen.getByLabelText('已订阅 feed')
     fireEvent.click(within(sidebar).getByRole('button', { name: '展开 Uncategorized' }))
     fireEvent.click(within(sidebar).getByRole('button', { name: '已加载 Feed 更多操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Mark as read' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '全部标为已读' }))
 
     const stored = JSON.parse(window.localStorage.getItem('alpaca-admin-viewed-feed-items') || '{}') as Record<string, string[]>
     expect(stored[subscription.url]).toEqual([
@@ -686,15 +686,15 @@ describe('FeedDashboard', () => {
       onDeleteFolder,
     })
 
-    fireEvent.click(screen.getByRole('button', { name: '+ New Folder' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ 新建文件夹' }))
     expect(onCreateFolder).toHaveBeenCalledWith('Blogs')
 
     fireEvent.click(screen.getByRole('button', { name: 'Newspaper 更多操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '重命名' }))
     expect(onRenameFolder).toHaveBeenCalledWith(folder, 'Magazine')
 
     fireEvent.click(screen.getByRole('button', { name: 'Newspaper 更多操作' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '删除' }))
     expect(onDeleteFolder).toHaveBeenCalledWith(folder)
   })
 
