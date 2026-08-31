@@ -965,18 +965,33 @@ export default function App() {
     () => new Map(people.map((person) => [`person:${person.id}`, person])),
     [people],
   )
+  const peopleAliasLookup = useMemo(() => {
+    const lookup = new Map<string, PersonEntry>()
+    people.forEach((person) => {
+      [person.name, ...person.aliases].forEach((name) => {
+        const key = name.trim().toLocaleLowerCase()
+        if (key && !lookup.has(key)) lookup.set(key, person)
+      })
+    })
+    return lookup
+  }, [people])
   const personMentionCounts = useMemo(() => {
     const counts: Record<string, number> = {}
-    const pattern = /\[\[person:([^|\]]+)(?:\|[^\]]+)?\]\]/g
+    const pattern = /\[\[([^\[\]|]+?)(?:\|[^\]]+)?\]\]/g
     internalReferencePosts.forEach((post) => {
       const mentioned = new Set<string>()
       for (const match of (post.body || '').matchAll(pattern)) {
-        mentioned.add(match[1].trim())
+        const targetKey = match[1].trim()
+        const parsedTarget = parseInternalReferenceTargetKey(targetKey)
+        const person = parsedTarget?.contentType === 'person'
+          ? internalReferencePeopleLookup.get(targetKey)
+          : peopleAliasLookup.get(targetKey.toLocaleLowerCase())
+        if (person) mentioned.add(person.id)
       }
       mentioned.forEach((id) => { counts[id] = (counts[id] || 0) + 1 })
     })
     return counts
-  }, [internalReferencePosts])
+  }, [internalReferencePeopleLookup, internalReferencePosts, peopleAliasLookup])
   const activeTopicNodeKey =
     document?.contentType === 'post' && document.frontmatter.topic === true
       ? document.frontmatter.node_key?.trim() || ''
@@ -1963,6 +1978,14 @@ export default function App() {
     await openIndexedPost(post, { navigationBehavior: 'reset' })
   }
 
+  const openPersonEntry = (person: PersonEntry) => {
+    setSearch('')
+    setSuccessMessage(null)
+    setError(null)
+    setActivePersonId(person.id)
+    setAdminView('people')
+  }
+
   const handleOpenTopicNode = (targetKey: string) => {
     const topicPost = topicNodesByKey.get(targetKey)
     if (!topicPost) {
@@ -1972,6 +1995,23 @@ export default function App() {
     }
 
     void openIndexedPost(topicPost, { navigationBehavior: 'push' })
+  }
+
+  const handleOpenWikiLink = (targetKey: string) => {
+    const topicPost = topicNodesByKey.get(targetKey)
+    if (topicPost) {
+      void openIndexedPost(topicPost, { navigationBehavior: 'push' })
+      return
+    }
+
+    const person = peopleAliasLookup.get(targetKey.trim().toLocaleLowerCase())
+    if (person) {
+      openPersonEntry(person)
+      return
+    }
+
+    setSuccessMessage(null)
+    setError(`未找到主题节点 ${targetKey}。`)
   }
 
   const handleOpenInternalReference = (targetKey: string) => {
@@ -2000,11 +2040,7 @@ export default function App() {
         return
       }
 
-      setSearch('')
-      setSuccessMessage(null)
-      setError(null)
-      setActivePersonId(targetPerson.id)
-      setAdminView('people')
+      openPersonEntry(targetPerson)
       return
     }
 
@@ -5608,8 +5644,8 @@ export default function App() {
                       onSaveAnnotationNote={handleSaveAnnotationNote}
                       onCancelAnnotationEdit={() => setEditingAnnotationId(null)}
                       onDeleteAnnotation={handleDeleteAnnotation}
-                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || null}
-                      onOpenWikiLink={handleOpenTopicNode}
+                      resolveWikiLinkTitle={(targetKey) => topicNodesByKey.get(targetKey)?.title || peopleAliasLookup.get(targetKey.trim().toLocaleLowerCase())?.name || null}
+                      onOpenWikiLink={handleOpenWikiLink}
                       resolveInternalReferenceTitle={(targetKey) => (
                         internalReferenceLookup.get(targetKey)?.title
                         || internalReferenceBookLookup.get(targetKey)?.title

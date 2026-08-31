@@ -27,14 +27,19 @@ function PersonIcon({ type }: { type: 'profile' | 'tag' | 'birthday' | 'note' | 
   return <svg {...common}><path d="M3.1 2.7h9.8v10.6H3.1z" stroke="currentColor" strokeWidth="1.2"/><path d="M5.2 6h5.6M5.2 8.4h5.6M5.2 10.8h3.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/></svg>
 }
 
+function ExpandIcon() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.05 2.5H2.5v3.55M9.95 2.5h3.55v3.55M6.05 13.5H2.5V9.95M9.95 13.5h3.55V9.95" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/></svg>
+}
+
 export default function PeopleBookView({ people, search, isLoading, isSaving, mentionCounts, selectedPersonId, onAdd, onSave, onDelete }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PersonEntry | null>(null)
   const [moment, setMoment] = useState('')
   const [momentDate, setMomentDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false)
   const selected = people.find((person) => person.id === selectedId) || null
 
-  useEffect(() => { setDraft(selected); setMoment('') }, [selected])
+  useEffect(() => { setDraft(selected); setMoment(''); setIsNotesExpanded(false) }, [selected])
   useEffect(() => {
     if (selectedPersonId && people.some((person) => person.id === selectedPersonId)) {
       setSelectedId(selectedPersonId)
@@ -67,6 +72,14 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
   }
 
   if (isLoading) return <section className="people-book__loading">正在打开人物簿…</section>
+  if (isNotesExpanded && draft) return <section className="people-book people-book--notes-writing" aria-label="人物近况沉浸输入">
+    <aside className="people-book__rail"><p>PRIVATE INDEX</p><h1>人物簿</h1><span>把相处的片段留在这里。</span></aside>
+    <section className="people-book__notes-canvas">
+      <header><div><p>关于他 / 她</p><h2>{draft.name || '未命名人物'}</h2></div><button type="button" onClick={() => setIsNotesExpanded(false)}>← 返回人物卡</button></header>
+      <textarea value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="想记住的习惯、近况、共同经历……" autoFocus />
+      <footer><span>{draft.notes.trim().length} 字</span><button type="button" className="people-book__save" disabled={isSaving || !draft.name.trim()} onClick={save}>{isSaving ? '保存中…' : '保存人物卡'}</button></footer>
+    </section>
+  </section>
   return <section className="people-book" aria-label="人物簿">
     <aside className="people-book__rail">
       <p>PRIVATE INDEX</p><h1>人物簿</h1><span>把相处的片段留在这里。</span>
@@ -80,13 +93,13 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
       {!draft ? <div className="people-book__detail-empty"><Portrait person={{ name: '人' } as PersonEntry}/><h2>选择一个人</h2><p>记录关系、近况与被文章提起的时刻。</p></div> : <div className="people-book__form">
         <header><p>人物卡</p><button type="button" onClick={() => onDelete(draft)}>删除</button></header>
         <div className="people-book__heading"><Portrait person={draft}/><input value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="名字或称呼" /></div>
+        <label className="people-book__birthday-field"><span><PersonIcon type="birthday"/>生日</span><input type="date" value={draft.birthday} onChange={(event) => update('birthday', event.target.value)} /></label>
         <div className="people-book__meta-grid">
           <label><span><PersonIcon type="profile"/>关系</span><input value={draft.relationship} onChange={(event) => update('relationship', event.target.value)} placeholder="朋友、同事、家人…" /></label>
-          <label><span><PersonIcon type="birthday"/>重要日期</span><input type="date" value={draft.birthday} onChange={(event) => update('birthday', event.target.value)} /></label>
           <label><span><PersonIcon type="tag"/>别名</span><input value={draft.aliases.join('、')} onChange={(event) => update('aliases', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="昵称、外号" /></label>
           <label><span><PersonIcon type="tag"/>标签</span><input value={draft.tags.join('、')} onChange={(event) => update('tags', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="旅行、大学、摄影" /></label>
         </div>
-        <label className="people-book__notes"><span><PersonIcon type="note"/>关于他 / 她</span><textarea value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="想记住的习惯、近况、共同经历……" /></label>
+        <section className="people-book__notes"><div className="people-book__notes-head"><span><PersonIcon type="note"/>关于他 / 她</span><button type="button" onClick={() => setIsNotesExpanded(true)} aria-label="展开输入" title="展开输入"><ExpandIcon/></button></div><textarea value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="想记住的习惯、近况、共同经历……" /></section>
         <section className="people-book__moments"><div className="people-book__section-head"><span>日常片段</span><small><PersonIcon type="mention"/>{mentionCounts[draft.id] || 0} 次文章提及</small></div><div className="people-book__moment-composer"><input type="date" value={momentDate} onChange={(event) => setMomentDate(event.target.value)} /><textarea value={moment} onChange={(event) => setMoment(event.target.value)} placeholder="今天发生了什么？" /><button type="button" onClick={appendMoment} disabled={!moment.trim()}>记下</button></div>{draft.moments.length ? <div className="people-book__moment-list">{draft.moments.map((item) => <article key={item.id}><time>{item.date}</time><p>{item.content}</p><button type="button" onClick={() => removeMoment(item.id)} aria-label="删除这条日常记录">×</button></article>)}</div> : <p className="people-book__moment-empty">日常会慢慢长成你们的时间线。</p>}</section>
         <button type="button" className="people-book__save" disabled={isSaving || !draft.name.trim()} onClick={save}>{isSaving ? '保存中…' : '保存人物卡'}</button>
       </div>}
