@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { PitchStatus } from '../posts/post-types'
 import FilterSelect, { type FilterSelectOption } from '../layout/filter-select'
+import TaxonomyMultiSelect from '../layout/taxonomy-multi-select'
 import { useColorMode } from '../layout/use-color-mode'
 
 const STATUS_OPTIONS: FilterSelectOption[] = [
@@ -34,20 +35,16 @@ export function QuickPitchModal({
   const { isDark } = useColorMode()
   const [title, setTitle] = useState('')
   const [inspiration, setInspiration] = useState('')
-  const [tagsInput, setTagsInput] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [status, setStatus] = useState<PitchStatus>(defaultStatus)
   const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const tagOptions = useMemo<FilterSelectOption[]>(() => {
-    return availableTags.map((tag) => ({ value: tag, label: tag }))
-  }, [availableTags])
 
   useEffect(() => {
     if (isOpen) {
       setTitle('')
       setInspiration('')
-      setTagsInput('')
+      setSelectedTags([])
       setStatus(defaultStatus === 'open' ? 'collecting' : defaultStatus)
       setError(null)
       setTimeout(() => {
@@ -69,7 +66,7 @@ export function QuickPitchModal({
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, isSaving, title, inspiration, tagsInput, status])
+  }, [isOpen, isSaving, title, inspiration, selectedTags, status])
 
   const handleFormSubmit = async (openInEditor = false) => {
     if (!title.trim()) {
@@ -78,16 +75,11 @@ export function QuickPitchModal({
       return
     }
 
-    const tags = tagsInput
-      .split(/[,，\s]+/)
-      .map((t) => t.trim().replace(/^#/, ''))
-      .filter(Boolean)
-
     try {
       await onSave({
         title: title.trim(),
         inspiration: inspiration.trim() || undefined,
-        tags: tags.length > 0 ? tags : undefined,
+        tags: selectedTags.length > 0 ? selectedTags : undefined,
         pitchStatus: status,
         openInEditor,
       })
@@ -173,14 +165,12 @@ export function QuickPitchModal({
           <div className="quick-pitch-modal__row">
             <div className="quick-pitch-modal__field quick-pitch-modal__field--half">
               <span className="quick-pitch-modal__label">标签</span>
-              <FilterSelect
+              <TaxonomyMultiSelect
                 label="标签"
-                value={tagsInput}
-                options={tagOptions}
-                searchable
-                allowCustomValue
-                placeholder="选择或输入标签"
-                onChange={(nextVal) => setTagsInput(nextVal)}
+                value={selectedTags}
+                availableOptions={availableTags}
+                onChange={(next) => setSelectedTags(next)}
+                onCreateOption={(name) => setSelectedTags((prev) => Array.from(new Set([...prev, name])))}
               />
             </div>
 

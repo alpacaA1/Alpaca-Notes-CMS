@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
 import type { ReadLaterAnnotationIndexItem } from '../read-later/annotation-index'
+import ConfirmDialog from './confirm-dialog'
 import FilterSelect from './filter-select'
 
 export type CommentFilterStatus = 'all' | 'has-note' | 'no-note'
@@ -1003,28 +1004,15 @@ export default function ReadLaterAnnotationsView({
 
       {/* Unsaved Comment Confirmation Prompt */}
       {showUnsavedPrompt ? (
-        <div className="annotation-dashboard__prompt-overlay" role="dialog" aria-modal="true">
-          <div className="annotation-dashboard__prompt-dialog">
-            <h3 className="annotation-dashboard__prompt-title">评论尚未保存</h3>
-            <p className="annotation-dashboard__prompt-desc">切换批注将丢失当前未保存的评论修改，是否放弃修改？</p>
-            <div className="annotation-dashboard__prompt-actions">
-              <button
-                type="button"
-                className="annotation-dashboard__prompt-btn annotation-dashboard__prompt-btn--cancel"
-                onClick={handleCancelDiscard}
-              >
-                继续编辑
-              </button>
-              <button
-                type="button"
-                className="annotation-dashboard__prompt-btn annotation-dashboard__prompt-btn--danger"
-                onClick={handleConfirmDiscard}
-              >
-                放弃修改
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title="评论尚未保存"
+          message="切换批注将丢失当前未保存的评论修改，是否放弃修改？"
+          confirmLabel="放弃修改"
+          cancelLabel="继续编辑"
+          isDangerous
+          onConfirm={handleConfirmDiscard}
+          onCancel={handleCancelDiscard}
+        />
       ) : null}
     </div>
   )

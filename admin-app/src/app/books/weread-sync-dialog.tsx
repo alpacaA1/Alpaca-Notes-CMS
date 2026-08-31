@@ -196,7 +196,6 @@ export default function WeReadSyncDialog({
         aria-modal="true"
         aria-labelledby="weread-sync-title"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 540 }}
       >
         <div className="weread-sync-dialog__header">
           <div style={{ flex: 1 }}>
@@ -430,12 +429,13 @@ export default function WeReadSyncDialog({
             <div
               style={{
                 padding: '10px 14px',
-                borderRadius: 6,
-                background: 'rgba(46, 125, 50, 0.1)',
-                border: '1px solid rgba(46, 125, 50, 0.3)',
-                color: '#2e7d32',
+                borderRadius: 8,
+                background: 'var(--admin-warm-soft, rgba(141, 113, 77, 0.1))',
+                border: '1px solid var(--admin-line, rgba(141, 113, 77, 0.2))',
+                color: 'var(--admin-save, #775333)',
                 fontSize: 13,
                 marginBottom: 12,
+                fontWeight: 500,
               }}
             >
               ✓ {syncSuccessSummary}
@@ -447,12 +447,13 @@ export default function WeReadSyncDialog({
             <div
               style={{
                 padding: '10px 14px',
-                borderRadius: 6,
-                background: 'rgba(211, 47, 47, 0.1)',
-                border: '1px solid rgba(211, 47, 47, 0.3)',
-                color: '#d32f2f',
+                borderRadius: 8,
+                background: 'rgba(193, 108, 95, 0.12)',
+                border: '1px solid rgba(193, 108, 95, 0.25)',
+                color: '#b04e40',
                 fontSize: 13,
                 marginBottom: 12,
+                fontWeight: 500,
               }}
             >
               ⚠️ {errorMessage}
