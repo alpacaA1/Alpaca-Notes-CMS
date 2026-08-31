@@ -5567,6 +5567,7 @@ export default function App() {
             isSaving={isPeopleSaving}
             mentionCounts={personMentionCounts}
             selectedPersonId={activePersonId}
+            internalReferenceCandidates={internalReferenceCandidates}
             onAdd={() => {
               const person = createPersonEntry()
               setPeople((current) => [person, ...current])
