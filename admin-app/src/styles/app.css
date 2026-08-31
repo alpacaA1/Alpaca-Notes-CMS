@@ -1353,10 +1353,6 @@ textarea {
   white-space: nowrap;
 }
 
-.top-bar--editor .top-bar__identity {
-  flex-basis: 32px;
-}
-
 .top-bar__logo {
   display: block;
   flex-shrink: 0;
@@ -1364,11 +1360,6 @@ textarea {
   height: 38px;
   border-radius: 8px;
   object-fit: cover;
-}
-
-.top-bar--editor .top-bar__logo {
-  width: 32px;
-  height: 32px;
 }
 
 .top-bar__identity-text {
