@@ -68,6 +68,9 @@ import MovieJournalView from './movies/movie-journal-view'
 import { createMovieEntry, type MovieEntry } from './movies/movie-types'
 import { fetchMoviesLibrary, saveMoviesLibrary } from './movies/movie-sync'
 import { searchTmdbMovies } from './movies/tmdb-client'
+import PeopleBookView from './people/people-book-view'
+import { createPersonEntry, type PersonEntry } from './people/people-types'
+import { fetchPeopleLibrary, savePeopleLibrary } from './people/people-sync'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
 import { getNextImmersiveMode } from './layout/immersive-mode'
@@ -573,7 +576,7 @@ function EmptyState({ error }: { error: string | null }) {
   )
 }
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies' | 'people'
 type BookReaderSession = { meta: StoredBookMeta; fileBlob: Blob; targetAnnotationId?: string | null }
 
 const RSS_FEATURE_ENABLED = false
@@ -616,6 +619,11 @@ export default function App() {
   const [moviesSha, setMoviesSha] = useState<string | undefined>()
   const [isMoviesLoading, setIsMoviesLoading] = useState(false)
   const [isMoviesSaving, setIsMoviesSaving] = useState(false)
+  const [people, setPeople] = useState<PersonEntry[]>([])
+  const [peopleSha, setPeopleSha] = useState<string | undefined>()
+  const [isPeopleLoading, setIsPeopleLoading] = useState(false)
+  const [isPeopleSaving, setIsPeopleSaving] = useState(false)
+  const [activePersonId, setActivePersonId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
@@ -942,8 +950,8 @@ export default function App() {
     return [activeDocumentPost, ...indexedPosts.filter((post) => post.path !== activeDocumentPost.path)]
   }, [document, postsByType.diary, postsByType.knowledge, postsByType.post, postsByType['read-later']])
   const internalReferenceCandidates = useMemo(
-    () => buildInternalReferenceCandidates(internalReferencePosts, bookMetas),
-    [bookMetas, internalReferencePosts],
+    () => buildInternalReferenceCandidates(internalReferencePosts, bookMetas, people),
+    [bookMetas, internalReferencePosts, people],
   )
   const internalReferenceLookup = useMemo(
     () => buildInternalReferenceLookup(internalReferencePosts),
@@ -953,6 +961,22 @@ export default function App() {
     () => new Map(bookMetas.map((book) => [`book:${book.id}`, book])),
     [bookMetas],
   )
+  const internalReferencePeopleLookup = useMemo(
+    () => new Map(people.map((person) => [`person:${person.id}`, person])),
+    [people],
+  )
+  const personMentionCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    const pattern = /\[\[person:([^|\]]+)(?:\|[^\]]+)?\]\]/g
+    internalReferencePosts.forEach((post) => {
+      const mentioned = new Set<string>()
+      for (const match of (post.body || '').matchAll(pattern)) {
+        mentioned.add(match[1].trim())
+      }
+      mentioned.forEach((id) => { counts[id] = (counts[id] || 0) + 1 })
+    })
+    return counts
+  }, [internalReferencePosts])
   const activeTopicNodeKey =
     document?.contentType === 'post' && document.frontmatter.topic === true
       ? document.frontmatter.node_key?.trim() || ''
@@ -1968,6 +1992,22 @@ export default function App() {
       return
     }
 
+    if (parsedTarget?.contentType === 'person') {
+      const targetPerson = internalReferencePeopleLookup.get(targetKey)
+      if (!targetPerson) {
+        setSuccessMessage(null)
+        setError(`未找到人物簿条目 ${targetKey}。`)
+        return
+      }
+
+      setSearch('')
+      setSuccessMessage(null)
+      setError(null)
+      setActivePersonId(targetPerson.id)
+      setAdminView('people')
+      return
+    }
+
     const targetPost = internalReferenceLookup.get(targetKey)
     if (!targetPost) {
       setSuccessMessage(null)
@@ -2069,11 +2109,26 @@ export default function App() {
     setAdminView('movies')
   }
 
+  const handleOpenPeople = () => {
+    setSearch('')
+    setSuccessMessage(null)
+    setError(null)
+    setActivePersonId(null)
+    setAdminView('people')
+  }
+
   const refreshMovies = useCallback(async () => {
     if (!session) return
     const result = await fetchMoviesLibrary(session)
     setMovies(result.data.movies.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)))
     setMoviesSha(result.sha)
+  }, [session])
+
+  const refreshPeople = useCallback(async () => {
+    if (!session) return
+    const result = await fetchPeopleLibrary(session)
+    setPeople(result.data.people.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)))
+    setPeopleSha(result.sha)
   }, [session])
 
   useEffect(() => {
@@ -2083,6 +2138,21 @@ export default function App() {
       setError(movieError instanceof Error ? movieError.message : '读取光影记录失败。')
     }).finally(() => setIsMoviesLoading(false))
   }, [adminView, refreshMovies])
+
+  useEffect(() => {
+    if (!session) return
+    void refreshPeople().catch(() => {
+      // 人物簿预载失败不影响普通写作；打开人物簿时会展示错误。
+    })
+  }, [refreshPeople, session])
+
+  useEffect(() => {
+    if (adminView !== 'people') return
+    setIsPeopleLoading(true)
+    void refreshPeople().catch((peopleError) => {
+      setError(peopleError instanceof Error ? peopleError.message : '读取人物簿失败。')
+    }).finally(() => setIsPeopleLoading(false))
+  }, [adminView, refreshPeople])
 
   const handleSaveMovie = async (movie: MovieEntry) => {
     if (!session) return
@@ -2110,6 +2180,34 @@ export default function App() {
     } catch (movieError) {
       setError(movieError instanceof Error ? movieError.message : '删除观影笔记失败。')
     } finally { setIsMoviesSaving(false) }
+  }
+
+  const handleSavePerson = async (person: PersonEntry) => {
+    if (!session) return
+    const nextPeople = [person, ...people.filter((item) => item.id !== person.id)].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    setIsPeopleSaving(true)
+    try {
+      const saved = await savePeopleLibrary(session, nextPeople, peopleSha)
+      setPeople(nextPeople)
+      setPeopleSha(saved.sha)
+      setSuccessMessage(`已保存 ${person.name} 的人物卡。`)
+    } catch (peopleError) {
+      setError(peopleError instanceof Error ? peopleError.message : '保存人物卡失败。')
+    } finally { setIsPeopleSaving(false) }
+  }
+
+  const handleDeletePerson = async (person: PersonEntry) => {
+    if (!session || !window.confirm(`确定删除 ${person.name || '这位人物'} 的人物卡吗？文章中的引用不会被自动删除。`)) return
+    setIsPeopleSaving(true)
+    try {
+      const nextPeople = people.filter((item) => item.id !== person.id)
+      const saved = await savePeopleLibrary(session, nextPeople, peopleSha)
+      setPeople(nextPeople)
+      setPeopleSha(saved.sha)
+      setSuccessMessage('人物卡已删除。')
+    } catch (peopleError) {
+      setError(peopleError instanceof Error ? peopleError.message : '删除人物卡失败。')
+    } finally { setIsPeopleSaving(false) }
   }
 
   useEffect(() => {
@@ -4979,6 +5077,10 @@ export default function App() {
       ? isMoviesSaving
         ? '正在保存观影笔记…'
         : `共 ${movies.length} 条观影记录`
+    : adminView === 'people'
+      ? isPeopleSaving
+        ? '正在保存人物卡…'
+        : `共 ${people.length} 位人物`
     : isOrganizingMaterials
         ? '正在整理月报素材…'
       : isSaving && document
@@ -5158,6 +5260,7 @@ export default function App() {
           onOpenFeeds={RSS_FEATURE_ENABLED ? handleOpenFeeds : undefined}
           onOpenBooks={handleOpenBooks}
           onOpenMovies={handleOpenMovies}
+          onOpenPeople={handleOpenPeople}
           rssUnreadCount={rssUnreadCount}
           isRssRefreshing={isRssBackgroundRefreshing}
           onContentTypeChange={(value) => {
@@ -5419,6 +5522,24 @@ export default function App() {
             onDelete={(movie) => { void handleDeleteMovie(movie) }}
           />
         </section>
+      ) : adminView === 'people' ? (
+        <section className="admin-shell__viewport admin-shell__viewport--people">
+          <PeopleBookView
+            people={people}
+            search={search}
+            isLoading={isPeopleLoading}
+            isSaving={isPeopleSaving}
+            mentionCounts={personMentionCounts}
+            selectedPersonId={activePersonId}
+            onAdd={() => {
+              const person = createPersonEntry()
+              setPeople((current) => [person, ...current])
+              return person
+            }}
+            onSave={(person) => { void handleSavePerson(person) }}
+            onDelete={(person) => { void handleDeletePerson(person) }}
+          />
+        </section>
       ) : (
         <div className={`admin-layout${isReaderPreview ? ' admin-layout--reader' : ''}${!isReaderDocument ? ' admin-layout--drawers' : ''}`}>
           <PostListPane
@@ -5492,6 +5613,7 @@ export default function App() {
                       resolveInternalReferenceTitle={(targetKey) => (
                         internalReferenceLookup.get(targetKey)?.title
                         || internalReferenceBookLookup.get(targetKey)?.title
+                        || internalReferencePeopleLookup.get(targetKey)?.name
                         || null
                       )}
                       onOpenInternalReference={handleOpenInternalReference}
@@ -5685,6 +5807,7 @@ export default function App() {
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '藏馆 · 书架', category: '导航', icon: '📚', action: handleOpenBooks },
           { id: 'movies', label: '藏馆 · 光影', category: '导航', icon: '🎞️', action: handleOpenMovies },
+          { id: 'people', label: '人物簿', category: '私人记录', icon: '◌', action: handleOpenPeople },
           ...(RSS_FEATURE_ENABLED ? [{ id: 'feeds', label: 'RSS 订阅与高光', category: '导航', icon: '📡', action: handleOpenFeeds }] : []),
           { id: 'trash', label: '回收站', category: '导航', icon: '🗑️', action: handleOpenTrash },
           { id: 'tool-hub', label: '打开 Tool Hub', category: '导航', icon: '🧰', action: () => window.open('https://alpacaa1.github.io/tool-hub/', '_blank', 'noopener,noreferrer') },

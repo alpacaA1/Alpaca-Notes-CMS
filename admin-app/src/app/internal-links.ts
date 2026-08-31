@@ -1,7 +1,8 @@
 import type { ContentType, PostIndexItem } from './posts/post-types'
 import type { StoredBookMeta } from './books/book-types'
+import type { PersonEntry } from './people/people-types'
 
-export type InternalReferenceContentType = ContentType | 'book'
+export type InternalReferenceContentType = ContentType | 'book' | 'person'
 
 export type InternalReferenceCandidate = {
   targetKey: string
@@ -30,7 +31,7 @@ type InternalReferenceCandidateSearchFields = {
   bodyText: string
 }
 
-const INTERNAL_REFERENCE_TYPES: InternalReferenceContentType[] = ['read-later', 'knowledge', 'diary', 'post', 'book']
+const INTERNAL_REFERENCE_TYPES: InternalReferenceContentType[] = ['read-later', 'knowledge', 'diary', 'post', 'book', 'person']
 const INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH = 3
 
 function normalizeText(value: string) {
@@ -81,6 +82,10 @@ export function getInternalReferenceTypeLabel(contentType: InternalReferenceCont
 
   if (contentType === 'book') {
     return '书籍'
+  }
+
+  if (contentType === 'person') {
+    return '人物'
   }
 
   return '文章'
@@ -256,7 +261,7 @@ function shouldSearchBody(normalizedQuery: string) {
   return Array.from(compactQuery).length >= INTERNAL_REFERENCE_BODY_QUERY_MIN_LENGTH
 }
 
-export function buildInternalReferenceCandidates(posts: PostIndexItem[], books: StoredBookMeta[] = []) {
+export function buildInternalReferenceCandidates(posts: PostIndexItem[], books: StoredBookMeta[] = [], people: PersonEntry[] = []) {
   const dedupedCandidates = new Map<string, InternalReferenceCandidate>()
 
   posts.forEach((post) => {
@@ -308,6 +313,34 @@ export function buildInternalReferenceCandidates(posts: PostIndexItem[], books: 
         strongTerms: normalizeTerms([creator, identifier, targetKey]),
         auxiliaryTerms: [],
         bodyText: '',
+      },
+    })
+  })
+
+  people.forEach((person) => {
+    const targetKey = `person:${person.id}`
+    if (dedupedCandidates.has(targetKey)) {
+      return
+    }
+
+    const title = person.name.trim() || '未命名人物'
+    const identifier = person.id.trim()
+    dedupedCandidates.set(targetKey, {
+      targetKey,
+      title,
+      contentType: 'person',
+      identifier,
+      keywords: joinSearchSegments([title, person.relationship, ...person.aliases, ...person.tags, identifier, targetKey]),
+      date: person.updatedAt || person.createdAt,
+      path: person.id,
+      displayMeta: person.relationship || person.aliases[0] || '人物簿',
+      search: {
+        normalizedTitle: normalizeText(title),
+        normalizedIdentifier: normalizeText(identifier),
+        normalizedTargetKey: normalizeText(targetKey),
+        strongTerms: normalizeTerms([person.relationship, ...person.aliases, identifier, targetKey]),
+        auxiliaryTerms: normalizeTerms(person.tags),
+        bodyText: normalizeText(person.notes),
       },
     })
   })

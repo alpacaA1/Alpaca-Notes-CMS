@@ -165,4 +165,30 @@ aliases:
       identifier: 'book-123',
     })
   })
+
+  it('builds person references with stable ids and alias recall', () => {
+    const candidates = buildInternalReferenceCandidates([], [], [{
+      id: 'person-lin',
+      name: '林夏',
+      aliases: ['小夏', '夏夏'],
+      relationship: '大学朋友',
+      tags: ['摄影', '旅行'],
+      birthday: '',
+      notes: '总会带着胶片相机。',
+      moments: [],
+      createdAt: '2026-08-30T08:00:00.000Z',
+      updatedAt: '2026-08-30T08:00:00.000Z',
+    }])
+
+    expect(searchInternalReferenceCandidates(candidates, '小夏')).toMatchObject([{
+      targetKey: 'person:person-lin',
+      title: '林夏',
+      contentType: 'person',
+    }])
+    expect(searchInternalReferenceCandidates(candidates, '摄影')).toHaveLength(1)
+    expect(parseInternalReferenceTargetKey('person:person-lin')).toEqual({
+      contentType: 'person',
+      identifier: 'person-lin',
+    })
+  })
 })

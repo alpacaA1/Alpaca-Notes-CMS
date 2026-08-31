@@ -9,7 +9,7 @@ import {
 
 const TOOL_HUB_URL = 'https://alpacaa1.github.io/tool-hub/'
 
-type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies'
+type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies' | 'people'
 
 function AlpacaLogo() {
   return <img className="top-bar__logo" src={`${import.meta.env.BASE_URL}alpaca-notes-folded-film-icon.png`} alt="" />
@@ -67,6 +67,15 @@ function ToolHubMenuIcon() {
       <path d="M7 6V4.5C7 3.67 7.67 3 8.5 3h3c.83 0 1.5.67 1.5 1.5V6" stroke="currentColor" strokeWidth="1.5" />
       <path d="M3 10.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <circle cx="10" cy="10.5" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function PeopleMenuIcon() {
+  return (
+    <svg className="top-bar__menu-item-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <circle cx="10" cy="6.5" r="2.65" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M4.7 16.2c.42-2.62 2.54-4.18 5.3-4.18s4.88 1.56 5.3 4.18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -169,6 +178,7 @@ type TopBarProps = {
   onOpenFeeds?: () => void
   onOpenBooks?: () => void
   onOpenMovies?: () => void
+  onOpenPeople?: () => void
   rssUnreadCount?: number
   isRssRefreshing?: boolean
   onContentTypeChange: (value: ContentType) => void
@@ -282,6 +292,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
     return '搜索片名、导演或标签'
   }
 
+  if (adminView === 'people') {
+    return '搜索名字、别名、关系或近况'
+  }
+
   if (contentType === 'read-later') {
     return '搜索标题、摘要、正文、来源或原文链接'
   }
@@ -317,6 +331,7 @@ export default function TopBar({
   onOpenFeeds,
   onOpenBooks,
   onOpenMovies,
+  onOpenPeople,
   rssUnreadCount = 0,
   isRssRefreshing = false,
   onContentTypeChange,
@@ -362,8 +377,9 @@ export default function TopBar({
   const isFeedsView = adminView === 'feeds'
   const isBooksView = adminView === 'books'
   const isMoviesView = adminView === 'movies'
+  const isPeopleView = adminView === 'people'
   const isCollectionView = isBooksView || isMoviesView
-  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView && !isMoviesView
+  const isDashboardLike = !isEditor && !isTrashView && !isFeedsView && !isBooksView && !isMoviesView && !isPeopleView
   const titleText = isTrashView
     ? '回收站'
     : isFeedsView
@@ -372,6 +388,8 @@ export default function TopBar({
       ? '电子书'
     : isMoviesView
       ? '光影'
+    : isPeopleView
+      ? '人物簿'
     : isAnnotationsView
       ? '批注管理'
       : isDashboardLike
@@ -507,7 +525,8 @@ export default function TopBar({
   const showAnnotationToggle = isDashboardLike && contentType === 'read-later' && (onOpenAnnotations || onBackToDashboard)
   const showTrashToggle = !isEditor && Boolean(onOpenTrash || onBackToDashboard)
   const showFeedsToggle = false
-  const showCollectionNavigation = !isEditor && Boolean(onOpenBooks || onOpenMovies || onBackToDashboard)
+  const showCollectionNavigation = !isEditor && !isPeopleView && Boolean(onOpenBooks || onOpenMovies || onBackToDashboard)
+  const showPeopleBack = isPeopleView && Boolean(onBackToDashboard)
   const showRssBadge = !isFeedsView && rssUnreadCount > 0
   const showRssRefreshing = !isFeedsView && isRssRefreshing
   const rssBadgeLabel = rssUnreadCount > 99 ? '99+' : String(rssUnreadCount)
@@ -890,6 +909,11 @@ export default function TopBar({
               </button>
             )
           ) : null}
+          {showPeopleBack ? (
+            <button className="top-bar__button top-bar__button--back" type="button" onClick={onBackToDashboard}>
+              返回内容
+            </button>
+          ) : null}
           {isEditor && onBackToDashboard ? (
             <button
               className="top-bar__button top-bar__button--back"
@@ -1090,6 +1114,22 @@ export default function TopBar({
                   </span>
                   <ExternalArrowIcon />
                 </a>
+                {onOpenPeople ? (
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="top-bar__user-dropdown-item"
+                    onClick={() => {
+                      setIsUserMenuOpen(false)
+                      onOpenPeople()
+                    }}
+                  >
+                    <span className="top-bar__menu-item-main">
+                      <PeopleMenuIcon />
+                      <span>人物簿</span>
+                    </span>
+                  </button>
+                ) : null}
                 <div className="top-bar__user-dropdown-divider" />
                 <button
                   type="button"

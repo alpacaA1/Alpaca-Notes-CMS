@@ -10,6 +10,7 @@ export const PITCH_PATH = 'source/_pitches'
 export const FEED_SUBSCRIPTIONS_PATH = 'source/_data/feed-subscriptions.json'
 export const BOOKS_DATA_PATH = 'source/_data/books-library.json'
 export const MOVIES_DATA_PATH = 'source/_data/movies-library.json'
+export const PEOPLE_DATA_PATH = 'source/_data/people-library.json'
 export const TRASH_PATH = 'recycle-bin'
 export const TRASH_RETENTION_DAYS = 30
 export const SITE_ROOT_PATH = '/Alpaca-Notes-CMS'
