@@ -1057,11 +1057,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    setReadLaterTab('commentary')
     setActiveAnnotationId(null)
     setEditingAnnotationId(null)
     setAnnotationScrollRequest(0)
-  }, [document?.path, document?.contentType])
+  }, [document?.path])
 
   useEffect(() => {
     if (!editingAnnotationId) {
@@ -1354,6 +1353,7 @@ export default function App() {
   }, [contentType, postsByType.diary.length, postsByType.knowledge.length, postsByType.pitch.length, postsByType.post.length, session, updatePostsForType])
 
   const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
+    const isNewReadLater = nextPost.contentType === 'read-later' && !nextPost.sha && !nextPost.frontmatter.title?.trim()
     resetPreviewImageUrls()
     replaceDocument(nextPost, options?.draftPost ?? undefined)
     setMode(options?.mode ?? (nextPost.contentType === 'read-later' ? 'preview' : 'markdown'))
@@ -1362,7 +1362,12 @@ export default function App() {
     setLastSavedAt(null)
     setIsPostListDrawerOpen(false)
     setIsSettingsDrawerOpen(false)
-    setShouldFocusSettingsTitle(false)
+    if (isNewReadLater) {
+      setReadLaterTab('info')
+      setShouldFocusSettingsTitle(true)
+    } else {
+      setShouldFocusSettingsTitle(false)
+    }
     setSuccessMessage(options?.successMessage || null)
     setError(null)
   }
@@ -1825,12 +1830,15 @@ export default function App() {
     }
   }
 
-  const handleNewPost = async (targetType?: ContentType) => {
+  const handleNewPost = async (targetType?: unknown) => {
     if (!(await confirmNavigation())) {
       return
     }
 
-    const effectiveContentType = targetType || contentType
+    const effectiveContentType: ContentType =
+      targetType === 'read-later' || targetType === 'diary' || targetType === 'knowledge' || targetType === 'pitch' || targetType === 'post'
+        ? targetType
+        : contentType
 
     if (effectiveContentType === 'diary') {
       let diaryPosts = postsByType.diary
@@ -3354,6 +3362,11 @@ export default function App() {
     const shouldIncrementFeedReadLaterCount = document.contentType === 'read-later' && document.sha.length === 0 && Boolean(pendingFeedUrl)
     const nextErrors = validate({ isNewPost: document.sha.length === 0 })
     if (Object.keys(nextErrors).length > 0) {
+      if (document.contentType === 'read-later') {
+        setReadLaterTab('info')
+      }
+      const firstError = Object.values(nextErrors)[0]
+      setError(firstError ? `保存失败：${firstError}` : '请先完善必填项后再保存。')
       return
     }
 
@@ -5840,7 +5853,11 @@ export default function App() {
         onClose={() => setIsCommandPaletteOpen(false)}
         options={[
           { id: 'checkin', label: '自我观察：情绪与行为签到', category: '操作', icon: '✍️', shortcut: 'Alt+S', action: () => setIsCheckinModalOpen(true) },
-          { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: handleNewPost },
+          { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: () => handleNewPost('post') },
+          { id: 'new-read-later', label: '新建待读', category: '操作', icon: '🔖', action: () => handleNewPost('read-later') },
+          { id: 'new-diary', label: '新建日记', category: '操作', icon: '📅', action: () => handleNewPost('diary') },
+          { id: 'new-knowledge', label: '新建知识点', category: '操作', icon: '💡', action: () => handleNewPost('knowledge') },
+          { id: 'new-pitch', label: '新建灵感', category: '操作', icon: '✨', action: () => handleNewPost('pitch') },
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '藏馆 · 书架', category: '导航', icon: '📚', action: handleOpenBooks },
           { id: 'movies', label: '藏馆 · 光影', category: '导航', icon: '🎞️', action: handleOpenMovies },

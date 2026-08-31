@@ -4,6 +4,7 @@ import App from './App'
 import { GitHubAuthError, GitHubConflictError } from './github-client'
 import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
+import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
 
 const existingPost = {
@@ -834,6 +835,61 @@ Original body.`,
     expect(screen.getByDisplayValue('Temporary draft')).toBeTruthy()
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /other post/i })).toBeNull()
+    })
+  })
+
+  it('opens info tab for new read-later item, reports validation errors on empty title, and saves successfully', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([])
+    vi.spyOn(readLaterIndexModule, 'buildReadLaterIndex').mockResolvedValue([])
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockResolvedValue({
+      path: 'source/read-later-items/20260403060708.md',
+      sha: 'sha-new-read-later',
+      content: 'serialized',
+    })
+
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('radio', { name: '待读' }))
+
+    await waitFor(() => {
+      expect(screen.getByText('还没有待读')).toBeTruthy()
+    })
+
+    fireEvent.click(screen.getAllByRole('button', { name: /新建待读/ })[0])
+
+    // Should open with info tab active so title input is visible
+    expect(await screen.findByLabelText('标题')).toBeTruthy()
+
+    // Type into articleExcerpt to make document dirty without filling title
+    fireEvent.change(screen.getByLabelText('手动粘贴正文'), { target: { value: '我的待读摘录内容' } })
+
+    // Try saving without title
+    const saveButton = await screen.findByRole('button', { name: /保存/ })
+    expect(saveButton).toBeTruthy()
+    fireEvent.click(saveButton)
+
+    // Should show clear error notification
+    expect(await screen.findByText('保存失败：请填写标题。')).toBeTruthy()
+    expect(saveMarkdownFile).not.toHaveBeenCalled()
+
+    // Enter title and save
+    fireEvent.change(screen.getByLabelText('标题'), { target: { value: '我的待读新文章' } })
+    fireEvent.click(saveButton)
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.path).toContain('source/read-later-items/')
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('title: 我的待读新文章')
+    expect(saveMarkdownFile.mock.calls[0]?.[1]?.content).toContain('read_later: true')
+
+    // Click back to return to dashboard
+    fireEvent.click(screen.getByRole('button', { name: '← 返回归档' }))
+
+    // Verify we are back on the read-later dashboard and the new item is listed in read-later
+    await waitFor(() => {
+      expect(screen.getByText('我的待读新文章')).toBeTruthy()
     })
   })
 })

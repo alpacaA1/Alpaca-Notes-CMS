@@ -88,14 +88,14 @@ describe('new post helpers', () => {
     )
   })
 
-  it('validates read-later external urls with dedicated field errors', () => {
+  it('validates read-later external urls with dedicated field errors when provided', () => {
     const post = createNewPost(fixedDate)
     post.contentType = 'read-later'
     post.frontmatter.title = '待读文章'
     post.frontmatter.desc = '摘要'
     post.frontmatter.read_later = true
 
-    expect(validatePostForSave(post).external_url).toBe('请填写原文链接。')
+    expect(validatePostForSave(post).external_url).toBeUndefined()
 
     post.frontmatter.external_url = 'example.com/article'
     expect(validatePostForSave(post).external_url).toBe('原文链接需以 http:// 或 https:// 开头。')

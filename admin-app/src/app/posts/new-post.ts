@@ -122,9 +122,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
 
   if (isReadLater) {
     const externalUrl = post.frontmatter.external_url?.trim() || ''
-    if (!externalUrl) {
-      errors.external_url = '请填写原文链接。'
-    } else if (!/^https?:\/\//i.test(externalUrl)) {
+    if (externalUrl && !/^https?:\/\//i.test(externalUrl)) {
       errors.external_url = '原文链接需以 http:// 或 https:// 开头。'
     }
     return errors

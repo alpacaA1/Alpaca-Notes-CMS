@@ -1397,7 +1397,7 @@ export default function PostDashboard({
             <button
               type="button"
               className="post-dashboard__new-btn"
-              onClick={onNewPost}
+              onClick={() => onNewPost()}
               title={newPostTitle}
             >
               {newPostLabel}
@@ -1457,7 +1457,7 @@ export default function PostDashboard({
                         setQuickPitchStatus('collecting')
                         setIsQuickPitchOpen(true)
                       }
-                    : onNewPost
+                    : () => onNewPost()
                 }
               >
                 {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : '+ 新建文章'}

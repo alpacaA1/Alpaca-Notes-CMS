@@ -171,9 +171,10 @@ export default function SettingsPanel({
   )
 
   useEffect(() => {
-    setInternalReadLaterTab('commentary')
+    const isNewDraft = isReadLater && document && !document.sha && !document.frontmatter.title?.trim()
+    setInternalReadLaterTab(isNewDraft ? 'info' : 'commentary')
     setIsDocumentNoteEditing(false)
-  }, [contentType, document?.path])
+  }, [contentType, document?.path, isReadLater])
 
   useEffect(() => {
     if (!isReadLater) {
@@ -198,7 +199,7 @@ export default function SettingsPanel({
       return
     }
 
-    const titleInput = window.document.querySelector<HTMLInputElement>('.settings-panel--drawer input[aria-label="标题"]')
+    const titleInput = window.document.querySelector<HTMLInputElement>('.settings-panel input[aria-label="标题"]')
     titleInput?.focus()
     titleInput?.select()
   }, [focusTitle])
@@ -217,6 +218,9 @@ export default function SettingsPanel({
   const currentDocumentNote = readLaterSections?.commentary || ''
   const isPostReaderPreview = isPost && isReaderPreview
   const useReaderLitePanel = isReadLater || isPostReaderPreview
+  const hasInfoValidationErrors = Boolean(
+    validationErrors.title || validationErrors.external_url || validationErrors.date || validationErrors.desc,
+  )
 
   const handleUploadClick = () => {
     const fileInput = window.document.createElement('input')
@@ -333,10 +337,10 @@ export default function SettingsPanel({
             type="button"
             role="tab"
             aria-selected={currentReadLaterTab === 'info'}
-            className={`settings-panel__tab${currentReadLaterTab === 'info' ? ' is-active' : ''}`}
+            className={`settings-panel__tab${currentReadLaterTab === 'info' ? ' is-active' : ''}${hasInfoValidationErrors ? ' settings-panel__tab--error' : ''}`}
             onClick={() => handleReadLaterTabClick('info')}
           >
-            信息
+            信息{hasInfoValidationErrors ? ' (有错误)' : ''}
           </button>
           <button
             type="button"

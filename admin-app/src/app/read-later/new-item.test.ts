@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { createNewReadLaterItem, createReadLaterBody } from './new-item'
+import { createNewReadLaterItem, createReadLaterBody, validateReadLaterItemForSave } from './new-item'
 
 describe('read-later new item helpers', () => {
   const fixedDate = new Date(2026, 3, 3, 6, 7, 8)
@@ -40,5 +40,18 @@ describe('read-later new item helpers', () => {
         commentary: '评论',
       }),
     ).toBe(['## 原文摘录', '摘录', '', '## 我的总结', '总结', '', '## 我的评论', '评论'].join('\n'))
+  })
+
+  it('validates read-later items properly allowing optional external_url', () => {
+    const item = createNewReadLaterItem(fixedDate)
+    item.frontmatter.title = '测试待读'
+    item.frontmatter.desc = '摘要'
+    expect(validateReadLaterItemForSave(item).external_url).toBeUndefined()
+
+    item.frontmatter.external_url = 'invalid-url'
+    expect(validateReadLaterItemForSave(item).external_url).toBe('原文链接需以 http:// 或 https:// 开头。')
+
+    item.frontmatter.external_url = 'https://example.com'
+    expect(validateReadLaterItemForSave(item).external_url).toBeUndefined()
   })
 })

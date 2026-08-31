@@ -1,4 +1,4 @@
-import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH } from '../config'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, READ_LATER_PATH } from '../config'
 import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPitchFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { SessionState } from '../session'
@@ -167,7 +167,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const linkedPostPathRaw = readScalar(frontmatter, 'linked_post_path')
   const topicRaw = readScalar(frontmatter, 'topic')
   const contentType: ContentType =
-    readLaterRaw === 'true'
+    readLaterRaw === 'true' || input.path.startsWith(`${READ_LATER_PATH}/`)
       ? 'read-later'
       : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
         ? 'diary'

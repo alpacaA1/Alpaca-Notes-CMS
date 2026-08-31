@@ -1,4 +1,4 @@
-import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH } from '../config'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, READ_LATER_PATH } from '../config'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { ContentType, KnowledgeKind, KnowledgeSourceType, PitchStatus, TopicNodeType } from './post-types'
 
@@ -124,7 +124,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const aliasesRaw = readList(frontmatterBlock, 'aliases')
   const seriesRaw = readScalar(frontmatterBlock, 'series')
   const contentType: ContentType =
-    readLaterRaw === 'true'
+    readLaterRaw === 'true' || input.path.startsWith(`${READ_LATER_PATH}/`)
       ? 'read-later'
       : diaryRaw === 'true' || input.path.startsWith(`${DIARY_PATH}/`)
         ? 'diary'

@@ -597,7 +597,7 @@ export default function TopBar({
           >
             文章列表
           </button>
-          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
+          <button className="top-bar__button top-bar__button--new-post" type="button" onClick={() => onNewPost()}>
             {createLabel}
           </button>
         </div>
@@ -922,7 +922,7 @@ export default function TopBar({
             </button>
           ) : null}
           {!isTrashView && !isFeedsView && !isBooksView && !isMoviesView ? (
-            <button className="top-bar__button top-bar__button--new-post" type="button" onClick={onNewPost}>
+            <button className="top-bar__button top-bar__button--new-post" type="button" onClick={() => onNewPost()}>
               {createLabel}
             </button>
           ) : null}

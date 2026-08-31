@@ -59,9 +59,7 @@ export function validateReadLaterItemForSave(item: ParsedReadLaterItem): ReadLat
     errors.desc = '请填写摘要。'
   }
 
-  if (!externalUrl) {
-    errors.external_url = '请填写原文链接。'
-  } else if (!/^https?:\/\//i.test(externalUrl)) {
+  if (externalUrl && !/^https?:\/\//i.test(externalUrl)) {
     errors.external_url = '原文链接需以 http:// 或 https:// 开头。'
   }
 
