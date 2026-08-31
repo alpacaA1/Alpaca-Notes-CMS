@@ -360,7 +360,7 @@ export default function SettingsPanel({
             className={`settings-panel__tab${currentReadLaterTab === 'info' ? ' is-active' : ''}${hasInfoValidationErrors ? ' settings-panel__tab--error' : ''}`}
             onClick={() => handleReadLaterTabClick('info')}
           >
-            信息{hasInfoValidationErrors ? ' (有错误)' : ''}
+            信息{hasInfoValidationErrors ? ' · 错误' : ''}
           </button>
           <button
             type="button"
@@ -401,26 +401,27 @@ export default function SettingsPanel({
 
                   {validationErrors.date ? <span className="error-message">{validationErrors.date}</span> : null}
                 </label>
-                <label>
-                  <span>原文链接</span>
-                  <input
-                    aria-label="原文链接"
-                    value={frontmatter.external_url || ''}
-                    placeholder="https://example.com/article"
-                    onChange={(event) => onFieldChange('external_url', event.target.value)}
-                  />
-                  <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'flex-start' }}>
+                <div className="settings-panel__field">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                    <span>原文链接</span>
                     <button
                       type="button"
                       className="top-bar__button"
+                      style={{ height: '22px', minHeight: '22px', fontSize: '0.74rem', padding: '0 8px', borderRadius: '6px' }}
                       disabled={!frontmatter.external_url?.trim() || isImportingFromUrl}
                       onClick={onImportFromUrl}
                     >
                       {isImportingFromUrl ? '导入中…' : '从链接导入正文'}
                     </button>
                   </div>
+                  <input
+                    aria-label="原文链接"
+                    value={frontmatter.external_url || ''}
+                    placeholder="https://example.com/article"
+                    onChange={(event) => onFieldChange('external_url', event.target.value)}
+                  />
                   {validationErrors.external_url ? <span className="error-message">{validationErrors.external_url}</span> : null}
-                </label>
+                </div>
                 <label>
                   <span>来源</span>
                   <input
