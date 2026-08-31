@@ -4064,46 +4064,76 @@ textarea {
   height: 100%;
   overflow-y: auto;
   overscroll-behavior: auto;
-  padding: 16px 18px 24px;
+  padding: 8px 4px 24px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
 
-.settings-panel__tabs {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 4px;
-  padding: 4px;
-  border-radius: 11px;
-  background: var(--admin-warm-soft, rgba(141, 113, 77, 0.08));
-  border: 1px solid var(--admin-line, rgba(141, 113, 77, 0.16));
-  margin-bottom: 6px;
+.editor-layout--reader .settings-panel--reader .settings-panel__metadata-section {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+  border-bottom: 1px solid var(--admin-line, rgba(141, 113, 77, 0.16));
+  padding-bottom: 14px;
 }
 
-.settings-panel__tab {
+.editor-layout--reader .settings-panel--reader .settings-panel__metadata-section-summary {
+  padding: 0 2px;
+  min-height: 38px;
+  border-radius: 6px;
+  background: transparent;
+}
+
+.editor-layout--reader .settings-panel--reader .settings-panel__metadata-section-summary:hover {
+  background: var(--admin-warm-soft, rgba(141, 113, 77, 0.06));
+}
+
+.editor-layout--reader .settings-panel--reader .settings-panel__metadata-section-content {
+  padding: 8px 2px 4px;
+  border-top: none;
+}
+
+.editor-layout--reader .settings-panel__tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--admin-line, rgba(141, 113, 77, 0.16));
+  background: transparent;
+  border-radius: 0;
+  margin-bottom: 8px;
+}
+
+.editor-layout--reader .settings-panel__tab {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 32px;
-  padding: 4px 12px;
-  border-radius: 8px;
+  padding: 6px 14px;
+  border-radius: 6px;
   border: none;
   background: transparent;
   color: var(--admin-muted, #7c7267);
-  font-size: 0.84rem;
+  font-size: 0.86rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 140ms ease;
 }
 
-.settings-panel__tab:hover {
+.editor-layout--reader .settings-panel__tab:hover {
   color: var(--admin-text, #2c251e);
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--admin-warm-soft, rgba(141, 113, 77, 0.08));
 }
 
-.settings-panel__tab.is-active {
-  background: var(--admin-surface, #fffdf8);
+.editor-layout--reader .settings-panel__tab.is-active {
+  background: var(--admin-warm-soft, rgba(141, 113, 77, 0.14));
   color: var(--admin-save, #775333);
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(36, 24, 10, 0.08);
+  box-shadow: none;
 }
 
 .settings-panel__tab--error {
@@ -4117,7 +4147,11 @@ textarea {
   overscroll-behavior: auto;
   align-content: start;
   gap: 14px;
-  padding: 16px 18px 24px;
+  padding: 8px 4px 24px;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .settings-panel--reader-lite .settings-panel__section-stack--reader {
