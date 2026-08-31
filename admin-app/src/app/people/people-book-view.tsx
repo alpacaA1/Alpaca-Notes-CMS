@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import MarkdownEditor from '../editor/markdown-editor'
 import type { InternalReferenceCandidate } from '../internal-links'
+import FilterSelect from '../layout/filter-select'
+import TaxonomyMultiSelect from '../layout/taxonomy-multi-select'
 import MovieDatePicker from '../movies/movie-date-picker'
 import type { PersonEntry } from './people-types'
 
@@ -35,6 +37,8 @@ function ExpandIcon() {
   return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M6.05 2.5H2.5v3.55M9.95 2.5h3.55v3.55M6.05 13.5H2.5V9.95M9.95 13.5h3.55V9.95" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round"/></svg>
 }
 
+const RELATIONSHIP_OPTIONS = ['朋友', '同事', '同学', '家人', '伴侣', '合作伙伴', '认识的人']
+
 export default function PeopleBookView({ people, search, isLoading, isSaving, mentionCounts, selectedPersonId, internalReferenceCandidates = [], onAdd, onSave, onDelete }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PersonEntry | null>(null)
@@ -54,6 +58,11 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
     if (!query) return people
     return people.filter((person) => [person.name, person.aliases.join(' '), person.relationship, person.tags.join(' '), person.notes].join(' ').toLocaleLowerCase().includes(query))
   }, [people, search])
+  const relationshipOptions = useMemo(() => Array.from(new Set([
+    ...RELATIONSHIP_OPTIONS,
+    draft?.relationship.trim() || '',
+  ].filter(Boolean))).map((value) => ({ value, label: value })), [draft?.relationship])
+  const availableTags = useMemo(() => Array.from(new Set(people.flatMap((person) => person.tags))).sort((left, right) => left.localeCompare(right, 'zh-CN')), [people])
   const update = <K extends keyof PersonEntry>(key: K, value: PersonEntry[K]) => setDraft((current) => current ? { ...current, [key]: value } : current)
   const add = () => {
     const person = onAdd()
@@ -99,9 +108,9 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
         <div className="people-book__heading"><Portrait person={draft}/><input value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="名字或称呼" /></div>
         <div className="people-book__birthday-field"><span><PersonIcon type="birthday"/>生日</span><MovieDatePicker value={draft.birthday} onChange={(value) => update('birthday', value)} ariaLabel="选择生日" dialogLabel="选择生日" /></div>
         <div className="people-book__meta-grid">
-          <label><span><PersonIcon type="profile"/>关系</span><input value={draft.relationship} onChange={(event) => update('relationship', event.target.value)} placeholder="朋友、同事、家人…" /></label>
+          <label><span><PersonIcon type="profile"/>关系</span><FilterSelect label="关系" value={draft.relationship} options={relationshipOptions} onChange={(value) => update('relationship', value)} searchable allowCustomValue placeholder="选择或输入关系" triggerAriaLabel="选择关系" /></label>
           <label><span><PersonIcon type="tag"/>别名</span><input value={draft.aliases.join('、')} onChange={(event) => update('aliases', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="昵称、外号" /></label>
-          <label><span><PersonIcon type="tag"/>标签</span><input value={draft.tags.join('、')} onChange={(event) => update('tags', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="旅行、大学、摄影" /></label>
+          <label><span><PersonIcon type="tag"/>标签</span><TaxonomyMultiSelect label="标签" value={draft.tags} availableOptions={availableTags} onChange={(value) => update('tags', value)} onCreateOption={(name) => update('tags', Array.from(new Set([...draft.tags, name])))} /></label>
         </div>
         <section className="people-book__notes"><div className="people-book__notes-head"><span><PersonIcon type="note"/>关于他 / 她</span><button type="button" onClick={() => setIsNotesExpanded(true)} aria-label="展开输入" title="展开输入"><ExpandIcon/></button></div><textarea value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="想记住的习惯、近况、共同经历……" /></section>
         <section className="people-book__moments"><div className="people-book__section-head"><span>日常片段</span><small><PersonIcon type="mention"/>{mentionCounts[draft.id] || 0} 次文章提及</small></div><div className="people-book__moment-composer"><input type="date" value={momentDate} onChange={(event) => setMomentDate(event.target.value)} /><textarea value={moment} onChange={(event) => setMoment(event.target.value)} placeholder="今天发生了什么？" /><button type="button" onClick={appendMoment} disabled={!moment.trim()}>记下</button></div>{draft.moments.length ? <div className="people-book__moment-list">{draft.moments.map((item) => <article key={item.id}><time>{item.date}</time><p>{item.content}</p><button type="button" onClick={() => removeMoment(item.id)} aria-label="删除这条日常记录">×</button></article>)}</div> : <p className="people-book__moment-empty">日常会慢慢长成你们的时间线。</p>}</section>
