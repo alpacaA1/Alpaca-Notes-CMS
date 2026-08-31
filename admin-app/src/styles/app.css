@@ -4259,51 +4259,47 @@ textarea {
 }
 
 .settings-panel--reader-lite .settings-panel__document-note {
-  gap: 10px;
+  gap: 6px;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 24px;
+  min-height: 20px;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-label,
 .settings-panel--reader-lite .settings-panel__annotation-note-label,
 .settings-panel--reader-lite .settings-panel__annotation-empty {
   color: var(--admin-soft);
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-entry {
-  min-height: 48px;
-  padding: 10px 14px;
-  border: 1px solid rgba(180, 150, 115, 0.22);
-  border-left: 3px solid #D4A574;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 1px 4px rgba(110, 85, 55, 0.03);
+  min-height: auto;
+  padding: 4px 0;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
   color: var(--admin-text);
-  font-size: 0.86rem;
+  font-size: 0.88rem;
   text-align: left;
-  cursor: pointer;
-  transition: all 180ms ease;
+  cursor: text;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-entry:hover {
-  border-color: rgba(180, 150, 115, 0.42);
-  border-left-color: #C28E58;
-  background: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 2px 8px rgba(110, 85, 55, 0.06);
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-content {
   color: var(--admin-text);
-  font-size: 0.86rem;
-  line-height: 1.68;
+  font-size: 0.88rem;
+  line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -4315,17 +4311,15 @@ textarea {
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-editor {
-  padding: 12px 14px;
-  border: 1px solid rgba(180, 150, 115, 0.28);
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.75);
-  box-shadow: 0 2px 10px rgba(110, 85, 55, 0.04), inset 0 1px 0 rgba(255, 255, 255, 0.8);
-  transition: border-color 180ms ease, box-shadow 180ms ease;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-editor:focus-within {
-  border-color: rgba(141, 113, 77, 0.5);
-  box-shadow: 0 0 0 3px rgba(141, 113, 77, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border: 0 !important;
+  box-shadow: none !important;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-editor textarea,
@@ -4333,8 +4327,8 @@ textarea {
 .settings-panel--reader-lite .settings-panel__document-note-editor textarea:focus-visible {
   display: block;
   width: 100%;
-  min-height: 110px;
-  padding: 0 !important;
+  min-height: 90px;
+  padding: 2px 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
@@ -4343,7 +4337,7 @@ textarea {
   color: var(--admin-text) !important;
   font-family: inherit;
   font-size: 0.88rem;
-  line-height: 1.68;
+  line-height: 1.7;
   resize: vertical;
 }
 
@@ -4352,20 +4346,20 @@ textarea {
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(180, 150, 115, 0.16);
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 0;
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-action {
   appearance: none;
-  min-height: 28px;
-  padding: 0 12px;
+  min-height: 26px;
+  padding: 0 10px;
   border-radius: 6px;
   border: 1px solid rgba(180, 150, 115, 0.25);
-  background: rgba(255, 255, 255, 0.6);
+  background: transparent;
   color: var(--admin-soft);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 150ms ease;
@@ -4373,7 +4367,7 @@ textarea {
 
 .settings-panel--reader-lite .settings-panel__document-note-action:hover {
   border-color: rgba(180, 150, 115, 0.45);
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(180, 150, 115, 0.08);
   color: var(--admin-text);
 }
 
@@ -4382,7 +4376,7 @@ textarea {
   background: #8D714D;
   color: #FFFFFF !important;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(141, 113, 77, 0.25);
+  box-shadow: 0 1px 2px rgba(141, 113, 77, 0.2);
 }
 
 .settings-panel--reader-lite .settings-panel__document-note-action--primary:hover {
@@ -4393,40 +4387,63 @@ textarea {
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-list {
-  gap: 8px;
+  display: grid;
+  gap: 12px;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-card {
+  display: grid;
   gap: 6px;
-  border-left: 3px solid #D4A574;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.45);
-  padding: 2px 4px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  border-radius: 0;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-card-trigger {
-  gap: 6px;
-  padding: 6px 8px;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-panel--reader-lite .settings-panel__annotation-quote {
+  display: inline;
+  padding: 2px 4px;
+  border-radius: 4px;
+  background: rgba(245, 218, 120, 0.45);
+  color: var(--admin-text);
+  font-size: 0.86rem;
+  line-height: 1.65;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-separator {
   display: block;
-  width: 24px;
+  width: 100%;
   height: 1px;
   overflow: hidden;
-  background: rgba(126, 111, 92, 0.16);
+  background: rgba(126, 111, 92, 0.12);
   color: transparent;
   line-height: 1;
+  margin: 4px 0;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-note-preview {
+  display: block;
   color: var(--admin-soft);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  margin-top: 4px;
 }
 
 .settings-panel--reader-lite .settings-panel__annotation-note-block {
-  gap: 6px;
-  padding: 4px 6px 8px;
+  display: grid;
+  gap: 4px;
+  padding: 4px 0 0 0;
 }
 
 .admin-shell--dark .post-pane--reader .post-outline,
@@ -4470,45 +4487,39 @@ textarea {
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-separator {
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-left: 3px solid #D4A574;
-  background: rgba(255, 255, 255, 0.04);
-}
-
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry,
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-entry:hover {
-  border-color: rgba(255, 255, 255, 0.2);
-  border-left-color: #E5B887;
-  background: rgba(255, 255, 255, 0.07);
+  border: 0 !important;
+  background: transparent !important;
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-editor {
-  border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(30, 28, 26, 0.7);
+  border: 0 !important;
+  background: transparent !important;
   box-shadow: none;
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-editor:focus-within {
-  border-color: rgba(228, 163, 88, 0.5);
-  box-shadow: 0 0 0 3px rgba(228, 163, 88, 0.12);
+  border: 0 !important;
+  box-shadow: none;
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-actions {
-  border-top-color: rgba(255, 255, 255, 0.1);
+  border-top: 0;
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action {
   border-color: rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  background: transparent;
   color: var(--admin-soft);
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__document-note-action:hover {
   border-color: rgba(255, 255, 255, 0.24);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--admin-text);
 }
 
@@ -4524,8 +4535,13 @@ textarea {
 }
 
 .admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-card {
-  border-left: 3px solid #D4A574;
-  background: rgba(255, 255, 255, 0.04);
+  border: 0 !important;
+  background: transparent !important;
+}
+
+.admin-shell--dark .settings-panel--reader-lite .settings-panel__annotation-quote {
+  background: rgba(228, 163, 88, 0.22);
+  color: var(--admin-text);
 }
 
 .settings-panel__header {
