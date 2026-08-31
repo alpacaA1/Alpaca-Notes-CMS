@@ -108,7 +108,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
         <div className="people-book__heading"><Portrait person={draft}/><input value={draft.name} onChange={(event) => update('name', event.target.value)} placeholder="名字或称呼" /></div>
         <div className="people-book__birthday-field"><span><PersonIcon type="birthday"/>生日</span><MovieDatePicker value={draft.birthday} onChange={(value) => update('birthday', value)} ariaLabel="选择生日" dialogLabel="选择生日" /></div>
         <div className="people-book__meta-grid">
-          <label><span><PersonIcon type="profile"/>关系</span><FilterSelect label="关系" value={draft.relationship} options={relationshipOptions} onChange={(value) => update('relationship', value)} searchable allowCustomValue placeholder="选择或输入关系" triggerAriaLabel="选择关系" /></label>
+          <label><span><PersonIcon type="profile"/>关系</span><FilterSelect label="关系" value={draft.relationship} options={relationshipOptions} onChange={(value) => update('relationship', value)} placeholder="选择关系" triggerAriaLabel="选择关系" /></label>
           <label><span><PersonIcon type="tag"/>别名</span><input value={draft.aliases.join('、')} onChange={(event) => update('aliases', event.target.value.split(/[、,，]/).map((item) => item.trim()).filter(Boolean))} placeholder="昵称、外号" /></label>
           <label><span><PersonIcon type="tag"/>标签</span><TaxonomyMultiSelect label="标签" value={draft.tags} availableOptions={availableTags} onChange={(value) => update('tags', value)} onCreateOption={(name) => update('tags', Array.from(new Set([...draft.tags, name])))} /></label>
         </div>

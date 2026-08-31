@@ -203,10 +203,10 @@ export default function FilterSelect({
       {isOpen ? (
         <div className="filter-select__panel">
           {searchable ? (
-            <label className="filter-select__search">
-              <span className="filter-select__search-label">{searchLabel}</span>
+            <div className="filter-select__search">
+              <span className="filter-select__search-label sr-only">{searchLabel}</span>
               <div className="filter-select__search-input-wrapper">
-                <svg className="filter-select__search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg className="filter-select__search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="11" cy="11" r="8"></circle>
                   <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
@@ -219,7 +219,7 @@ export default function FilterSelect({
                   onChange={(event) => setQuery(event.target.value)}
                 />
               </div>
-            </label>
+            </div>
           ) : null}
 
           {filteredOptions.length > 0 ? (
@@ -367,6 +367,10 @@ export default function FilterSelect({
                                 </button>
                               ) : null}
                             </span>
+                          ) : isSelected ? (
+                            <svg className="filter-select__check-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                            </svg>
                           ) : null}
                         </>
                       )}

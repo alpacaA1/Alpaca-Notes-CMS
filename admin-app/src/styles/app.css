@@ -7574,16 +7574,16 @@ textarea {
   z-index: 60;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 12px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 10px;
   border: 1px solid var(--admin-line-strong);
-  background: linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(249, 243, 234, 0.96));
+  background: linear-gradient(180deg, rgba(255, 254, 250, 0.98), rgba(252, 248, 242, 0.96));
   backdrop-filter: blur(18px);
   box-shadow:
     0 18px 36px rgba(36, 24, 10, 0.14),
     0 4px 12px rgba(36, 24, 10, 0.06);
-  animation: taxonomy-panel-enter 180ms ease;
+  animation: taxonomy-panel-enter 160ms ease;
 }
 
 .filter-select__trigger {
@@ -7591,19 +7591,19 @@ textarea {
   display: flex;
   align-items: center;
   width: 100%;
-  min-height: 38px;
-  padding: 0 34px 0 11px;
+  min-height: 36px;
+  padding: 0 32px 0 10px;
   border: 1px solid var(--admin-line, rgba(111, 87, 57, 0.12));
-  border-radius: 10px;
+  border-radius: 8px;
   background:
     url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23918577' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")
-    no-repeat right 12px center,
+    no-repeat right 10px center,
     var(--admin-surface-strong, #ffffff);
   background-size: 10px 6px, auto;
   color: var(--admin-text);
   cursor: pointer;
   font-size: 0.84rem;
-  font-weight: 560;
+  font-weight: 540;
   line-height: 1.2;
   text-align: left;
   transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease;
@@ -7621,8 +7621,6 @@ textarea {
   display: block;
   width: 100%;
 }
-
-
 
 .filter-select__search {
   display: block;
@@ -7649,7 +7647,7 @@ textarea {
 
 .filter-select__search-icon {
   position: absolute;
-  left: 10px;
+  left: 8px;
   top: 50%;
   transform: translateY(-50%);
   z-index: 2;
@@ -7659,23 +7657,23 @@ textarea {
 
 .filter-select__search input {
   width: 100%;
-  min-height: 34px;
-  padding: 0 10px 0 32px !important;
+  min-height: 30px;
+  padding: 0 8px 0 28px !important;
   font: inherit;
-  font-size: 0.84rem;
-  border: 1px solid rgba(141, 113, 77, 0.18);
-  border-radius: 8px;
+  font-size: 0.82rem;
+  border: 1px solid rgba(141, 113, 77, 0.16);
+  border-radius: 6px;
   background: rgba(255, 255, 255, 0.85);
   color: var(--admin-text);
   box-shadow: none;
   outline: none;
-  transition: background 150ms ease;
+  transition: background 150ms ease, border-color 150ms ease;
 }
 
 .filter-select__search input:hover,
 .filter-select__search input:focus,
 .filter-select__search input:focus-visible {
-  border-color: rgba(141, 113, 77, 0.4);
+  border-color: rgba(141, 113, 77, 0.38);
   background: rgba(255, 255, 255, 0.95);
   box-shadow: none;
   outline: none;
@@ -7689,7 +7687,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: min(260px, 40vh);
+  max-height: min(240px, 36vh);
   overflow-y: auto;
   padding-right: 2px;
 }
@@ -7699,10 +7697,10 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  min-height: 34px;
-  padding: 6px 10px;
-  font-size: 0.86rem;
-  border-radius: 8px;
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: 0.84rem;
+  border-radius: 6px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--admin-text);
@@ -7713,12 +7711,13 @@ textarea {
 
 .filter-select__option:hover,
 .filter-select__option:focus-visible {
-  background: rgba(141, 113, 77, 0.08);
+  background: rgba(141, 113, 77, 0.06);
+  color: var(--admin-text);
   outline: none;
 }
 
 .filter-select__option.is-selected {
-  background: rgba(141, 113, 77, 0.12);
+  background: rgba(141, 113, 77, 0.09);
   color: var(--admin-warm);
   font-weight: 600;
 }
@@ -16053,7 +16052,7 @@ textarea {
 .people-book__birthday-field .movie-date-picker { flex: 1; min-width: 0; }.people-book__birthday-field .movie-date-picker__trigger { height: 32px; min-height: 32px; padding: 0; border: 0; color: var(--people-ink); font-size: 14px; }.people-book__birthday-field .movie-date-picker__trigger:hover, .people-book__birthday-field .movie-date-picker__trigger[aria-expanded='true'] { border: 0; color: var(--people-warm); }.people-book__birthday-field .movie-date-picker__trigger svg { width: 16px; height: 16px; color: var(--people-warm); }.people-book__birthday-field .movie-date-picker__panel { right: auto; left: 0; border-color: rgba(154,108,62,.28); background: #fffdf8; box-shadow: 0 20px 42px rgba(70,48,25,.16); }
 .people-book__notes { display: block; }.people-book__notes-head { display: flex; align-items: center; justify-content: space-between; }.people-book__notes-head > span { display: inline-flex; align-items: center; gap: 7px; color: #a17a54; font-size: 11px; font-weight: 700; }.people-book__notes-head button { display: inline-grid; width: 28px; height: 28px; place-items: center; border: 0; background: transparent; color: var(--people-warm); cursor: pointer; }.people-book__notes-head button:hover { background: rgba(169,119,67,.09); }.people-book__notes textarea { display: block; box-sizing: border-box; width: 100%; }
 .people-book__moment-composer { --people-moment-height: 36px; align-items: stretch; }.people-book__moment-composer input, .people-book__moment-composer textarea, .people-book__moment-composer button { box-sizing: border-box; min-height: var(--people-moment-height); height: var(--people-moment-height); }.people-book__moment-composer input { padding-block: 0; }.people-book__moment-composer textarea { min-height: var(--people-moment-height); padding: 8px; line-height: 18px; }.people-book__moment-composer button { min-height: var(--people-moment-height); }.people-book__moment-composer button, .people-book__save { color: var(--admin-save-text) !important; -webkit-text-fill-color: var(--admin-save-text); }
-.people-book__meta-grid .filter-select, .people-book__meta-grid .taxonomy-multi-select { width: 100%; min-width: 0; }.people-book__meta-grid .filter-select__trigger, .people-book__meta-grid .taxonomy-multi-select__trigger { box-sizing: border-box; width: 100%; min-height: 28px; height: 28px; padding: 0 18px 0 0; border: 0; border-radius: 0; background-color: transparent; color: var(--people-ink); font: inherit; font-size: 14px; text-align: left; }.people-book__meta-grid .filter-select__trigger:hover, .people-book__meta-grid .taxonomy-multi-select__trigger:hover { background-color: transparent; color: var(--people-warm); }.people-book__meta-grid .filter-select__panel, .people-book__meta-grid .taxonomy-multi-select__panel { z-index: 60; border-color: rgba(154,108,62,.26); background: #fffdf8; box-shadow: 0 16px 34px rgba(70,48,25,.14); }.people-book__meta-grid .taxonomy-multi-select__trigger-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.people-book__meta-grid .filter-select, .people-book__meta-grid .taxonomy-multi-select { width: 100%; min-width: 0; }.people-book__meta-grid .filter-select__trigger, .people-book__meta-grid .taxonomy-multi-select__trigger { box-sizing: border-box; width: 100%; min-height: 28px; height: 28px; padding: 0 18px 0 0; border: 0; border-radius: 0; background-color: transparent; color: var(--people-ink); font: inherit; font-size: 14px; text-align: left; }.people-book__meta-grid .filter-select__trigger:hover, .people-book__meta-grid .taxonomy-multi-select__trigger:hover { background-color: transparent; color: var(--people-warm); }.people-book__meta-grid .filter-select__panel, .people-book__meta-grid .taxonomy-multi-select__panel { z-index: 60; border-radius: 10px; border-color: rgba(154,108,62,.2); background: #fffdf8; box-shadow: 0 12px 28px rgba(70,48,25,.12), 0 2px 6px rgba(70,48,25,.04); padding: 4px; }.people-book__meta-grid .filter-select__option { min-height: 30px; padding: 5px 8px; font-size: 13px; border-radius: 6px; }.people-book__meta-grid .filter-select__option.is-selected { background: rgba(161,122,84,.08); color: var(--people-warm); font-weight: 600; }.people-book__meta-grid .taxonomy-multi-select__trigger-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .people-book--notes-writing { grid-template-columns: 236px minmax(0, 1fr); }.people-book__notes-canvas { min-width: 0; overflow-y: auto; padding: clamp(30px, 5vw, 68px) clamp(28px, 8vw, 130px); background: #fffdf8; }.people-book__notes-canvas > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; width: min(100%, 860px); margin: 0 auto 25px; padding-bottom: 21px; border-bottom: 1px solid var(--people-line); }.people-book__notes-canvas header p { margin: 0 0 6px; color: var(--people-warm); font-size: 11px; font-weight: 800; letter-spacing: .12em; }.people-book__notes-canvas header h2 { margin: 0; color: var(--people-ink); font-family: 'Iowan Old Style', 'Noto Serif SC', 'Songti SC', serif; font-size: clamp(1.7rem, 3vw, 2.45rem); }.people-book__notes-canvas header button { padding-top: 7px; border: 0; background: transparent; color: var(--people-muted); font: inherit; font-size: 13px; cursor: pointer; }.people-book__notes-canvas > textarea { display: block; width: min(100%, 860px); min-height: calc(100vh - 302px); margin: 0 auto; padding: 10px 0; border: 0; resize: none; background: repeating-linear-gradient(180deg, transparent, transparent 40px, rgba(93,71,50,.09) 40px, rgba(93,71,50,.09) 41px); color: var(--people-ink); font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: clamp(16px, 1.4vw, 19px); line-height: 2.15; outline: none; }.people-book__notes-canvas > footer { display: flex; align-items: center; justify-content: space-between; width: min(100%, 860px); margin: 24px auto 0; padding-top: 17px; border-top: 1px solid var(--people-line); color: var(--people-muted); font-size: 12px; }.people-book__notes-canvas .people-book__save { margin-top: 0; }
 .people-book__notes-canvas > .editor-surface { display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(100%, 860px); min-height: calc(100vh - 340px); margin: 0 auto; padding: 0; gap: 14px; background: transparent; }.people-book__notes-canvas .markdown-editor__toolbar { border-color: rgba(128, 103, 73, .2); background: rgba(255,255,255,.62); }.people-book__notes-canvas .editor-textarea--editor-canvas { box-sizing: border-box; min-height: calc(100vh - 420px); padding: 14px 30px 20px; border: 0; resize: none; background: repeating-linear-gradient(180deg, transparent, transparent 40px, rgba(93,71,50,.09) 40px, rgba(93,71,50,.09) 41px); color: var(--people-ink); font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: clamp(16px, 1.4vw, 19px); line-height: 2.15; }
 @media (max-width: 800px) { .people-book--notes-writing { display: block; } .people-book--notes-writing .people-book__rail { display: none; } .people-book__notes-canvas { min-height: calc(100vh - 73px); padding: 28px 20px; } }
