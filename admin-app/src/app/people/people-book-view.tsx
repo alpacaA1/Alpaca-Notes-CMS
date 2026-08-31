@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PersonEntry } from './people-types'
 
 type Props = {
@@ -37,6 +37,8 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
   const [moment, setMoment] = useState('')
   const [momentDate, setMomentDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [isNotesExpanded, setIsNotesExpanded] = useState(false)
+  const notesCanvasRef = useRef<HTMLElement | null>(null)
+  const expandedNotesRef = useRef<HTMLTextAreaElement | null>(null)
   const selected = people.find((person) => person.id === selectedId) || null
 
   useEffect(() => { setDraft(selected); setMoment(''); setIsNotesExpanded(false) }, [selected])
@@ -45,6 +47,22 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
       setSelectedId(selectedPersonId)
     }
   }, [people, selectedPersonId])
+  const growExpandedNotes = (textarea: HTMLTextAreaElement) => {
+    textarea.style.height = 'auto'
+    textarea.style.height = `${textarea.scrollHeight}px`
+
+    const canvas = notesCanvasRef.current
+    if (!canvas) return
+    const textareaBottom = textarea.offsetTop + textarea.offsetHeight + 24
+    if (textareaBottom > canvas.scrollTop + canvas.clientHeight) {
+      canvas.scrollTop = textareaBottom - canvas.clientHeight
+    }
+  }
+  useEffect(() => {
+    if (isNotesExpanded && expandedNotesRef.current) {
+      growExpandedNotes(expandedNotesRef.current)
+    }
+  }, [draft?.notes, isNotesExpanded])
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase()
     if (!query) return people
@@ -74,9 +92,9 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
   if (isLoading) return <section className="people-book__loading">正在打开人物簿…</section>
   if (isNotesExpanded && draft) return <section className="people-book people-book--notes-writing" aria-label="人物近况沉浸输入">
     <aside className="people-book__rail"><p>PRIVATE INDEX</p><h1>人物簿</h1><span>把相处的片段留在这里。</span></aside>
-    <section className="people-book__notes-canvas">
+    <section ref={notesCanvasRef} className="people-book__notes-canvas">
       <header><div><p>关于他 / 她</p><h2>{draft.name || '未命名人物'}</h2></div><button type="button" onClick={() => setIsNotesExpanded(false)}>← 返回人物卡</button></header>
-      <textarea value={draft.notes} onChange={(event) => update('notes', event.target.value)} placeholder="想记住的习惯、近况、共同经历……" autoFocus />
+      <textarea ref={expandedNotesRef} value={draft.notes} onChange={(event) => { update('notes', event.target.value); growExpandedNotes(event.currentTarget) }} placeholder="想记住的习惯、近况、共同经历……" autoFocus />
       <footer><span>{draft.notes.trim().length} 字</span><button type="button" className="people-book__save" disabled={isSaving || !draft.name.trim()} onClick={save}>{isSaving ? '保存中…' : '保存人物卡'}</button></footer>
     </section>
   </section>
