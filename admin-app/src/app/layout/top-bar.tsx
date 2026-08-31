@@ -786,17 +786,6 @@ export default function TopBar({
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder={searchPlaceholder}
           />
-          {onOpenCommandPalette ? (
-            <button
-              type="button"
-              className="top-bar__search-cmd-k"
-              onClick={onOpenCommandPalette}
-              aria-label="命令面板 (⌘K)"
-              title="命令面板 (⌘K)"
-            >
-              <kbd>⌘K</kbd>
-            </button>
-          ) : null}
         </label>
         {showContentTypeSwitcher ? (
           <div className="top-bar__content-switcher">
@@ -970,17 +959,6 @@ export default function TopBar({
               ) : null}
             </button>
           ) : null}
-          {!showContentTypeSwitcher && onOpenCommandPalette ? (
-            <button
-              className="top-bar__button top-bar__button--cmd-k"
-              type="button"
-              onClick={onOpenCommandPalette}
-              aria-label="命令面板 (⌘K)"
-              title="命令面板 (⌘K)"
-            >
-              <kbd className="top-bar__cmd-k-kbd">⌘K</kbd>
-            </button>
-          ) : null}
           {showReadingFontButton ? (
             <div className="top-bar__reading-font">
               <button
@@ -1072,18 +1050,6 @@ export default function TopBar({
               ) : null}
             </div>
           ) : null}
-          <button
-            className={`top-bar__button top-bar__button--theme${isDarkMode ? ' is-dark' : ' is-light'}`}
-            type="button"
-            onClick={onToggleColorMode}
-            aria-label={isDarkMode ? '切换浅色模式' : '切换深色模式'}
-            aria-pressed={isDarkMode}
-            title={isDarkMode ? '切换浅色模式' : '切换深色模式'}
-          >
-            <span className="top-bar__theme-glyph" aria-hidden="true">
-              {isDarkMode ? <MoonIcon /> : <SunIcon />}
-            </span>
-          </button>
           <span className="top-bar__utility-divider" aria-hidden="true" />
           <div className="top-bar__user-menu">
             <button
