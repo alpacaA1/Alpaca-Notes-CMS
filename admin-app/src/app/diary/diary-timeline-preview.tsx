@@ -242,7 +242,12 @@ export default function DiaryTimelinePreview({
                                               {renderTimelineInline(item.quote)}
                                             </p>
                                             {item.note ? (
-                                              <p className="diary-timeline__quote-note">💭 {renderTimelineInline(item.note)}</p>
+                                              <div className="diary-timeline__quote-note">
+                                                <span className="diary-timeline__quote-note-tag">💭 我的思考</span>
+                                                <p className="diary-timeline__quote-note-text">
+                                                  {renderTimelineInline(item.note)}
+                                                </p>
+                                              </div>
                                             ) : null}
                                           </div>
                                         ))}

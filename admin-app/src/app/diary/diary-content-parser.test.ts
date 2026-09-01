@@ -130,6 +130,30 @@ date: 2026-08-25 08:00:00
     expect(g2?.items[1].quote).toBe('摘录 5：社交剥夺正在以前所未有的规模重塑童年。')
   })
 
+  it('correctly associates quote with note comment and source without leaking into life notes', () => {
+    const markdown = `
+## 待读摘录
+
+> 当焦虑基于一种受到威胁的感觉时，它也可以很容易地反过来在自卫中产生一种反应性敌意。在这个方面，焦虑与恐惧并没有任何区别，恐惧同样也可以引发攻击性。如果反应性敌意受到压抑，它也会产生焦虑，这样就形成了一个循环。
+
+💭 最核心的观点是：焦虑产生敌意，敌意又强化焦虑，但有时不自觉的会压抑敌意，自己意识不到，但会认为环境更加危险，于是强化焦虑。
+
+来源：《我们时代的神神经症人格》
+`
+    const summary = parseDiarySummaryFromMarkdown(markdown)
+    expect(summary.sections).toHaveLength(1)
+    expect(summary.sections[0].type).toBe('read-later')
+    expect(summary.sections[0].groups).toHaveLength(1)
+
+    const item = summary.sections[0].groups?.[0].items[0]
+    expect(item?.quote).toContain('当焦虑基于一种受到威胁的感觉时')
+    expect(item?.note).toBe(
+      '最核心的观点是：焦虑产生敌意，敌意又强化焦虑，但有时不自觉的会压抑敌意，自己意识不到，但会认为环境更加危险，于是强化焦虑。',
+    )
+    expect(summary.sections[0].groups?.[0].sourceTitle).toBe('我们时代的神神经症人格')
+    expect(summary.sections.some((s) => s.type === 'note')).toBe(false)
+  })
+
   it('falls back to 未知来源 when source metadata is missing', () => {
     const markdown = `
 ## 待读摘录

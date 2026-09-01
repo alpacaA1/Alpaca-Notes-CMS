@@ -74,19 +74,22 @@ export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourc
     let currentSource = ''
     const quoteItems: Array<{ quote: string; note?: string }> = []
     let currentQuoteLines: string[] = []
-    let currentNote: string | undefined
+    let currentNoteLines: string[] = []
+    let hasEmptyLineAfterQuote = false
 
     const flushCurrentQuote = () => {
       if (currentQuoteLines.length > 0) {
         const fullQuote = currentQuoteLines.join('\n').trim()
+        const fullNote = currentNoteLines.join('\n').trim()
         if (fullQuote && !fullQuote.includes('alpaca:self-observation') && !fullQuote.includes('我现在')) {
           quoteItems.push({
             quote: fullQuote,
-            note: currentNote?.trim() || undefined,
+            note: fullNote || undefined,
           })
         }
         currentQuoteLines = []
-        currentNote = undefined
+        currentNoteLines = []
+        hasEmptyLineAfterQuote = false
       }
     }
 
@@ -98,7 +101,10 @@ export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourc
         if (/^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)/.test(line) || /^💭\s*/.test(line)) {
           // It's a note line
           const noteText = line.replace(/^(?:💬\s*)?(?:\*\*)?(?:我的思考|想法)(?:\*\*)?[：:]\s*|^💭\s*/, '').trim()
-          currentNote = currentNote ? `${currentNote}\n${noteText}` : noteText
+          if (noteText) {
+            currentNoteLines.push(noteText)
+          }
+          hasEmptyLineAfterQuote = false
         } else {
           // It's a source line
           const sourceRaw = line.replace(/^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)(?:\*\*)?[：:]\s*/, '').trim()
@@ -109,19 +115,32 @@ export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourc
 
       if (line.startsWith('💭')) {
         const noteText = line.replace(/^💭\s*/, '').trim()
-        currentNote = currentNote ? `${currentNote}\n${noteText}` : noteText
+        if (noteText) {
+          currentNoteLines.push(noteText)
+        }
+        hasEmptyLineAfterQuote = false
         continue
       }
 
       if (line.startsWith('>')) {
+        // If we previously had a quote and encountered empty lines, or already collected a note, this is a new quote item
+        if (currentQuoteLines.length > 0 && (hasEmptyLineAfterQuote || currentNoteLines.length > 0)) {
+          flushCurrentQuote()
+        }
         const quoteText = line.replace(/^>\s?/, '')
         currentQuoteLines.push(quoteText)
+        hasEmptyLineAfterQuote = false
       } else if (!line) {
-        // Blank line separates distinct quotes
-        flushCurrentQuote()
+        // Blank line marks separation
+        if (currentQuoteLines.length > 0) {
+          hasEmptyLineAfterQuote = true
+        }
       } else if (line.startsWith('###') && line.includes('待读摘录')) {
         // Sub-heading separator
         flushCurrentQuote()
+      } else if (currentNoteLines.length > 0) {
+        // Multi-line note continuation
+        currentNoteLines.push(line)
       }
     }
     flushCurrentQuote()
@@ -216,10 +235,23 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
   }
 
   // 3. Extract General Life Notes / Lists
-  const cleanBody = text
+  // Remove self-obs comments, frontmatter, and read-later heading section to avoid leaking notes
+  let cleanBody = text
     .replace(/<!--[\s\S]*?-->/gi, '') // remove all HTML comments
     .replace(/^---[\s\S]*?---/g, '') // remove frontmatter
     .trim()
+
+  const readLaterH2Match = cleanBody.match(/^##\s+(?:(?:🔖|📄)\s*)?待读摘录\s*$/m)
+  if (readLaterH2Match && readLaterH2Match.index !== undefined) {
+    const startIndex = readLaterH2Match.index
+    const rest = cleanBody.slice(startIndex + readLaterH2Match[0].length)
+    const nextH2 = rest.match(/\n(##\s+[^\n]+)/)
+    if (nextH2 && nextH2.index !== undefined) {
+      cleanBody = cleanBody.slice(0, startIndex) + rest.slice(nextH2.index)
+    } else {
+      cleanBody = cleanBody.slice(0, startIndex)
+    }
+  }
 
   const listItems: string[] = []
   const lines = cleanBody.split('\n')
@@ -232,8 +264,10 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
       trimmed.startsWith('---') ||
       trimmed.startsWith('<!--') ||
       trimmed.startsWith('-->') ||
+      trimmed.startsWith('💭') ||
       trimmed.includes('alpaca:self-observation') ||
-      STRUCTURED_QUOTE_METADATA_PATTERN.test(trimmed)
+      STRUCTURED_QUOTE_METADATA_PATTERN.test(trimmed) ||
+      /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)/.test(trimmed)
     ) {
       continue
     }

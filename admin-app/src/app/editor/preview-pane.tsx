@@ -2003,9 +2003,12 @@ function renderCollapsibleHeadingSection(
                         {renderInlineWithLineBreaks(item.quote, previewImageUrls, wikiLinkOptions)}
                       </p>
                       {item.note ? (
-                        <p className="diary-reader-quotes__note">
-                          💭 {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
-                        </p>
+                        <div className="diary-reader-quotes__note">
+                          <span className="diary-reader-quotes__note-tag">💭 我的思考</span>
+                          <p className="diary-reader-quotes__note-text">
+                            {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
+                          </p>
+                        </div>
                       ) : null}
                     </div>
                   ))}
@@ -2213,9 +2216,12 @@ function renderStructuredMarkdownSection(
                         {renderInlineWithLineBreaks(item.quote, previewImageUrls, wikiLinkOptions)}
                       </p>
                       {item.note ? (
-                        <p className="diary-reader-quotes__note">
-                          💭 {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
-                        </p>
+                        <div className="diary-reader-quotes__note">
+                          <span className="diary-reader-quotes__note-tag">💭 我的思考</span>
+                          <p className="diary-reader-quotes__note-text">
+                            {renderInlineWithLineBreaks(item.note, previewImageUrls, wikiLinkOptions)}
+                          </p>
+                        </div>
                       ) : null}
                     </div>
                   ))}
