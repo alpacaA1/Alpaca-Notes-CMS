@@ -345,7 +345,7 @@ async function listMarkdownFiles(session: SessionState, basePath: string): Promi
   try {
     entries = await requestGitHub<GitHubDirectoryEntry[]>(session, path)
   } catch (error) {
-    if (basePath === PITCH_PATH || basePath === KNOWLEDGE_PATH) {
+    if (basePath === PITCH_PATH || basePath === KNOWLEDGE_PATH || basePath === PRIVATE_PATH) {
       if (error instanceof Error && (error.message === 'Not Found' || error.message.toLowerCase().includes('not found'))) {
         return []
       }

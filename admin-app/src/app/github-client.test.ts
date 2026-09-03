@@ -8,6 +8,7 @@ import {
   GitHubAuthError,
   listTrashEntries,
   listPostFiles,
+  listPrivateFiles,
   moveMarkdownFileToTrash,
   permanentlyDeleteTrashEntry,
   readCachedMarkdownFile,
@@ -445,5 +446,14 @@ describe('github client encoding', () => {
       expect(error).toBeInstanceOf(Error)
       expect((error as Error).message).toBe('Resource not accessible by personal access token')
     }
+  })
+
+  it('treats 404 for PRIVATE_PATH as empty directory instead of scope error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      createErrorResponse(404, 'Not Found'),
+    )
+
+    const entries = await listPrivateFiles({ token: 'token' })
+    expect(entries).toEqual([])
   })
 })
