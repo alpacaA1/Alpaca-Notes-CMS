@@ -733,9 +733,9 @@ describe('post dashboard', () => {
       />,
     )
 
-    expect(screen.getByText('+ 新建私密文章')).toBeTruthy()
+    expect(screen.getByText('+ 新建暗格文章')).toBeTruthy()
     expect(screen.getByText('绝密随想')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '取消置顶私密文章' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: '取消置顶暗格文章' })).toBeTruthy()
   })
 })
 

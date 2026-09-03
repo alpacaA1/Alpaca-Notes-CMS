@@ -93,7 +93,7 @@ export default function PrivateAuthDialog({ isOpen, onSuccess, onCancel }: Priva
               type="password"
               className="private-auth-dialog__input"
               value={password}
-              placeholder={isSettingInitialPassword ? '输入新密码以保护私密空间' : '输入密码'}
+              placeholder={isSettingInitialPassword ? '输入新密码以保护暗格' : '输入密码'}
               onChange={(event) => {
                 setPassword(event.target.value)
                 if (error) setError(null)

@@ -121,7 +121,7 @@ function getLinkedPostTypeLabel(contentType: ContentType | undefined) {
   }
 
   if (contentType === 'private') {
-    return '私密文章'
+    return '暗格文章'
   }
 
   return '文章'
@@ -601,7 +601,7 @@ export default function SettingsPanel({
                 <div className="settings-panel__toggle" style={{ opacity: 0.85 }}>
                   <span>状态</span>
                   <span style={{ fontSize: '13px', color: 'var(--color-accent, #D4A574)', fontWeight: 500 }}>
-                    🔒 私密（不公开）
+                    🔒 暗格（不公开）
                   </span>
                 </div>
               ) : null}

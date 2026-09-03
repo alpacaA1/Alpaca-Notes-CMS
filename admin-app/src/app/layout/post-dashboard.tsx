@@ -225,7 +225,7 @@ function getStatusLabel(post: PostIndexItem, contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '私密'
+    return '暗格'
   }
 
   if (contentType === 'pitch') {
@@ -252,7 +252,7 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
   }
 
   if (contentType === 'private') {
-    return pinned ? '取消置顶私密文章' : '置顶私密文章'
+    return pinned ? '取消置顶暗格文章' : '置顶暗格文章'
   }
 
   if (contentType === 'pitch') {
@@ -276,7 +276,7 @@ function getDeleteActionLabel(contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '删除私密文章'
+    return '删除暗格文章'
   }
 
   if (contentType === 'pitch') {
@@ -858,8 +858,8 @@ export default function PostDashboard({
   const isPrivate = contentType === 'private'
   const showQuickActions = true
   const hasSelectedMaterials = selectedMaterialCounts.diary > 0 || selectedMaterialCounts['read-later'] > 0
-  const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : isPitch ? '新建灵感 (N)' : isPrivate ? '新建私密文章 (N)' : '新建文章 (N)'
-  const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : isPrivate ? '+ 新建私密文章' : '+ 新建文章'
+  const newPostTitle = isReadLater ? '新建待读 (N)' : isDiary ? '新建日记 (N)' : isKnowledge ? '新建知识点 (N)' : isPitch ? '新建灵感 (N)' : isPrivate ? '新建暗格文章 (N)' : '新建文章 (N)'
+  const newPostLabel = isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : isPrivate ? '+ 新建暗格文章' : '+ 新建文章'
   const recoverableDraftKey = useMemo(
     () => recoverableDrafts.map((draft) => `${draft.path}:${draft.updatedAt}`).sort().join('|'),
     [recoverableDrafts],
@@ -1070,7 +1070,7 @@ export default function PostDashboard({
             ]
           : isPrivate
             ? [
-                { value: 'all' as const, label: '私密文章', count: posts.length },
+                { value: 'all' as const, label: '暗格文章', count: posts.length },
                 { value: 'all' as const, label: '置顶', count: pinnedCount, tone: 'published' as const },
               ]
             : [
@@ -1459,7 +1459,7 @@ export default function PostDashboard({
           <EmptyIllustration />
           {isFiltered ? (
             <>
-              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : isPrivate ? '私密文章' : '文章'}</p>
+              <p className="post-dashboard__empty-title">没有找到匹配的{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : isPrivate ? '暗格文章' : '文章'}</p>
               <p className="post-dashboard__empty-desc">试试调整筛选条件，或清除搜索内容。</p>
               <button type="button" className="post-dashboard__empty-action" onClick={clearFilters}>
                 清除所有筛选
@@ -1467,9 +1467,9 @@ export default function PostDashboard({
             </>
           ) : (
             <>
-              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : isPrivate ? '私密文章' : '文章'}</p>
+              <p className="post-dashboard__empty-title">还没有{isReadLater ? '待读' : isDiary ? '日记' : isKnowledge ? '知识点' : isPitch ? '灵感' : isPrivate ? '暗格文章' : '文章'}</p>
               <p className="post-dashboard__empty-desc">
-                {isReadLater ? '点击下方按钮保存第一条待读。' : isDiary ? '点击下方按钮写下第一则日记。' : isKnowledge ? '点击下方按钮沉淀第一条知识点。' : isPitch ? '点击下方按钮记录你的第一个灵感。' : isPrivate ? '点击下方按钮创建第一篇私密文章。' : '点击下方按钮创建你的第一篇草稿。'}
+                {isReadLater ? '点击下方按钮保存第一条待读。' : isDiary ? '点击下方按钮写下第一则日记。' : isKnowledge ? '点击下方按钮沉淀第一条知识点。' : isPitch ? '点击下方按钮记录你的第一个灵感。' : isPrivate ? '点击下方按钮创建第一篇暗格文章。' : '点击下方按钮创建你的第一篇草稿。'}
               </p>
               <button
                 type="button"
@@ -1483,7 +1483,7 @@ export default function PostDashboard({
                     : () => onNewPost()
                 }
               >
-                {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : isPrivate ? '+ 新建私密文章' : '+ 新建文章'}
+                {isReadLater ? '+ 新建待读' : isDiary ? '+ 新建日记' : isKnowledge ? '+ 新建知识点' : isPitch ? '+ 新建灵感' : isPrivate ? '+ 新建暗格文章' : '+ 新建文章'}
               </button>
             </>
           )}

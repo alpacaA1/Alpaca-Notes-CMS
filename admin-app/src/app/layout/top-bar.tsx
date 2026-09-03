@@ -255,7 +255,7 @@ function getDashboardTitle(contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '私密空间'
+    return '暗格'
   }
 
   return '文章管理'
@@ -279,7 +279,7 @@ function getCreateLabel(contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '新建私密文章'
+    return '新建暗格文章'
   }
 
   return '新建文章'
@@ -287,7 +287,7 @@ function getCreateLabel(contentType: ContentType) {
 
 function getContentTypeLabel(contentType: ContentType) {
   if (contentType === 'private') {
-    return '私密文章'
+    return '暗格文章'
   }
   return CONTENT_TYPE_OPTIONS.find((option) => option.value === contentType)?.label || '文章'
 }
@@ -334,7 +334,7 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '搜索私密文章标题、正文或标签'
+    return '搜索暗格文章标题、正文或标签'
   }
 
   return '搜索标题、摘要、正文、标签或链接'
@@ -571,7 +571,7 @@ export default function TopBar({
               aria-expanded={openEditorMenu === 'content'}
             >
               <AlpacaLogo />
-              <span>{contentType === 'private' ? '私密空间' : '内容编辑'}</span>
+              <span>{contentType === 'private' ? '暗格' : '内容编辑'}</span>
               <span aria-hidden="true">⌄</span>
             </button>
             {openEditorMenu === 'content' ? (
@@ -586,7 +586,7 @@ export default function TopBar({
                       setOpenEditorMenu(null)
                     }}
                   >
-                    <span>私密空间</span>
+                    <span>暗格</span>
                     <span aria-hidden="true">✓</span>
                   </button>
                 ) : null}
@@ -843,7 +843,7 @@ export default function TopBar({
                 }}
               >
                 <LockMenuIcon />
-                <span>私密空间</span>
+                <span>暗格</span>
               </div>
               <button
                 type="button"
@@ -851,7 +851,7 @@ export default function TopBar({
                 style={{ height: '30px', padding: '0 10px', fontSize: '12px' }}
                 onClick={() => onContentTypeChange('post')}
               >
-                退出私密
+                退出暗格
               </button>
             </div>
           ) : (
@@ -1179,7 +1179,7 @@ export default function TopBar({
                 >
                   <span className="top-bar__menu-item-main">
                     <LockMenuIcon />
-                    <span>{contentType === 'private' ? '退出私密空间' : '私密空间'}</span>
+                    <span>{contentType === 'private' ? '退出暗格' : '暗格'}</span>
                   </span>
                 </button>
                 <div className="top-bar__user-dropdown-divider" />

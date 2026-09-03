@@ -292,7 +292,7 @@ function getContentTypeLabel(contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '私密文章'
+    return '暗格文章'
   }
 
   return '文章'
@@ -316,7 +316,7 @@ function getDeleteContentTypeLabel(contentType: ContentType) {
   }
 
   if (contentType === 'private') {
-    return '私密文章'
+    return '暗格文章'
   }
 
   return '文章'
@@ -5943,7 +5943,7 @@ export default function App() {
           { id: 'new-diary', label: '新建日记', category: '操作', icon: '📅', action: () => handleNewPost('diary') },
           { id: 'new-knowledge', label: '新建知识点', category: '操作', icon: '💡', action: () => handleNewPost('knowledge') },
           { id: 'new-pitch', label: '新建灵感', category: '操作', icon: '✨', action: () => handleNewPost('pitch') },
-          { id: 'private-space', label: contentType === 'private' ? '退出私密空间' : '进入私密空间', category: '私密空间', icon: '🔒', action: () => {
+          { id: 'private-space', label: contentType === 'private' ? '退出暗格' : '进入暗格', category: '暗格', icon: '🔒', action: () => {
             if (contentType === 'private') {
               setPrivateSessionUnlocked(false)
               setIsPrivateUnlocked(false)
@@ -5956,7 +5956,7 @@ export default function App() {
               })
             }
           } },
-          ...(contentType === 'private' ? [{ id: 'new-private', label: '新建私密文章', category: '私密空间', icon: '📝', action: () => handleNewPost('private') }] : []),
+          ...(contentType === 'private' ? [{ id: 'new-private', label: '新建暗格文章', category: '暗格', icon: '📝', action: () => handleNewPost('private') }] : []),
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '藏馆 · 书架', category: '导航', icon: '📚', action: handleOpenBooks },
           { id: 'movies', label: '藏馆 · 光影', category: '导航', icon: '🎞️', action: handleOpenMovies },
