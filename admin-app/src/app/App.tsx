@@ -73,6 +73,8 @@ import { createPersonEntry, type PersonEntry } from './people/people-types'
 import { fetchPeopleLibrary, savePeopleLibrary } from './people/people-sync'
 import SettingsPanel from './layout/settings-panel'
 import ConfirmDialog from './layout/confirm-dialog'
+import PrivateAuthDialog from './layout/private-auth-dialog'
+import { isPrivateSessionUnlocked, setPrivateSessionUnlocked } from './auth/private-auth'
 import { getNextImmersiveMode } from './layout/immersive-mode'
 import { useColorMode } from './layout/use-color-mode'
 import { useReadingFont } from './layout/use-reading-font'
@@ -612,6 +614,19 @@ export default function App() {
     setFontFamilyId: setPreviewReadingFontFamilyId,
   } = useReadingFont()
   const [contentType, setContentType] = useState<ContentType>('post')
+  const [isPrivateUnlocked, setIsPrivateUnlocked] = useState(isPrivateSessionUnlocked)
+  const [isPrivateAuthOpen, setIsPrivateAuthOpen] = useState(false)
+  const [pendingPrivateAction, setPendingPrivateAction] = useState<(() => void) | null>(null)
+
+  const requestPrivateAccess = useCallback((onGranted: () => void) => {
+    if (isPrivateUnlocked || isPrivateSessionUnlocked()) {
+      setIsPrivateUnlocked(true)
+      onGranted()
+      return
+    }
+    setPendingPrivateAction(() => onGranted)
+    setIsPrivateAuthOpen(true)
+  }, [isPrivateUnlocked])
   const [postsByType, setPostsByType] = useState<IndexedPostsByType>(createEmptyIndexedPostsByType)
   const posts = postsByType[contentType] || []
   const readLaterPosts = postsByType['read-later'] || []
@@ -5350,27 +5365,40 @@ export default function App() {
             if (value === contentType) {
               return
             }
-            void (async () => {
-              if (!(await confirmNavigation())) {
-                return
-              }
-              resetPreviewImageUrls()
-              replaceDocument(null)
-              setActivePostPath(null)
-              setIsOpeningPost(false)
-              setIsImmersive(false)
-              setError(null)
-              setSuccessMessage(null)
-              setSearch('')
-              setQuickReadLaterUrl('')
-              setQuickReadLaterPendingItemUrl(null)
-              setEditorNavigationStack([])
-              setActiveBook(null)
-              setIsBookReaderOpen(false)
-              setIsBookReaderImmersive(false)
-              setContentType(value)
-              setAdminView('dashboard')
-            })()
+            const executeSwitch = () => {
+              void (async () => {
+                if (!(await confirmNavigation())) {
+                  return
+                }
+                resetPreviewImageUrls()
+                replaceDocument(null)
+                setActivePostPath(null)
+                setIsOpeningPost(false)
+                setIsImmersive(false)
+                setError(null)
+                setSuccessMessage(null)
+                setSearch('')
+                setQuickReadLaterUrl('')
+                setQuickReadLaterPendingItemUrl(null)
+                setEditorNavigationStack([])
+                setActiveBook(null)
+                setIsBookReaderOpen(false)
+                setIsBookReaderImmersive(false)
+                setContentType(value)
+                setAdminView('dashboard')
+              })()
+            }
+
+            if (value === 'private') {
+              requestPrivateAccess(executeSwitch)
+              return
+            }
+
+            if (contentType === 'private') {
+              setPrivateSessionUnlocked(false)
+              setIsPrivateUnlocked(false)
+            }
+            executeSwitch()
           }}
           contentType={contentType}
           searchInputRef={searchInputRef}
@@ -5865,6 +5893,23 @@ export default function App() {
           onCancel={() => closeAppConfirm(false)}
         />
       ) : null}
+      <PrivateAuthDialog
+        isOpen={isPrivateAuthOpen}
+        onSuccess={() => {
+          setPrivateSessionUnlocked(true)
+          setIsPrivateUnlocked(true)
+          setIsPrivateAuthOpen(false)
+          if (pendingPrivateAction) {
+            const action = pendingPrivateAction
+            setPendingPrivateAction(null)
+            action()
+          }
+        }}
+        onCancel={() => {
+          setIsPrivateAuthOpen(false)
+          setPendingPrivateAction(null)
+        }}
+      />
       <SelfObservationModal
         isOpen={isCheckinModalOpen}
         onClose={() => setIsCheckinModalOpen(false)}
@@ -5900,11 +5945,15 @@ export default function App() {
           { id: 'new-pitch', label: '新建灵感', category: '操作', icon: '✨', action: () => handleNewPost('pitch') },
           { id: 'private-space', label: contentType === 'private' ? '退出私密空间' : '进入私密空间', category: '私密空间', icon: '🔒', action: () => {
             if (contentType === 'private') {
+              setPrivateSessionUnlocked(false)
+              setIsPrivateUnlocked(false)
               setContentType('post')
               setAdminView('dashboard')
             } else {
-              setContentType('private')
-              setAdminView('dashboard')
+              requestPrivateAccess(() => {
+                setContentType('private')
+                setAdminView('dashboard')
+              })
             }
           } },
           ...(contentType === 'private' ? [{ id: 'new-private', label: '新建私密文章', category: '私密空间', icon: '📝', action: () => handleNewPost('private') }] : []),
