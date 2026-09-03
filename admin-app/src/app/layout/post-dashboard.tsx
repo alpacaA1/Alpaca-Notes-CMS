@@ -989,6 +989,7 @@ export default function PostDashboard({
 
   const publishedCount = useMemo(() => posts.filter((post) => post.published).length, [posts])
   const draftCount = useMemo(() => posts.filter((post) => !post.published).length, [posts])
+  const pinnedCount = useMemo(() => posts.filter((post) => post.pinned).length, [posts])
   const unreadCount = useMemo(
     () => posts.filter((post) => normalizeReadLaterStatus(post.readingStatus) === 'unread').length,
     [posts],

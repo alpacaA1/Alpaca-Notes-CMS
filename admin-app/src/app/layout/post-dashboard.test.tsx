@@ -704,5 +704,38 @@ describe('post dashboard', () => {
 
     expect(onUpdatePitchStatus).not.toHaveBeenCalled()
   })
+
+  it('renders private mode dashboard with stats and post items', () => {
+    const privatePost: PostIndexItem = {
+      path: 'source/_private/20260903100000.md',
+      sha: 'private-sha-1',
+      title: '绝密随想',
+      date: '2026-09-03 10:00:00',
+      desc: '私人记事',
+      published: false,
+      pinned: true,
+      hasExplicitPublished: true,
+      categories: ['个人'],
+      tags: ['心流'],
+      contentType: 'private',
+    }
+
+    render(
+      <PostDashboard
+        posts={[privatePost]}
+        search=""
+        isIndexing={false}
+        contentType="private"
+        onOpenPost={vi.fn()}
+        onNewPost={vi.fn()}
+        onDeletePost={vi.fn()}
+        onTogglePinned={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText('+ 新建私密文章')).toBeTruthy()
+    expect(screen.getByText('绝密随想')).toBeTruthy()
+    expect(screen.getByRole('button', { name: '取消置顶私密文章' })).toBeTruthy()
+  })
 })
 
