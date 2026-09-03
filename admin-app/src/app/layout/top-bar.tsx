@@ -98,6 +98,16 @@ function ExternalArrowIcon() {
   )
 }
 
+function LockMenuIcon() {
+  return (
+    <svg className="top-bar__menu-item-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="4" y="9" width="12" height="8.5" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M7 9V6.2C7 4.43 8.34 3 10 3s3 1.43 3 3.2V9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="10" cy="13.2" r="1.1" fill="currentColor" />
+    </svg>
+  )
+}
+
 function RenderSaveBadge({ label }: { label: string }) {
   const isSaved = label.includes('已保存')
   const isSaving = label.includes('保存中')
@@ -244,6 +254,10 @@ function getDashboardTitle(contentType: ContentType) {
     return '灵感'
   }
 
+  if (contentType === 'private') {
+    return '私密空间'
+  }
+
   return '文章管理'
 }
 
@@ -264,10 +278,17 @@ function getCreateLabel(contentType: ContentType) {
     return '新建灵感'
   }
 
+  if (contentType === 'private') {
+    return '新建私密文章'
+  }
+
   return '新建文章'
 }
 
 function getContentTypeLabel(contentType: ContentType) {
+  if (contentType === 'private') {
+    return '私密文章'
+  }
   return CONTENT_TYPE_OPTIONS.find((option) => option.value === contentType)?.label || '文章'
 }
 
@@ -310,6 +331,10 @@ function getSearchPlaceholder(adminView: AdminView, contentType: ContentType) {
 
   if (contentType === 'pitch') {
     return '搜索灵感、来源或标签'
+  }
+
+  if (contentType === 'private') {
+    return '搜索私密文章标题、正文或标签'
   }
 
   return '搜索标题、摘要、正文、标签或链接'
@@ -546,11 +571,25 @@ export default function TopBar({
               aria-expanded={openEditorMenu === 'content'}
             >
               <AlpacaLogo />
-              <span>内容编辑</span>
+              <span>{contentType === 'private' ? '私密空间' : '内容编辑'}</span>
               <span aria-hidden="true">⌄</span>
             </button>
             {openEditorMenu === 'content' ? (
               <div className="top-bar__editor-menu top-bar__editor-menu--content" role="menu">
+                {contentType === 'private' ? (
+                  <button
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={true}
+                    className="is-active"
+                    onClick={() => {
+                      setOpenEditorMenu(null)
+                    }}
+                  >
+                    <span>私密空间</span>
+                    <span aria-hidden="true">✓</span>
+                  </button>
+                ) : null}
                 {CONTENT_TYPE_OPTIONS.map((option) => (
                   <button
                     key={option.value}
@@ -788,32 +827,61 @@ export default function TopBar({
           />
         </label>
         {showContentTypeSwitcher ? (
-          <div className="top-bar__content-switcher">
-            <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
-              {CONTENT_TYPE_OPTIONS.map((option) => {
-                const checked = option.value === contentType
-                return (
-                  <label
-                    key={option.value}
-                    className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
-                  >
-                    <input
-                      type="radio"
-                      name="content-type"
-                      value={option.value}
-                      aria-label={option.label}
-                      checked={checked}
-                      onChange={() => onContentTypeChange(option.value)}
-                    />
-                    <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
-                    <span className="top-bar__switcher-text">
-                      <strong>{option.label}</strong>
-                    </span>
-                  </label>
-                )
-              })}
+          contentType === 'private' ? (
+            <div className="top-bar__content-switcher" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  background: 'rgba(212, 165, 116, 0.16)',
+                  color: 'var(--color-accent, #D4A574)',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}
+              >
+                <LockMenuIcon />
+                <span>私密空间</span>
+              </div>
+              <button
+                type="button"
+                className="top-bar__button top-bar__button--back"
+                style={{ height: '30px', padding: '0 10px', fontSize: '12px' }}
+                onClick={() => onContentTypeChange('post')}
+              >
+                退出私密
+              </button>
             </div>
-          </div>
+          ) : (
+            <div className="top-bar__content-switcher">
+              <div className="top-bar__switcher-options" role="radiogroup" aria-label="内容类型">
+                {CONTENT_TYPE_OPTIONS.map((option) => {
+                  const checked = option.value === contentType
+                  return (
+                    <label
+                      key={option.value}
+                      className={`top-bar__switcher-option${checked ? ' top-bar__switcher-option--active' : ''}`}
+                    >
+                      <input
+                        type="radio"
+                        name="content-type"
+                        value={option.value}
+                        aria-label={option.label}
+                        checked={checked}
+                        onChange={() => onContentTypeChange(option.value)}
+                      />
+                      <span className="top-bar__switcher-short" aria-hidden="true">{option.shortLabel}</span>
+                      <span className="top-bar__switcher-text">
+                        <strong>{option.label}</strong>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )
         ) : null}
       </div>
 
@@ -1096,6 +1164,24 @@ export default function TopBar({
                     </span>
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  role="menuitem"
+                  className={`top-bar__user-dropdown-item${contentType === 'private' ? ' is-active' : ''}`}
+                  onClick={() => {
+                    setIsUserMenuOpen(false)
+                    if (contentType === 'private') {
+                      onContentTypeChange('post')
+                    } else {
+                      onContentTypeChange('private')
+                    }
+                  }}
+                >
+                  <span className="top-bar__menu-item-main">
+                    <LockMenuIcon />
+                    <span>{contentType === 'private' ? '退出私密空间' : '私密空间'}</span>
+                  </span>
+                </button>
                 <div className="top-bar__user-dropdown-divider" />
                 <button
                   type="button"

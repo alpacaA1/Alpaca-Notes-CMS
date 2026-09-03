@@ -272,4 +272,30 @@ desc: 关于《影响力》的主题页
 
     expect(parsed.body).toBe('这是一个主题文章。')
   })
+
+  it('parses private post correctly and marks published as false', () => {
+    const parsed = parsePost({
+      path: 'source/_private/20260903100000.md',
+      sha: 'sha-private-1',
+      content: `---
+title: 我的秘密备忘
+date: 2026-09-03 10:00:00
+private: true
+published: false
+categories:
+  - 个人
+tags:
+  - 备忘
+desc: 私密内容
+---
+
+这是一篇仅自己可见的私密文章。`,
+    })
+
+    expect(parsed.contentType).toBe('private')
+    expect(parsed.frontmatter.private).toBe(true)
+    expect(parsed.frontmatter.published).toBe(false)
+    expect(parsed.frontmatter.title).toBe('我的秘密备忘')
+    expect(parsed.body).toBe('这是一篇仅自己可见的私密文章。')
+  })
 })

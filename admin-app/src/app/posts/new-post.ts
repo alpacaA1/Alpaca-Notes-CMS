@@ -1,4 +1,4 @@
-import { DIARY_PATH } from '../config'
+import { DIARY_PATH, PRIVATE_PATH } from '../config'
 import type { ParsedPost } from './parse-post'
 import type { PostValidationErrors } from './post-types'
 import type { PostIndexItem } from './post-types'
@@ -103,6 +103,27 @@ export function createNewDiaryEntry(date = new Date()): ParsedPost {
   }
 }
 
+export function createNewPrivatePost(date = new Date()): ParsedPost {
+  return {
+    path: `${PRIVATE_PATH}/${formatPostTimestamp(date)}.md`,
+    sha: '',
+    body: '',
+    hasExplicitPublished: true,
+    hasExplicitPermalink: false,
+    contentType: 'private',
+    frontmatter: {
+      title: '',
+      date: formatPostDate(date),
+      desc: '',
+      published: false,
+      pinned: false,
+      categories: [],
+      tags: [],
+      private: true,
+    },
+  }
+}
+
 export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: boolean }): PostValidationErrors {
   const errors: PostValidationErrors = {}
   const permalink = post.frontmatter.permalink?.trim() || ''
@@ -110,6 +131,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
   const isPitch = post.frontmatter.pitch === true || post.contentType === 'pitch'
+  const isPrivate = post.frontmatter.private === true || post.contentType === 'private'
   const isTopic = post.frontmatter.topic === true
 
   if (!post.frontmatter.title.trim()) {
@@ -132,7 +154,7 @@ export function validatePostForSave(post: ParsedPost, options?: { isNewPost?: bo
     errors.node_key = '主题节点请填写节点 Key，例如 book/影响力。'
   }
 
-  if (isDiary || isKnowledge || isPitch) {
+  if (isDiary || isKnowledge || isPitch || isPrivate) {
     return errors
   }
 

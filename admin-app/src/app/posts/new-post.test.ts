@@ -3,6 +3,7 @@ import { createNewKnowledgeItem } from '../knowledge/new-item'
 import {
   createNewDiaryEntry,
   createNewPost,
+  createNewPrivatePost,
   formatPostDate,
   formatPostTimestamp,
   fromPostDateTimeInputValue,
@@ -132,5 +133,19 @@ describe('new post helpers', () => {
 
     post.frontmatter.node_key = 'book/影响力'
     expect(validatePostForSave(post).node_key).toBeUndefined()
+  })
+
+  it('creates private posts in source/_private without requiring permalink', () => {
+    const post = createNewPrivatePost(fixedDate)
+
+    expect(post.path).toBe('source/_private/20260403060708.md')
+    expect(post.contentType).toBe('private')
+    expect(post.frontmatter.private).toBe(true)
+    expect(post.frontmatter.published).toBe(false)
+    expect(post.frontmatter.pinned).toBe(false)
+
+    post.frontmatter.title = '私密思考'
+    expect(validatePostForSave(post).permalink).toBeUndefined()
+    expect(validatePostForSave(post).title).toBeUndefined()
   })
 })

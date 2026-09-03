@@ -200,4 +200,35 @@ describe('serializePost', () => {
     expect(output).toContain('node_key: book/影响力')
     expect(output).toContain('aliases:\n  - 《影响力》\n  - Influence')
   })
+
+  it('serializes private posts with private marker and forces published as false', () => {
+    const privatePost: ParsedPost = {
+      path: 'source/_private/20260903100000.md',
+      sha: '',
+      hasExplicitPublished: true,
+      hasExplicitPermalink: false,
+      contentType: 'private',
+      frontmatter: {
+        title: '私人笔记',
+        date: '2026-09-03 10:00:00',
+        desc: '不公开的私人记录',
+        published: false,
+        pinned: true,
+        categories: ['私人'],
+        tags: ['想法'],
+        private: true,
+      },
+      body: '保密正文内容。',
+    }
+
+    const output = serializePost(privatePost)
+
+    expect(output).toContain('private: true')
+    expect(output).toContain('published: false')
+    expect(output).toContain('pinned: true')
+    expect(output).not.toContain('permalink:')
+    expect(output).toContain('categories:\n  - 私人')
+    expect(output).toContain('tags:\n  - 想法')
+    expect(output).toContain('保密正文内容。')
+  })
 })

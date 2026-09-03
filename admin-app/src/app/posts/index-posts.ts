@@ -1,5 +1,5 @@
-import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, READ_LATER_PATH } from '../config'
-import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPitchFiles, listPostFiles, readCachedMarkdownFile } from '../github-client'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, PRIVATE_PATH, READ_LATER_PATH } from '../config'
+import { fetchPostFile, listDiaryFiles, listKnowledgeFiles, listPitchFiles, listPostFiles, listPrivateFiles, readCachedMarkdownFile } from '../github-client'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { SessionState } from '../session'
 import type { ContentType, PitchStatus, PostIndexItem, PostIndexView } from './post-types'
@@ -162,6 +162,7 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
   const diaryRaw = readScalar(frontmatter, 'diary')
   const knowledgeRaw = readScalar(frontmatter, 'knowledge')
   const pitchRaw = readScalar(frontmatter, 'pitch')
+  const privateRaw = readScalar(frontmatter, 'private')
   const pitchStatusRaw = readScalar(frontmatter, 'pitch_status')
   const pitchInspirationRaw = readScalar(frontmatter, 'pitch_inspiration')
   const linkedPostPathRaw = readScalar(frontmatter, 'linked_post_path')
@@ -175,7 +176,9 @@ export function parsePostIndexItem(input: { path: string; sha: string; content: 
           ? 'knowledge'
           : pitchRaw === 'true' || input.path.startsWith(`${PITCH_PATH}/`)
             ? 'pitch'
-            : 'post'
+            : privateRaw === 'true' || input.path.startsWith(`${PRIVATE_PATH}/`)
+              ? 'private'
+              : 'post'
   const title = readScalar(frontmatter, 'title') || input.path.split('/').pop() || input.path
   const date = readScalar(frontmatter, 'date') || ''
   const desc = readScalar(frontmatter, 'desc') || ''
@@ -286,6 +289,10 @@ export async function buildKnowledgeIndex(session: SessionState, options?: Build
 
 export async function buildPitchIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
   return buildIndexForFiles(session, listPitchFiles(session), 'pitch', options)
+}
+
+export async function buildPrivateIndex(session: SessionState, options?: BuildIndexOptions): Promise<PostIndexItem[]> {
+  return buildIndexForFiles(session, listPrivateFiles(session), 'private', options)
 }
 
 export function filterPostIndex(posts: PostIndexItem[], view: PostIndexView): PostIndexItem[] {

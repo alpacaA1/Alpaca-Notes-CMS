@@ -116,6 +116,14 @@ function getLinkedPostTypeLabel(contentType: ContentType | undefined) {
     return '知识点'
   }
 
+  if (contentType === 'pitch') {
+    return '选题'
+  }
+
+  if (contentType === 'private') {
+    return '私密文章'
+  }
+
   return '文章'
 }
 
@@ -180,6 +188,7 @@ export default function SettingsPanel({
   const isPost = contentType === 'post'
   const isKnowledge = contentType === 'knowledge'
   const isPitch = contentType === 'pitch'
+  const isPrivate = contentType === 'private'
   const currentReadLaterTab = controlledReadLaterTab ?? internalReadLaterTab
   const activeAnnotation = useMemo(
     () => annotations.find((annotation) => annotation.id === activeAnnotationId) || null,
@@ -576,7 +585,7 @@ export default function SettingsPanel({
                 </>
               ) : null}
 
-              {!isDiary && !isKnowledge && !isPitch ? (
+              {!isDiary && !isKnowledge && !isPitch && !isPrivate ? (
                 <label className="settings-panel__toggle">
                   <span>已发布</span>
                   <input
@@ -586,6 +595,15 @@ export default function SettingsPanel({
                     onChange={(event) => onFieldChange('published', event.target.checked)}
                   />
                 </label>
+              ) : null}
+
+              {isPrivate ? (
+                <div className="settings-panel__toggle" style={{ opacity: 0.85 }}>
+                  <span>状态</span>
+                  <span style={{ fontSize: '13px', color: 'var(--color-accent, #D4A574)', fontWeight: 500 }}>
+                    🔒 私密（不公开）
+                  </span>
+                </div>
               ) : null}
 
               {!isDiary && !isPitch ? (

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as githubClientModule from '../github-client'
-import { buildDiaryIndex, buildKnowledgeIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
+import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, buildPrivateIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './index-posts'
 import type { PostIndexItem, PostIndexView } from './post-types'
 
 const legacyPost = parsePostIndexItem({
@@ -507,5 +507,50 @@ desc: 关于《影响力》的主题页
     expect(parsed.nodeKey).toBe('book/影响力')
     expect(parsed.aliases).toEqual(['《影响力》', 'Influence'])
     expect(filterPostIndex([parsed], { ...defaultView, query: 'Influence' })).toEqual([parsed])
+  })
+
+  it('indexes private posts and builds private index', async () => {
+    const parsed = parsePostIndexItem({
+      path: 'source/_private/20260903100000.md',
+      sha: 'private-sha',
+      content: `---
+title: 私密随笔
+date: 2026-09-03 10:00:00
+private: true
+published: false
+categories:
+  - 私密
+tags:
+  - 随笔
+desc: 只有自己看得到
+---
+
+私密内容正文。`,
+    })
+
+    expect(parsed.contentType).toBe('private')
+    expect(parsed.published).toBe(false)
+    expect(parsed.title).toBe('私密随笔')
+
+    vi.spyOn(githubClientModule, 'listPrivateFiles').mockResolvedValue([
+      { name: '20260903100000.md', path: 'source/_private/20260903100000.md', sha: 'private-sha', type: 'file' },
+    ])
+    vi.spyOn(githubClientModule, 'fetchPostFile').mockResolvedValue({
+      path: 'source/_private/20260903100000.md',
+      sha: 'private-sha',
+      content: `---
+title: 私密随笔
+date: 2026-09-03 10:00:00
+private: true
+published: false
+---
+
+私密内容正文。`,
+    })
+
+    const indexed = await buildPrivateIndex({ token: 'test-token' })
+    expect(indexed).toHaveLength(1)
+    expect(indexed[0].contentType).toBe('private')
+    expect(indexed[0].title).toBe('私密随笔')
   })
 })

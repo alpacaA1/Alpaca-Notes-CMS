@@ -3,6 +3,7 @@ import {
   KNOWLEDGE_PATH,
   PITCH_PATH,
   POSTS_PATH,
+  PRIVATE_PATH,
   READ_LATER_PATH,
   REPO_BRANCH,
   REPO_NAME,
@@ -380,6 +381,10 @@ export async function listKnowledgeFiles(session: SessionState): Promise<GitHubD
 
 export async function listPitchFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
   return listMarkdownFiles(session, PITCH_PATH)
+}
+
+export async function listPrivateFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {
+  return listMarkdownFiles(session, PRIVATE_PATH)
 }
 
 export async function listTrashFiles(session: SessionState): Promise<GitHubDirectoryEntry[]> {

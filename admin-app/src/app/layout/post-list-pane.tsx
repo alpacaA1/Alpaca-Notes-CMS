@@ -44,6 +44,10 @@ function getPinActionLabel(contentType: ContentType, pinned?: boolean) {
     return pinned ? '取消置顶选题' : '置顶选题'
   }
 
+  if (contentType === 'private') {
+    return pinned ? '取消置顶私密文章' : '置顶私密文章'
+  }
+
   return pinned ? '取消置顶文章' : '置顶文章'
 }
 
@@ -122,7 +126,7 @@ function getPreviewOutline(document: ParsedPost, documentContentFormat: Resolved
     }
   }
 
-  if ((document.contentType === 'post' || document.contentType === 'pitch' || document.contentType === 'knowledge') && documentContentFormat === 'markdown') {
+  if ((document.contentType === 'post' || document.contentType === 'pitch' || document.contentType === 'knowledge' || document.contentType === 'private') && documentContentFormat === 'markdown') {
     return {
       rootId: POST_PREVIEW_ROOT_ID,
       outlineItems: normalizeOutlineLevels(extractMarkdownHeadings(document.body, 'post-preview-heading')),
@@ -177,7 +181,7 @@ export default function PostListPane({
     document
     && (
       document.contentType === 'read-later'
-      || (isPreviewing && (document.contentType === 'post' || document.contentType === 'diary' || document.contentType === 'pitch' || document.contentType === 'knowledge'))
+      || (isPreviewing && (document.contentType === 'post' || document.contentType === 'diary' || document.contentType === 'pitch' || document.contentType === 'knowledge' || document.contentType === 'private'))
     ),
   )
 
@@ -261,9 +265,11 @@ export default function PostListPane({
             ? getReadLaterStatusTone(post.readingStatus)
             : contentType === 'pitch'
               ? getPitchStatusTone(post.pitchStatus)
-              : post.published
-                ? 'published'
-                : 'draft'
+              : contentType === 'private'
+                ? 'draft'
+                : post.published
+                  ? 'published'
+                  : 'draft'
           const statusLabel =
             contentType === 'read-later'
               ? getReadLaterStatusLabel(post.readingStatus)
@@ -273,9 +279,11 @@ export default function PostListPane({
                   ? '知识点'
                   : contentType === 'pitch'
                     ? getPitchStatusLabel(post.pitchStatus)
-                    : post.published
-                      ? '已发布'
-                      : '草稿'
+                    : contentType === 'private'
+                      ? '私密'
+                      : post.published
+                        ? '已发布'
+                        : '草稿'
 
           return (
             <li key={post.path} className={`post-list-item${isActive ? ' is-active' : ''}`}>
@@ -326,9 +334,9 @@ export default function PostListPane({
     <aside className={`post-pane${isDrawer ? ' post-pane--drawer' : ''}${isDrawer && !isOpen ? ' is-closed' : ''}`}>
       <div className="post-pane__header">
         {isDrawer ? <div className="post-pane__drawer-top"><strong>文章列表</strong><button type="button" className="drawer-close-button" onClick={onClose} aria-label="关闭文章列表">×</button></div> : null}
-        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : contentType === 'pitch' ? '选题归档' : '文章归档'}</p>
+        <p className="post-pane__eyebrow">{contentType === 'read-later' ? '待读归档' : contentType === 'diary' ? '日记归档' : contentType === 'knowledge' ? '知识点归档' : contentType === 'pitch' ? '选题归档' : contentType === 'private' ? '私密归档' : '文章归档'}</p>
         <div className="post-pane__title-row">
-          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : contentType === 'pitch' ? '选题' : '文章'}</h2>
+          <h2>{contentType === 'read-later' ? '待读' : contentType === 'diary' ? '日记' : contentType === 'knowledge' ? '知识点' : contentType === 'pitch' ? '选题' : contentType === 'private' ? '私密文章' : '文章'}</h2>
           <span className="post-pane__count">{posts.length}</span>
         </div>
         <p className="post-pane__note">
@@ -340,14 +348,22 @@ export default function PostListPane({
                 ? '优先看来源、摘录与标签，快速回到你要复习的点。'
                 : contentType === 'pitch'
                   ? '记录写作灵感，收集素材后转为正式文章。'
-                  : '先看标题、链接和元信息，再打开对应稿件。'}
+                  : contentType === 'private'
+                    ? '私密文章不对外公开发布，仅在私密空间中可查看与编辑。'
+                    : '先看标题、链接和元信息，再打开对应稿件。'}
         </p>
         {isDrawer ? <label className="post-pane__drawer-search"><span className="sr-only">搜索文章</span><input value={drawerSearch} onChange={(event) => setDrawerSearch(event.target.value)} placeholder="搜索标题或系列" autoFocus /></label> : null}
       </div>
       {isDrawer ? (
         <div className="post-pane__drawer-groups">
-          <section><div className="post-pane__group-label"><span>草稿</span><span>{draftPosts.length}</span></div><ul className="post-list">{renderPosts(draftPosts)}</ul></section>
-          <section><div className="post-pane__group-label"><span>已发布</span><span>{publishedPosts.length}</span></div><ul className="post-list">{renderPosts(publishedPosts)}</ul></section>
+          {contentType === 'private' ? (
+            <section><div className="post-pane__group-label"><span>私密文章</span><span>{visiblePosts.length}</span></div><ul className="post-list">{renderPosts(visiblePosts)}</ul></section>
+          ) : (
+            <>
+              <section><div className="post-pane__group-label"><span>草稿</span><span>{draftPosts.length}</span></div><ul className="post-list">{renderPosts(draftPosts)}</ul></section>
+              <section><div className="post-pane__group-label"><span>已发布</span><span>{publishedPosts.length}</span></div><ul className="post-list">{renderPosts(publishedPosts)}</ul></section>
+            </>
+          )}
         </div>
       ) : <ul className="post-list">
         {posts.map((post) => {

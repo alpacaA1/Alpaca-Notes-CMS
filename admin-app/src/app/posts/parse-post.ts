@@ -1,4 +1,4 @@
-import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, READ_LATER_PATH } from '../config'
+import { DIARY_PATH, KNOWLEDGE_PATH, PITCH_PATH, PRIVATE_PATH, READ_LATER_PATH } from '../config'
 import { stripGeneratedTopicBacklinks } from '../knowledge/wiki-links'
 import type { ContentType, KnowledgeKind, KnowledgeSourceType, PitchStatus, TopicNodeType } from './post-types'
 
@@ -36,6 +36,7 @@ export type PostFrontmatter = {
   diary?: boolean
   knowledge?: boolean
   pitch?: boolean
+  private?: boolean
   pitch_status?: PitchStatus
   pitch_inspiration?: string
   linked_post_path?: string
@@ -108,6 +109,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
   const diaryRaw = readScalar(frontmatterBlock, 'diary')
   const knowledgeRaw = readScalar(frontmatterBlock, 'knowledge')
   const pitchRaw = readScalar(frontmatterBlock, 'pitch')
+  const privateRaw = readScalar(frontmatterBlock, 'private')
   const pitchStatusRaw = readScalar(frontmatterBlock, 'pitch_status')
   const pitchInspirationRaw = readScalar(frontmatterBlock, 'pitch_inspiration')
   const linkedPostPathRaw = readScalar(frontmatterBlock, 'linked_post_path')
@@ -132,7 +134,9 @@ export function parsePost(input: { path: string; sha: string; content: string })
           ? 'knowledge'
           : pitchRaw === 'true' || input.path.startsWith(`${PITCH_PATH}/`)
             ? 'pitch'
-            : 'post'
+            : privateRaw === 'true' || input.path.startsWith(`${PRIVATE_PATH}/`)
+              ? 'private'
+              : 'post'
 
   return {
     path: input.path,
@@ -162,6 +166,7 @@ export function parsePost(input: { path: string; sha: string; content: string })
       ...(contentType === 'diary' ? { diary: true } : {}),
       ...(contentType === 'knowledge' ? { knowledge: true } : {}),
       ...(contentType === 'pitch' || pitchRaw === 'true' ? { pitch: true } : {}),
+      ...(contentType === 'private' || privateRaw === 'true' ? { private: true } : {}),
       ...(pitchStatusRaw === 'open' || pitchStatusRaw === 'collecting' || pitchStatusRaw === 'writing' || pitchStatusRaw === 'done' || pitchStatusRaw === 'shelved'
         ? { pitch_status: pitchStatusRaw }
         : {}),

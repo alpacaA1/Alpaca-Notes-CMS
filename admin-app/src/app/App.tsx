@@ -107,9 +107,9 @@ import {
 import QuickCheckinView from './self-observation/quick-checkin-view'
 import SelfObservationModal from './self-observation/self-observation-modal'
 import { getPendingObservationCount, syncObservationOutbox } from './self-observation/self-observation-outbox'
-import { createNewDiaryEntry, createNewPost, getNextNumericPermalink } from './posts/new-post'
+import { createNewDiaryEntry, createNewPost, createNewPrivatePost, getNextNumericPermalink } from './posts/new-post'
 import { createNewPitch, createPostFromPitch } from './pitches/new-item'
-import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
+import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, buildPrivateIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
 import { parsePost } from './posts/parse-post'
 import type { ParsedPost } from './posts/parse-post'
 import { serializePost } from './posts/serialize-post'
@@ -237,7 +237,7 @@ const SAVE_SUCCESS_MESSAGE = '已保存。'
 const TAXONOMY_LABELS: Record<TaxonomyType, string> = { categories: '分类', tags: '标签' }
 
 function createEmptyIndexedPostsByType(): IndexedPostsByType {
-  return { post: [], diary: [], 'read-later': [], knowledge: [], pitch: [] }
+  return { post: [], diary: [], 'read-later': [], knowledge: [], pitch: [], private: [] }
 }
 
 function createEmptyMaterialSelectionState(): MaterialSelectionState {
@@ -265,6 +265,10 @@ function getContentTypeFromPostLike(post: Pick<PostIndexItem, 'contentType'> | P
     return 'pitch'
   }
 
+  if (post.contentType === 'private') {
+    return 'private'
+  }
+
   return 'post'
 }
 
@@ -285,6 +289,10 @@ function getContentTypeLabel(contentType: ContentType) {
     return '灵感'
   }
 
+  if (contentType === 'private') {
+    return '私密文章'
+  }
+
   return '文章'
 }
 
@@ -303,6 +311,10 @@ function getDeleteContentTypeLabel(contentType: ContentType) {
 
   if (contentType === 'pitch') {
     return '灵感'
+  }
+
+  if (contentType === 'private') {
+    return '私密文章'
   }
 
   return '文章'
@@ -559,6 +571,10 @@ async function buildIndexByContentType(session: { token: string }, type: Content
 
   if (type === 'pitch') {
     return buildPitchIndex(session, options)
+  }
+
+  if (type === 'private') {
+    return buildPrivateIndex(session, options)
   }
 
   return buildPostIndex(session, options)
@@ -1836,7 +1852,7 @@ export default function App() {
     }
 
     const effectiveContentType: ContentType =
-      targetType === 'read-later' || targetType === 'diary' || targetType === 'knowledge' || targetType === 'pitch' || targetType === 'post'
+      targetType === 'read-later' || targetType === 'diary' || targetType === 'knowledge' || targetType === 'pitch' || targetType === 'private' || targetType === 'post'
         ? targetType
         : contentType
 
@@ -1869,7 +1885,9 @@ export default function App() {
             ? createNewKnowledgeItem()
             : effectiveContentType === 'pitch'
               ? createNewPitch()
-              : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
+              : effectiveContentType === 'private'
+                ? createNewPrivatePost()
+                : createNewPost(undefined, getNextNumericPermalink(postsByType.post)),
     )
     setAdminView('editor')
   }
@@ -5880,6 +5898,16 @@ export default function App() {
           { id: 'new-diary', label: '新建日记', category: '操作', icon: '📅', action: () => handleNewPost('diary') },
           { id: 'new-knowledge', label: '新建知识点', category: '操作', icon: '💡', action: () => handleNewPost('knowledge') },
           { id: 'new-pitch', label: '新建灵感', category: '操作', icon: '✨', action: () => handleNewPost('pitch') },
+          { id: 'private-space', label: contentType === 'private' ? '退出私密空间' : '进入私密空间', category: '私密空间', icon: '🔒', action: () => {
+            if (contentType === 'private') {
+              setContentType('post')
+              setAdminView('dashboard')
+            } else {
+              setContentType('private')
+              setAdminView('dashboard')
+            }
+          } },
+          ...(contentType === 'private' ? [{ id: 'new-private', label: '新建私密文章', category: '私密空间', icon: '📝', action: () => handleNewPost('private') }] : []),
           { id: 'save', label: '保存并发布', category: '操作', icon: '💾', shortcut: 'Ctrl+S', action: () => void handleSave() },
           { id: 'books', label: '藏馆 · 书架', category: '导航', icon: '📚', action: handleOpenBooks },
           { id: 'movies', label: '藏馆 · 光影', category: '导航', icon: '🎞️', action: handleOpenMovies },

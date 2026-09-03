@@ -206,6 +206,7 @@ function syncPrivateContent(options = {}) {
   resetDirectory(publicImagesDir);
 
   fs.rmSync(path.join(publicSourceDir, 'diary'), { recursive: true, force: true });
+  fs.rmSync(path.join(publicSourceDir, '_private'), { recursive: true, force: true });
 
   copyDirectory(contentPostsDir, publicPostsDir);
   stripGeneratedBacklinksInDirectory(publicPostsDir);

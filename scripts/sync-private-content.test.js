@@ -41,6 +41,7 @@ test('syncPrivateContent copies public content directories and only publishes re
   writeFile(path.join(publicSourceDir, '_posts', 'stale.md'), 'stale');
   writeFile(path.join(publicSourceDir, 'images', '2026', '04', 'stale.png'), 'stale');
   writeFile(path.join(publicSourceDir, 'diary', 'secret.md'), 'secret');
+  writeFile(path.join(publicSourceDir, '_private', 'secret.md'), 'secret');
   writeFile(path.join(publicSourceDir, 'read-later-items', 'secret.md'), 'secret');
   writeFile(path.join(publicSourceDir, '_knowledge', 'secret.md'), 'secret');
 
@@ -127,6 +128,7 @@ published: false
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'draft.png')), false);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'images', '2026', '04', 'stale.png')), false);
   assert.equal(fs.existsSync(path.join(publicSourceDir, 'diary')), false);
+  assert.equal(fs.existsSync(path.join(publicSourceDir, '_private')), false);
 });
 
 test('syncPrivateContent fails when a published post references a missing image', () => {

@@ -1,7 +1,7 @@
 import type { ReadingStatus } from './parse-post'
 
 export type PostValidationErrors = Partial<Record<'title' | 'date' | 'desc' | 'permalink' | 'external_url' | 'node_key', string>>
-export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge' | 'pitch'
+export type ContentType = 'post' | 'diary' | 'read-later' | 'knowledge' | 'pitch' | 'private'
 export type KnowledgeSourceType = 'post' | 'read-later' | 'diary'
 export type KnowledgeKind = 'note' | 'topic'
 export type TopicNodeType = 'book' | 'movie' | 'person' | 'theme'

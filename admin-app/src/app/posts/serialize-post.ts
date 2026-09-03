@@ -12,14 +12,15 @@ export function serializePost(post: ParsedPost): string {
   const isDiary = post.frontmatter.diary === true || post.contentType === 'diary'
   const isKnowledge = post.frontmatter.knowledge === true || post.contentType === 'knowledge'
   const isPitch = post.frontmatter.pitch === true || post.contentType === 'pitch'
+  const isPrivate = post.frontmatter.private === true || post.contentType === 'private'
   const aliases = post.frontmatter.aliases || []
   const lines = [
     '---',
     `title: ${post.frontmatter.title}`,
     ...(post.frontmatter.format ? [`format: ${post.frontmatter.format}`] : []),
-    ...(!isDiary && !isKnowledge && !isPitch && post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
+    ...(!isDiary && !isKnowledge && !isPitch && !isPrivate && post.frontmatter.permalink ? [`permalink: ${post.frontmatter.permalink}`] : []),
     ...(post.frontmatter.layout ? [`layout: ${post.frontmatter.layout}`] : []),
-    ...(!isDiary && !isKnowledge && !isPitch && post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
+    ...(!isDiary && !isKnowledge && !isPitch && !isPrivate && post.frontmatter.cover ? [`cover: ${post.frontmatter.cover}`] : []),
     `date: ${post.frontmatter.date}`,
     ...(post.frontmatter.read_later
       ? [
@@ -33,6 +34,7 @@ export function serializePost(post: ParsedPost): string {
           ...(isDiary ? ['diary: true'] : []),
           ...(isKnowledge ? ['knowledge: true'] : []),
           ...(isPitch ? ['pitch: true'] : []),
+          ...(isPrivate ? ['private: true'] : []),
           ...(isPitch && post.frontmatter.pitch_status ? [`pitch_status: ${post.frontmatter.pitch_status}`] : []),
           ...(isPitch && post.frontmatter.pitch_inspiration ? [`pitch_inspiration: ${post.frontmatter.pitch_inspiration}`] : []),
           ...(isPitch && post.frontmatter.linked_post_path ? [`linked_post_path: ${post.frontmatter.linked_post_path}`] : []),
@@ -47,7 +49,7 @@ export function serializePost(post: ParsedPost): string {
           ...((isKnowledge || post.frontmatter.topic) && post.frontmatter.node_key ? [`node_key: ${post.frontmatter.node_key}`] : []),
           ...((isKnowledge || post.frontmatter.topic) && aliases.length > 0 ? [renderList('aliases', aliases)] : []),
           `published: ${
-            isDiary || isKnowledge || isPitch
+            isDiary || isKnowledge || isPitch || isPrivate
               ? 'false'
               : post.hasExplicitPublished
                 ? String(post.frontmatter.published)
@@ -57,7 +59,7 @@ export function serializePost(post: ParsedPost): string {
     ...(post.frontmatter.read_later ? [] : post.frontmatter.pinned ? ['pinned: true'] : []),
     ...(post.frontmatter.read_later || isDiary || isPitch ? [] : [renderList('categories', post.frontmatter.categories)]),
     renderList('tags', post.frontmatter.tags),
-    ...(!isDiary && !isKnowledge && !isPitch && !post.frontmatter.read_later && post.frontmatter.series ? [`series: ${post.frontmatter.series}`] : []),
+    ...(!isDiary && !isKnowledge && !isPitch && !isPrivate && !post.frontmatter.read_later && post.frontmatter.series ? [`series: ${post.frontmatter.series}`] : []),
     `desc: ${post.frontmatter.desc}`,
     '---',
   ]
