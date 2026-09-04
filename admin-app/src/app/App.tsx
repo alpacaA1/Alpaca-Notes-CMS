@@ -219,6 +219,7 @@ type OpenDocumentOptions = {
   draftPost?: ParsedPost | null
   successMessage?: string | null
   mode?: EditorMode
+  preservePreviewImages?: boolean
 }
 
 type EditorNavigationEntry = {
@@ -1385,7 +1386,9 @@ export default function App() {
 
   const openDocument = (nextPost: ParsedPost, options?: OpenDocumentOptions) => {
     const isNewReadLater = nextPost.contentType === 'read-later' && !nextPost.sha && !nextPost.frontmatter.title?.trim()
-    resetPreviewImageUrls()
+    if (!options?.preservePreviewImages) {
+      resetPreviewImageUrls()
+    }
     replaceDocument(nextPost, options?.draftPost ?? undefined)
     setMode(options?.mode ?? (nextPost.contentType === 'read-later' ? 'preview' : 'markdown'))
     setActivePostPath(nextPost.path)
@@ -4545,6 +4548,7 @@ export default function App() {
     openDocument(savedBaseDocument, {
       draftPost: draftDocument,
       successMessage,
+      preservePreviewImages: true,
     })
     setPendingFeedDraftContext(sourceFeedUrl ? { draftPath: savedBaseDocument.path, feedUrl: sourceFeedUrl } : null)
     setContentType('read-later')

@@ -40,8 +40,12 @@ function getServerToken() {
   ).trim();
 }
 
-function resolveGitHubToken(req) {
-  return readBearerToken(req.headers.authorization) || getServerToken();
+function resolveGitHubToken(req, requestUrl) {
+  return (
+    readBearerToken(req.headers.authorization) ||
+    requestUrl?.searchParams?.get('token')?.trim() ||
+    getServerToken()
+  );
 }
 
 function normalizeRepoPath(rawPath) {
@@ -92,7 +96,7 @@ module.exports = async function handler(req, res) {
 
   const repoPath = normalizeRepoPath(rawPath);
   const mimeType = getMimeType(repoPath);
-  const token = resolveGitHubToken(req);
+  const token = resolveGitHubToken(req, requestUrl);
 
   try {
     const headers = {

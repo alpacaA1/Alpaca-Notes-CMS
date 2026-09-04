@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import PreviewPane from './preview-pane'
+import PreviewPane, { resolvePreviewImageSrc } from './preview-pane'
 
 describe('PreviewPane', () => {
   afterEach(() => {
@@ -681,6 +681,27 @@ Dynamic wallpaper by Kenny Kuh and Luke Barker.
       fireEvent.click(closeBtn)
 
       expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
+    })
+  })
+
+  describe('resolvePreviewImageSrc', () => {
+    it('returns direct CDN URLs unchanged', () => {
+      const cdnUrl = 'https://x.ai/_next/static/media/agentb-1.5b1f13ce.png'
+      expect(resolvePreviewImageSrc(cdnUrl)).toBe(cdnUrl)
+    })
+
+    it('prefers in-memory blob URLs from previewImageUrls', () => {
+      const markdownPath = '/Alpaca-Notes-CMS/images/2026/09/avatar.png'
+      const blobUrl = 'blob:http://localhost:5173/abc-123'
+      expect(
+        resolvePreviewImageSrc(markdownPath, { [markdownPath]: blobUrl }),
+      ).toBe(blobUrl)
+    })
+
+    it('includes token in proxy URL when sessionToken is provided', () => {
+      const markdownPath = '/Alpaca-Notes-CMS/images/2026/09/avatar.png'
+      const resolved = resolvePreviewImageSrc(markdownPath, {}, 'test-token')
+      expect(resolved).toContain('/api/images?path=images%2F2026%2F09%2Favatar.png&token=test-token')
     })
   })
 })

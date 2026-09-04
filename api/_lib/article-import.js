@@ -17,6 +17,7 @@ const SUPPORTED_PROTOCOLS = new Set(['http:', 'https:']);
 const REDIRECT_STATUS_CODES = new Set([301, 302, 303, 307, 308]);
 const HTML_CONTENT_TYPE_PATTERN = /^(text\/html|application\/xhtml\+xml)\b/i;
 const IMAGE_CONTENT_TYPE_PATTERN = /^image\/(?:png|jpe?g|webp|gif)\b/i;
+const ANTI_HOTLINK_HOST_PATTERN = /(?:^|\.)(?:qpic\.cn|doubanio\.com|sinaimg\.cn|zhimg\.com|xhscdn\.com)$/i;
 const PRIVATE_IPV4_PATTERNS = [/^127\./, /^10\./, /^192\.168\./, /^169\.254\./, /^0\./];
 const MOWEN_NOTE_HOSTNAME_PATTERN = /^(?:dev-|d-)?note\.mowen\.cn$/i;
 const MOWEN_DETAIL_PATH_PATTERN = /^\/detail\/([^/?#]+)/i;
@@ -573,9 +574,32 @@ async function downloadImportedImage(imageUrl, refererUrl, signal, index) {
   };
 }
 
+function shouldLocalizeImportedImage(imageUrl, refererUrl) {
+  try {
+    const parsedImageUrl = new URL(imageUrl);
+    if (ANTI_HOTLINK_HOST_PATTERN.test(parsedImageUrl.hostname)) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+
+  try {
+    const parsedReferer = typeof refererUrl === 'string' ? new URL(refererUrl) : refererUrl;
+    if (parsedReferer && (isWeChatArticleUrl(parsedReferer) || ANTI_HOTLINK_HOST_PATTERN.test(parsedReferer.hostname))) {
+      return true;
+    }
+  } catch {
+    // Ignore URL parse errors
+  }
+
+  return false;
+}
+
 async function downloadImportedImages(markdown, refererUrl, signal) {
   const imageUrls = extractMarkdownImageUrls(markdown)
     .filter((imageUrl) => /^https?:\/\//i.test(imageUrl))
+    .filter((imageUrl) => shouldLocalizeImportedImage(imageUrl, refererUrl))
     .slice(0, MAX_IMPORTED_IMAGES);
   const images = [];
   let totalBytes = 0;

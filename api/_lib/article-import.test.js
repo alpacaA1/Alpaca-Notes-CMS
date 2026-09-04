@@ -237,6 +237,45 @@ test('importArticle downloads imported images with the article referer when requ
   assert.match(fetchCalls[1].options.headers['User-Agent'], /Mozilla\/5\.0/);
 });
 
+test('importArticle preserves direct public CDN image URLs without localizing them', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.11', family: 4 }]);
+
+  global.fetch = async (url) => {
+    if (String(url).startsWith('https://x.ai/news/designing-grok-bot')) {
+      return createMockResponse({
+        url: 'https://x.ai/news/designing-grok-bot',
+        headers: {
+          'content-type': 'text/html; charset=utf-8',
+        },
+        html: `<!doctype html>
+<html>
+  <head>
+    <title>Designing Grok Bot</title>
+  </head>
+  <body>
+    <article>
+      <h1>Designing Grok Bot</h1>
+      <p>This is a detailed article exploring the user experience, character design, and visual styling of Grok Bot across multiple iterations and environments.</p>
+      <p>Here is an avatar gallery for the bot personalities:</p>
+      <p><img src="https://x.ai/_next/static/media/avatar.png" alt="Avatar" /></p>
+      <p>These avatars reflect different states and emotional responses during multi-turn interactions.</p>
+    </article>
+  </body>
+</html>`,
+      });
+    }
+
+    throw new Error(`unexpected fetch url: ${url}`);
+  };
+
+  const article = await importArticle('https://x.ai/news/designing-grok-bot', {
+    includeImages: true,
+  });
+
+  assert.match(article.markdown, /!\[Avatar\]\(https:\/\/x\.ai\/_next\/static\/media\/avatar\.png\)/);
+  assert.deepEqual(article.images, []);
+});
+
 test('importArticle allows larger WeChat HTML pages', async () => {
   setDnsLookupForTesting(async () => [{ address: '203.0.113.12', family: 4 }]);
   global.fetch = async () => createMockResponse({

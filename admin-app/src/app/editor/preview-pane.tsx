@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import { AUTH_BASE_URL } from '../config'
+import { readStoredSession } from '../session'
 import type { ResolvedContentFormat } from '../content-format'
 import { parseInternalReferenceTargetKey } from '../internal-links'
 import type { TopicBacklinkItem } from '../knowledge/wiki-links'
@@ -812,6 +813,7 @@ function sanitizeImageSrc(imageSrc: string) {
 export function resolvePreviewImageSrc(
   imageSrc?: string | null,
   previewImageUrls?: Record<string, string>,
+  sessionToken?: string | null,
 ): string | null {
   if (!imageSrc) {
     return null
@@ -836,7 +838,9 @@ export function resolvePreviewImageSrc(
       .replace(/^\/Alpaca-Notes-CMS\//, '')
       .replace(/^\/?(source\/)?/, '')
       .replace(/^\//, '')
-    return `${AUTH_BASE_URL}/api/images?path=${encodeURIComponent(cleanPath)}`
+    const token = sessionToken || (typeof window !== 'undefined' ? readStoredSession()?.token : null)
+    const tokenQuery = token ? `&token=${encodeURIComponent(token)}` : ''
+    return `${AUTH_BASE_URL}/api/images?path=${encodeURIComponent(cleanPath)}${tokenQuery}`
   }
 
   return sanitized
