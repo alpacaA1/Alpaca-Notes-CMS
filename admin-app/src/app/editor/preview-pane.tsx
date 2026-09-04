@@ -1477,8 +1477,19 @@ function PreviewGallery({
     return null
   }
 
-  const isDense = items.length >= 5
-  const countClass = `preview-gallery--count-${Math.min(items.length, 4)}`
+  const isDense = items.length >= 10
+  let countClass = 'preview-gallery--count-grid'
+  if (items.length === 2) {
+    countClass = 'preview-gallery--count-2'
+  } else if (items.length === 3) {
+    countClass = 'preview-gallery--count-3'
+  } else if (items.length === 4) {
+    countClass = 'preview-gallery--count-4'
+  } else if (items.length === 5) {
+    countClass = 'preview-gallery--count-5'
+  } else if (items.length === 6) {
+    countClass = 'preview-gallery--count-6'
+  }
 
   return (
     <figure className={`preview-gallery ${countClass}${isDense ? ' preview-gallery--dense' : ''}`}>
@@ -1860,8 +1871,10 @@ function renderBlocks(
       continue
     }
 
-    if (/^!\[[\s\S]*?\]\([\s\S]*?\)$/.test(trimmed)) {
+    const imageCountInLine = (trimmed.match(/!\[[\s\S]*?\]\([\s\S]*?\)/g) || []).length
+    if (imageCountInLine > 0 && /^(!\[[\s\S]*?\]\([\s\S]*?\)\s*)+$/.test(trimmed)) {
       const imageLines: string[] = [trimmed]
+      let totalImages = imageCountInLine
       let lookahead = index + 1
       let captionLine = ''
 
@@ -1871,14 +1884,16 @@ function renderBlocks(
           lookahead += 1
           continue
         }
-        if (/^!\[[\s\S]*?\]\([\s\S]*?\)$/.test(nextTrimmed)) {
+        const nextImageCount = (nextTrimmed.match(/!\[[\s\S]*?\]\([\s\S]*?\)/g) || []).length
+        if (nextImageCount > 0 && /^(!\[[\s\S]*?\]\([\s\S]*?\)\s*)+$/.test(nextTrimmed)) {
           imageLines.push(nextTrimmed)
+          totalImages += nextImageCount
           lookahead += 1
           continue
         }
         if (
           /^(\*[\s\S]+\*|_[\s\S]+_|<figcaption\b)/i.test(nextTrimmed) ||
-          (nextTrimmed.length <= 120 && !/^[#\-*+>\d`]/.test(nextTrimmed))
+          (nextTrimmed.length <= 160 && !/^[#\-*+>\d`]/.test(nextTrimmed))
         ) {
           captionLine = nextTrimmed
           lookahead += 1
@@ -1886,7 +1901,7 @@ function renderBlocks(
         break
       }
 
-      if (imageLines.length >= 2) {
+      if (totalImages >= 2) {
         flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
         const gallery = extractGalleryFromParagraph(
           captionLine ? [...imageLines, captionLine] : imageLines,

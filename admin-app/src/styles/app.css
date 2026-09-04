@@ -6750,12 +6750,27 @@ textarea {
   grid-template-columns: repeat(2, 1fr);
 }
 
-.preview-gallery--dense .preview-gallery__grid {
-  display: flex;
-  flex-wrap: wrap;
+.preview-gallery--count-5 .preview-gallery__grid {
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.preview-gallery--count-6 .preview-gallery__grid {
+  grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  justify-content: center;
-  align-items: center;
+}
+
+.preview-gallery--count-grid .preview-gallery__grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.preview-gallery--dense .preview-gallery__grid {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  justify-content: flex-start !important;
+  align-items: center !important;
 }
 
 .preview-gallery__item {
@@ -6783,30 +6798,39 @@ textarea {
   width: 100%;
 }
 
+.preview-gallery--count-5 .preview-gallery__item {
+  aspect-ratio: 3 / 4;
+}
+
+.preview-content .preview-gallery img,
 .preview-gallery:not(.preview-gallery--dense) .preview-gallery__img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  margin: 0;
-  border: none;
-  border-radius: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 
 .preview-gallery--dense .preview-gallery__item {
-  width: clamp(56px, 7vw, 68px);
-  height: clamp(56px, 7vw, 68px);
-  flex: 0 0 clamp(56px, 7vw, 68px);
+  width: clamp(60px, 7.5vw, 72px) !important;
+  height: clamp(60px, 7.5vw, 72px) !important;
+  flex: 0 0 clamp(60px, 7.5vw, 72px) !important;
+  aspect-ratio: 1 !important;
   border-radius: 12px;
   padding: 4px;
 }
 
+.preview-content .preview-gallery--dense img,
 .preview-gallery--dense .preview-gallery__img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  margin: 0;
-  border: none;
-  border-radius: 0;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  margin: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 
 .preview-gallery__caption {
@@ -6816,6 +6840,15 @@ textarea {
   color: var(--admin-text-subtle, #8a7d6d);
   line-height: 1.5;
   font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .preview-gallery--count-5 .preview-gallery__grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .preview-gallery--count-3 .preview-gallery__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .preview-image-viewer__overlay {

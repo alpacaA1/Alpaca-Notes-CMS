@@ -588,7 +588,34 @@ describe('PreviewPane', () => {
       expect(caption?.textContent).toContain('Bot avatar visual style explorations')
     })
 
-    it('renders 5 or more images as a dense gallery matrix', () => {
+    it('renders single-line multi-image strip with trailing caption in next line', () => {
+      const markdown = `
+![light day](https://example.com/wall-1.png)![light noon](https://example.com/wall-2.png)![light night](https://example.com/wall-3.png)![dark day](https://example.com/wall-4.png)![dark noon](https://example.com/wall-5.png)
+
+Dynamic wallpaper by Kenny Kuh and Luke Barker.
+`
+      const { container } = render(
+        <PreviewPane
+          title="壁纸演变"
+          date="2026-09-04 10:00:00"
+          markdown={markdown}
+          contentType="read-later"
+        />,
+      )
+
+      const gallery = container.querySelector('.preview-gallery')
+      expect(gallery).toBeTruthy()
+      expect(gallery?.className).toContain('preview-gallery--count-5')
+      expect(gallery?.className).not.toContain('preview-gallery--dense')
+
+      const images = container.querySelectorAll('.preview-gallery__img')
+      expect(images.length).toBe(5)
+
+      const caption = container.querySelector('.preview-gallery__caption')
+      expect(caption?.textContent).toContain('Dynamic wallpaper by Kenny Kuh and Luke Barker.')
+    })
+
+    it('renders 10 or more images as a dense gallery matrix', () => {
       const markdown = Array.from({ length: 12 }, (_, i) => `![Bot ${i + 1}](https://example.com/bot${i + 1}.png)`).join('\n')
       const { container } = render(
         <PreviewPane
