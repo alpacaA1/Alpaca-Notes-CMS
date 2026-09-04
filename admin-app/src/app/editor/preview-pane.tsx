@@ -42,9 +42,20 @@ type AnnotationNotePosition = {
   annotationId: string
 }
 
+type GalleryItem = {
+  src: string
+  alt: string
+}
+
+type GalleryNavState = {
+  items: GalleryItem[]
+  currentIndex: number
+}
+
 type PreviewImageState = {
   src: string
   alt: string
+  gallery?: GalleryNavState
 }
 
 type OutlineScrollContainer = Window | HTMLElement
@@ -1449,6 +1460,113 @@ function renderPlainTextWithLineBreaks(text: string) {
   return nodes.length > 0 ? nodes : [text]
 }
 
+type PreviewGalleryProps = {
+  items: GalleryItem[]
+  caption?: string
+  previewImageUrls?: Record<string, string>
+  wikiLinkOptions?: WikiLinkRenderOptions
+}
+
+function PreviewGallery({
+  items,
+  caption,
+  previewImageUrls,
+  wikiLinkOptions,
+}: PreviewGalleryProps) {
+  if (items.length === 0) {
+    return null
+  }
+
+  const isDense = items.length >= 5
+  const countClass = `preview-gallery--count-${Math.min(items.length, 4)}`
+
+  return (
+    <figure className={`preview-gallery ${countClass}${isDense ? ' preview-gallery--dense' : ''}`}>
+      <div className="preview-gallery__grid" role="group" aria-label={`图片画廊（共 ${items.length} 张）`}>
+        {items.map((item, idx) => (
+          <div
+            key={`gallery-item-${idx}-${item.src}`}
+            className="preview-gallery__item"
+            role="button"
+            tabIndex={0}
+            aria-label={item.alt.trim() || `图片 ${idx + 1}`}
+          >
+            <img
+              src={item.src}
+              alt={item.alt}
+              referrerPolicy="no-referrer"
+              className="preview-gallery__img"
+              loading="lazy"
+            />
+          </div>
+        ))}
+      </div>
+      {caption ? (
+        <figcaption className="preview-gallery__caption">
+          {renderInline(caption, previewImageUrls, wikiLinkOptions)}
+        </figcaption>
+      ) : null}
+    </figure>
+  )
+}
+
+function extractGalleryFromParagraph(
+  lines: string[],
+  previewImageUrls?: Record<string, string>,
+): { items: GalleryItem[]; caption?: string } | null {
+  const text = lines.join('\n').trim()
+  if (!text) {
+    return null
+  }
+
+  const cleanMarkdown = text.replace(/<!--[\s\S]*?-->/g, '')
+  const items: GalleryItem[] = []
+  let searchIndex = 0
+
+  while (searchIndex < cleanMarkdown.length) {
+    const imageStart = cleanMarkdown.indexOf('![', searchIndex)
+    if (imageStart === -1) {
+      break
+    }
+
+    const imageMatch = parseMarkdownImage(cleanMarkdown, imageStart)
+    if (!imageMatch) {
+      searchIndex = imageStart + 2
+      continue
+    }
+
+    const safeSrc = resolvePreviewImageSrc(imageMatch.imageUrl, previewImageUrls)
+    if (safeSrc) {
+      items.push({
+        src: safeSrc,
+        alt: imageMatch.altText,
+      })
+    }
+
+    searchIndex = imageMatch.end
+  }
+
+  if (items.length < 2) {
+    return null
+  }
+
+  const stripped = cleanMarkdown.replace(/!\[[\s\S]*?\]\([\s\S]*?\)/g, '').trim()
+  if (!stripped) {
+    return { items }
+  }
+
+  const captionMatch = stripped.match(/^\*([\s\S]+)\*$|^_([\s\S]+)_$|^<figcaption[^>]*>([\s\S]+)<\/figcaption>$/i)
+  if (captionMatch) {
+    return { items, caption: (captionMatch[1] || captionMatch[2] || captionMatch[3]).trim() }
+  }
+
+  if (stripped.length <= 160 && !stripped.includes('\n\n')) {
+    return { items, caption: stripped }
+  }
+
+  return null
+}
+
 function flushParagraph(
   lines: string[],
   nodes: ReactNode[],
@@ -1457,6 +1575,21 @@ function flushParagraph(
   wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
   if (lines.length === 0) {
+    return
+  }
+
+  const gallery = extractGalleryFromParagraph(lines, previewImageUrls)
+  if (gallery) {
+    nodes.push(
+      <PreviewGallery
+        key={`${keyPrefix}-gallery-${nodes.length}`}
+        items={gallery.items}
+        caption={gallery.caption}
+        previewImageUrls={previewImageUrls}
+        wikiLinkOptions={wikiLinkOptions}
+      />,
+    )
+    lines.length = 0
     return
   }
 
@@ -1725,6 +1858,54 @@ function renderBlocks(
         index += 1
       }
       continue
+    }
+
+    if (/^!\[[\s\S]*?\]\([\s\S]*?\)$/.test(trimmed)) {
+      const imageLines: string[] = [trimmed]
+      let lookahead = index + 1
+      let captionLine = ''
+
+      while (lookahead < lines.length) {
+        const nextTrimmed = lines[lookahead].trim()
+        if (!nextTrimmed) {
+          lookahead += 1
+          continue
+        }
+        if (/^!\[[\s\S]*?\]\([\s\S]*?\)$/.test(nextTrimmed)) {
+          imageLines.push(nextTrimmed)
+          lookahead += 1
+          continue
+        }
+        if (
+          /^(\*[\s\S]+\*|_[\s\S]+_|<figcaption\b)/i.test(nextTrimmed) ||
+          (nextTrimmed.length <= 120 && !/^[#\-*+>\d`]/.test(nextTrimmed))
+        ) {
+          captionLine = nextTrimmed
+          lookahead += 1
+        }
+        break
+      }
+
+      if (imageLines.length >= 2) {
+        flushParagraph(paragraph, nodes, 'paragraph', previewImageUrls, wikiLinkOptions)
+        const gallery = extractGalleryFromParagraph(
+          captionLine ? [...imageLines, captionLine] : imageLines,
+          previewImageUrls,
+        )
+        if (gallery) {
+          nodes.push(
+            <PreviewGallery
+              key={`gallery-${nodes.length}`}
+              items={gallery.items}
+              caption={gallery.caption}
+              previewImageUrls={previewImageUrls}
+              wikiLinkOptions={wikiLinkOptions}
+            />,
+          )
+          index = lookahead - 1
+          continue
+        }
+      }
     }
 
     const headingMatch = line.match(/^(#{1,6})\s+(.*)$/)
@@ -2479,6 +2660,37 @@ export default function PreviewPane({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setPreviewImage(null)
+        return
+      }
+
+      if (previewImage.gallery && previewImage.gallery.items.length > 1) {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault()
+          const total = previewImage.gallery.items.length
+          const prevIndex = (previewImage.gallery.currentIndex - 1 + total) % total
+          const prevItem = previewImage.gallery.items[prevIndex]
+          setPreviewImage({
+            src: prevItem.src,
+            alt: prevItem.alt,
+            gallery: {
+              items: previewImage.gallery.items,
+              currentIndex: prevIndex,
+            },
+          })
+        } else if (event.key === 'ArrowRight') {
+          event.preventDefault()
+          const total = previewImage.gallery.items.length
+          const nextIndex = (previewImage.gallery.currentIndex + 1) % total
+          const nextItem = previewImage.gallery.items[nextIndex]
+          setPreviewImage({
+            src: nextItem.src,
+            alt: nextItem.alt,
+            gallery: {
+              items: previewImage.gallery.items,
+              currentIndex: nextIndex,
+            },
+          })
+        }
       }
     }
 
@@ -2849,6 +3061,36 @@ export default function PreviewPane({
 
   const handleArticleClick = (event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target as HTMLElement
+    const galleryItem = target.closest<HTMLElement>('.preview-gallery__item')
+    if (galleryItem) {
+      const galleryEl = galleryItem.closest<HTMLElement>('.preview-gallery')
+      if (galleryEl) {
+        const itemEls = Array.from(galleryEl.querySelectorAll<HTMLElement>('.preview-gallery__item'))
+        const clickedIndex = itemEls.indexOf(galleryItem)
+        const items: GalleryItem[] = itemEls
+          .map((el) => {
+            const img = el.querySelector('img')
+            return {
+              src: img?.currentSrc || img?.getAttribute('src') || '',
+              alt: img?.getAttribute('alt') || '',
+            }
+          })
+          .filter((item) => Boolean(item.src))
+
+        if (items.length > 0 && clickedIndex >= 0 && clickedIndex < items.length) {
+          setPreviewImage({
+            src: items[clickedIndex].src,
+            alt: items[clickedIndex].alt,
+            gallery: {
+              items,
+              currentIndex: clickedIndex,
+            },
+          })
+          return
+        }
+      }
+    }
+
     const image = target.closest('img')
     if (image instanceof HTMLImageElement) {
       const nextSrc = image.currentSrc || image.getAttribute('src') || ''
@@ -3025,21 +3267,76 @@ export default function PreviewPane({
       {previewImage ? (
         <div className="confirm-dialog__overlay preview-image-viewer__overlay" onClick={() => setPreviewImage(null)}>
           <div
-            className="preview-image-viewer"
+            className={`preview-image-viewer${previewImage.gallery && previewImage.gallery.items.length > 1 ? ' preview-image-viewer--gallery' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-label="图片预览"
             onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="preview-image-viewer__close"
-              aria-label="关闭图片预览"
-              onClick={() => setPreviewImage(null)}
-            >
-              ×
-            </button>
-            <img src={previewImage.src} alt={previewImage.alt} referrerPolicy="no-referrer" />
+            <div className="preview-image-viewer__header">
+              {previewImage.gallery && previewImage.gallery.items.length > 1 ? (
+                <span className="preview-image-viewer__counter">
+                  {previewImage.gallery.currentIndex + 1} / {previewImage.gallery.items.length}
+                </span>
+              ) : <span />}
+              <button
+                type="button"
+                className="preview-image-viewer__close"
+                aria-label="关闭图片预览"
+                onClick={() => setPreviewImage(null)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="preview-image-viewer__body">
+              {previewImage.gallery && previewImage.gallery.items.length > 1 ? (
+                <button
+                  type="button"
+                  className="preview-image-viewer__nav preview-image-viewer__nav--prev"
+                  aria-label="上一张图片"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    const total = previewImage.gallery!.items.length
+                    const prevIndex = (previewImage.gallery!.currentIndex - 1 + total) % total
+                    const prevItem = previewImage.gallery!.items[prevIndex]
+                    setPreviewImage({
+                      src: prevItem.src,
+                      alt: prevItem.alt,
+                      gallery: {
+                        items: previewImage.gallery!.items,
+                        currentIndex: prevIndex,
+                      },
+                    })
+                  }}
+                >
+                  ‹
+                </button>
+              ) : null}
+              <img src={previewImage.src} alt={previewImage.alt} referrerPolicy="no-referrer" />
+              {previewImage.gallery && previewImage.gallery.items.length > 1 ? (
+                <button
+                  type="button"
+                  className="preview-image-viewer__nav preview-image-viewer__nav--next"
+                  aria-label="下一张图片"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    const total = previewImage.gallery!.items.length
+                    const nextIndex = (previewImage.gallery!.currentIndex + 1) % total
+                    const nextItem = previewImage.gallery!.items[nextIndex]
+                    setPreviewImage({
+                      src: nextItem.src,
+                      alt: nextItem.alt,
+                      gallery: {
+                        items: previewImage.gallery!.items,
+                        currentIndex: nextIndex,
+                      },
+                    })
+                  }}
+                >
+                  ›
+                </button>
+              ) : null}
+            </div>
             {previewImage.alt.trim() ? <p className="preview-image-viewer__caption">{previewImage.alt.trim()}</p> : null}
           </div>
         </div>

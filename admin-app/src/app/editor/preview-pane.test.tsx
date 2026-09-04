@@ -559,4 +559,101 @@ describe('PreviewPane', () => {
       expect(handleUpdateMarkdown).toHaveBeenCalledWith('这是一个关于前端工程化的核心思想解析。')
     })
   })
+
+  describe('Image Gallery and Lightbox', () => {
+    it('renders multiple consecutive images as a gallery with caption', () => {
+      const markdown = `
+![Avatar 1](https://example.com/avatar1.png)
+![Avatar 2](https://example.com/avatar2.png)
+![Avatar 3](https://example.com/avatar3.png)
+*Bot avatar visual style explorations*
+`
+      const { container } = render(
+        <PreviewPane
+          title="头像展览"
+          date="2026-09-04 10:00:00"
+          markdown={markdown}
+          contentType="read-later"
+        />,
+      )
+
+      const gallery = container.querySelector('.preview-gallery')
+      expect(gallery).toBeTruthy()
+      expect(gallery?.className).toContain('preview-gallery--count-3')
+
+      const images = container.querySelectorAll('.preview-gallery__img')
+      expect(images.length).toBe(3)
+
+      const caption = container.querySelector('.preview-gallery__caption')
+      expect(caption?.textContent).toContain('Bot avatar visual style explorations')
+    })
+
+    it('renders 5 or more images as a dense gallery matrix', () => {
+      const markdown = Array.from({ length: 12 }, (_, i) => `![Bot ${i + 1}](https://example.com/bot${i + 1}.png)`).join('\n')
+      const { container } = render(
+        <PreviewPane
+          title="Grok Bot Avatars"
+          date="2026-09-04 10:00:00"
+          markdown={markdown}
+          contentType="read-later"
+        />,
+      )
+
+      const gallery = container.querySelector('.preview-gallery')
+      expect(gallery).toBeTruthy()
+      expect(gallery?.className).toContain('preview-gallery--dense')
+
+      const items = container.querySelectorAll('.preview-gallery__item')
+      expect(items.length).toBe(12)
+    })
+
+    it('opens lightbox on gallery item click and supports prev/next navigation', async () => {
+      const markdown = `
+![Img 1](https://example.com/1.png)
+![Img 2](https://example.com/2.png)
+![Img 3](https://example.com/3.png)
+`
+      const { container } = render(
+        <PreviewPane
+          title="图集浏览"
+          date="2026-09-04 10:00:00"
+          markdown={markdown}
+          contentType="read-later"
+        />,
+      )
+
+      const items = container.querySelectorAll('.preview-gallery__item')
+      expect(items.length).toBe(3)
+
+      // Click second image
+      fireEvent.click(items[1])
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: '图片预览' })).toBeTruthy()
+      })
+
+      // Counter should show 2 / 3
+      expect(screen.getByText('2 / 3')).toBeTruthy()
+
+      // Click next
+      const nextBtn = screen.getByRole('button', { name: '下一张图片' })
+      fireEvent.click(nextBtn)
+
+      expect(screen.getByText('3 / 3')).toBeTruthy()
+
+      // Keyboard left arrow
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(screen.getByText('2 / 3')).toBeTruthy()
+
+      // Keyboard left arrow again
+      fireEvent.keyDown(window, { key: 'ArrowLeft' })
+      expect(screen.getByText('1 / 3')).toBeTruthy()
+
+      // Close lightbox via close button
+      const closeBtn = screen.getByRole('button', { name: '关闭图片预览' })
+      fireEvent.click(closeBtn)
+
+      expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
+    })
+  })
 })
