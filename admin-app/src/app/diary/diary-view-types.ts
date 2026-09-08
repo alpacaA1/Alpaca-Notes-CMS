@@ -20,7 +20,7 @@ export interface DiaryMonthStats {
   streakDays: number
 }
 
-export type DiarySectionType = 'emotion' | 'read-later' | 'note' | 'reading'
+export type DiarySectionType = 'emotion' | 'read-later' | 'note' | 'reading' | 'music-note'
 
 export interface DiaryReadLaterQuoteItem {
   id: string
@@ -52,6 +52,9 @@ export interface DiaryStructuredSection {
   items?: string[]
   bookTitle?: string
   quoteCount?: number
+  songTitle?: string
+  artist?: string
+  lyrics?: string
 }
 
 export interface ParsedDiarySummary {

@@ -226,6 +226,7 @@ type TopBarProps = {
   onOpenCommandPalette?: () => void
   onOpenCheckin?: () => void
   checkinPendingCount?: number
+  onOpenMusicNote?: () => void
   isBookReaderOpen?: boolean
 }
 
@@ -394,6 +395,7 @@ export default function TopBar({
   onOpenCommandPalette,
   onOpenCheckin,
   checkinPendingCount,
+  onOpenMusicNote,
   isBookReaderOpen = false,
 }: TopBarProps) {
   const isEditor = adminView === 'editor'
@@ -1025,6 +1027,17 @@ export default function TopBar({
               {checkinPendingCount && checkinPendingCount > 0 ? (
                 <span className="top-bar__checkin-badge">{checkinPendingCount}</span>
               ) : null}
+            </button>
+          ) : null}
+          {onOpenMusicNote ? (
+            <button
+              className="top-bar__button top-bar__button--music-note"
+              type="button"
+              onClick={onOpenMusicNote}
+              aria-label="拾音"
+              title="拾音 (Alt+M)"
+            >
+              🎵 拾音
             </button>
           ) : null}
           {showReadingFontButton ? (

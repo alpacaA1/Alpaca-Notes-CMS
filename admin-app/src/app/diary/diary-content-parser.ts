@@ -219,7 +219,47 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
     })
   }
 
-  // 2. Extract Read-Later Quotes with Sources and Groups
+  // 2. Extract Music Notes (拾音)
+  const musicNoteRegex =
+    /<!--\s*alpaca:music-note[^>]*-->([\s\S]*?)<!--\s*\/alpaca:music-note\s*-->/gi
+  let musicMatch: RegExpExecArray | null
+
+  while ((musicMatch = musicNoteRegex.exec(text)) !== null) {
+    const blockContent = musicMatch[1]
+    const cleanBlock = blockContent.replace(/\*\*/g, '').replace(/^[>\s]+/gm, '')
+
+    // Time from ### 🎵 HH:mm
+    const timeMatch = cleanBlock.match(/###\s*🎵\s*(\d{1,2}:\d{2})/)
+    const timeStr = timeMatch ? timeMatch[1] : undefined
+
+    // Song title from 歌名：...
+    const songMatch = cleanBlock.match(/(?:🎤\s*)?歌名[：:]\s*([^\n\r]+)/)
+    const songTitle = songMatch ? songMatch[1].trim() : ''
+
+    // Artist from 歌手：...
+    const artistMatch = cleanBlock.match(/(?:🎸\s*)?歌手[：:]\s*([^\n\r]+)/)
+    const artist = artistMatch ? artistMatch[1].trim() : ''
+
+    // Lyrics from 歌词摘录：... (may span multiple lines in blockquote)
+    const lyricsMatch = cleanBlock.match(/(?:🎶\s*)?歌词摘录[：:]\s*([\s\S]*?)(?=💭|$)/)
+    const lyrics = lyricsMatch ? lyricsMatch[1].replace(/^[>\s]+/gm, '').trim() : ''
+
+    // Thoughts from 我的感触：...
+    const thoughtsMatch = cleanBlock.match(/(?:💭\s*)?我的感触[：:]\s*([^\n\r]+(?:\n(?![#><!]).*)*)/m)
+    const thoughts = thoughtsMatch ? thoughtsMatch[1].trim() : ''
+
+    sections.push({
+      type: 'music-note',
+      timeStr,
+      title: '拾音',
+      songTitle,
+      artist,
+      lyrics,
+      event: thoughts,
+    })
+  }
+
+  // 3. Extract Read-Later Quotes with Sources and Groups
   const readLaterGroups = parseDiaryReadLaterGroups(text)
   if (readLaterGroups.length > 0) {
     const totalQuotesCount = readLaterGroups.reduce((acc, g) => acc + g.items.length, 0)
@@ -234,7 +274,7 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
     })
   }
 
-  // 3. Extract General Life Notes / Lists
+  // 4. Extract General Life Notes / Lists
   // Remove self-obs comments, frontmatter, and read-later heading section to avoid leaking notes
   let cleanBody = text
     .replace(/<!--[\s\S]*?-->/gi, '') // remove all HTML comments

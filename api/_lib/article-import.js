@@ -391,6 +391,41 @@ function prepareArticleHtml(content, baseUrl) {
   document.querySelectorAll('script, style, iframe, form, noscript').forEach((node) => node.remove());
   applyLazyImageSources(document);
   normalizeTableHeadings(document);
+
+  document.querySelectorAll('h1 a, h2 a, h3 a, h4 a, h5 a, h6 a').forEach((anchor) => {
+    const text = (anchor.textContent || '').trim();
+    const heading = anchor.closest('h1, h2, h3, h4, h5, h6');
+    const href = (anchor.getAttribute('href') || '').trim();
+    const headingId = heading ? (heading.getAttribute('id') || '').trim() : '';
+
+    const isSelfAnchor = Boolean(
+      headingId && (
+        href === `#${headingId}` ||
+        href.endsWith(`#${encodeURIComponent(headingId)}`) ||
+        href.endsWith(`#${headingId}`)
+      )
+    );
+    const isAnchorClass =
+      anchor.classList.contains('headerlink') ||
+      anchor.classList.contains('anchor') ||
+      anchor.classList.contains('hash-link') ||
+      anchor.classList.contains('headline-link') ||
+      anchor.classList.contains('icon-link') ||
+      anchor.classList.contains('header-anchor') ||
+      anchor.getAttribute('aria-hidden') === 'true';
+
+    if (!text || /^[#¶§🔗]+$/.test(text)) {
+      if (isAnchorClass || isSelfAnchor || href.startsWith('#') || href.includes('#')) {
+        anchor.remove();
+        return;
+      }
+    }
+
+    if (isAnchorClass || isSelfAnchor) {
+      anchor.replaceWith(...anchor.childNodes);
+    }
+  });
+
   document.querySelectorAll('[src]').forEach((element) => absolutizeAttribute(element, 'src', baseUrl));
   document.querySelectorAll('[href]').forEach((element) => absolutizeAttribute(element, 'href', baseUrl));
 
@@ -731,11 +766,27 @@ function enhanceImportedMarkdown(markdown, title) {
   return normalizeMarkdown(`# ${normalizedTitle}\n\n${enhancedMarkdown}`);
 }
 
+function cleanImportedHeadings(markdown) {
+  return markdown
+    .split('\n')
+    .map((line) => {
+      const match = line.match(/^(#{1,6}\s+)(.*)$/);
+      if (!match) return line;
+      const prefix = match[1];
+      const headingContent = match[2];
+      const cleaned = headingContent
+        .replace(/^\[(?:\s*|[#¶§🔗])\]\((?:[^\s)]+)?(?:\s+["'][^"']*["'])?\)\s*/, '')
+        .trim();
+      return cleaned ? `${prefix}${cleaned}` : line;
+    })
+    .join('\n');
+}
+
 function convertArticleHtmlToMarkdown(content, baseUrl) {
   const { dom, html } = prepareArticleHtml(content, baseUrl);
 
   try {
-    return normalizeMarkdown(createTurndownService().turndown(html));
+    return cleanImportedHeadings(normalizeMarkdown(createTurndownService().turndown(html)));
   } finally {
     dom.window.close();
   }

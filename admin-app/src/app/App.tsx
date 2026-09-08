@@ -109,6 +109,9 @@ import {
 import QuickCheckinView from './self-observation/quick-checkin-view'
 import SelfObservationModal from './self-observation/self-observation-modal'
 import { getPendingObservationCount, syncObservationOutbox } from './self-observation/self-observation-outbox'
+import MusicNoteModal from './music-note/music-note-modal'
+import type { MusicNoteData } from './music-note/music-note-types'
+import { appendMusicNoteToDiaryBody, formatMusicNoteBlock, generateMusicNoteId } from './music-note/music-note-format'
 import { createNewDiaryEntry, createNewPost, createNewPrivatePost, getNextNumericPermalink } from './posts/new-post'
 import { createNewPitch, createPostFromPitch } from './pitches/new-item'
 import { buildDiaryIndex, buildKnowledgeIndex, buildPitchIndex, buildPostIndex, buildPrivateIndex, collectPostIndexFacets, filterPostIndex, parsePostIndexItem, sortPostIndex } from './posts/index-posts'
@@ -732,6 +735,7 @@ export default function App() {
     return new URLSearchParams(window.location.search).get('quick') === 'checkin'
   })
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false)
+  const [isMusicNoteModalOpen, setIsMusicNoteModalOpen] = useState(false)
   const [checkinPendingCount, setCheckinPendingCount] = useState(() => getPendingObservationCount())
   const [isGlobalQuickPitchOpen, setIsGlobalQuickPitchOpen] = useState(false)
   const [globalQuickPitchStatus, setGlobalQuickPitchStatus] = useState<PitchStatus>('collecting')
@@ -799,6 +803,23 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isPostListDrawerOpen, isSettingsDrawerOpen])
+
+  useEffect(() => {
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey && !event.ctrlKey && !event.metaKey) {
+        if (event.code === 'KeyM' || event.key.toLowerCase() === 'm') {
+          event.preventDefault()
+          setIsMusicNoteModalOpen(true)
+        } else if (event.code === 'KeyS' || event.key.toLowerCase() === 's') {
+          event.preventDefault()
+          setIsCheckinModalOpen(true)
+        }
+      }
+    }
+
+    window.addEventListener('keydown', handleGlobalKeyDown)
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [])
 
   const deferredSearch = useDeferredValue(search)
   const filteredPosts = useMemo(
@@ -4192,6 +4213,99 @@ export default function App() {
     }
   }
 
+  const handleMusicNoteSubmit = async (data: MusicNoteData) => {
+    if (!session) {
+      setError('请先登录后再记录拾音。')
+      return
+    }
+
+    try {
+      const now = new Date()
+      const currentDiaryPosts =
+        postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
+      const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
+
+      const record = {
+        id: generateMusicNoteId(now),
+        createdAt: now.toISOString(),
+        data,
+      }
+      const musicNoteBlock = formatMusicNoteBlock(record)
+
+      let targetDiary: ParsedPost
+      let isNewDiary = false
+
+      if (todayPost) {
+        const file = readCachedMarkdownFile(todayPost.path, todayPost.sha) ?? (await fetchMarkdownFile(session, todayPost.path))
+        const openedDiary = parsePost(file)
+        const updatedBody = appendMusicNoteToDiaryBody(openedDiary.body, musicNoteBlock)
+        targetDiary = {
+          ...openedDiary,
+          body: updatedBody,
+        }
+      } else {
+        isNewDiary = true
+        const newDiary = createNewDiaryEntry(now)
+        newDiary.body = appendMusicNoteToDiaryBody('', musicNoteBlock)
+        targetDiary = newDiary
+      }
+
+      const savedContent = serializePost(targetDiary)
+      const savedFile = await saveMarkdownFile(session, {
+        path: targetDiary.path,
+        sha: targetDiary.sha || undefined,
+        content: savedContent,
+      })
+
+      const savedDocument: ParsedPost = {
+        ...targetDiary,
+        path: savedFile.path,
+        sha: savedFile.sha,
+      }
+
+      const savedPostIndexItem = parsePostIndexItem({
+        path: savedFile.path,
+        sha: savedFile.sha,
+        content: savedContent,
+      })
+
+      const nextPostsByType = buildNextPostsByType(
+        { ...postsByType, diary: currentDiaryPosts },
+        'diary',
+        savedPostIndexItem,
+        isNewDiary ? undefined : todayPost?.path,
+      )
+      setPostsByType(nextPostsByType)
+
+      const songLabel = data.artist ? `${data.songTitle} · ${data.artist}` : data.songTitle
+      setError(null)
+      setSuccessMessage(`🎵 已记录「${songLabel}」到今日日记。`)
+      setToastAction({
+        label: '打开日记',
+        onClick: () => {
+          void (async () => {
+            if (await confirmNavigation()) {
+              setEditorNavigationStack([])
+              openDocument(savedDocument)
+              setAdminView('editor')
+              setContentType('diary')
+            }
+          })()
+        },
+      })
+    } catch (caughtError) {
+      if (caughtError instanceof GitHubAuthError) {
+        handleAuthExpiry(caughtError.message)
+        return
+      }
+      if (caughtError instanceof GitHubConflictError) {
+        setError(caughtError.message)
+        return
+      }
+      setError(caughtError instanceof Error ? caughtError.message : '拾音记录失败。')
+    }
+  }
+
   const handleTranslateReadLater = useCallback(
     async (text: string, title?: string) => {
       if (!session) {
@@ -5331,6 +5445,7 @@ export default function App() {
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenCheckin={() => setIsCheckinModalOpen(true)}
           checkinPendingCount={checkinPendingCount}
+          onOpenMusicNote={() => setIsMusicNoteModalOpen(true)}
           onSearchChange={setSearch}
           onNewPost={handleTopBarNewPost}
           onOrganizeMaterials={() => { void handleOpenMaterialOrganizer() }}
@@ -5937,11 +6052,17 @@ export default function App() {
           }
         }}
       />
+      <MusicNoteModal
+        isOpen={isMusicNoteModalOpen}
+        onClose={() => setIsMusicNoteModalOpen(false)}
+        onSubmit={(data) => { void handleMusicNoteSubmit(data) }}
+      />
       <CommandPalette
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         options={[
           { id: 'checkin', label: '自我观察：情绪与行为签到', category: '操作', icon: '✍️', shortcut: 'Alt+S', action: () => setIsCheckinModalOpen(true) },
+          { id: 'music-note', label: '拾音：记录一首歌', category: '操作', icon: '🎵', shortcut: 'Alt+M', action: () => setIsMusicNoteModalOpen(true) },
           { id: 'new-post', label: '新建文章', category: '操作', icon: '📝', shortcut: 'Alt+N', action: () => handleNewPost('post') },
           { id: 'new-read-later', label: '新建待读', category: '操作', icon: '🔖', action: () => handleNewPost('read-later') },
           { id: 'new-diary', label: '新建日记', category: '操作', icon: '📅', action: () => handleNewPost('diary') },

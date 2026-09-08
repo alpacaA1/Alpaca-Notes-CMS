@@ -513,3 +513,38 @@ test('importArticle imports X / Twitter posts natively bypassing Mowen', async (
   assert.match(article.markdown, /AI is moving insanely fast/);
   assert.match(article.markdown, /https:\/\/pbs\.twimg\.com\/media\/example\.jpg/);
 });
+
+test('importArticle strips headerlink anchors from headings', async () => {
+  setDnsLookupForTesting(async () => [{ address: '203.0.113.10', family: 4 }]);
+
+  global.fetch = async () => {
+    return createMockResponse({
+      url: 'https://example.com/post',
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+      },
+      html: `<!doctype html>
+<html>
+  <head>
+    <title>测试博客</title>
+  </head>
+  <body>
+    <article>
+      <h1>文章主标题</h1>
+      <h2 id="推论基础"><a href="#推论基础" class="headerlink" title="推论基础"></a>推论基础</h2>
+      <p>第一段正文。</p>
+      <h3 id="结构性失恋"><a href="#结构性失恋" class="headerlink" title="结构性失恋"></a>结构性失恋</h3>
+      <p>第二段正文。</p>
+      <h3 id="外部参考"><a href="https://example.org">外部参考链接</a></h3>
+    </article>
+  </body>
+</html>`,
+    });
+  };
+
+  const article = await importArticle('https://example.com/post');
+  assert.doesNotMatch(article.markdown, /\[\]\(https:\/\/example\.com/);
+  assert.match(article.markdown, /## 推论基础/);
+  assert.match(article.markdown, /### 结构性失恋/);
+  assert.match(article.markdown, /\[外部参考链接\]\(https:\/\/example\.org\/?\)/);
+});

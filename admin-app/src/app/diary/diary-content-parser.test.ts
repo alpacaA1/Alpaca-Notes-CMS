@@ -26,6 +26,35 @@ date: 2026-08-25 08:00:00
     expect(summary.categoriesSummary).toContain('情绪签到')
   })
 
+  it('parses music-note blocks with title, artist, lyrics and thoughts', () => {
+    const markdown = `
+## 拾音
+
+<!-- alpaca:music-note id="mn_1" version="1" -->
+### 🎵 14:30 · 拾音
+> 🎤 **歌名**：晴天
+> 🎸 **歌手**：周杰伦
+
+> 🎶 **歌词摘录**：
+> 从前从前 有个人爱你很久
+> 但偏偏 风渐渐 把距离吹得好远
+
+💭 **我的感触**：咖啡店听到，想起了很多以前的事。
+<!-- /alpaca:music-note -->
+`
+    const summary = parseDiarySummaryFromMarkdown(markdown)
+    const musicSec = summary.sections.find((s) => s.type === 'music-note')
+    expect(musicSec).toBeDefined()
+    expect(musicSec?.timeStr).toBe('14:30')
+    expect(musicSec?.title).toBe('拾音')
+    expect(musicSec?.songTitle).toBe('晴天')
+    expect(musicSec?.artist).toBe('周杰伦')
+    expect(musicSec?.lyrics).toContain('从前从前 有个人爱你很久')
+    expect(musicSec?.lyrics).toContain('但偏偏 风渐渐 把距离吹得好远')
+    expect(musicSec?.event).toBe('咖啡店听到，想起了很多以前的事。')
+    expect(summary.categoriesSummary).toContain('拾音')
+  })
+
   it('parses read-later quotes and general list items', () => {
     const markdown = `
 ### 📄 15:07 · 待读摘录

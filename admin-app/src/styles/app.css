@@ -19475,3 +19475,196 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   color: var(--admin-text);
   box-shadow: none;
 }
+
+/* ==========================================================================
+   Music Note (拾音) Modal & Diary Timeline Styles
+   ========================================================================== */
+
+.top-bar__button--music-note {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.music-note-modal__overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(2px);
+}
+
+.music-note-modal__container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 480px;
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--admin-surface-strong, #ffffff);
+  border: 1px solid var(--admin-line, rgba(141, 113, 77, 0.16));
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(36, 24, 10, 0.24);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-shell--dark .music-note-modal__container {
+  background: #1c1a17;
+  color: #ede6dc;
+}
+
+.music-note-modal__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--admin-line, rgba(141, 113, 77, 0.12));
+}
+
+.music-note-modal__icon {
+  font-size: 18px;
+}
+
+.music-note-modal__title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--admin-text);
+  flex: 1;
+}
+
+.music-note-modal__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--admin-muted);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.music-note-modal__close:hover {
+  color: var(--admin-text);
+}
+
+.music-note-modal__body {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.music-note-modal__field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.music-note-modal__label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--admin-muted);
+}
+
+.music-note-modal__input,
+.music-note-modal__textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--admin-text);
+  background: var(--admin-surface, #faf7f2);
+  border: 1px solid var(--admin-line, rgba(141, 113, 77, 0.2));
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.admin-shell--dark .music-note-modal__input,
+.admin-shell--dark .music-note-modal__textarea {
+  background: #25221e;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #ede6dc;
+}
+
+.music-note-modal__input:focus,
+.music-note-modal__textarea:focus {
+  border-color: var(--admin-warm, #d4a574);
+}
+
+.music-note-modal__textarea {
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+}
+
+.music-note-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--admin-line, rgba(141, 113, 77, 0.12));
+}
+
+.music-note-modal__hint {
+  font-size: 11.5px;
+  color: var(--admin-muted);
+}
+
+.music-note-modal__submit {
+  padding: 7px 18px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--admin-save, #4a7c59);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.music-note-modal__submit:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.music-note-modal__submit:not(:disabled):hover {
+  opacity: 0.9;
+}
+
+/* Timeline Music Section */
+.diary-timeline__music-info {
+  font-size: 14px;
+  color: var(--admin-text);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.diary-timeline__music-artist {
+  color: var(--admin-muted);
+  font-weight: normal;
+}
+
+.diary-timeline__music-lyrics {
+  margin: 0 0 6px 0;
+  padding: 6px 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--admin-text-subtle, #666);
+  background: var(--admin-surface-subtle, rgba(0, 0, 0, 0.03));
+  border-left: 2px solid var(--admin-warm, #d4a574);
+  border-radius: 0 4px 4px 0;
+  white-space: pre-line;
+  font-style: italic;
+}
+

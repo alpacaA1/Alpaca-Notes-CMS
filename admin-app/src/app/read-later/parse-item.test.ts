@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getEditableReadLaterSections, parseReadLaterItem, parseReadLaterSections } from './parse-item'
+import {
+  cleanHeadingTitle,
+  extractMarkdownHeadings,
+  getEditableReadLaterSections,
+  parseReadLaterItem,
+  parseReadLaterSections,
+} from './parse-item'
 
 const annotation = {
   id: 'annotation-1',
@@ -126,5 +132,27 @@ describe('parse read-later item', () => {
     expect(item.frontmatter.title).toBe('AI Agent: 从入门到落地')
     expect(item.frontmatter.source_name).toBe('产品经理: 方法论')
     expect(item.frontmatter.desc).toBe('第一行 第二行 # 不是注释')
+  })
+
+  it('cleans empty anchor links and headerlinks from heading titles and slugs', () => {
+    const raw = '[](https://a-wing.top/self/2026/08/31/on-structural-heartbreak#%E7%BB%93%E6%9E%84%E6%80%A7%E5%A4%B1%E6%81%8B "结构性失恋")结构性失恋'
+    expect(cleanHeadingTitle(raw)).toBe('结构性失恋')
+
+    const markdown = [
+      '## [](https://a-wing.top/self/2026/08/31/on-structural-heartbreak#%E6%8E%A8%E8%AE%BA%E5%9F%BA%E7%A1%80 "推论基础")推论基础',
+      '## [](https://a-wing.top/self/2026/08/31/on-structural-heartbreak#%E5%A6%82%E4%BD%95%E9%9D%A2%E5%AF%B9%E6%82%B2%E4%BC%A4)如何面对悲伤',
+      '### [#](https://a-wing.top/post#anchor) 权力不对等',
+      '### <a class="headerlink" href="#hope"></a>「希望你变得更好」',
+      '### [](https://a-wing.top/post#heartbreak "结构性失恋")结构性失恋',
+    ].join('\n')
+
+    const headings = extractMarkdownHeadings(markdown, 'test-prefix')
+    expect(headings).toEqual([
+      { id: 'test-prefix-推论基础', label: '推论基础', level: 2, kind: 'heading' },
+      { id: 'test-prefix-如何面对悲伤', label: '如何面对悲伤', level: 2, kind: 'heading' },
+      { id: 'test-prefix-权力不对等', label: '权力不对等', level: 3, kind: 'heading' },
+      { id: 'test-prefix-希望你变得更好', label: '「希望你变得更好」', level: 3, kind: 'heading' },
+      { id: 'test-prefix-结构性失恋', label: '结构性失恋', level: 3, kind: 'heading' },
+    ])
   })
 })

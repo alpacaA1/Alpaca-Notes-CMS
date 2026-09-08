@@ -14,7 +14,7 @@ import {
   removeDiaryMarkdownHighlight,
   type HighlightContext,
 } from '../diary/diary-highlight'
-import { extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
+import { cleanHeadingTitle, extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 
@@ -1201,7 +1201,9 @@ function renderPlainTextInline(text: string): ReactNode[] {
 }
 
 function renderInline(markdown: string, previewImageUrls?: Record<string, string>, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
-  const cleanMarkdown = markdown.replace(/<!--[\s\S]*?-->/g, '')
+  const cleanMarkdown = markdown
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\[(?:\s*|[#¶§🔗])\]\((?:[^\s)]+)?(?:\s+["'][^"']*["'])?\)/g, '')
   if (!cleanMarkdown) {
     return []
   }
@@ -2124,7 +2126,7 @@ function parseMarkdownHeadingSections(
         const section = {
           id: headingIds[headingIndex]?.id,
           level: headingMatch[1].length as 1 | 2 | 3 | 4 | 5 | 6,
-          title: headingMatch[2],
+          title: cleanHeadingTitle(headingMatch[2]),
           body: '',
           bodyLines: [],
           children: [],

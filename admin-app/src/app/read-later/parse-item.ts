@@ -60,10 +60,28 @@ function readSection(body: string, heading: string, nextHeading: string | null) 
   return (match?.[1] || '').trim()
 }
 
-function stripInlineMarkdown(markdown: string) {
-  return markdown
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, '$1')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+export function cleanHeadingTitle(raw: string): string {
+  let cleaned = raw
+    .replace(/<a\b[^>]*>(.*?)<\/a>/gi, '$1')
+    .replace(/\[(?:\s*|[#¶§🔗])\]\((?:[^\s)]+)?(?:\s+["'][^"']*["'])?\)/g, '')
+    .trim()
+
+  if (!cleaned) {
+    const titleMatch = raw.match(/\[(?:\s*|[#¶§🔗])\]\((?:[^\s)]+)?(?:\s+["']([^"']+)["'])\)/)
+    if (titleMatch?.[1]?.trim()) {
+      cleaned = titleMatch[1].trim()
+    }
+  }
+
+  return cleaned || raw.trim()
+}
+
+export function stripInlineMarkdown(markdown: string) {
+  const withoutAnchorLinks = cleanHeadingTitle(markdown)
+  return withoutAnchorLinks
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/<[^>]+>/g, '')
     .replace(/[*_~`>#]/g, '')
     .trim()
 }

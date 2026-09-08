@@ -285,6 +285,30 @@ export default function DiaryTimelinePreview({
                           )
                         }
 
+                        if (sec.type === 'music-note') {
+                          return (
+                            <div key={idx} className="diary-timeline__sec diary-timeline__sec--music">
+                              <div className="diary-timeline__sec-icon">🎵</div>
+                              <div className="diary-timeline__sec-body">
+                                <div className="diary-timeline__sec-meta">
+                                  <span className="diary-timeline__sec-title">拾音</span>
+                                  {sec.timeStr ? <span className="diary-timeline__sec-time">{sec.timeStr}</span> : null}
+                                </div>
+                                <div className="diary-timeline__music-info">
+                                  <strong>{sec.songTitle || '未命名'}</strong>
+                                  {sec.artist ? <span className="diary-timeline__music-artist"> · {sec.artist}</span> : null}
+                                </div>
+                                {sec.lyrics ? (
+                                  <p className="diary-timeline__music-lyrics">{sec.lyrics}</p>
+                                ) : null}
+                                {sec.event ? (
+                                  <p className="diary-timeline__sec-text">{sec.event}</p>
+                                ) : null}
+                              </div>
+                            </div>
+                          )
+                        }
+
                         return (
                           <div key={idx} className="diary-timeline__sec diary-timeline__sec--notes">
                             <div className="diary-timeline__sec-icon">✏️</div>
