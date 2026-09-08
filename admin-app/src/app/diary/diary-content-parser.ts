@@ -40,11 +40,14 @@ export function extractCleanSourceTitle(raw: string): string {
 }
 
 export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourceGroup[] {
-  const text = (markdown || '').trim()
+  // Strip out structured blocks like music-note and self-observation so their blockquotes are NEVER parsed as read-later quotes
+  const text = (markdown || '')
+    .replace(/<!--\s*alpaca:(?:music-note|self-observation)[^>]*-->[\s\S]*?<!--\s*\/alpaca:(?:music-note|self-observation)\s*-->/gi, '')
+    .trim()
   if (!text) return []
 
-  // Extract content within ## 待读摘录 if present, or scan whole text
-  let targetContent = text
+  // Extract content within ## 待读摘录 if present, or scan if text has explicit read-later indicators
+  let targetContent = ''
   const h2Match = text.match(/^##\s+(?:(?:🔖|📄)\s*)?待读摘录\s*$/m)
   if (h2Match && h2Match.index !== undefined) {
     const startIndex = h2Match.index + h2Match[0].length
@@ -55,6 +58,13 @@ export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourc
     } else {
       targetContent = rest.trim()
     }
+  } else if (
+    text.includes('待读摘录') ||
+    STRUCTURED_QUOTE_METADATA_PATTERN.test(text) ||
+    /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)/m.test(text) ||
+    /来源[：:]/.test(text)
+  ) {
+    targetContent = text.trim()
   }
 
   if (!targetContent) return []
@@ -81,7 +91,14 @@ export function parseDiaryReadLaterGroups(markdown: string): DiaryReadLaterSourc
       if (currentQuoteLines.length > 0) {
         const fullQuote = currentQuoteLines.join('\n').trim()
         const fullNote = currentNoteLines.join('\n').trim()
-        if (fullQuote && !fullQuote.includes('alpaca:self-observation') && !fullQuote.includes('我现在')) {
+        if (
+          fullQuote &&
+          !fullQuote.includes('alpaca:self-observation') &&
+          !fullQuote.includes('alpaca:music-note') &&
+          !fullQuote.includes('我现在') &&
+          !fullQuote.includes('歌名') &&
+          !fullQuote.includes('歌词摘录')
+        ) {
           quoteItems.push({
             quote: fullQuote,
             note: fullNote || undefined,
@@ -293,6 +310,18 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
     }
   }
 
+  const musicNoteH2Match = cleanBody.match(/^##\s+(?:(?:🎵)\s*)?拾音\s*$/m)
+  if (musicNoteH2Match && musicNoteH2Match.index !== undefined) {
+    const startIndex = musicNoteH2Match.index
+    const rest = cleanBody.slice(startIndex + musicNoteH2Match[0].length)
+    const nextH2 = rest.match(/\n(##\s+[^\n]+)/)
+    if (nextH2 && nextH2.index !== undefined) {
+      cleanBody = cleanBody.slice(0, startIndex) + rest.slice(nextH2.index)
+    } else {
+      cleanBody = cleanBody.slice(0, startIndex)
+    }
+  }
+
   const listItems: string[] = []
   const lines = cleanBody.split('\n')
   for (const line of lines) {
@@ -306,6 +335,7 @@ export function parseDiarySummaryFromMarkdown(content: string, postDesc = ''): P
       trimmed.startsWith('-->') ||
       trimmed.startsWith('💭') ||
       trimmed.includes('alpaca:self-observation') ||
+      trimmed.includes('alpaca:music-note') ||
       STRUCTURED_QUOTE_METADATA_PATTERN.test(trimmed) ||
       /^(?:🔗\s*)?(?:\*\*)?(?:来源|出处)/.test(trimmed)
     ) {

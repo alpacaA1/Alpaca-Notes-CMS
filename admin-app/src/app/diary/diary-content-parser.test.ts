@@ -53,6 +53,8 @@ date: 2026-08-25 08:00:00
     expect(musicSec?.lyrics).toContain('但偏偏 风渐渐 把距离吹得好远')
     expect(musicSec?.event).toBe('咖啡店听到，想起了很多以前的事。')
     expect(summary.categoriesSummary).toContain('拾音')
+    expect(summary.sections.some((s) => s.type === 'read-later')).toBe(false)
+    expect(summary.sections.some((s) => s.type === 'note')).toBe(false)
   })
 
   it('parses read-later quotes and general list items', () => {
