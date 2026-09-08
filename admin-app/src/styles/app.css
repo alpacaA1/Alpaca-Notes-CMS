@@ -16268,6 +16268,55 @@ textarea {
 .people-book__notes-canvas > .editor-surface { display: grid; grid-template-rows: auto minmax(0, 1fr); width: min(100%, 860px); min-height: calc(100vh - 340px); margin: 0 auto; padding: 0; gap: 14px; background: transparent; }.people-book__notes-canvas .markdown-editor__toolbar { border-color: rgba(128, 103, 73, .2); background: rgba(255,255,255,.62); }.people-book__notes-canvas .editor-textarea--editor-canvas { box-sizing: border-box; min-height: calc(100vh - 420px); padding: 14px 30px 20px; border: 0; resize: none; background: repeating-linear-gradient(180deg, transparent, transparent 40px, rgba(93,71,50,.09) 40px, rgba(93,71,50,.09) 41px); color: var(--people-ink); font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: clamp(16px, 1.4vw, 19px); line-height: 2.15; }
 @media (max-width: 800px) { .people-book--notes-writing { display: block; } .people-book--notes-writing .people-book__rail { display: none; } .people-book__notes-canvas { min-height: calc(100vh - 73px); padding: 28px 20px; } }
 
+/* 人物簿双层认知升级：稳定认知画卷、三要素瞬间与纳入闭环 */
+.people-book__understanding { margin-top: 18px; padding: 16px 18px; border: 1px solid rgba(167, 119, 67, 0.35); border-radius: 12px; background: #fbf8f2; box-shadow: 0 2px 8px rgba(93, 71, 50, 0.04); }
+.people-book__understanding-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.people-book__understanding-title { display: inline-flex; align-items: center; gap: 7px; color: var(--people-warm); font-family: 'Noto Serif SC', 'Songti SC', serif; font-size: 13.5px; font-weight: 700; letter-spacing: 0.02em; }
+.people-book__understanding-actions { display: inline-flex; align-items: center; gap: 6px; }
+.people-book__text-btn { border: 0; background: transparent; color: var(--people-warm); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.people-book__text-btn:hover { background: rgba(169, 119, 67, 0.09); }
+.people-book__expand-btn { display: inline-grid; width: 26px; height: 26px; place-items: center; border: 0; background: transparent; color: var(--people-warm); cursor: pointer; border-radius: 4px; }
+.people-book__expand-btn:hover { background: rgba(169, 119, 67, 0.09); }
+.people-book__understanding-body { color: var(--people-ink); font-size: 13px; line-height: 1.85; white-space: pre-wrap; }
+.people-book__understanding-empty { margin: 0; color: var(--people-muted); font-size: 12px; line-height: 1.6; }
+.people-book__moment-composer-card { margin-top: 22px; padding: 16px; border: 1px solid var(--people-line); border-radius: 12px; background: #ffffff; box-shadow: 0 1px 4px rgba(70, 48, 25, 0.03); }
+.people-book__moment-composer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.people-book__moment-composer-title { font-size: 13px; font-weight: 600; color: var(--people-ink); display: inline-flex; align-items: center; gap: 5px; }
+.people-book__moment-composer-title strong { color: var(--people-warm); }
+.people-book__moment-field { margin-bottom: 9px; }
+.people-book__moment-field label { display: block; font-size: 11px; font-weight: 700; color: #8c7156; margin-bottom: 4px; }
+.people-book__moment-field--uncertain label { color: #a77743; }
+.people-book__moment-field input, .people-book__moment-field textarea { box-sizing: border-box; width: 100%; padding: 7px 9px; border: 1px solid rgba(93, 71, 50, 0.16); border-radius: 6px; background: #faf8f5; color: var(--people-ink); font: inherit; font-size: 12px; line-height: 1.6; outline: none; transition: border-color 0.15s ease, background 0.15s ease; }
+.people-book__moment-field input:focus, .people-book__moment-field textarea:focus { border-color: var(--people-warm); background: #ffffff; }
+.people-book__moment-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.people-book__moment-composer-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(93, 71, 50, 0.08); }
+.people-book__moment-date-picker { width: 130px; }
+.people-book__moment-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.people-book__moment-card { padding: 13px 15px; border: 1px solid var(--people-line); border-radius: 10px; background: #ffffff; box-shadow: 0 1px 3px rgba(70, 48, 25, 0.02); transition: border-color 0.15s ease; }
+.people-book__moment-card:hover { border-color: rgba(167, 119, 67, 0.35); }
+.people-book__moment-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.people-book__moment-date { font-family: 'Iowan Old Style', monospace, serif; font-size: 11px; font-weight: 700; color: var(--people-warm); background: #f6f1e8; padding: 2px 7px; border-radius: 4px; }
+.people-book__moment-del-btn { border: 0; background: transparent; color: #b79b82; font-size: 15px; cursor: pointer; padding: 0 4px; line-height: 1; }
+.people-book__moment-del-btn:hover { color: #af6559; }
+.people-book__moment-row { display: flex; gap: 9px; margin-bottom: 5px; font-size: 12.5px; line-height: 1.6; }
+.people-book__moment-row:last-child { margin-bottom: 0; }
+.people-book__moment-tag { flex-shrink: 0; width: 65px; font-size: 11px; font-weight: 700; color: var(--people-muted); padding-top: 1px; }
+.people-book__moment-tag--uncertain { color: #a77743; }
+.people-book__moment-val { flex: 1; color: var(--people-ink); word-break: break-word; }
+.people-book__moment-val--feeling { color: #4a4138; }
+.people-book__moment-val--uncertain { color: #5d4833; background: #fdfaf6; padding: 1px 6px; border-radius: 4px; border: 1px dashed rgba(167, 119, 67, 0.25); }
+.people-book__moment-footer { display: flex; align-items: center; justify-content: flex-end; margin-top: 9px; padding-top: 7px; border-top: 1px solid rgba(93, 71, 50, 0.07); }
+.people-book__incorporate-btn { border: 0; background: transparent; color: var(--people-warm); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; }
+.people-book__incorporate-btn:hover { background: rgba(167, 119, 67, 0.09); }
+.people-book__incorporated-badge { color: #527956; font-size: 11px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+.people-book__incorporate-box { margin-top: 9px; padding: 10px 12px; border-radius: 8px; background: #faf6ef; border: 1px solid rgba(167, 119, 67, 0.22); }
+.people-book__incorporate-box label { display: block; font-size: 11px; font-weight: 700; color: var(--people-warm); margin-bottom: 6px; }
+.people-book__incorporate-box input { box-sizing: border-box; width: 100%; padding: 6px 8px; border: 1px solid rgba(167, 119, 67, 0.3); border-radius: 5px; background: #ffffff; color: var(--people-ink); font: inherit; font-size: 12px; outline: none; }
+.people-book__incorporate-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.people-book__incorporate-confirm { border: 1px solid var(--admin-save); background: var(--admin-save); color: var(--admin-save-text) !important; -webkit-text-fill-color: var(--admin-save-text); font: inherit; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 4px; cursor: pointer; }
+.people-book__incorporate-cancel { border: 0; background: transparent; color: var(--people-muted); font: inherit; font-size: 11px; padding: 4px 8px; cursor: pointer; }
+@media (max-width: 520px) { .people-book__moment-grid { grid-template-columns: 1fr; } }
+
 /* ---- Reader ---- */
 
 .books-workspace {

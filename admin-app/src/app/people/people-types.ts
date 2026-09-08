@@ -1,7 +1,11 @@
 export type PersonMoment = {
   id: string
   date: string
-  content: string
+  happened: string
+  feeling?: string
+  uncertain?: string
+  content?: string
+  incorporatedAt?: string
   createdAt: string
 }
 
