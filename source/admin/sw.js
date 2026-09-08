@@ -1,4 +1,4 @@
-const CACHE_NAME = 'alpaca-cms-v2';
+const CACHE_NAME = 'alpaca-cms-v3';
 const FONT_CACHE_NAME = 'alpaca-fonts-v1';
 const PRECACHE_ASSETS = [
   './',

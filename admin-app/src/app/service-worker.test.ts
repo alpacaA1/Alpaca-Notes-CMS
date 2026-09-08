@@ -179,8 +179,9 @@ describe('admin service worker', () => {
 
     await waitUntilPromise
     expect(deleteSpy).toHaveBeenCalledWith('alpaca-cms-v1')
+    expect(deleteSpy).toHaveBeenCalledWith('alpaca-cms-v2')
     expect(deleteSpy).toHaveBeenCalledWith('random-cache')
-    expect(deleteSpy).not.toHaveBeenCalledWith('alpaca-cms-v2')
+    expect(deleteSpy).not.toHaveBeenCalledWith('alpaca-cms-v3')
     expect(deleteSpy).not.toHaveBeenCalledWith('alpaca-fonts-v1')
   })
 

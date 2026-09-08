@@ -205,12 +205,8 @@ tags:
 
     fireEvent.click(screen.getByRole('radio', { name: '灵感' }))
 
-    await waitFor(() => {
-      expect(screen.getByText('写作中的技术思考')).toBeTruthy()
-    })
-
-    const card = screen.getByText('写作中的技术思考').closest('article')
-    const kanbanBoard = screen.getByLabelText('灵感看板')
+    const kanbanBoard = await screen.findByLabelText('灵感看板')
+    const card = (await screen.findByText('写作中的技术思考')).closest('article')
     const doneCol = kanbanBoard.querySelector('.post-dashboard__kanban-col--done')
 
     if (!card || !doneCol) {
