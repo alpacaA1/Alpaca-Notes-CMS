@@ -41,29 +41,53 @@ describe('PeopleBookView', () => {
     expect(screen.getByText('1997 年 9 月')).toBeTruthy()
   })
 
-  it('adds a structured moment and displays happened, feeling, uncertain fields', async () => {
-    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={vi.fn()} onDelete={vi.fn()} />)
+  it('adds a structured moment, automatically saves, and displays happened, feeling, uncertain fields', async () => {
+    const handleSave = vi.fn()
+    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={handleSave} onDelete={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('发生了什么（客观事实）'), { target: { value: '工作时很安静，下班后很健谈' } })
-    fireEvent.change(screen.getByLabelText('我的感受（与我的关系）'), { target: { value: '感觉有了更真实的了解' } })
-    fireEvent.change(screen.getByLabelText('我还不确定的（暂时猜测）'), { target: { value: '是否不喜欢公私交叉' } })
+    fireEvent.change(screen.getByLabelText(/发生了什么/), { target: { value: '工作时很安静，下班后很健谈' } })
+    fireEvent.change(screen.getByLabelText(/我的感受/), { target: { value: '感觉有了更真实的了解' } })
+    fireEvent.change(screen.getByLabelText(/我还不确定的/), { target: { value: '是否不喜欢公私交叉' } })
 
     fireEvent.click(screen.getByRole('button', { name: '记下瞬间' }))
 
     expect(screen.getByText('工作时很安静，下班后很健谈')).toBeTruthy()
     expect(screen.getByText('感觉有了更真实的了解')).toBeTruthy()
     expect(screen.getByText('是否不喜欢公私交叉')).toBeTruthy()
-    expect(screen.getByRole('button', { name: '纳入当前认识 ↗' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /纳入当前认识/ })).toBeTruthy()
+    expect(handleSave).toHaveBeenCalled()
   })
 
-  it('incorporates a moment into current understanding notes', async () => {
-    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={vi.fn()} onDelete={vi.fn()} />)
+  it('supports fast input mode and split into 3 parts', async () => {
+    const handleSave = vi.fn()
+    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={handleSave} onDelete={vi.fn()} />)
 
-    fireEvent.change(screen.getByLabelText('发生了什么（客观事实）'), { target: { value: '下班后互动明显变多' } })
+    // 点击切换为速记
+    fireEvent.click(screen.getByRole('tab', { name: '速记' }))
+
+    const fastInput = screen.getByPlaceholderText('她今天下班后突然又变得很活泼……')
+    fireEvent.change(fastInput, { target: { value: '今天下班后又聊了很久。我觉得彼此开始更自在了。不知道她平时周末喜欢做什么。' } })
+
+    // 智能拆解
+    fireEvent.click(screen.getByRole('button', { name: '✨ 整理为三段记录' }))
+
+    expect((screen.getByLabelText(/发生了什么/) as HTMLTextAreaElement).value).toBe('今天下班后又聊了很久。')
+    expect((screen.getByLabelText(/我的感受/) as HTMLInputElement).value).toBe('我觉得彼此开始更自在了。')
+    expect((screen.getByLabelText(/我还不确定的/) as HTMLInputElement).value).toBe('不知道她平时周末喜欢做什么。')
+
+    fireEvent.click(screen.getByRole('button', { name: '记下瞬间' }))
+    expect(handleSave).toHaveBeenCalled()
+  })
+
+  it('incorporates a moment into current understanding notes and immediately saves', async () => {
+    const handleSave = vi.fn()
+    render(<PeopleBookView people={[person]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={handleSave} onDelete={vi.fn()} />)
+
+    fireEvent.change(screen.getByLabelText(/发生了什么/), { target: { value: '下班后互动明显变多' } })
     fireEvent.click(screen.getByRole('button', { name: '记下瞬间' }))
 
     // 点击纳入当前认识
-    fireEvent.click(screen.getByRole('button', { name: '纳入当前认识 ↗' }))
+    fireEvent.click(screen.getByRole('button', { name: /纳入当前认识/ }))
 
     // 弹出提炼确认框
     expect(screen.getByText('提炼并追加至「我目前认识到的他 / 她」：')).toBeTruthy()
@@ -72,10 +96,11 @@ describe('PeopleBookView', () => {
     // 验证顶部认识已追加
     expect(screen.getByText(/- 第一项\s+- 下班后互动明显变多/)).toBeTruthy()
     // 验证卡片状态更新为已纳入
-    expect(screen.getByText(/已于 .+ 纳入当前认识 ✓/)).toBeTruthy()
+    expect(screen.getByText('已沉淀至当前认识 ✓')).toBeTruthy()
+    expect(handleSave).toHaveBeenCalled()
   })
 
-  it('gracefully renders legacy moments with content field', async () => {
+  it('gracefully renders legacy moments with content field and mentions count copy', async () => {
     const personWithLegacyMoment: PersonEntry = {
       ...person,
       moments: [{
@@ -86,9 +111,10 @@ describe('PeopleBookView', () => {
       } as any],
     }
 
-    render(<PeopleBookView people={[personWithLegacyMoment]} search="" isLoading={false} isSaving={false} mentionCounts={{}} selectedPersonId={person.id} onAdd={vi.fn()} onSave={vi.fn()} onDelete={vi.fn()} />)
+    render(<PeopleBookView people={[personWithLegacyMoment]} search="" isLoading={false} isSaving={false} mentionCounts={{ [person.id]: 3 }} selectedPersonId={person.id} onAdd={vi.fn()} onSave={vi.fn()} onDelete={vi.fn()} />)
 
     expect(screen.getByText('旧数据单条日常记录')).toBeTruthy()
-    expect(screen.getByText('发生了什么')).toBeTruthy()
+    expect(screen.getAllByText('发生了什么').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('被 3 篇文章提及')).toBeTruthy()
   })
 })

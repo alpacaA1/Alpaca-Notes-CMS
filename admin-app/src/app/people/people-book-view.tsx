@@ -45,7 +45,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<PersonEntry | null>(null)
 
-  // 瞬间结构化输入状态
+  // 瞬间输入状态
   const [momentHappened, setMomentHappened] = useState('')
   const [momentFeeling, setMomentFeeling] = useState('')
   const [momentUncertain, setMomentUncertain] = useState('')
@@ -81,6 +81,25 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
     }
   }, [people, selectedPersonId])
 
+  // 基本字段变更自动保存（防抖 1200ms）
+  useEffect(() => {
+    if (!draft || !draft.name.trim() || !selected) return
+    const isBasicDirty = draft.name !== selected.name ||
+      draft.relationship !== selected.relationship ||
+      draft.birthday !== selected.birthday ||
+      draft.notes !== selected.notes ||
+      JSON.stringify(draft.aliases) !== JSON.stringify(selected.aliases) ||
+      JSON.stringify(draft.tags) !== JSON.stringify(selected.tags)
+
+    if (!isBasicDirty) return
+
+    const timer = setTimeout(() => {
+      onSave({ ...draft, name: draft.name.trim(), updatedAt: new Date().toISOString() })
+    }, 1200)
+
+    return () => clearTimeout(timer)
+  }, [draft, selected, onSave])
+
   const filtered = useMemo(() => {
     const query = search.trim().toLocaleLowerCase()
     if (!query) return people
@@ -102,9 +121,10 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
     setDraft(person)
   }
 
+  // 记下瞬间：即刻添加并持久化保存
   const appendMoment = () => {
     const happened = isFastInput ? fastInputText.trim() : momentHappened.trim()
-    if (!happened) return
+    if (!happened || !draft) return
     const now = new Date().toISOString()
     const newMoment: PersonMoment = {
       id: `moment-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
@@ -114,43 +134,74 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
       uncertain: isFastInput ? undefined : (momentUncertain.trim() || undefined),
       createdAt: now,
     }
-    setDraft((current) => current ? {
-      ...current,
-      moments: [newMoment, ...current.moments],
-    } : current)
+    const nextDraft: PersonEntry = {
+      ...draft,
+      moments: [newMoment, ...draft.moments],
+      updatedAt: now,
+    }
+    setDraft(nextDraft)
     setMomentHappened('')
     setMomentFeeling('')
     setMomentUncertain('')
     setFastInputText('')
+    onSave(nextDraft)
   }
 
+  // 删除瞬间：即刻更新并持久化保存
   const removeMoment = (id: string) => {
-    setDraft((current) => current ? { ...current, moments: current.moments.filter((item) => item.id !== id) } : current)
+    if (!draft) return
+    const nextDraft: PersonEntry = {
+      ...draft,
+      moments: draft.moments.filter((item) => item.id !== id),
+      updatedAt: new Date().toISOString(),
+    }
+    setDraft(nextDraft)
     if (incorporatingMomentId === id) setIncorporatingMomentId(null)
+    onSave(nextDraft)
+  }
+
+  // 随手记拆解为三段结构
+  const handleSmartSplitFastText = () => {
+    const text = fastInputText.trim()
+    if (!text) return
+    const sentences = text.split(/(?<=[。！？；\n])\s*/).filter(Boolean)
+    if (sentences.length <= 1) {
+      setMomentHappened(text)
+    } else if (sentences.length === 2) {
+      setMomentHappened(sentences[0])
+      setMomentFeeling(sentences[1])
+    } else {
+      setMomentHappened(sentences[0])
+      setMomentFeeling(sentences.slice(1, -1).join(' '))
+      setMomentUncertain(sentences[sentences.length - 1])
+    }
+    setIsFastInput(false)
   }
 
   const handleStartIncorporate = (item: PersonMoment) => {
     const happenedText = item.happened || item.content || ''
-    // 默认提炼建议格式
     const initialSummary = `- ${happenedText}`
     setIncorporatingMomentId(item.id)
     setIncorporatingSummary(initialSummary)
   }
 
+  // 确认纳入：即刻追加并持久化保存
   const handleConfirmIncorporate = (id: string) => {
     if (!draft || !incorporatingSummary.trim()) return
     const now = new Date().toISOString()
     const bullet = incorporatingSummary.trim()
     const updatedNotes = draft.notes.trim() ? `${draft.notes.trim()}\n${bullet}` : bullet
-
     const updatedMoments = draft.moments.map((m) => m.id === id ? { ...m, incorporatedAt: now } : m)
 
-    setDraft({
+    const nextDraft: PersonEntry = {
       ...draft,
       notes: updatedNotes,
       moments: updatedMoments,
-    })
+      updatedAt: now,
+    }
+    setDraft(nextDraft)
     setIncorporatingMomentId(null)
+    onSave(nextDraft)
   }
 
   const save = () => {
@@ -231,8 +282,13 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
         ) : (
           <div className="people-book__form">
             <header>
-              <p>人物卡</p>
-              <button type="button" onClick={() => onDelete(draft)}>删除</button>
+              <div className="people-book__form-status">
+                <p>人物卡</p>
+                <span className="people-book__sync-badge">
+                  {isSaving ? '正在同步…' : '已自动同步'}
+                </span>
+              </div>
+              <button type="button" onClick={() => onDelete(draft)} className="people-book__delete-btn">删除</button>
             </header>
 
             <div className="people-book__heading">
@@ -329,64 +385,84 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
               )}
             </section>
 
-            {/* 输入层：＋ 记录一个新的瞬间 */}
+            {/* 输入层：记录一个瞬间 */}
             <section className="people-book__moment-composer-card">
               <div className="people-book__moment-composer-head">
                 <span className="people-book__moment-composer-title">
-                  <strong>＋</strong> 记录一个新的瞬间
+                  记录一个瞬间
                 </span>
-                <div className="people-book__moment-composer-switch">
+                <div className="people-book__mode-toggle" role="tablist" aria-label="记录模式切换">
                   <button
                     type="button"
-                    onClick={() => setIsFastInput((prev) => !prev)}
-                    className="people-book__text-btn"
+                    role="tab"
+                    aria-selected={!isFastInput}
+                    className={`people-book__mode-btn ${!isFastInput ? 'is-active' : ''}`}
+                    onClick={() => setIsFastInput(false)}
                   >
-                    {isFastInput ? '切换为三段输入' : '切换为速记模式'}
+                    完整记录
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={isFastInput}
+                    className={`people-book__mode-btn ${isFastInput ? 'is-active' : ''}`}
+                    onClick={() => setIsFastInput(true)}
+                  >
+                    速记
                   </button>
                 </div>
               </div>
 
               {isFastInput ? (
                 <div className="people-book__moment-field">
-                  <label htmlFor="people-fast-input">随手记下发生的瞬间</label>
                   <textarea
                     id="people-fast-input"
                     value={fastInputText}
                     onChange={(event) => setFastInputText(event.target.value)}
-                    placeholder="不加修饰地写下今天注意到的一个具体反应或对话……"
+                    placeholder="她今天下班后突然又变得很活泼……"
                     rows={3}
+                    className="people-book__fast-textarea"
                   />
                 </div>
               ) : (
                 <div className="people-book__moment-structured-fields">
                   <div className="people-book__moment-field">
-                    <label htmlFor="people-moment-happened">发生了什么（客观事实）</label>
+                    <label htmlFor="people-moment-happened">
+                      发生了什么
+                      <small className="people-book__field-hint">客观事实</small>
+                    </label>
                     <textarea
                       id="people-moment-happened"
                       value={momentHappened}
                       onChange={(event) => setMomentHappened(event.target.value)}
-                      placeholder="写下具体的互动或反应，如：工作时回复简短，下班后明显活跃分享生活……"
+                      placeholder="好几次工作期间她回复比较简短，下班以后明显更活跃、话也更多……"
                       rows={2}
                     />
                   </div>
 
                   <div className="people-book__moment-grid">
                     <div className="people-book__moment-field">
-                      <label htmlFor="people-moment-feeling">我的感受（与我的关系）</label>
+                      <label htmlFor="people-moment-feeling">
+                        我的感受
+                        <small className="people-book__field-hint">我的体验</small>
+                      </label>
                       <input
                         id="people-moment-feeling"
                         value={momentFeeling}
                         onChange={(event) => setMomentFeeling(event.target.value)}
-                        placeholder="如：开始慢慢理解她在不同状态下的节奏……"
+                        placeholder="我好像开始慢慢了解她在不同状态下的样子了……"
                       />
                     </div>
                     <div className="people-book__moment-field people-book__moment-field--uncertain">
-                      <label htmlFor="people-moment-uncertain">我还不确定的（暂时猜测）</label>
+                      <label htmlFor="people-moment-uncertain">
+                        我还不确定的
+                        <small className="people-book__field-hint">暂时猜测</small>
+                      </label>
                       <input
                         id="people-moment-uncertain"
                         value={momentUncertain}
                         onChange={(event) => setMomentUncertain(event.target.value)}
-                        placeholder="如：是否因为工作专注度高，不喜欢公私状态频繁切换……"
+                        placeholder="她是不是比较习惯把工作和私人状态分开……"
                       />
                     </div>
                   </div>
@@ -394,13 +470,25 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
               )}
 
               <div className="people-book__moment-composer-bottom">
-                <div className="people-book__moment-date-picker">
-                  <MovieDatePicker
-                    value={momentDate}
-                    onChange={(val) => setMomentDate(val)}
-                    ariaLabel="日常片段日期"
-                    dialogLabel="选择日常片段日期"
-                  />
+                <div className="people-book__moment-bottom-left">
+                  <div className="people-book__moment-date-picker">
+                    <MovieDatePicker
+                      value={momentDate}
+                      onChange={(val) => setMomentDate(val)}
+                      ariaLabel="日常片段日期"
+                      dialogLabel="选择日常片段日期"
+                    />
+                  </div>
+                  {isFastInput && fastInputText.trim() ? (
+                    <button
+                      type="button"
+                      onClick={handleSmartSplitFastText}
+                      className="people-book__split-btn"
+                      title="将速记内容整理填入发生了什么 / 我的感受 / 还不确定的"
+                    >
+                      ✨ 整理为三段记录
+                    </button>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -408,7 +496,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
                   onClick={appendMoment}
                   disabled={isFastInput ? !fastInputText.trim() : !momentHappened.trim()}
                 >
-                  记下瞬间
+                  {isFastInput ? '记下' : '记下瞬间'}
                 </button>
               </div>
             </section>
@@ -417,7 +505,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
             <section className="people-book__moments">
               <div className="people-book__section-head">
                 <span>瞬间时间线</span>
-                <small><PersonIcon type="mention" />{mentionCounts[draft.id] || 0} 次文章提及</small>
+                <small><PersonIcon type="mention" />被 {mentionCounts[draft.id] || 0} 篇文章提及</small>
               </div>
 
               {draft.moments.length ? (
@@ -440,28 +528,28 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
                           </button>
                         </div>
 
-                        <div className="people-book__moment-details">
-                          <div className="people-book__moment-row">
-                            <span className="people-book__moment-tag">发生了什么</span>
-                            <span className="people-book__moment-val">{happenedText}</span>
+                        <div className="people-book__moment-blocks">
+                          <div className="people-book__moment-block">
+                            <span className="people-book__moment-block-label">发生了什么</span>
+                            <p className="people-book__moment-block-content">{happenedText}</p>
                           </div>
 
                           {item.feeling ? (
-                            <div className="people-book__moment-row">
-                              <span className="people-book__moment-tag">我的感受</span>
-                              <span className="people-book__moment-val people-book__moment-val--feeling">{item.feeling}</span>
+                            <div className="people-book__moment-block">
+                              <span className="people-book__moment-block-label">我的感受</span>
+                              <p className="people-book__moment-block-content people-book__moment-block-content--feeling">{item.feeling}</p>
                             </div>
                           ) : null}
 
                           {item.uncertain ? (
-                            <div className="people-book__moment-row">
-                              <span className="people-book__moment-tag people-book__moment-tag--uncertain">暂时不确定</span>
-                              <span className="people-book__moment-val people-book__moment-val--uncertain">{item.uncertain}</span>
+                            <div className="people-book__moment-block">
+                              <span className="people-book__moment-block-label people-book__moment-block-label--uncertain">还不确定</span>
+                              <p className="people-book__moment-block-content people-book__moment-block-content--uncertain">{item.uncertain}</p>
                             </div>
                           ) : null}
                         </div>
 
-                        {/* 纳入当前认识的确认区 */}
+                        {/* 纳入当前认识确认区 */}
                         {isIncorporateActive ? (
                           <div className="people-book__incorporate-box">
                             <label htmlFor={`inc-input-${item.id}`}>提炼并追加至「我目前认识到的他 / 她」：</label>
@@ -492,7 +580,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
                           <div className="people-book__moment-footer">
                             {item.incorporatedAt ? (
                               <span className="people-book__incorporated-badge">
-                                已于 {item.incorporatedAt.slice(0, 10)} 纳入当前认识 ✓
+                                已沉淀至当前认识 ✓
                               </span>
                             ) : (
                               <button
@@ -501,7 +589,7 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
                                 onClick={() => handleStartIncorporate(item)}
                               >
                                 <span>纳入当前认识</span>
-                                <span>↗</span>
+                                <span>→</span>
                               </button>
                             )}
                           </div>
@@ -514,15 +602,6 @@ export default function PeopleBookView({ people, search, isLoading, isSaving, me
                 <p className="people-book__moment-empty">瞬间会慢慢汇集成真实的时间线。</p>
               )}
             </section>
-
-            <button
-              type="button"
-              className="people-book__save"
-              disabled={isSaving || !draft.name.trim()}
-              onClick={save}
-            >
-              {isSaving ? '保存中…' : '保存人物卡'}
-            </button>
           </div>
         )}
       </section>
