@@ -123,7 +123,7 @@ export async function listBookAnnotations(bookId: string) {
   ))
   return annotations
     .filter((annotation) => annotation && typeof annotation.id === 'string')
-    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
 }
 
 export function putBookAnnotation(annotation: BookAnnotation) {
@@ -157,7 +157,7 @@ export async function listAllBookAnnotations(): Promise<BookAnnotation[]> {
   )
   return (annotations || [])
     .filter((annotation) => annotation && typeof annotation.id === 'string')
-    .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
+    .sort((left, right) => (right.createdAt || '').localeCompare(left.createdAt || ''))
 }
 
 export interface BookLibraryBackup {

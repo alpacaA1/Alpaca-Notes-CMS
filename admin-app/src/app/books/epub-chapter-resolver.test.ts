@@ -195,7 +195,9 @@ describe('epub-chapter-resolver', () => {
 
       expect(updatedCount).toBe(2)
       expect(enrichedAnnotations[0].chapter).toBe('第一夜 我们的不幸是谁的错')
+      expect(enrichedAnnotations[0].updatedAt).toBe('2026-05-01T00:00:00.000Z')
       expect(enrichedAnnotations[1].chapter).toBe('第四夜 要有被讨厌的勇气')
+      expect(enrichedAnnotations[1].updatedAt).toBe('2026-05-01T00:00:00.000Z')
       expect(enrichedAnnotations[2].chapter).toBe('划线片段') // unmatched remains unchanged
     })
   })

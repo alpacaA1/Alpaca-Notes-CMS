@@ -55,16 +55,23 @@ function resolveReadingStatusLabel(status: ReadingStatus) {
   return status === 'done' ? '已读' : status === 'reading' ? '在读' : '未读'
 }
 
-function resolveSortTimestamp(annotation: Pick<ReadLaterAnnotationIndexItem, 'updatedAt' | 'createdAt' | 'postDate'>) {
-  const timestampCandidates = [annotation.updatedAt, annotation.createdAt, annotation.postDate]
+function resolveSortTimestamp(annotation: Pick<ReadLaterAnnotationIndexItem, 'updatedAt' | 'createdAt' | 'postDate'> & { note?: string }) {
+  const createdTime = Date.parse(annotation.createdAt)
+  const updatedTime = Date.parse(annotation.updatedAt)
+  const postTime = Date.parse(annotation.postDate)
 
-  for (const value of timestampCandidates) {
-    const parsed = Date.parse(value)
-    if (!Number.isNaN(parsed)) {
-      return parsed
-    }
+  if (annotation.note && annotation.note.trim() && !Number.isNaN(updatedTime) && updatedTime > 0) {
+    return updatedTime
   }
-
+  if (!Number.isNaN(createdTime) && createdTime > 0) {
+    return createdTime
+  }
+  if (!Number.isNaN(updatedTime) && updatedTime > 0) {
+    return updatedTime
+  }
+  if (!Number.isNaN(postTime) && postTime > 0) {
+    return postTime
+  }
   return 0
 }
 
@@ -200,5 +207,16 @@ export async function buildReadLaterAnnotationIndex(
 
   return annotationGroups
     .flat()
-    .sort((left, right) => resolveSortTimestamp(right) - resolveSortTimestamp(left))
+    .sort((left, right) => {
+      const timeDiff = resolveSortTimestamp(right) - resolveSortTimestamp(left)
+      if (timeDiff !== 0) {
+        return timeDiff
+      }
+      const rightCreated = Date.parse(right.createdAt) || 0
+      const leftCreated = Date.parse(left.createdAt) || 0
+      if (rightCreated !== leftCreated) {
+        return rightCreated - leftCreated
+      }
+      return (right.annotationId || right.id).localeCompare(left.annotationId || left.id)
+    })
 }

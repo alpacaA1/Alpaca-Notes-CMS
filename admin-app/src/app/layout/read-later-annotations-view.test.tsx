@@ -277,6 +277,84 @@ describe('ReadLaterAnnotationsView', () => {
     expect(within(cards[1]).getByText('最早的批注')).toBeTruthy()
   })
 
+  it('sorts source articles and annotations from near to far (由近及远)', () => {
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-old-book',
+        annotationId: 'ann-old-book',
+        postPath: 'book:old-book',
+        postTitle: '旧书',
+        quote: '一年前划线',
+        createdAt: '2025-01-01T10:00:00.000Z',
+        // Background enrichment might have bumped updatedAt, but without note, createdAt is truth
+        updatedAt: '2026-09-09T14:14:00.000Z',
+        note: '',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-mid-book',
+        annotationId: 'ann-mid-book',
+        postPath: 'book:neurosis',
+        postTitle: '我们时代的神经症人格',
+        quote: '半年前划线',
+        createdAt: '2026-03-01T10:00:00.000Z',
+        updatedAt: '2026-09-09T14:14:00.000Z',
+        note: '',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-recent-book',
+        annotationId: 'ann-recent-book',
+        postPath: 'book:neurosis',
+        postTitle: '我们时代的神经症人格',
+        quote: '昨天划线',
+        createdAt: '2026-09-08T10:00:00.000Z',
+        updatedAt: '2026-09-09T14:14:00.000Z',
+        note: '',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-recent-article',
+        annotationId: 'ann-recent-article',
+        postPath: 'source/items/recent.md',
+        postTitle: '最新文章',
+        quote: '今天刚写了评论的批注',
+        createdAt: '2026-08-01T10:00:00.000Z',
+        updatedAt: '2026-09-09T12:00:00.000Z',
+        note: '深度洞见',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    // Verify left column (来源文章) is sorted newest activity to oldest:
+    // 1. "最新文章" (has note updated at 2026-09-09T12:00:00.000Z)
+    // 2. "我们时代的神经症人格" (latest highlight at 2026-09-08T10:00:00.000Z)
+    // 3. "旧书" (latest highlight at 2025-01-01T10:00:00.000Z)
+    const sourceRail = screen.getByLabelText('来源文章列表')
+    const sourceButtons = within(sourceRail).getAllByRole('button')
+    // Index 0 is "全部来源"
+    expect(within(sourceButtons[1]).getByText('最新文章')).toBeTruthy()
+    expect(within(sourceButtons[2]).getByText('我们时代的神经症人格')).toBeTruthy()
+    expect(within(sourceButtons[3]).getByText('旧书')).toBeTruthy()
+
+    // Verify middle column (批注列表) in default 'updated-desc' (最近批注) is sorted newest to oldest:
+    // 1. "今天刚写了评论的批注" (2026-09-09T12:00:00)
+    // 2. "昨天划线" (2026-09-08T10:00:00)
+    // 3. "半年前划线" (2026-03-01T10:00:00)
+    // 4. "一年前划线" (2025-01-01T10:00:00)
+    const listSection = screen.getByLabelText('批注列表区')
+    const cards = within(listSection).getAllByRole('button', { name: /划线|批注/ })
+    expect(within(cards[0]).getByText('今天刚写了评论的批注')).toBeTruthy()
+    expect(within(cards[1]).getByText('昨天划线')).toBeTruthy()
+    expect(within(cards[2]).getByText('半年前划线')).toBeTruthy()
+    expect(within(cards[3]).getByText('一年前划线')).toBeTruthy()
+  })
+
   it('supports sequential navigation using 上一条 and 下一条', () => {
     const annotations = [
       createAnnotationIndexItem({

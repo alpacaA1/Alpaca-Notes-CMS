@@ -75,8 +75,19 @@ export async function buildBookAnnotationIndex(books: StoredBookMeta[]): Promise
   return groups
     .flat()
     .sort((left, right) => {
-      const rightTimestamp = Math.max(getTimestamp(right.updatedAt), getTimestamp(right.createdAt), getTimestamp(right.postDate))
-      const leftTimestamp = Math.max(getTimestamp(left.updatedAt), getTimestamp(left.createdAt), getTimestamp(left.postDate))
-      return rightTimestamp - leftTimestamp
+      const rightCreated = getTimestamp(right.createdAt)
+      const leftCreated = getTimestamp(left.createdAt)
+      const rightUpdated = right.note?.trim() ? getTimestamp(right.updatedAt) : 0
+      const leftUpdated = left.note?.trim() ? getTimestamp(left.updatedAt) : 0
+      const rightTime = rightUpdated || rightCreated || getTimestamp(right.postDate)
+      const leftTime = leftUpdated || leftCreated || getTimestamp(left.postDate)
+
+      if (rightTime !== leftTime) {
+        return rightTime - leftTime
+      }
+      if (rightCreated !== leftCreated) {
+        return rightCreated - leftCreated
+      }
+      return (right.annotationId || '').localeCompare(left.annotationId || '')
     })
 }

@@ -65,14 +65,27 @@ function getAnnotationQuoteText(quote: string) {
   return quote.trim() || '未命名高亮'
 }
 
-function getAnnotationTimestamp(annotation: ReadLaterAnnotationIndexItem) {
-  const candidates = [annotation.updatedAt, annotation.createdAt, annotation.postDate]
+export function getAnnotationTimestamp(annotation: ReadLaterAnnotationIndexItem): number {
+  const createdTime = Date.parse(annotation.createdAt)
+  const updatedTime = Date.parse(annotation.updatedAt)
+  const postTime = Date.parse(annotation.postDate)
 
-  for (const candidate of candidates) {
-    const timestamp = Date.parse(candidate)
-    if (!Number.isNaN(timestamp)) {
-      return timestamp
-    }
+  // If the user has a comment/note, updatedTime reflects the comment's timestamp
+  if (annotation.note && annotation.note.trim() && !Number.isNaN(updatedTime) && updatedTime > 0) {
+    return updatedTime
+  }
+
+  // Otherwise, the highlight creation time is the primary source of truth
+  if (!Number.isNaN(createdTime) && createdTime > 0) {
+    return createdTime
+  }
+
+  if (!Number.isNaN(updatedTime) && updatedTime > 0) {
+    return updatedTime
+  }
+
+  if (!Number.isNaN(postTime) && postTime > 0) {
+    return postTime
   }
 
   return 0
@@ -172,12 +185,16 @@ export default function ReadLaterAnnotationsView({
     const deduped = new Map<string, { value: string; label: string; count: number; latestTimestamp: number }>()
 
     annotations.forEach((annotation) => {
+      const postTimestamp = Date.parse(annotation.postDate) || 0
+      const annotationTimestamp = getAnnotationTimestamp(annotation)
+      const relevantTimestamp = Math.max(postTimestamp, annotationTimestamp)
+
       if (!deduped.has(annotation.postPath)) {
         deduped.set(annotation.postPath, {
           value: annotation.postPath,
           label: annotation.postTitle,
           count: 0,
-          latestTimestamp: 0,
+          latestTimestamp: relevantTimestamp,
         })
       }
 
@@ -187,7 +204,7 @@ export default function ReadLaterAnnotationsView({
       }
 
       current.count += 1
-      current.latestTimestamp = Math.max(current.latestTimestamp, getAnnotationTimestamp(annotation))
+      current.latestTimestamp = Math.max(current.latestTimestamp, relevantTimestamp)
     })
 
     return Array.from(deduped.values()).sort((left, right) => {
@@ -251,14 +268,38 @@ export default function ReadLaterAnnotationsView({
     nextAnnotations.sort((left, right) => {
       const leftTimestamp = getAnnotationTimestamp(left)
       const rightTimestamp = getAnnotationTimestamp(right)
+      const leftCreated = Date.parse(left.createdAt) || 0
+      const rightCreated = Date.parse(right.createdAt) || 0
 
       if (sortOrder === 'updated-desc') {
         if (rightTimestamp !== leftTimestamp) {
           return rightTimestamp - leftTimestamp
         }
+        if (rightCreated !== leftCreated) {
+          return rightCreated - leftCreated
+        }
+        const byCreatedStr = (right.createdAt || '').localeCompare(left.createdAt || '')
+        if (byCreatedStr !== 0) {
+          return byCreatedStr
+        }
+        const byId = (right.annotationId || right.id).localeCompare(left.annotationId || left.id)
+        if (byId !== 0) {
+          return byId
+        }
       } else if (sortOrder === 'updated-asc') {
         if (leftTimestamp !== rightTimestamp) {
           return leftTimestamp - rightTimestamp
+        }
+        if (leftCreated !== rightCreated) {
+          return leftCreated - rightCreated
+        }
+        const byCreatedStr = (left.createdAt || '').localeCompare(right.createdAt || '')
+        if (byCreatedStr !== 0) {
+          return byCreatedStr
+        }
+        const byId = (left.annotationId || left.id).localeCompare(right.annotationId || right.id)
+        if (byId !== 0) {
+          return byId
         }
       } else if (sortOrder === 'source-asc') {
         const bySource = left.postTitle.localeCompare(right.postTitle, 'zh-Hans-CN')
@@ -267,6 +308,9 @@ export default function ReadLaterAnnotationsView({
         }
         if (rightTimestamp !== leftTimestamp) {
           return rightTimestamp - leftTimestamp
+        }
+        if (rightCreated !== leftCreated) {
+          return rightCreated - leftCreated
         }
       }
 

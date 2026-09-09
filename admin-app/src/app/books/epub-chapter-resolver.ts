@@ -341,7 +341,7 @@ export async function resolveAnnotationsWithEpub(
           const updated: BookAnnotation = {
             ...ann,
             chapter: resolvedChapter,
-            updatedAt: nowIso,
+            updatedAt: ann.updatedAt || ann.createdAt || nowIso,
           }
           enrichedMap.set(ann.id, updated)
           updatedCount++

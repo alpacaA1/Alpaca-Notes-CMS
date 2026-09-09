@@ -368,7 +368,7 @@ export function transformWeReadBookData(
   }
 
   const annotations = Array.from(annotationsMap.values()).sort((a, b) =>
-    (a.createdAt || '').localeCompare(b.createdAt || ''),
+    (b.createdAt || '').localeCompare(a.createdAt || ''),
   )
 
   const nowIso = new Date().toISOString()
@@ -533,7 +533,7 @@ export async function enrichExistingWeReadAnnotations(
 
           if (resolved) {
             ann.chapter = resolved
-            ann.updatedAt = nowIso
+            ann.updatedAt = ann.updatedAt || ann.createdAt || nowIso
             await putBookAnnotation(ann)
             updatedCount++
           }
