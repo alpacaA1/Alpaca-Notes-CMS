@@ -12882,12 +12882,19 @@ textarea {
 
 .annotation-dashboard__top-header {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
-  padding: 14px 20px 10px;
+  padding: 12px 20px 10px;
   border-bottom: 1px solid var(--admin-line, #eceae5);
   background: var(--admin-panel-bg, #fff);
   flex-shrink: 0;
+}
+
+.annotation-dashboard__top-header-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .annotation-dashboard__title {
@@ -12901,6 +12908,54 @@ textarea {
 .annotation-dashboard__title-stats {
   font-size: 0.86rem;
   color: var(--admin-muted, #7c7770);
+}
+
+.annotation-dashboard__top-sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--admin-line, #e2ded5);
+  background: var(--admin-surface, #fff);
+  color: var(--admin-text, #333);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.annotation-dashboard__top-sync-btn:hover {
+  background: var(--admin-surface-hover, #f6f5f1);
+  border-color: var(--admin-border-focus, #c8c3b8);
+}
+
+.annotation-dashboard__top-sync-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__top-sync-btn.has-missing-chapters {
+  background: #fff8f0;
+  border-color: #f3d19e;
+  color: #a35d14;
+}
+
+.annotation-dashboard__top-sync-btn.has-missing-chapters:hover {
+  background: #fef0dd;
+  border-color: #e5be82;
+}
+
+[data-theme='dark'] .annotation-dashboard__top-sync-btn.has-missing-chapters {
+  background: rgba(212, 165, 116, 0.12);
+  border-color: rgba(212, 165, 116, 0.35);
+  color: #e6b885;
+}
+
+[data-theme='dark'] .annotation-dashboard__top-sync-btn.has-missing-chapters:hover {
+  background: rgba(212, 165, 116, 0.2);
+  border-color: rgba(212, 165, 116, 0.5);
 }
 
 .annotation-dashboard__layout {

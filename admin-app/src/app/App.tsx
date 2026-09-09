@@ -50,6 +50,8 @@ import BookShelfView from './books/book-shelf-view'
 import BookReaderView from './books/book-reader-view'
 import PdfReaderView from './books/pdf-reader-view'
 import { buildBookAnnotationIndex } from './books/book-annotation-index'
+import WeReadSyncDialog from './books/weread-sync-dialog'
+import { getStoredWeReadApiKey } from './books/weread-client'
 import { importBookFile } from './books/import-book'
 import {
   countBookAnnotations,
@@ -662,6 +664,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [isIndexing, setIsIndexing] = useState(false)
   const [isAnnotationIndexing, setIsAnnotationIndexing] = useState(false)
+  const [isAnnotationsWeReadSyncOpen, setIsAnnotationsWeReadSyncOpen] = useState(false)
   const [isTrashIndexing, setIsTrashIndexing] = useState(false)
   const [isOpeningPost, setIsOpeningPost] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -1145,7 +1148,24 @@ export default function App() {
             // Ignore offline / remote sync failure and continue with local IDB
           }
         }
-        const books = typeof indexedDB === 'undefined' ? [] : await listBookMetas()
+        let books = typeof indexedDB === 'undefined' ? [] : await listBookMetas()
+
+        const storedApiKey = getStoredWeReadApiKey()
+        if (storedApiKey && typeof indexedDB !== 'undefined') {
+          try {
+            const { enrichExistingWeReadAnnotations } = await import('./books/weread-client')
+            const enrichedCount = await enrichExistingWeReadAnnotations(storedApiKey, books)
+            if (enrichedCount > 0) {
+              books = await listBookMetas()
+              if (session) {
+                const { syncBooksWithGitHub } = await import('./books/book-sync')
+                await syncBooksWithGitHub(session).catch(() => {})
+              }
+            }
+          } catch {
+            // Ignore auto-enrich error in background
+          }
+        }
         const [readLaterAnnotations, bookAnnotations] = await Promise.all([
           buildReadLaterAnnotationIndex(session, readLaterPosts),
           buildBookAnnotationIndex(books),
@@ -5653,6 +5673,7 @@ export default function App() {
             onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
             onBatchQuoteAnnotationsToDiary={handleBatchQuoteAnnotationsToDiary}
             onSaveAnnotationComment={(annotation, note) => { void handleSaveAnnotationComment(annotation, note) }}
+            onOpenWeReadSync={() => setIsAnnotationsWeReadSyncOpen(true)}
           />
         </section>
       ) : isTrashView ? (
@@ -6095,6 +6116,32 @@ export default function App() {
           { id: 'toggle-immersive', label: isImmersive ? '退出沉浸模式' : '进入沉浸模式', category: '视图', icon: '👁️', shortcut: 'Esc / ⌘\\', action: () => setIsImmersive((prev) => !prev) },
           { id: 'toggle-theme', label: isDark ? '切换至浅色模式' : '切换至深色模式', category: '外观', icon: '🌓', action: toggleColorMode },
         ]}
+      />
+      <WeReadSyncDialog
+        isOpen={isAnnotationsWeReadSyncOpen}
+        onClose={() => setIsAnnotationsWeReadSyncOpen(false)}
+        onSyncComplete={() => {
+          setIsAnnotationsWeReadSyncOpen(false)
+          setSuccessMessage('微信读书笔记同步完成，已更新章节信息。')
+          void (async () => {
+            if (session) {
+              const { syncBooksWithGitHub } = await import('./books/book-sync')
+              await syncBooksWithGitHub(session).catch(() => {})
+            }
+            const books = await listBookMetas()
+            setBookMetas(books)
+            const [readLaterAnnotations, bookAnnotations] = await Promise.all([
+              buildReadLaterAnnotationIndex(session, readLaterPosts),
+              buildBookAnnotationIndex(books),
+            ])
+            const annotations = [...readLaterAnnotations, ...bookAnnotations].sort((left, right) => {
+              const leftTime = Date.parse(left.updatedAt || left.createdAt || left.postDate)
+              const rightTime = Date.parse(right.updatedAt || right.createdAt || right.postDate)
+              return (Number.isNaN(rightTime) ? 0 : rightTime) - (Number.isNaN(leftTime) ? 0 : leftTime)
+            })
+            setReadLaterAnnotationIndex(annotations)
+          })()
+        }}
       />
     </main>
   )

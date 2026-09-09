@@ -91,6 +91,12 @@ export async function saveRemoteBooksLibrary(
   return { sha: saved.sha }
 }
 
+function isMeaningfulChapter(chapter?: string | null): boolean {
+  if (!chapter) return false
+  const trimmed = chapter.trim()
+  return Boolean(trimmed && !['划线片段', '读书想法', '未知章节', '未知页码', '电子书章节'].includes(trimmed))
+}
+
 function mergeAnnotations(localList: BookAnnotation[], remoteList: BookAnnotation[]): BookAnnotation[] {
   const map = new Map<string, BookAnnotation>()
 
@@ -108,9 +114,18 @@ function mergeAnnotations(localList: BookAnnotation[], remoteList: BookAnnotatio
     const localTime = existing.updatedAt || existing.createdAt || ''
     const remoteTime = remoteAnn.updatedAt || remoteAnn.createdAt || ''
 
-    if (remoteTime > localTime) {
-      map.set(remoteAnn.id, { ...remoteAnn })
+    const picked = remoteTime > localTime ? { ...remoteAnn } : { ...existing }
+
+    // Preserve real chapter title if one side has it and the other does not
+    if (!isMeaningfulChapter(picked.chapter)) {
+      if (isMeaningfulChapter(existing.chapter)) {
+        picked.chapter = existing.chapter
+      } else if (isMeaningfulChapter(remoteAnn.chapter)) {
+        picked.chapter = remoteAnn.chapter
+      }
     }
+
+    map.set(remoteAnn.id, picked)
   }
 
   return Array.from(map.values()).sort((left, right) =>

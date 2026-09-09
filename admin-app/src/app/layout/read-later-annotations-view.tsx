@@ -14,6 +14,7 @@ type ReadLaterAnnotationsViewProps = {
   onOpenAnnotation: (annotation: ReadLaterAnnotationIndexItem) => void
   onQuoteAnnotationToDiary?: (annotation: ReadLaterAnnotationIndexItem) => void
   onSaveAnnotationComment?: (annotation: ReadLaterAnnotationIndexItem, note: string) => Promise<void> | void
+  onOpenWeReadSync?: () => void
 }
 
 const ALL_SOURCES = '__all_sources__'
@@ -127,6 +128,7 @@ export default function ReadLaterAnnotationsView({
   onQuoteAnnotationToDiary,
   onBatchQuoteAnnotationsToDiary,
   onSaveAnnotationComment,
+  onOpenWeReadSync,
 }: ReadLaterAnnotationsViewProps & {
   onBatchQuoteAnnotationsToDiary?: (annotations: ReadLaterAnnotationIndexItem[]) => Promise<boolean | void> | boolean | void
 }) {
@@ -508,14 +510,34 @@ export default function ReadLaterAnnotationsView({
   const totalSourcesCount = sourceOptions.length
   const totalAnnotationsCount = annotations.length
 
+  const hasWeReadAnnotationsWithoutChapter = useMemo(() => {
+    return annotations.some((ann) => ann.sourceType === 'book' && !ann.chapterTitle)
+  }, [annotations])
+
   return (
     <div className="annotation-dashboard">
       {/* Top Header */}
       <header className="annotation-dashboard__top-header">
-        <h1 className="annotation-dashboard__title">批注管理</h1>
-        <span className="annotation-dashboard__title-stats">
-          {totalAnnotationsCount} 条批注 · 来自 {totalSourcesCount} 篇文章
-        </span>
+        <div className="annotation-dashboard__top-header-main">
+          <h1 className="annotation-dashboard__title">批注管理</h1>
+          <span className="annotation-dashboard__title-stats">
+            {totalAnnotationsCount} 条批注 · 来自 {totalSourcesCount} 篇文章
+          </span>
+        </div>
+        {onOpenWeReadSync ? (
+          <button
+            type="button"
+            className={`annotation-dashboard__top-sync-btn${hasWeReadAnnotationsWithoutChapter ? ' has-missing-chapters' : ''}`}
+            onClick={onOpenWeReadSync}
+            title={hasWeReadAnnotationsWithoutChapter ? '检测到部分微信读书划线缺少章节名，点击同步补全' : '同步微信读书划线与章节'}
+          >
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M1.5 8a6.5 6.5 0 0 1 11.48-4.13l.02.02M14.5 8a6.5 6.5 0 0 1-11.48 4.13l-.02-.02" strokeLinecap="round" />
+              <path d="M13 1.5v3h-3M3 14.5v-3h3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {hasWeReadAnnotationsWithoutChapter ? '补全微信读书章节' : '同步微信读书'}
+          </button>
+        ) : null}
       </header>
 
       {/* Main 3-Column Workspace */}

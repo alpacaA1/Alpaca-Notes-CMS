@@ -6,6 +6,7 @@ import ReadLaterAnnotationsView from './read-later-annotations-view'
 function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexItem> = {}): ReadLaterAnnotationIndexItem {
   return {
     id: overrides.id || 'annotation-id',
+    sourceType: overrides.sourceType,
     annotationId: overrides.annotationId || 'annotation-id',
     postPath: overrides.postPath || 'source/read-later-items/default.md',
     postTitle: overrides.postTitle || '默认文章',
@@ -508,6 +509,59 @@ describe('ReadLaterAnnotationsView', () => {
 
     // In context footer
     expect(within(detailPane).getByText('我们时代的神经营症人格 · 第一章 神经症的文化含义')).toBeTruthy()
+  })
+
+  it('renders WeChat Read sync button when onOpenWeReadSync is provided and highlights missing chapters', () => {
+    const onOpenWeReadSync = vi.fn()
+    const annotationsWithMissingChapter = [
+      createAnnotationIndexItem({
+        id: 'book-1::wr-1',
+        sourceType: 'book',
+        postTitle: '被讨厌的勇气',
+        chapterTitle: null,
+      }),
+    ]
+
+    const { rerender } = render(
+      <ReadLaterAnnotationsView
+        annotations={annotationsWithMissingChapter}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+        onOpenWeReadSync={onOpenWeReadSync}
+      />,
+    )
+
+    const syncBtn = screen.getByRole('button', { name: '补全微信读书章节' })
+    expect(syncBtn).toBeTruthy()
+    expect(syncBtn.classList.contains('has-missing-chapters')).toBe(true)
+
+    fireEvent.click(syncBtn)
+    expect(onOpenWeReadSync).toHaveBeenCalledTimes(1)
+
+    // When all annotations have chapter titles
+    const annotationsWithChapter = [
+      createAnnotationIndexItem({
+        id: 'book-1::wr-1',
+        sourceType: 'book',
+        postTitle: '被讨厌的勇气',
+        chapterTitle: '第一夜 我们的不幸是谁的错',
+      }),
+    ]
+
+    rerender(
+      <ReadLaterAnnotationsView
+        annotations={annotationsWithChapter}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+        onOpenWeReadSync={onOpenWeReadSync}
+      />,
+    )
+
+    const normalSyncBtn = screen.getByRole('button', { name: '同步微信读书' })
+    expect(normalSyncBtn).toBeTruthy()
+    expect(normalSyncBtn.classList.contains('has-missing-chapters')).toBe(false)
   })
 })
 

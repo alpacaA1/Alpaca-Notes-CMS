@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  enrichExistingWeReadAnnotations,
   fetchWeReadBookmarks,
+  fetchWeReadChapters,
   fetchWeReadNotebooks,
   fetchWeReadThoughts,
   maskWeReadApiKey,
@@ -11,10 +13,12 @@ import {
   type WeReadNotebookItem,
   type WeReadThoughtItem,
 } from './weread-client'
+import { listBookAnnotations, putBookAnnotation } from './book-store'
 
 vi.mock('./book-store', () => ({
   putBookMeta: vi.fn().mockResolvedValue(undefined),
   putBookAnnotation: vi.fn().mockResolvedValue(undefined),
+  listBookAnnotations: vi.fn().mockResolvedValue([]),
 }))
 
 describe('weread-client', () => {
@@ -180,5 +184,131 @@ describe('weread-client', () => {
     expect(result.booksCount).toBe(1)
     expect(result.annotationsCount).toBe(1)
     expect(progressLogs.length).toBeGreaterThan(0)
+  })
+
+  it('fetches and parses chapter information correctly', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { chapterUid: 1, title: '引言' },
+          { chapterUid: 2, title: '第一章 认知偏差' },
+          { chapterUid: 3, title: '第二章 启发式思考' },
+        ],
+      }),
+    }) as unknown as typeof fetch
+
+    const chapters = await fetchWeReadChapters('wrk-key', 'book-123')
+    expect(chapters).toEqual({
+      1: '引言',
+      2: '第一章 认知偏差',
+      3: '第二章 启发式思考',
+    })
+  })
+
+  it('resolves chapter from chapterMap via chapterUid when chapterTitle is missing', () => {
+    const notebook: WeReadNotebookItem = {
+      bookId: '1002',
+      book: { title: '思考，快与慢', author: '卡尼曼' },
+    }
+
+    const bookmarks: WeReadBookmarkItem[] = [
+      {
+        bookmarkId: 'bm-no-title',
+        chapterUid: 2,
+        markText: '大脑有两种主要的思考机制。',
+        createTime: 1700000000,
+      },
+    ]
+
+    const thoughts: WeReadThoughtItem[] = [
+      {
+        thought: {
+          thoughtId: 'th-no-title',
+          chapterUid: 3,
+          abstract: '过度自信是人类认知最根本的偏见。',
+          content: '非常发人深省。',
+          createTime: 1700001000,
+        },
+      },
+    ]
+
+    const chapterMap = {
+      2: '第一章 系统1与系统2',
+      3: '第二章 启发法与偏见',
+    }
+
+    const { annotations } = transformWeReadBookData(notebook, bookmarks, thoughts, chapterMap)
+    expect(annotations).toHaveLength(2)
+
+    const bmAnn = annotations.find((a) => a.quote.includes('大脑有两种主要的思考机制'))
+    expect(bmAnn?.chapter).toBe('第一章 系统1与系统2')
+
+    const thAnn = annotations.find((a) => a.quote.includes('过度自信'))
+    expect(thAnn?.chapter).toBe('第二章 启发法与偏见')
+  })
+
+  it('enriches existing annotations that lack chapter names', async () => {
+    const mockAnnotations = [
+      {
+        id: 'wr-bm-101',
+        bookId: 'weread-999',
+        value: '',
+        color: '#D4A574',
+        quote: '人类的非理性行为具有普遍性。',
+        note: '',
+        chapter: '划线片段',
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ]
+
+    vi.mocked(listBookAnnotations).mockResolvedValueOnce(mockAnnotations as any)
+
+    globalThis.fetch = vi.fn().mockImplementation(async (_, init) => {
+      const body = JSON.parse(init?.body as string)
+      if (body.api_name === '/book/bookmarklist') {
+        return {
+          ok: true,
+          json: async () => ({
+            updated: [
+              {
+                bookmarkId: '101',
+                chapterUid: 5,
+                markText: '人类的非理性行为具有普遍性。',
+              },
+            ],
+          }),
+        }
+      }
+      if (body.api_name === '/book/chapterinfo') {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [{ chapterUid: 5, title: '第五章 行为经济学基础' }],
+          }),
+        }
+      }
+      return { ok: true, json: async () => ({}) }
+    }) as unknown as typeof fetch
+
+    const books = [
+      {
+        id: 'weread-999',
+        title: '怪诞行为学',
+        creator: '丹·艾瑞里',
+        format: 'epub' as const,
+        addedAt: '2024-01-01T00:00:00.000Z',
+      },
+    ]
+
+    const enrichedCount = await enrichExistingWeReadAnnotations('wrk-key', books)
+    expect(enrichedCount).toBe(1)
+    expect(putBookAnnotation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'wr-bm-101',
+        chapter: '第五章 行为经济学基础',
+      }),
+    )
   })
 })

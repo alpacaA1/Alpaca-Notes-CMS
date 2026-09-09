@@ -1,5 +1,5 @@
 import { WEREAD_PROXY_URL } from '../config'
-import { putBookAnnotation, putBookMeta } from './book-store'
+import { listBookAnnotations, putBookAnnotation, putBookMeta } from './book-store'
 import type { BookAnnotation, StoredBookMeta } from './book-types'
 
 const WEREAD_GATEWAY_URL = 'https://i.weread.qq.com/api/agent/gateway'
@@ -216,10 +216,54 @@ export async function fetchWeReadThoughts(apiKey: string, bookId: string): Promi
   return []
 }
 
+export interface WeReadChapterItem {
+  chapterUid?: number | string
+  chapterId?: number | string
+  title?: string
+  chapterTitle?: string
+  chapterIdx?: number
+  level?: number
+}
+
+export async function fetchWeReadChapters(apiKey: string, bookId: string): Promise<Record<number, string>> {
+  try {
+    const data = await requestWeReadGateway<{
+      data?: WeReadChapterItem[]
+      chapters?: WeReadChapterItem[]
+      item?: WeReadChapterItem[]
+    } | WeReadChapterItem[]>(apiKey, '/book/chapterinfo', { bookId })
+
+    const list = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.data)
+        ? data.data
+        : Array.isArray(data?.chapters)
+          ? data.chapters
+          : Array.isArray(data?.item)
+            ? data.item
+            : []
+
+    const map: Record<number, string> = {}
+    for (const item of list) {
+      if (!item) continue
+      const rawUid = item.chapterUid ?? item.chapterId
+      const uid = rawUid !== undefined && rawUid !== null ? Number(rawUid) : NaN
+      const title = (item.title || item.chapterTitle || '').trim()
+      if (!Number.isNaN(uid) && title) {
+        map[uid] = title
+      }
+    }
+    return map
+  } catch {
+    return {}
+  }
+}
+
 export function transformWeReadBookData(
   notebook: WeReadNotebookItem,
   bookmarks: WeReadBookmarkItem[],
   thoughts: WeReadThoughtItem[],
+  chapterMap: Record<number, string> = {},
 ): { meta: StoredBookMeta; annotations: BookAnnotation[] } {
   const rawBook = notebook.book || { title: '未命名微信读书', author: '未知作者' }
   const bookId = `weread-${notebook.bookId || rawBook.bookId || computeHashSeed(rawBook.title)}`
@@ -244,6 +288,12 @@ export function transformWeReadBookData(
       latestTime = createdTimeIso
     }
 
+    const bmUid = bm.chapterUid !== undefined && bm.chapterUid !== null ? Number(bm.chapterUid) : NaN
+    const resolvedChapter =
+      (!Number.isNaN(bmUid) && chapterMap[bmUid])
+        ? chapterMap[bmUid]
+        : (bm.chapterTitle?.trim() || '')
+
     const annId = `wr-bm-${bm.bookmarkId || computeHashSeed(bm.markText)}`
     const ann: BookAnnotation = {
       id: annId,
@@ -252,7 +302,7 @@ export function transformWeReadBookData(
       color: '#D4A574',
       quote: bm.markText.trim(),
       note: '',
-      chapter: bm.chapterTitle?.trim() || '划线片段',
+      chapter: resolvedChapter,
       createdAt: createdTimeIso,
       updatedAt: createdTimeIso,
     }
@@ -275,7 +325,11 @@ export function transformWeReadBookData(
 
     const thoughtAbstract = (thoughtData.abstract || '').trim()
     const thoughtContent = (thoughtData.content || '').trim()
-    const thoughtChapter = thoughtData.chapterTitle?.trim() || '读书想法'
+    const thUid = thoughtData.chapterUid !== undefined && thoughtData.chapterUid !== null ? Number(thoughtData.chapterUid) : NaN
+    const resolvedThoughtChapter =
+      (!Number.isNaN(thUid) && chapterMap[thUid])
+        ? chapterMap[thUid]
+        : (thoughtData.chapterTitle?.trim() || '')
 
     // Check if there is an existing bookmark with the exact same quote/abstract
     let matchedBookmark: BookAnnotation | null = null
@@ -292,6 +346,9 @@ export function transformWeReadBookData(
       // Attach note to the existing highlight
       matchedBookmark.note = thoughtContent
       matchedBookmark.updatedAt = createdTimeIso
+      if (!matchedBookmark.chapter && resolvedThoughtChapter) {
+        matchedBookmark.chapter = resolvedThoughtChapter
+      }
     } else {
       // Create new annotation entry
       const annId = `wr-th-${thoughtData.thoughtId || computeHashSeed(thoughtContent + thoughtAbstract)}`
@@ -302,7 +359,7 @@ export function transformWeReadBookData(
         color: '#D4A574',
         quote: thoughtAbstract,
         note: thoughtContent,
-        chapter: thoughtChapter,
+        chapter: resolvedThoughtChapter,
         createdAt: createdTimeIso,
         updatedAt: createdTimeIso,
       }
@@ -347,15 +404,17 @@ export async function syncSelectedWeReadNotebooks(
   for (let i = 0; i < notebooks.length; i++) {
     const notebook = notebooks[i]
     const bookTitle = notebook.book?.title || `书籍 ${i + 1}`
+    const weReadBookId = notebook.bookId || notebook.book?.bookId || ''
     onProgress?.(`正在拉取《${bookTitle}》的划线与想法 (${i + 1}/${totalBooks})…`, i + 1, totalBooks)
 
     try {
-      const [bookmarks, thoughts] = await Promise.all([
-        fetchWeReadBookmarks(apiKey, notebook.bookId).catch(() => []),
-        fetchWeReadThoughts(apiKey, notebook.bookId).catch(() => []),
+      const [bookmarks, thoughts, chapterMap] = await Promise.all([
+        fetchWeReadBookmarks(apiKey, weReadBookId).catch(() => []),
+        fetchWeReadThoughts(apiKey, weReadBookId).catch(() => []),
+        fetchWeReadChapters(apiKey, weReadBookId).catch(() => ({})),
       ])
 
-      const { meta, annotations } = transformWeReadBookData(notebook, bookmarks, thoughts)
+      const { meta, annotations } = transformWeReadBookData(notebook, bookmarks, thoughts, chapterMap)
 
       // Save to local IndexedDB
       await putBookMeta(meta)
@@ -375,6 +434,117 @@ export async function syncSelectedWeReadNotebooks(
     booksCount: totalBooks,
     annotationsCount: totalAnnotationsCount,
   }
+}
+
+export async function enrichExistingWeReadAnnotations(
+  apiKey: string,
+  books: StoredBookMeta[],
+  onProgress?: (message: string, current: number, total: number) => void,
+): Promise<number> {
+  const wereadBooks = books.filter((b) => b.id.startsWith('weread-'))
+  if (wereadBooks.length === 0) {
+    return 0
+  }
+
+  let updatedCount = 0
+
+  for (let i = 0; i < wereadBooks.length; i++) {
+    const book = wereadBooks[i]
+    const annotations = await listBookAnnotations(book.id)
+
+    // Check if any annotation lacks a meaningful chapter title
+    const needsEnrichment = annotations.some((ann) => {
+      const ch = (ann.chapter || '').trim()
+      return !ch || ch === '划线片段' || ch === '读书想法' || ch === '未知章节' || ch === '电子书章节'
+    })
+
+    if (!needsEnrichment) {
+      continue
+    }
+
+    const rawBookId = book.id.replace(/^weread-/, '')
+    onProgress?.(`正在补全《${book.title}》章节信息 (${i + 1}/${wereadBooks.length})…`, i + 1, wereadBooks.length)
+
+    try {
+      const [bookmarks, thoughts, chapterMap] = await Promise.all([
+        fetchWeReadBookmarks(apiKey, rawBookId).catch(() => []),
+        fetchWeReadThoughts(apiKey, rawBookId).catch(() => []),
+        fetchWeReadChapters(apiKey, rawBookId).catch(() => ({})),
+      ])
+
+      if (Object.keys(chapterMap).length === 0 && bookmarks.length === 0 && thoughts.length === 0) {
+        continue
+      }
+
+      const quoteToChapter = new Map<string, string>()
+      const idToChapter = new Map<string, string>()
+
+      for (const bm of bookmarks) {
+        if (!bm) continue
+        const bmUid = bm.chapterUid !== undefined && bm.chapterUid !== null ? Number(bm.chapterUid) : NaN
+        const chapter =
+          (!Number.isNaN(bmUid) && chapterMap[bmUid])
+            ? chapterMap[bmUid]
+            : (bm.chapterTitle?.trim() || '')
+
+        if (chapter) {
+          if (bm.markText?.trim()) {
+            quoteToChapter.set(bm.markText.trim(), chapter)
+          }
+          if (bm.bookmarkId) {
+            idToChapter.set(`wr-bm-${bm.bookmarkId}`, chapter)
+          }
+        }
+      }
+
+      for (const th of thoughts) {
+        const thoughtData = th.thought || th
+        if (!thoughtData) continue
+        const thUid = thoughtData.chapterUid !== undefined && thoughtData.chapterUid !== null ? Number(thoughtData.chapterUid) : NaN
+        const chapter =
+          (!Number.isNaN(thUid) && chapterMap[thUid])
+            ? chapterMap[thUid]
+            : (thoughtData.chapterTitle?.trim() || '')
+
+        if (chapter) {
+          if (thoughtData.abstract?.trim()) {
+            quoteToChapter.set(thoughtData.abstract.trim(), chapter)
+          }
+          if (thoughtData.thoughtId) {
+            idToChapter.set(`wr-th-${thoughtData.thoughtId}`, chapter)
+          }
+        }
+      }
+
+      const nowIso = new Date().toISOString()
+      for (const ann of annotations) {
+        const currentCh = (ann.chapter || '').trim()
+        const isPlaceholder =
+          !currentCh ||
+          currentCh === '划线片段' ||
+          currentCh === '读书想法' ||
+          currentCh === '未知章节' ||
+          currentCh === '电子书章节'
+
+        if (isPlaceholder) {
+          const resolved =
+            idToChapter.get(ann.id) ||
+            (ann.quote ? quoteToChapter.get(ann.quote.trim()) : undefined)
+
+          if (resolved) {
+            ann.chapter = resolved
+            ann.updatedAt = nowIso
+            await putBookAnnotation(ann)
+            updatedCount++
+          }
+        }
+      }
+    } catch {
+      // Continue next book
+    }
+  }
+
+  return updatedCount
 }
 
 export async function syncAllWeReadNotebooks(
