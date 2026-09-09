@@ -15,6 +15,7 @@ type ReadLaterAnnotationsViewProps = {
   onQuoteAnnotationToDiary?: (annotation: ReadLaterAnnotationIndexItem) => void
   onSaveAnnotationComment?: (annotation: ReadLaterAnnotationIndexItem, note: string) => Promise<void> | void
   onOpenWeReadSync?: () => void
+  onEnrichFromEpub?: (files: File[]) => Promise<void> | void
 }
 
 const ALL_SOURCES = '__all_sources__'
@@ -129,9 +130,20 @@ export default function ReadLaterAnnotationsView({
   onBatchQuoteAnnotationsToDiary,
   onSaveAnnotationComment,
   onOpenWeReadSync,
+  onEnrichFromEpub,
 }: ReadLaterAnnotationsViewProps & {
   onBatchQuoteAnnotationsToDiary?: (annotations: ReadLaterAnnotationIndexItem[]) => Promise<boolean | void> | boolean | void
 }) {
+  const epubFileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleEpubFilesSelected = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : []
+    e.target.value = ''
+    if (files.length > 0 && onEnrichFromEpub) {
+      void onEnrichFromEpub(files)
+    }
+  }
+
   const [selectedSourcePath, setSelectedSourcePath] = useState(ALL_SOURCES)
   const [sourceSearch, setSourceSearch] = useState('')
   const [commentStatus, setCommentStatus] = useState<CommentFilterStatus>(() =>
@@ -524,20 +536,48 @@ export default function ReadLaterAnnotationsView({
             {totalAnnotationsCount} 条批注 · 来自 {totalSourcesCount} 篇文章
           </span>
         </div>
-        {onOpenWeReadSync ? (
-          <button
-            type="button"
-            className={`annotation-dashboard__top-sync-btn${hasWeReadAnnotationsWithoutChapter ? ' has-missing-chapters' : ''}`}
-            onClick={onOpenWeReadSync}
-            title={hasWeReadAnnotationsWithoutChapter ? '检测到部分微信读书划线缺少章节名，点击同步补全' : '同步微信读书划线与章节'}
-          >
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M1.5 8a6.5 6.5 0 0 1 11.48-4.13l.02.02M14.5 8a6.5 6.5 0 0 1-11.48 4.13l-.02-.02" strokeLinecap="round" />
-              <path d="M13 1.5v3h-3M3 14.5v-3h3" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            {hasWeReadAnnotationsWithoutChapter ? '补全微信读书章节' : '同步微信读书'}
-          </button>
-        ) : null}
+        <div className="annotation-dashboard__top-header-actions">
+          {onEnrichFromEpub ? (
+            <>
+              <input
+                ref={epubFileInputRef}
+                type="file"
+                accept=".epub"
+                multiple
+                style={{ display: 'none' }}
+                onChange={handleEpubFilesSelected}
+              />
+              <button
+                type="button"
+                className="annotation-dashboard__top-epub-btn"
+                onClick={() => epubFileInputRef.current?.click()}
+                title="选择本地 EPUB 文件，自动进行全内容比对并补全真实章节名称"
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M2.5 3.5h11a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" />
+                  <path d="M5.5 3.5v9" />
+                  <path d="M8.5 7.5h3" />
+                  <path d="M8.5 10h2" />
+                </svg>
+                本地 EPUB 补全
+              </button>
+            </>
+          ) : null}
+          {onOpenWeReadSync ? (
+            <button
+              type="button"
+              className={`annotation-dashboard__top-sync-btn${hasWeReadAnnotationsWithoutChapter ? ' has-missing-chapters' : ''}`}
+              onClick={onOpenWeReadSync}
+              title={hasWeReadAnnotationsWithoutChapter ? '检测到部分微信读书划线缺少章节名，点击同步补全' : '同步微信读书划线与章节'}
+            >
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M1.5 8a6.5 6.5 0 0 1 11.48-4.13l.02.02M14.5 8a6.5 6.5 0 0 1-11.48 4.13l-.02-.02" strokeLinecap="round" />
+                <path d="M13 1.5v3h-3M3 14.5v-3h3" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              {hasWeReadAnnotationsWithoutChapter ? '补全微信读书章节' : '同步微信读书'}
+            </button>
+          ) : null}
+        </div>
       </header>
 
       {/* Main 3-Column Workspace */}

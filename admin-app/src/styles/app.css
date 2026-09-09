@@ -12910,6 +12910,38 @@ textarea {
   color: var(--admin-muted, #7c7770);
 }
 
+.annotation-dashboard__top-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.annotation-dashboard__top-epub-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-radius: 6px;
+  border: 1px solid var(--admin-line, #e2ded5);
+  background: var(--admin-surface, #fff);
+  color: var(--admin-text, #333);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.annotation-dashboard__top-epub-btn:hover {
+  background: var(--admin-surface-hover, #f6f5f1);
+  border-color: var(--admin-border-focus, #c8c3b8);
+}
+
+.annotation-dashboard__top-epub-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
 .annotation-dashboard__top-sync-btn {
   display: inline-flex;
   align-items: center;

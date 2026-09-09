@@ -563,5 +563,28 @@ describe('ReadLaterAnnotationsView', () => {
     expect(normalSyncBtn).toBeTruthy()
     expect(normalSyncBtn.classList.contains('has-missing-chapters')).toBe(false)
   })
+
+  it('renders local EPUB enrich button and handles file selection', () => {
+    const onEnrichFromEpub = vi.fn()
+    const { container } = render(
+      <ReadLaterAnnotationsView
+        annotations={[]}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+        onEnrichFromEpub={onEnrichFromEpub}
+      />,
+    )
+
+    const epubBtn = screen.getByRole('button', { name: '本地 EPUB 补全' })
+    expect(epubBtn).toBeTruthy()
+
+    const hiddenInput = container.querySelector('input[type="file"][accept=".epub"]') as HTMLInputElement
+    expect(hiddenInput).toBeTruthy()
+
+    const mockFile = new File(['content'], 'courage.epub', { type: 'application/epub+zip' })
+    fireEvent.change(hiddenInput, { target: { files: [mockFile] } })
+    expect(onEnrichFromEpub).toHaveBeenCalledWith([mockFile])
+  })
 })
 

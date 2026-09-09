@@ -1150,6 +1150,24 @@ export default function App() {
         }
         let books = typeof indexedDB === 'undefined' ? [] : await listBookMetas()
 
+        // Auto-enrich annotations from locally cached EPUB files (offline-first)
+        if (typeof indexedDB !== 'undefined' && books.length > 0) {
+          try {
+            const { enrichBookAnnotationsIfFileAvailable } = await import('./books/epub-chapter-resolver')
+            let localEnrichedCount = 0
+            for (const book of books) {
+              const count = await enrichBookAnnotationsIfFileAvailable(book.id).catch(() => 0)
+              localEnrichedCount += count
+            }
+            if (localEnrichedCount > 0 && session) {
+              const { syncBooksWithGitHub } = await import('./books/book-sync')
+              await syncBooksWithGitHub(session).catch(() => {})
+            }
+          } catch {
+            // Ignore local enrichment errors in background
+          }
+        }
+
         const storedApiKey = getStoredWeReadApiKey()
         if (storedApiKey && typeof indexedDB !== 'undefined') {
           try {
@@ -2460,7 +2478,23 @@ export default function App() {
     try {
       await putBookFile(book.id, file)
       await refreshBookShelf()
-      setSuccessMessage(`已关联《${book.title}》的本地文件。`)
+      let enrichedMsg = ''
+      if (file.name.toLowerCase().endsWith('.epub')) {
+        try {
+          const { enrichBookAnnotationsFromEpubFile } = await import('./books/epub-chapter-resolver')
+          const enrichedCount = await enrichBookAnnotationsFromEpubFile(book.id, file)
+          if (enrichedCount > 0) {
+            enrichedMsg = `，并从 EPUB 补全了 ${enrichedCount} 条批注章节`
+            if (session) {
+              const { syncBooksWithGitHub } = await import('./books/book-sync')
+              await syncBooksWithGitHub(session).catch(() => {})
+            }
+          }
+        } catch {
+          // Non-blocking enrichment
+        }
+      }
+      setSuccessMessage(`已关联《${book.title}》的本地文件${enrichedMsg}。`)
       const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
       void putBookMeta(nextMeta)
       activateBookReader({ meta: nextMeta, fileBlob: file, targetAnnotationId: null })
@@ -2468,6 +2502,31 @@ export default function App() {
       setError(importError instanceof Error ? importError.message : '关联电子书文件失败。')
     } finally {
       setIsBookImporting(false)
+    }
+  }
+
+  const handleEnrichAnnotationsFromLocalEpub = async (files: File[]) => {
+    if (!files || files.length === 0) return
+    try {
+      const { batchEnrichAnnotationsWithEpubFiles } = await import('./books/epub-chapter-resolver')
+      const books = await listBookMetas()
+      const result = await batchEnrichAnnotationsWithEpubFiles(files, books)
+      if (result.enrichedCount > 0) {
+        setSuccessMessage(
+          `已从本地 EPUB 成功补全 ${result.enrichedCount} 条批注章节（《${result.enrichedBookTitles.join('》、《')}》）。`,
+        )
+        if (session) {
+          const { syncBooksWithGitHub } = await import('./books/book-sync')
+          await syncBooksWithGitHub(session).catch(() => {})
+        }
+        await loadAnnotations()
+      } else if (result.matchedBooksCount > 0) {
+        setSuccessMessage('已关联本地文件，所选书籍中的批注均已有章节。')
+      } else {
+        setError('未找到与所选 EPUB 文件匹配的书籍，请确认书名或在书架先导入/关联该书。')
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '解析本地 EPUB 失败。')
     }
   }
 
@@ -5674,6 +5733,7 @@ export default function App() {
             onBatchQuoteAnnotationsToDiary={handleBatchQuoteAnnotationsToDiary}
             onSaveAnnotationComment={(annotation, note) => { void handleSaveAnnotationComment(annotation, note) }}
             onOpenWeReadSync={() => setIsAnnotationsWeReadSyncOpen(true)}
+            onEnrichFromEpub={handleEnrichAnnotationsFromLocalEpub}
           />
         </section>
       ) : isTrashView ? (
