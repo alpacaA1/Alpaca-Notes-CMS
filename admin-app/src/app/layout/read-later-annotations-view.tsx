@@ -872,15 +872,21 @@ export default function ReadLaterAnnotationsView({
                 <div className="annotation-dashboard__detail-card">
                   <div className="annotation-dashboard__detail-card-header">
                     <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
-                    <div
-                      className="annotation-dashboard__detail-source-badge"
-                      title={`${selectedAnnotation.postTitle}${selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : ''}`}
-                    >
-                      <span className="annotation-dashboard__detail-source-title">《{selectedAnnotation.postTitle}》</span>
-                      {selectedAnnotation.chapterTitle ? (
-                        <span className="annotation-dashboard__detail-source-chapter"> · {selectedAnnotation.chapterTitle}</span>
-                      ) : null}
-                    </div>
+                    {selectedAnnotation.chapterTitle ? (
+                      <div
+                        className="annotation-dashboard__detail-source-badge"
+                        title={selectedAnnotation.chapterTitle}
+                      >
+                        <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.chapterTitle}</span>
+                      </div>
+                    ) : selectedAnnotation.sectionLabel ? (
+                      <div
+                        className="annotation-dashboard__detail-source-badge"
+                        title={selectedAnnotation.sectionLabel}
+                      >
+                        <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.sectionLabel}</span>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="annotation-dashboard__detail-quote-box">
                     <p className="annotation-dashboard__detail-quote-text">

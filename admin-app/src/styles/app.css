@@ -13511,30 +13511,28 @@ textarea {
   display: inline-flex;
   align-items: center;
   min-width: 0;
-  max-width: 70%;
-  font-size: 0.78rem;
-  color: var(--admin-muted, #7c7770);
-  line-height: 1.3;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.annotation-dashboard__detail-source-title {
-  font-weight: 500;
-  color: var(--admin-text, #3a3632);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  flex-shrink: 1;
+  max-width: 80%;
 }
 
 .annotation-dashboard__detail-source-chapter {
+  display: inline-block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 2;
-  color: var(--admin-muted, #8e8880);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--admin-muted, #736e65);
+  background: var(--admin-surface-hover, #f6f5f1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--admin-line, #e6e3dc);
+  line-height: 1.35;
+}
+
+[data-theme='dark'] .annotation-dashboard__detail-source-chapter {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #a8a299;
 }
 
 .annotation-dashboard__detail-quote-box {

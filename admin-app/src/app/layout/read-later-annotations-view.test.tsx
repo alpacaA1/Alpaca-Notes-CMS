@@ -502,10 +502,10 @@ describe('ReadLaterAnnotationsView', () => {
     expect(within(listSection).getByText('我们时代的神经营症人格')).toBeTruthy()
     expect(within(listSection).getByText('第一章 神经症的文化含义')).toBeTruthy()
 
-    // In right detail pane
+    // In right detail pane (only displays chapter badge, not the book title)
     const detailPane = screen.getByLabelText('批注详情与评论')
-    expect(within(detailPane).getByText('《我们时代的神经营症人格》')).toBeTruthy()
-    expect(within(detailPane).getByText('· 第一章 神经症的文化含义')).toBeTruthy()
+    expect(within(detailPane).getByText('第一章 神经症的文化含义')).toBeTruthy()
+    expect(within(detailPane).queryByText('《我们时代的神经营症人格》')).toBeNull()
 
     // In context footer
     expect(within(detailPane).getByText('我们时代的神经营症人格 · 第一章 神经症的文化含义')).toBeTruthy()
