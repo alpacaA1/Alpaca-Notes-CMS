@@ -4016,6 +4016,7 @@ export default function App() {
     quote: string
     note?: string
     postTitle?: string
+    chapterTitle?: string | null
   }) => {
     if (!session) {
       setError('请先登录后再引用到日记。')
@@ -4032,6 +4033,7 @@ export default function App() {
         quote: annotation.quote,
         note: annotation.note,
         sourceTitle,
+        chapterTitle: annotation.chapterTitle,
         date: now,
       })
 
@@ -4133,6 +4135,7 @@ export default function App() {
         quote: item.quote,
         note: item.note,
         sourceTitle: item.postTitle || document?.frontmatter.title || '待读',
+        chapterTitle: item.chapterTitle,
       }))
 
       const quoteBlock = formatBatchHighlightQuotesForDiary(quoteItems)

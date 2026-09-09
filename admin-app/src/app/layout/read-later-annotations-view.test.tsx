@@ -16,6 +16,7 @@ function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexIt
     readingStatus: overrides.readingStatus || 'unread',
     sectionKey: overrides.sectionKey || 'articleExcerpt',
     sectionLabel: overrides.sectionLabel || '原文摘录',
+    chapterTitle: overrides.chapterTitle ?? null,
     quote: overrides.quote || '默认摘录',
     prefix: overrides.prefix || '',
     suffix: overrides.suffix || '',
@@ -471,6 +472,42 @@ describe('ReadLaterAnnotationsView', () => {
     )
 
     expect(within(detailPane).queryByText('上下文')).toBeNull()
+  })
+
+  it('renders chapterTitle in list card and detail pane header badge', () => {
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-chapter-1',
+        annotationId: 'ann-chapter-1',
+        postTitle: '我们时代的神经营症人格',
+        chapterTitle: '第一章 神经症的文化含义',
+        quote: '对文化标准的偏离。',
+        prefix: '前言说，',
+        suffix: '结语道。',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    // In middle list card
+    const listSection = screen.getByLabelText('批注列表区')
+    expect(within(listSection).getByText('我们时代的神经营症人格')).toBeTruthy()
+    expect(within(listSection).getByText('第一章 神经症的文化含义')).toBeTruthy()
+
+    // In right detail pane
+    const detailPane = screen.getByLabelText('批注详情与评论')
+    expect(within(detailPane).getByText('《我们时代的神经营症人格》')).toBeTruthy()
+    expect(within(detailPane).getByText('· 第一章 神经症的文化含义')).toBeTruthy()
+
+    // In context footer
+    expect(within(detailPane).getByText('我们时代的神经营症人格 · 第一章 神经症的文化含义')).toBeTruthy()
   })
 })
 

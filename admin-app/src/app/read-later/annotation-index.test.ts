@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as githubClientModule from '../github-client'
 import type { ReadLaterAnnotation } from './item-types'
-import { buildReadLaterAnnotationIndex } from './annotation-index'
+import { buildReadLaterAnnotationIndex, extractPrecedingHeading } from './annotation-index'
 
 const annotationA: ReadLaterAnnotation = {
   id: 'annotation-a',
@@ -131,5 +131,42 @@ describe('read-later annotation index', () => {
       prefix: '前文',
       suffix: '后文',
     })
+  })
+
+  it('extracts preceding heading from markdown content as chapterTitle', () => {
+    const markdown = `# 文章标题
+
+## 第一章 背景介绍
+
+这是背景内容。
+
+### 1.1 历史演进
+
+历史上，技术经历了多次飞跃。这里有一句核心洞察。
+
+## 第二章 现代架构
+
+未来已经到来。`
+
+    const heading1 = extractPrecedingHeading(markdown, '核心洞察', '这里有一句')
+    expect(heading1).toBe('1.1 历史演进')
+
+    const heading2 = extractPrecedingHeading(markdown, '未来已经到来')
+    expect(heading2).toBe('第二章 现代架构')
+
+    const heading3 = extractPrecedingHeading(markdown, '这是背景内容')
+    expect(heading3).toBe('第一章 背景介绍')
+
+    const headingNone = extractPrecedingHeading(markdown, '文章标题')
+    expect(headingNone).toBeNull()
+  })
+
+  it('cleans markdown markup from extracted heading', () => {
+    const markdown = `## **[第一节](https://example.com)** \`关键理论\`
+
+这里是理论阐述。`
+
+    const heading = extractPrecedingHeading(markdown, '理论阐述')
+    expect(heading).toBe('第一节 关键理论')
   })
 })

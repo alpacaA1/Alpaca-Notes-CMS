@@ -28,6 +28,7 @@ export type HighlightQuoteOptions = {
   quote: string
   note?: string
   sourceTitle: string
+  chapterTitle?: string | null
   date?: Date
 }
 
@@ -66,7 +67,11 @@ export function formatHighlightQuoteForDiary(options: HighlightQuoteOptions): st
   }
 
   const cleanSourceTitle = cleanSourceTitleForDiary(options.sourceTitle)
-  parts.push(`🔗 **来源**：[[${cleanSourceTitle}]]`)
+  const chapter = (options.chapterTitle || '').trim()
+  const sourcePart = chapter
+    ? `🔗 **来源**：[[${cleanSourceTitle}]] · ${chapter}`
+    : `🔗 **来源**：[[${cleanSourceTitle}]]`
+  parts.push(sourcePart)
 
   return parts.join('\n\n')
 }
@@ -104,6 +109,7 @@ export type BatchHighlightQuoteItem = {
   quote: string
   note?: string
   sourceTitle: string
+  chapterTitle?: string | null
 }
 
 export function formatBatchHighlightQuotesForDiary(items: BatchHighlightQuoteItem[]): string {
@@ -114,18 +120,18 @@ export function formatBatchHighlightQuotesForDiary(items: BatchHighlightQuoteIte
   // Group consecutive items that share the same cleaned source title
   const groups: Array<{
     sourceTitle: string
-    items: Array<{ quote: string; note?: string }>
+    items: Array<{ quote: string; note?: string; chapterTitle?: string | null }>
   }> = []
 
   for (const item of items) {
     const cleanTitle = cleanSourceTitleForDiary(item.sourceTitle)
     const currentGroup = groups[groups.length - 1]
     if (currentGroup && currentGroup.sourceTitle === cleanTitle) {
-      currentGroup.items.push({ quote: item.quote, note: item.note })
+      currentGroup.items.push({ quote: item.quote, note: item.note, chapterTitle: item.chapterTitle })
     } else {
       groups.push({
         sourceTitle: cleanTitle,
-        items: [{ quote: item.quote, note: item.note }],
+        items: [{ quote: item.quote, note: item.note, chapterTitle: item.chapterTitle }],
       })
     }
   }
@@ -140,11 +146,16 @@ export function formatBatchHighlightQuotesForDiary(items: BatchHighlightQuoteIte
             .join('\n')
         : '> (未命名摘录)'
 
+      const parts = [quoteLines]
+      const chapter = (item.chapterTitle || '').trim()
+      if (chapter) {
+        parts.push(`*章节：${chapter}*`)
+      }
       const note = (item.note || '').trim()
       if (note) {
-        return `${quoteLines}\n\n💭 ${note}`
+        parts.push(`💭 ${note}`)
       }
-      return quoteLines
+      return parts.join('\n\n')
     })
 
     const allQuotesContent = itemStrings.join('\n\n')

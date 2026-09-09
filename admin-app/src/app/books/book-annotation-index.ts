@@ -14,42 +14,61 @@ function getTimestamp(value: string) {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
+const FALLBACK_CHAPTER_NAMES = new Set(['划线片段', '读书想法', '未知章节', '未知页码', '电子书章节'])
+
+export function cleanBookChapterTitle(chapter?: string | null): string | null {
+  if (!chapter) return null
+  const trimmed = chapter.trim()
+  if (!trimmed || FALLBACK_CHAPTER_NAMES.has(trimmed)) {
+    return null
+  }
+  return trimmed
+}
+
 export async function buildBookAnnotationIndex(books: StoredBookMeta[]): Promise<ReadLaterAnnotationIndexItem[]> {
   const groups = await Promise.all(
     books.map(async (book) => {
       const annotations = await listBookAnnotations(book.id)
       const format = book.format || 'epub'
 
-      return annotations.map<ReadLaterAnnotationIndexItem>((annotation) => ({
-        id: `${book.id}::${annotation.id}`,
-        sourceType: 'book',
-        annotationId: annotation.id,
-        postPath: `book:${book.id}`,
-        postTitle: book.title || '未命名电子书',
-        postDate: book.addedAt || '',
-        sourceName: book.creator ? `${book.creator} · ${format.toUpperCase()}` : format.toUpperCase(),
-        externalUrl: null,
-        tags: ['电子书', format.toUpperCase()],
-        readingStatus: 'reading',
-        sectionKey: 'articleExcerpt',
-        sectionLabel: annotation.chapter || (annotation.target?.pageNumber ? `第 ${annotation.target.pageNumber} 页` : '电子书章节'),
-        quote: annotation.quote,
-        prefix: '',
-        suffix: '',
-        note: annotation.note || '',
-        createdAt: annotation.createdAt,
-        updatedAt: annotation.updatedAt,
-        searchText: normalizeSearchText([
-          book.title,
-          book.creator,
-          format,
-          annotation.chapter,
-          annotation.quote,
-          annotation.note,
-        ].join('\n')),
-        bookId: book.id,
-        bookFormat: format,
-      }))
+      return annotations.map<ReadLaterAnnotationIndexItem>((annotation) => {
+        const chapterTitle =
+          cleanBookChapterTitle(annotation.chapter) ||
+          (annotation.target?.pageNumber ? `第 ${annotation.target.pageNumber} 页` : null)
+
+        return {
+          id: `${book.id}::${annotation.id}`,
+          sourceType: 'book',
+          annotationId: annotation.id,
+          postPath: `book:${book.id}`,
+          postTitle: book.title || '未命名电子书',
+          postDate: book.addedAt || '',
+          sourceName: book.creator ? `${book.creator} · ${format.toUpperCase()}` : format.toUpperCase(),
+          externalUrl: null,
+          tags: ['电子书', format.toUpperCase()],
+          readingStatus: 'reading',
+          sectionKey: 'articleExcerpt',
+          sectionLabel: chapterTitle || '电子书章节',
+          chapterTitle,
+          quote: annotation.quote,
+          prefix: '',
+          suffix: '',
+          note: annotation.note || '',
+          createdAt: annotation.createdAt,
+          updatedAt: annotation.updatedAt,
+          searchText: normalizeSearchText([
+            book.title,
+            book.creator,
+            format,
+            chapterTitle || '',
+            annotation.chapter,
+            annotation.quote,
+            annotation.note,
+          ].join('\n')),
+          bookId: book.id,
+          bookFormat: format,
+        }
+      })
     }),
   )
 

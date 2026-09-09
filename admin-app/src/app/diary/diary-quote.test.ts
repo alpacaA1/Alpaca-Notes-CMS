@@ -176,4 +176,43 @@ describe('diary-quote utilities', () => {
       '> 纳瓦尔的第一句话\n\n> 纳瓦尔的第二句话\n\n来源：《纳瓦尔宝典》\n\n---\n\n> 阿德勒的观点\n\n💭 很有启发\n\n来源：《被讨厌的勇气》',
     )
   })
+
+  it('formats highlight quote with chapterTitle when present', () => {
+    const fixedDate = new Date(2026, 7, 25, 14, 32, 0)
+    const formatted = formatHighlightQuoteForDiary({
+      quote: '这是一个非常有启发性的观点。',
+      sourceTitle: '我们时代的神经营症人格',
+      chapterTitle: '第一章 神经症的文化含义',
+      date: fixedDate,
+    })
+
+    expect(formatted).toBe([
+      '### 🔖 14:32 · 待读摘录',
+      '',
+      '> 这是一个非常有启发性的观点。',
+      '',
+      '🔗 **来源**：[[我们时代的神经营症人格]] · 第一章 神经症的文化含义',
+    ].join('\n'))
+  })
+
+  it('formats batch highlight quotes including chapterTitle', () => {
+    const items = [
+      {
+        quote: '第一条批注摘录内容',
+        sourceTitle: '被讨厌的勇气',
+        chapterTitle: '我们的不幸是谁的错',
+      },
+      {
+        quote: '第二条批注摘录内容',
+        note: '很有同感',
+        sourceTitle: '被讨厌的勇气',
+        chapterTitle: '一切烦恼都来自人际关系',
+      },
+    ]
+
+    const formatted = formatBatchHighlightQuotesForDiary(items)
+    expect(formatted).toBe(
+      '> 第一条批注摘录内容\n\n*章节：我们的不幸是谁的错*\n\n> 第二条批注摘录内容\n\n*章节：一切烦恼都来自人际关系*\n\n💭 很有同感\n\n来源：《被讨厌的勇气》',
+    )
+  })
 })

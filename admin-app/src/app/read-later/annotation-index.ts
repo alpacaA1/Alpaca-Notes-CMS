@@ -22,6 +22,7 @@ export type ReadLaterAnnotationIndexItem = {
   readingStatus: ReadingStatus
   sectionKey: ReadLaterAnnotation['sectionKey']
   sectionLabel: string
+  chapterTitle?: string | null
   quote: string
   prefix: string
   suffix: string
@@ -103,6 +104,46 @@ function extractFullAnnotationContext(
   }
 }
 
+export function extractPrecedingHeading(
+  content: string,
+  quote: string,
+  prefix?: string,
+): string | null {
+  if (!content || !quote) return null
+  let quoteIndex = -1
+  if (prefix) {
+    const combined = prefix + quote
+    const combinedIndex = content.indexOf(combined)
+    if (combinedIndex !== -1) {
+      quoteIndex = combinedIndex + prefix.length
+    }
+  }
+
+  if (quoteIndex === -1) {
+    quoteIndex = content.indexOf(quote)
+  }
+
+  if (quoteIndex === -1) return null
+
+  const textBefore = content.slice(0, quoteIndex)
+  const headingRegex = /^#{1,6}\s+(.+)$/gm
+  let lastHeading: string | null = null
+  let match: RegExpExecArray | null
+
+  while ((match = headingRegex.exec(textBefore)) !== null) {
+    const rawHeading = match[1] || ''
+    const cleaned = rawHeading
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/[*_`#]/g, '')
+      .trim()
+    if (cleaned) {
+      lastHeading = cleaned
+    }
+  }
+
+  return lastHeading
+}
+
 export async function buildReadLaterAnnotationIndex(
   session: SessionState,
   sourceFiles: ReadLaterAnnotationSourceFile[],
@@ -117,6 +158,7 @@ export async function buildReadLaterAnnotationIndex(
       return item.annotations.map<ReadLaterAnnotationIndexItem>((annotation) => {
         const sectionText = sections[annotation.sectionKey] || item.body || ''
         const { prefix, suffix } = extractFullAnnotationContext(sectionText, annotation)
+        const chapterTitle = extractPrecedingHeading(sectionText, annotation.quote, prefix)
 
         return {
           id: `${item.path}::${annotation.id}`,
@@ -131,6 +173,7 @@ export async function buildReadLaterAnnotationIndex(
           readingStatus: item.frontmatter.reading_status,
           sectionKey: annotation.sectionKey,
           sectionLabel: resolveSectionLabel(annotation.sectionKey),
+          chapterTitle,
           quote: annotation.quote,
           prefix,
           suffix,
@@ -139,6 +182,7 @@ export async function buildReadLaterAnnotationIndex(
           updatedAt: annotation.updatedAt,
           searchText: normalizeSearchText([
             item.frontmatter.title,
+            chapterTitle || '',
             item.frontmatter.source_name || '',
             item.frontmatter.external_url || '',
             ...item.frontmatter.tags,

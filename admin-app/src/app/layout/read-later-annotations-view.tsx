@@ -693,7 +693,15 @@ export default function ReadLaterAnnotationsView({
                         {getAnnotationQuoteText(annotation.quote)}
                       </p>
                       <div className="annotation-dashboard__item-meta">
-                        <span className="annotation-dashboard__item-source">{annotation.postTitle}</span>
+                        <div className="annotation-dashboard__item-source-group">
+                          <span className="annotation-dashboard__item-source" title={annotation.postTitle}>{annotation.postTitle}</span>
+                          {annotation.chapterTitle ? (
+                            <span className="annotation-dashboard__item-chapter" title={annotation.chapterTitle}>
+                              <span className="annotation-dashboard__meta-divider">·</span>
+                              {annotation.chapterTitle}
+                            </span>
+                          ) : null}
+                        </div>
                         {hasComment ? (
                           <span className="annotation-dashboard__item-has-comment">
                             <svg className="annotation-dashboard__comment-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -800,7 +808,18 @@ export default function ReadLaterAnnotationsView({
               <div className="annotation-dashboard__detail-body">
                 {/* 完整摘录 */}
                 <div className="annotation-dashboard__detail-card">
-                  <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
+                  <div className="annotation-dashboard__detail-card-header">
+                    <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
+                    <div
+                      className="annotation-dashboard__detail-source-badge"
+                      title={`${selectedAnnotation.postTitle}${selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : ''}`}
+                    >
+                      <span className="annotation-dashboard__detail-source-title">《{selectedAnnotation.postTitle}》</span>
+                      {selectedAnnotation.chapterTitle ? (
+                        <span className="annotation-dashboard__detail-source-chapter"> · {selectedAnnotation.chapterTitle}</span>
+                      ) : null}
+                    </div>
+                  </div>
                   <div className="annotation-dashboard__detail-quote-box">
                     <p className="annotation-dashboard__detail-quote-text">
                       {getAnnotationQuoteText(selectedAnnotation.quote)}
@@ -860,7 +879,8 @@ export default function ReadLaterAnnotationsView({
                       </p>
                       <div className="annotation-dashboard__context-footer">
                         <span className="annotation-dashboard__context-location">
-                          {selectedAnnotation.postTitle} · 位置 {selectedAnnotation.sectionLabel || '批注'}
+                          {selectedAnnotation.postTitle}
+                          {selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : (selectedAnnotation.sectionLabel ? ` · ${selectedAnnotation.sectionLabel}` : '')}
                         </span>
                         <button
                           type="button"
@@ -938,7 +958,7 @@ export default function ReadLaterAnnotationsView({
                       </p>
                       <div className="annotation-dashboard__quote-queue-meta">
                         <span className="annotation-dashboard__quote-queue-source">
-                          来源：《{item.postTitle}》
+                          来源：《{item.postTitle}》{item.chapterTitle ? ` · ${item.chapterTitle}` : ''}
                         </span>
                         {item.note.trim() ? (
                           <span className="annotation-dashboard__quote-queue-note">
