@@ -682,6 +682,66 @@ Dynamic wallpaper by Kenny Kuh and Luke Barker.
 
       expect(screen.queryByRole('dialog', { name: '图片预览' })).toBeNull()
     })
+
+    it('preserves ordered list start attribute when list is interrupted by paragraphs', () => {
+      const { container } = render(
+        <PreviewPane
+          title="有序列表编号"
+          date="2026-09-10 16:30:00"
+          markdown={`### 优先级最高的问题
+
+1. **异常可以被人工直接绕过**
+
+排空异常时可以点“已确认排净，直接下一步”。
+
+建议：异常页必须显示排查清单。
+
+2. **中途退出后设备看起来立即恢复可用**
+
+当前任何阶段都能“确认退出”。`}
+        />,
+      )
+
+      const orderedLists = container.querySelectorAll('ol')
+      expect(orderedLists.length).toBe(2)
+      expect(orderedLists[0].getAttribute('start')).toBe('1')
+      expect(orderedLists[1].getAttribute('start')).toBe('2')
+    })
+
+    it('preserves list numbering across loose items with blank lines', () => {
+      const { container } = render(
+        <PreviewPane
+          title="松散有序列表"
+          date="2026-09-10 16:30:00"
+          markdown={`1. 第一项
+
+2. 第二项
+
+3. 第三项`}
+        />,
+      )
+
+      const orderedLists = container.querySelectorAll('ol')
+      expect(orderedLists.length).toBe(1)
+      expect(orderedLists[0].getAttribute('start')).toBe('1')
+      const items = orderedLists[0].querySelectorAll('li')
+      expect(items.length).toBe(3)
+    })
+
+    it('preserves non-1 start number for ordered lists', () => {
+      const { container } = render(
+        <PreviewPane
+          title="从非1开始"
+          date="2026-09-10 16:30:00"
+          markdown={`3. 第三项
+4. 第四项`}
+        />,
+      )
+
+      const orderedList = container.querySelector('ol')
+      expect(orderedList).not.toBeNull()
+      expect(orderedList?.getAttribute('start')).toBe('3')
+    })
   })
 
   describe('resolvePreviewImageSrc', () => {

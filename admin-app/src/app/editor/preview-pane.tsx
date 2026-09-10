@@ -77,6 +77,7 @@ type ParsedMarkdownListItem = {
 type ParsedMarkdownListBlock = {
   kind: MarkdownListKind
   indent: number
+  start?: number
   items: ParsedMarkdownListItem[]
 }
 
@@ -1262,15 +1263,18 @@ function getMarkdownIndentWidth(indent: string) {
 }
 
 function matchMarkdownListItem(line: string) {
-  const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/)
+  const match = line.match(/^(\s*)([-*+]|(\d+)\.)\s+(.*)$/)
   if (!match) {
     return null
   }
 
+  const orderNumber = match[3] ? parseInt(match[3], 10) : undefined
+
   return {
     indent: getMarkdownIndentWidth(match[1]),
-    kind: /^\d+\.$/.test(match[2]) ? 'ordered' as const : 'unordered' as const,
-    content: match[3],
+    kind: orderNumber !== undefined ? ('ordered' as const) : ('unordered' as const),
+    orderNumber,
+    content: match[4],
   }
 }
 
@@ -1296,6 +1300,7 @@ function parseMarkdownListBlock(lines: string[], startIndex: number) {
   const block: ParsedMarkdownListBlock = {
     kind: firstItem.kind,
     indent: firstItem.indent,
+    start: firstItem.orderNumber,
     items: [],
   }
   let index = startIndex
@@ -1303,6 +1308,35 @@ function parseMarkdownListBlock(lines: string[], startIndex: number) {
   while (index < lines.length) {
     const line = lines[index]
     if (!line.trim()) {
+      let lookahead = index + 1
+      while (lookahead < lines.length && !lines[lookahead].trim()) {
+        lookahead += 1
+      }
+      if (lookahead < lines.length) {
+        const nextMatched = matchMarkdownListItem(lines[lookahead])
+        if (nextMatched && nextMatched.indent === block.indent && nextMatched.kind === block.kind) {
+          index = lookahead
+          continue
+        }
+        if (nextMatched && nextMatched.indent > block.indent) {
+          index = lookahead
+          continue
+        }
+        const nextIndent = getMarkdownIndentWidth(lines[lookahead].match(/^(\s*)/)?.[1] || '')
+        if (nextIndent > block.indent) {
+          const nextTrimmed = lines[lookahead].trim()
+          if (
+            !/^<!--/.test(nextTrimmed) &&
+            !/^#{1,6}\s+/.test(nextTrimmed) &&
+            !/^>\s?/.test(nextTrimmed) &&
+            !/^(```)/.test(nextTrimmed) &&
+            !/^(-{3,}|\*{3,}|_{3,})$/.test(nextTrimmed)
+          ) {
+            index = lookahead
+            continue
+          }
+        }
+      }
       break
     }
 
@@ -1372,7 +1406,11 @@ function renderMarkdownListBlock(
   const ListTag = block.kind === 'ordered' ? 'ol' : 'ul'
 
   return (
-    <ListTag key={`${keyPrefix}-list`} className={isTaskList ? 'preview-content__task-list' : undefined}>
+    <ListTag
+      key={`${keyPrefix}-list`}
+      start={block.kind === 'ordered' && typeof block.start === 'number' && Number.isFinite(block.start) ? block.start : undefined}
+      className={isTaskList ? 'preview-content__task-list' : undefined}
+    >
       {block.items.map((item, itemIndex) => {
         const task = isTaskList ? parseTaskListItem(item.content) : null
 
