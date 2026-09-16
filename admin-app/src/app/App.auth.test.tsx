@@ -34,6 +34,9 @@ describe('App auth flow', () => {
     const toolHubLink = screen.getByRole('menuitem', { name: /Tool Hub/ })
     expect(toolHubLink).toBeTruthy()
     expect(toolHubLink.getAttribute('href')).toBe('https://alpacaa1.github.io/tool-hub/')
+    const designSenseLink = screen.getByRole('menuitem', { name: /Design Sense Lab/ })
+    expect(designSenseLink).toBeTruthy()
+    expect(designSenseLink.getAttribute('href')).toBe('https://alpacaa1.github.io/design-sense-lab/')
     expect(screen.getByRole('menuitem', { name: '退出登录' })).toBeTruthy()
   })
 

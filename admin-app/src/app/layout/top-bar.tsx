@@ -8,6 +8,7 @@ import {
 } from './use-reading-font'
 
 const TOOL_HUB_URL = 'https://alpacaa1.github.io/tool-hub/'
+const DESIGN_SENSE_LAB_URL = 'https://alpacaa1.github.io/design-sense-lab/'
 
 type AdminView = 'dashboard' | 'editor' | 'annotations' | 'trash' | 'feeds' | 'series' | 'books' | 'movies' | 'people'
 
@@ -67,6 +68,15 @@ function ToolHubMenuIcon() {
       <path d="M7 6V4.5C7 3.67 7.67 3 8.5 3h3c.83 0 1.5.67 1.5 1.5V6" stroke="currentColor" strokeWidth="1.5" />
       <path d="M3 10.5h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
       <circle cx="10" cy="10.5" r="1.2" fill="currentColor" />
+    </svg>
+  )
+}
+
+function DesignSenseMenuIcon() {
+  return (
+    <svg className="top-bar__menu-item-icon" width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="4" y="2.75" width="12" height="14.5" rx="2" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M7 6.5h6M7 9.75h6M7 13h3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   )
 }
@@ -1158,6 +1168,20 @@ export default function TopBar({
                   <span className="top-bar__menu-item-main">
                     <ToolHubMenuIcon />
                     <span>Tool Hub</span>
+                  </span>
+                  <ExternalArrowIcon />
+                </a>
+                <a
+                  href={DESIGN_SENSE_LAB_URL}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="top-bar__user-dropdown-item"
+                  role="menuitem"
+                  onClick={() => setIsUserMenuOpen(false)}
+                >
+                  <span className="top-bar__menu-item-main">
+                    <DesignSenseMenuIcon />
+                    <span style={{ whiteSpace: 'nowrap' }}>Design Sense Lab</span>
                   </span>
                   <ExternalArrowIcon />
                 </a>
