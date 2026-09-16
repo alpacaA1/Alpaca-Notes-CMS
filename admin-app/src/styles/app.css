@@ -3995,6 +3995,12 @@ textarea {
   color: var(--admin-text);
 }
 
+.top-bar--editor-workspace .top-bar__button--save:disabled,
+.top-bar--editor-workspace .top-bar__button--save.top-bar__button--save-quiet {
+  color: var(--admin-muted);
+  -webkit-text-fill-color: var(--admin-muted);
+}
+
 .top-bar--editor-workspace .top-bar__save-badge {
   gap: 8px;
   font-weight: 600;
@@ -4741,7 +4747,6 @@ textarea {
 
 /* Primary: the one clear action for create, save, import, and confirmation. */
 .top-bar__button--new-post,
-.top-bar__button--save,
 .post-dashboard__new-btn,
 .post-dashboard__quick-capture-btn,
 .feed-dashboard__composer-btn,
@@ -4760,7 +4765,6 @@ textarea {
 }
 
 .top-bar__button--new-post:hover:not(:disabled),
-.top-bar__button--save:hover:not(:disabled),
 .post-dashboard__new-btn:hover:not(:disabled),
 .post-dashboard__quick-capture-btn:hover:not(:disabled),
 .feed-dashboard__composer-btn:hover:not(:disabled),
@@ -4810,7 +4814,6 @@ textarea {
 
 /* Kept after the broad secondary rule so the top-bar primary actions win. */
 .top-bar__button--new-post,
-.top-bar__button--save,
 .post-dashboard__new-btn,
 .post-dashboard__quick-capture-btn,
 .feed-dashboard__composer-btn,
@@ -4828,7 +4831,6 @@ textarea {
 }
 
 .top-bar__button--new-post:hover:not(:disabled),
-.top-bar__button--save:hover:not(:disabled),
 .post-dashboard__new-btn:hover:not(:disabled),
 .post-dashboard__quick-capture-btn:hover:not(:disabled),
 .feed-dashboard__composer-btn:hover:not(:disabled),
@@ -17422,7 +17424,6 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 
 /* One source of truth for all filled primary actions, including the top-right create button. */
 .top-bar__button--new-post,
-.top-bar__button--save,
 .post-dashboard__new-btn,
 .post-dashboard__empty-action,
 .post-dashboard__quick-capture-btn,
@@ -17458,7 +17459,6 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 }
 
 .top-bar__button--new-post:hover:not(:disabled),
-.top-bar__button--save:hover:not(:disabled),
 .post-dashboard__new-btn:hover:not(:disabled),
 .post-dashboard__empty-action:hover:not(:disabled),
 .post-dashboard__quick-capture-btn:hover:not(:disabled),
@@ -17709,6 +17709,25 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  color: inherit;
+}
+
+.top-bar__status-text {
+  color: var(--admin-text);
+  -webkit-text-fill-color: var(--admin-text);
+}
+
+.top-bar__save-badge.is-saved .top-bar__status-text,
+.top-bar__button--save-quiet .top-bar__status-text,
+.top-bar__button--save:disabled:not(.is-saving) .top-bar__status-text {
+  color: var(--admin-muted);
+  -webkit-text-fill-color: var(--admin-muted);
+}
+
+.top-bar__save-badge.is-dirty .top-bar__status-text,
+.top-bar__save-badge.is-saving .top-bar__status-text {
+  color: var(--admin-text);
+  -webkit-text-fill-color: var(--admin-text);
 }
 
 .top-bar__status-dot {
