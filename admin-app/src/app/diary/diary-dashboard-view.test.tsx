@@ -1,7 +1,11 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import DiaryDashboardView from './diary-dashboard-view'
 import type { PostIndexItem } from '../posts/post-types'
+
+const appStyles = readFileSync(join(process.cwd(), 'src/styles/app.css'), 'utf8')
 
 const mockDiaryPosts: PostIndexItem[] = [
   {
@@ -29,6 +33,13 @@ describe('DiaryDashboardView', () => {
   afterEach(() => {
     cleanup()
     vi.restoreAllMocks()
+  })
+
+  it('keeps the mobile action bar compact and gives the timeline card the full row width', () => {
+    expect(appStyles).toContain('overflow-x: auto;')
+    expect(appStyles).toMatch(/\.top-bar:not\(\.top-bar--editor\) \.top-bar__button--quiet\s*\{\s*display: none;/)
+    expect(appStyles).toMatch(/\.diary-timeline__item\s*\{\s*display: block;/)
+    expect(appStyles).toMatch(/\.diary-timeline__track\s*\{\s*display: none;/)
   })
 
   it('defaults to lock (calendar) mode with zero sensitive snippets in DOM', () => {

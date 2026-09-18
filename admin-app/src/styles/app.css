@@ -19535,16 +19535,24 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
     grid-row: 3;
     width: 100%;
     margin-left: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    justify-content: flex-start;
+    gap: 6px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .top-bar:not(.top-bar--editor) .top-bar__actions::-webkit-scrollbar {
+    display: none;
   }
 
   .top-bar:not(.top-bar--editor) .top-bar__primary-actions,
   .top-bar:not(.top-bar--editor) .top-bar__utility-actions {
-    width: 100%;
+    width: auto;
     min-height: 44px;
-    gap: 8px;
+    gap: 6px;
+    flex: 0 0 auto;
   }
 
   .top-bar:not(.top-bar--editor) .top-bar__primary-actions {
@@ -19553,13 +19561,19 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 
   .top-bar:not(.top-bar--editor) .top-bar__utility-actions {
     justify-content: flex-end;
-    padding-left: 0;
-    border-left: 0;
+    padding-left: 6px;
+    border-left: 1px solid var(--admin-line);
   }
 
   .top-bar:not(.top-bar--editor) .top-bar__button {
     min-height: 44px;
     height: 44px;
+    padding-inline: 11px;
+    font-size: 0.82rem;
+  }
+
+  .top-bar:not(.top-bar--editor) .top-bar__button--quiet {
+    display: none;
   }
 
   .top-bar:not(.top-bar--editor) .top-bar__utility-divider {
@@ -19568,7 +19582,7 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
 
   .diary-dashboard {
     width: 100%;
-    padding: 16px 12px 40px;
+    padding: 12px 10px 40px;
   }
 
   .diary-dashboard__toolbar {
@@ -19592,14 +19606,18 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   }
 
   .diary-dashboard__card {
-    padding: 16px 12px;
-    border-radius: 12px;
+    padding: 12px 2px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
   }
 
   .diary-dashboard__month-header {
     align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 20px;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-inline: 4px;
   }
 
   .diary-dashboard__month-controls {
@@ -19642,23 +19660,45 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   }
 
   .diary-timeline {
-    gap: 16px;
+    gap: 20px;
   }
 
   .diary-timeline__item {
-    gap: 10px;
+    display: block;
   }
 
   .diary-timeline__date-col {
-    width: 38px;
+    width: auto;
+    margin: 0 4px 8px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .diary-timeline__date-badge {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    margin-bottom: 0;
   }
 
   .diary-timeline__day-num {
-    font-size: 20px;
+    font-size: 18px;
+  }
+
+  .diary-timeline__weekday {
+    margin-top: 0;
+  }
+
+  .diary-timeline__track {
+    display: none;
   }
 
   .diary-timeline__card {
-    padding: 14px;
+    padding: 14px 12px;
+    border: 0;
+    border-radius: 10px;
+    box-shadow: none;
   }
 
   .diary-timeline__time-range-badge {
