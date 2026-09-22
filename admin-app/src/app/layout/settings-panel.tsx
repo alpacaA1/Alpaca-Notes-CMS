@@ -9,6 +9,7 @@ import type { ReadLaterAnnotation, ReadLaterSections } from '../read-later/item-
 import { createReadLaterBody } from '../read-later/new-item'
 import { getEditableReadLaterSections } from '../read-later/parse-item'
 import { resolvePreviewImageSrc } from '../editor/preview-pane'
+import { extractMarkdownExternalSources } from '../editor/markdown-references'
 import TaxonomyMultiSelect from './taxonomy-multi-select'
 import FilterSelect from './filter-select'
 
@@ -197,6 +198,10 @@ export default function SettingsPanel({
   const readLaterSections = useMemo(
     () => (isReadLater && document ? getEditableReadLaterSections(document.body) : null),
     [document?.body, isReadLater],
+  )
+  const externalSources = useMemo(
+    () => (isPost && document ? extractMarkdownExternalSources(document.body) : []),
+    [document?.body, isPost],
   )
 
   useEffect(() => {
@@ -694,6 +699,34 @@ export default function SettingsPanel({
                   )}
                 </div>
               ) : null}
+            </MetadataSection>
+          ) : null}
+
+          {isPost && externalSources.length > 0 ? (
+            <MetadataSection title={`引用来源 (${externalSources.length})`}>
+              <p className="settings-panel__field-note">根据正文链接自动整理，不会改动文章内容。</p>
+              <div className="settings-panel__source-list">
+                {externalSources.map((source) => (
+                  <a
+                    key={source.displayUrl}
+                    className="settings-panel__source"
+                    href={source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`打开引用来源：${source.label}`}
+                  >
+                    <span className="settings-panel__source-heading">
+                      <strong>{source.label}</strong>
+                      {source.occurrences > 1 ? <span className="settings-panel__source-count">{source.occurrences} 次</span> : null}
+                    </span>
+                    <span className="settings-panel__source-meta">
+                      <span>{source.domain}</span>
+                      {source.hasTrackingParameters ? <span className="settings-panel__source-warning">含跟踪参数</span> : null}
+                    </span>
+                    <span className="settings-panel__source-url">{source.displayUrl}</span>
+                  </a>
+                ))}
+              </div>
             </MetadataSection>
           ) : null}
 

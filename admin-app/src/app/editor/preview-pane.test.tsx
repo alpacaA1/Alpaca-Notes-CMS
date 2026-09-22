@@ -24,6 +24,20 @@ describe('PreviewPane', () => {
     expect(highlighted.className).toContain('preview-content__markdown-highlight')
   })
 
+  it('renders reference-style links and hides their definitions', () => {
+    render(
+      <PreviewPane
+        title="引用预览"
+        date="2026-09-22 10:00:00"
+        markdown={'研究结论来自 [Tronick & Cohn][1]。\n\n[1]: https://pubmed.ncbi.nlm.nih.gov/2702877/ "PubMed"'}
+      />,
+    )
+
+    const link = screen.getByRole('link', { name: 'Tronick & Cohn' })
+    expect(link.getAttribute('href')).toBe('https://pubmed.ncbi.nlm.nih.gov/2702877/')
+    expect(screen.queryByText(/\[1\]:/)).toBeNull()
+  })
+
   it('emits a task toggle when a preview checkbox is clicked', () => {
     const onToggleTask = vi.fn()
     render(

@@ -15,6 +15,7 @@ import {
   type HighlightContext,
 } from '../diary/diary-highlight'
 import { cleanHeadingTitle, extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
+import { normalizeMarkdownReferenceLinks } from './markdown-references'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
 
@@ -2278,10 +2279,11 @@ function renderMarkdownContent(
   headingIdPrefix?: string,
   wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
-  const { lead, sections } = parseMarkdownHeadingSections(markdown, headingIdPrefix)
+  const normalizedMarkdown = normalizeMarkdownReferenceLinks(markdown)
+  const { lead, sections } = parseMarkdownHeadingSections(normalizedMarkdown, headingIdPrefix)
 
   if (sections.length === 0) {
-    return renderBlocks(markdown, previewImageUrls, headingIdPrefix, wikiLinkOptions)
+    return renderBlocks(normalizedMarkdown, previewImageUrls, headingIdPrefix, wikiLinkOptions)
   }
 
   return [

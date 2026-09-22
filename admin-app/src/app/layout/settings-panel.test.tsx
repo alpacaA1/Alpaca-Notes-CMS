@@ -296,6 +296,25 @@ describe('settings panel', () => {
     expect(onOpenLinkedPost).toHaveBeenCalled()
   })
 
+  it('summarizes external article sources from inline and reference-style links', () => {
+    renderControlledSettingsPanel({
+      document: {
+        ...createExistingPost(),
+        body: `来自 [研究][1]，并再次参考 [原始论文](https://example.com/paper?utm_source=chatgpt.com)。
+
+[1]: https://example.com/paper?utm_source=chatgpt.com
+
+[延伸阅读](https://pubmed.ncbi.nlm.nih.gov/2702877/)`,
+      },
+    })
+
+    expect(screen.getByText('引用来源 (2)')).toBeTruthy()
+    expect(screen.getByText('2 次')).toBeTruthy()
+    expect(screen.getByText('含跟踪参数')).toBeTruthy()
+    expect(screen.getByText('https://example.com/paper')).toBeTruthy()
+    expect(screen.getByRole('link', { name: '打开引用来源：延伸阅读' })).toBeTruthy()
+  })
+
   it('renders read-later settings and updates external metadata fields', () => {
     const onImportFromUrl = vi.fn()
     const { onFieldChange } = renderControlledSettingsPanel({
