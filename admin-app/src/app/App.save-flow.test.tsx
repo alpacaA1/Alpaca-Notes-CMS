@@ -6,6 +6,7 @@ import * as githubClientModule from './github-client'
 import * as indexPostsModule from './posts/index-posts'
 import * as readLaterIndexModule from './read-later/index-items'
 import * as sessionModule from './session'
+import { buildArticleCitationMarkdown } from './editor/markdown-references'
 
 const existingPost = {
   path: 'source/_posts/save-flow.md',
@@ -343,6 +344,41 @@ describe('App save flow', () => {
     await waitFor(() => {
       expect(buildPostIndex).toHaveBeenCalledTimes(1)
     })
+  })
+
+  it('writes a generated article reference section in first-appearance order when saving', async () => {
+    vi.spyOn(sessionModule, 'readStoredSession').mockReturnValue({ token: 'persisted-token' })
+    vi.spyOn(indexPostsModule, 'buildPostIndex').mockResolvedValue([existingPost])
+    vi.spyOn(githubClientModule, 'fetchMarkdownFile').mockResolvedValue({
+      path: existingPost.path,
+      sha: existingPost.sha,
+      content: existingContent,
+    })
+    const saveMarkdownFile = vi.spyOn(githubClientModule, 'saveMarkdownFile').mockImplementation(async (_session, file) => ({
+      path: file.path,
+      sha: 'sha-citations',
+      content: file.content,
+    }))
+    const firstCitation = buildArticleCitationMarkdown('First Source')!
+    const secondCitation = buildArticleCitationMarkdown('Second Source', 'https://example.com/second')!
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Save flow post')).toBeTruthy()
+    })
+    fireEvent.click(screen.getByRole('button', { name: /save flow post/i }))
+    const editor = await screen.findByLabelText('Markdown 编辑器')
+    fireEvent.change(editor, { target: { value: `先看 ${secondCitation}，再看 ${firstCitation}。` } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+
+    await waitFor(() => {
+      expect(saveMarkdownFile).toHaveBeenCalledTimes(1)
+    })
+    const savedContent = saveMarkdownFile.mock.calls[0]?.[1]?.content || ''
+    expect(savedContent).toContain('## 引用文章')
+    expect(savedContent).toContain('1. [《Second Source》](https://example.com/second)')
+    expect(savedContent).toContain('2. 《First Source》')
   })
 
   it('updates linked topic documents after saving a backlink source post', async () => {

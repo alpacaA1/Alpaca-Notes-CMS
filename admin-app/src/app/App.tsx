@@ -16,6 +16,7 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
+import { stripGeneratedArticleReferences, syncGeneratedArticleReferences } from './editor/markdown-references'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { translateReadLaterContent } from './read-later/translate-client'
@@ -1066,15 +1067,15 @@ export default function App() {
       return ''
     }
 
-    if (document.contentType === 'post' && document.frontmatter.topic === true) {
-      return stripGeneratedTopicBacklinks(document.body)
-    }
+    const markdownWithTopicBacklinks = document.contentType === 'post' && document.frontmatter.topic === true
+      ? stripGeneratedTopicBacklinks(document.body)
+      : activeTopicNodeKey
+        ? appendTopicBacklinksToMarkdown(document.body, activeTopicBacklinks)
+        : document.body
 
-    if (!activeTopicNodeKey) {
-      return document.body
-    }
-
-    return appendTopicBacklinksToMarkdown(document.body, activeTopicBacklinks)
+    return getContentTypeFromPostLike(document) === 'post'
+      ? syncGeneratedArticleReferences(markdownWithTopicBacklinks)
+      : markdownWithTopicBacklinks
   }, [activeTopicBacklinks, activeTopicNodeKey, document])
   const recoverableDrafts = useMemo(() => {
     const knownPaths = new Set((postsByType[contentType] || []).map((post) => post.path))
@@ -3905,14 +3906,17 @@ export default function App() {
     }
 
     const targetContentType = getContentTypeFromPostLike(targetDocument)
-    const content = targetContentType === 'read-later' ? serializeReadLaterItem(targetDocument as ParsedReadLaterItem) : serializePost(targetDocument)
+    const documentForSave = targetContentType === 'post'
+      ? { ...targetDocument, body: syncGeneratedArticleReferences(targetDocument.body) }
+      : targetDocument
+    const content = targetContentType === 'read-later' ? serializeReadLaterItem(documentForSave as ParsedReadLaterItem) : serializePost(documentForSave)
     const savedFile = await saveMarkdownFile(session, {
       path: targetDocument.path,
       sha: targetDocument.sha || undefined,
       content,
     })
     const savedDocument: ParsedPost = {
-      ...targetDocument,
+      ...documentForSave,
       path: savedFile.path,
       sha: savedFile.sha,
     }
@@ -4016,9 +4020,11 @@ export default function App() {
 
       const nextTopicDocument = {
         ...parsedTopicDocument,
-        body: appendTopicBacklinksToMarkdown(
-          parsedTopicDocument.body,
-          (topicBacklinksByKey.get(topicNodeKey) || []).filter((backlink) => backlink.sourcePath !== topicPost.path),
+        body: syncGeneratedArticleReferences(
+          appendTopicBacklinksToMarkdown(
+            stripGeneratedArticleReferences(parsedTopicDocument.body),
+            (topicBacklinksByKey.get(topicNodeKey) || []).filter((backlink) => backlink.sourcePath !== topicPost.path),
+          ),
         ),
       }
       const nextTopicContent = serializePost(nextTopicDocument)
@@ -5965,6 +5971,7 @@ export default function App() {
                         isImmersive={isImmersive}
                         onUploadImage={handleUploadImage}
                         internalReferenceCandidates={internalReferenceCandidates}
+                        allowArticleCitations={getContentTypeFromPostLike(document) === 'post'}
                         editorFontSize={previewReadingFontSize}
                         editorFontWeight={previewReadingFontWeight}
                         editorFontFamily={previewReadingFontFamily}

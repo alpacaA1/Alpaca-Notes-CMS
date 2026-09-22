@@ -6,6 +6,7 @@ import {
   searchInternalReferenceCandidates,
   type InternalReferenceCandidate,
 } from '../internal-links'
+import { buildArticleCitationMarkdown, cleanArticleCitationUrl } from './markdown-references'
 
 const INDENT = '  '
 const LIST_INDENT = '    '
@@ -26,6 +27,7 @@ type MarkdownEditorProps = {
   editorFontSize?: number
   editorFontWeight?: number
   editorFontFamily?: string
+  allowArticleCitations?: boolean
 }
 
 type SelectionRange = {
@@ -44,7 +46,7 @@ type ActiveInternalReferenceQuery = {
   query: string
 }
 
-function ToolbarIcon({ name }: { name: 'link' | 'image' | 'code' | 'quote' | 'fullscreen' }) {
+function ToolbarIcon({ name }: { name: 'link' | 'image' | 'code' | 'quote' | 'cite' | 'fullscreen' }) {
   if (name === 'link') {
     return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m8 12 4-4M7.05 14.95l-1.1 1.1a3.1 3.1 0 0 1-4.4-4.4l3.2-3.2a3.1 3.1 0 0 1 4.4 0M12.95 5.05l1.1-1.1a3.1 3.1 0 1 1 4.4 4.4l-3.2 3.2a3.1 3.1 0 0 1-4.4 0" /></svg>
   }
@@ -56,6 +58,9 @@ function ToolbarIcon({ name }: { name: 'link' | 'image' | 'code' | 'quote' | 'fu
   }
   if (name === 'quote') {
     return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M8.4 6.2C5.9 7 4.5 8.8 4.5 11.4c0 1.55.9 2.65 2.3 2.65 1.25 0 2.2-.92 2.2-2.15 0-.96-.55-1.68-1.45-1.98.15-1.18.88-2.02 2.03-2.65L8.4 6.2Zm7.1 0c-2.5.8-3.9 2.6-3.9 5.2 0 1.55.9 2.65 2.3 2.65 1.25 0 2.2-.92 2.2-2.15 0-.96-.55-1.68-1.45-1.98.15-1.18.88-2.02 2.03-2.65L15.5 6.2Z" fill="currentColor" stroke="none" /></svg>
+  }
+  if (name === 'cite') {
+    return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3.5h10.5A1.5 1.5 0 0 1 16 5v11.5H5.5A1.5 1.5 0 0 1 4 15V3.5Z" /><path d="M4 15a1.5 1.5 0 0 1 1.5-1.5H16M7 7h6M7 10h4" /></svg>
   }
   return <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.3 3H3v4.3M12.7 3H17v4.3M17 12.7V17h-4.3M7.3 17H3v-4.3" /></svg>
 }
@@ -767,9 +772,12 @@ export default function MarkdownEditor({
   editorFontSize,
   editorFontWeight,
   editorFontFamily,
+  allowArticleCitations = false,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const citationTitleInputRef = useRef<HTMLInputElement | null>(null)
+  const citationSelectionRef = useRef<SelectionRange | null>(null)
   const currentValueRef = useRef(value)
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null)
   const uploadSelectionRef = useRef<{ start: number; end: number } | null>(null)
@@ -785,6 +793,10 @@ export default function MarkdownEditor({
   const [activeInternalReferenceIndex, setActiveInternalReferenceIndex] = useState(0)
   const [dismissedInternalReferenceKey, setDismissedInternalReferenceKey] = useState<string | null>(null)
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
+  const [isCitationPopoverOpen, setIsCitationPopoverOpen] = useState(false)
+  const [citationTitle, setCitationTitle] = useState('')
+  const [citationUrl, setCitationUrl] = useState('')
+  const [citationError, setCitationError] = useState('')
   const textareaId = useId()
 
   const handleScroll = () => {
@@ -846,6 +858,13 @@ export default function MarkdownEditor({
   useEffect(() => {
     setActiveInternalReferenceIndex(0)
   }, [visibleInternalReferenceKey])
+
+  useEffect(() => {
+    if (isCitationPopoverOpen) {
+      citationTitleInputRef.current?.focus()
+      citationTitleInputRef.current?.select()
+    }
+  }, [isCitationPopoverOpen])
 
   useEffect(() => {
     if (isListDebugEnabled()) {
@@ -1070,6 +1089,46 @@ export default function MarkdownEditor({
   const insertTable = () => insertSnippet('| 列 1 | 列 2 |\n| --- | --- |\n| 内容 | 内容 |')
   const toggleTodo = () => toggleLinePrefix('- [ ] ')
   const applyHighlight = () => applyInlineFormat('==', '==', '高亮')
+
+  const openCitationPopover = () => {
+    const selection = getToolbarSelection()
+    const selectedText = currentValueRef.current.slice(selection.start, selection.end).trim()
+    citationSelectionRef.current = selection
+    setCitationTitle(selectedText.replace(/^《\s*/, '').replace(/\s*》$/, ''))
+    setCitationUrl('')
+    setCitationError('')
+    setIsMoreMenuOpen(false)
+    setIsCitationPopoverOpen(true)
+  }
+
+  const closeCitationPopover = () => {
+    setIsCitationPopoverOpen(false)
+    setCitationError('')
+    focusEditor()
+  }
+
+  const insertArticleCitation = () => {
+    const title = citationTitle.trim()
+    if (!title) {
+      setCitationError('请填写文章名称。')
+      return
+    }
+
+    if (citationUrl.trim() && cleanArticleCitationUrl(citationUrl) === null) {
+      setCitationError('链接需以 http:// 或 https:// 开头。')
+      return
+    }
+
+    const markdown = buildArticleCitationMarkdown(title, citationUrl)
+    if (!markdown) {
+      setCitationError('引用内容无法识别，请检查后重试。')
+      return
+    }
+
+    insertSnippet(markdown, citationSelectionRef.current ?? getToolbarSelection())
+    setIsCitationPopoverOpen(false)
+    setCitationError('')
+  }
 
   const insertInternalReference = (
     candidate: InternalReferenceCandidate,
@@ -1624,7 +1683,61 @@ export default function MarkdownEditor({
               {onUploadImage ? <button type="button" role="menuitem" onMouseDown={(event) => { event.preventDefault(); handleUploadButtonMouseDown() }} onClick={() => { handleUploadButtonClick(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="image" /><span>{isUploadingImage ? '上传中' : '图片'}</span></button> : null}
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { applyCodeFormat(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="code" /><span>代码</span></button>
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { toggleLinePrefix('> '); setIsMoreMenuOpen(false) }}><ToolbarIcon name="quote" /><span>引用</span></button>
+              {allowArticleCitations ? <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={openCitationPopover}><ToolbarIcon name="cite" /><span>引用文章</span></button> : null}
             </div> : null}
+            {isCitationPopoverOpen ? (
+              <form
+                className="markdown-editor__citation-popover"
+                role="dialog"
+                aria-label="引用文章"
+                onSubmit={(event) => {
+                  event.preventDefault()
+                  insertArticleCitation()
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Escape') {
+                    event.preventDefault()
+                    closeCitationPopover()
+                  }
+                }}
+              >
+                <div className="markdown-editor__citation-heading">
+                  <strong>引用文章</strong>
+                  <button type="button" aria-label="关闭引用文章" onClick={closeCitationPopover}>×</button>
+                </div>
+                <label>
+                  <span>文章名称</span>
+                  <input
+                    ref={citationTitleInputRef}
+                    aria-label="引用文章名称"
+                    value={citationTitle}
+                    placeholder="例如：The Power of Discord"
+                    onChange={(event) => {
+                      setCitationTitle(event.target.value)
+                      setCitationError('')
+                    }}
+                  />
+                </label>
+                <label>
+                  <span>原文链接（可选）</span>
+                  <input
+                    aria-label="引用文章链接"
+                    value={citationUrl}
+                    placeholder="https://…"
+                    onChange={(event) => {
+                      setCitationUrl(event.target.value)
+                      setCitationError('')
+                    }}
+                  />
+                </label>
+                {citationError ? <p className="markdown-editor__citation-error" role="alert">{citationError}</p> : null}
+                <p className="markdown-editor__citation-note">文末会按正文首次出现顺序自动编号。</p>
+                <div className="markdown-editor__citation-actions">
+                  <button type="button" onClick={closeCitationPopover}>取消</button>
+                  <button type="submit" className="is-primary">插入引用</button>
+                </div>
+              </form>
+            ) : null}
           </div>
         </div>
         <div className="markdown-editor__actions">

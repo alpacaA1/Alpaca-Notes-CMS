@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { extractMarkdownExternalSources, normalizeMarkdownReferenceLinks } from './markdown-references'
+import {
+  buildArticleCitationMarkdown,
+  extractArticleCitations,
+  extractMarkdownExternalSources,
+  normalizeMarkdownReferenceLinks,
+  stripGeneratedArticleReferences,
+  syncGeneratedArticleReferences,
+} from './markdown-references'
 
 describe('markdown references', () => {
   it('resolves full and collapsed reference links and removes their definitions', () => {
@@ -49,5 +56,45 @@ describe('markdown references', () => {
       domain: 'pubmed.ncbi.nlm.nih.gov',
       occurrences: 1,
     })
+  })
+
+  it('builds visible citations with optional links and hidden metadata', () => {
+    const titleOnly = buildArticleCitationMarkdown('《The Power of Discord》')
+    const linked = buildArticleCitationMarkdown(
+      'Alliance Rupture Repair',
+      'https://pubmed.ncbi.nlm.nih.gov/30335462/?utm_source=chatgpt.com',
+    )
+
+    expect(titleOnly).toBe('《The Power of Discord》<!-- article-citation -->')
+    expect(linked).toContain('[《Alliance Rupture Repair》](https://pubmed.ncbi.nlm.nih.gov/30335462/)')
+    expect(linked).not.toContain('utm_source')
+  })
+
+  it('generates references by first appearance, deduplicates, and upgrades a title-only citation with a later link', () => {
+    const first = buildArticleCitationMarkdown('The Power of Discord')!
+    const second = buildArticleCitationMarkdown('Rejection Sensitivity', 'https://example.com/rejection')!
+    const firstWithLink = buildArticleCitationMarkdown('The Power of Discord', 'https://example.com/discord')!
+    const markdown = `先引用 ${first}，再引用 ${second}，最后补充 ${firstWithLink}。`
+
+    const citations = extractArticleCitations(markdown)
+    expect(citations).toEqual([
+      { title: 'The Power of Discord', url: 'https://example.com/discord' },
+      { title: 'Rejection Sensitivity', url: 'https://example.com/rejection' },
+    ])
+
+    const synced = syncGeneratedArticleReferences(markdown)
+    expect(synced).toContain('## 引用文章')
+    expect(synced).toContain('1. [《The Power of Discord》](https://example.com/discord)')
+    expect(synced).toContain('2. [《Rejection Sensitivity》](https://example.com/rejection)')
+    expect(synced.indexOf('The Power of Discord')).toBeLessThan(synced.lastIndexOf('Rejection Sensitivity'))
+  })
+
+  it('rebuilds a generated reference section without duplicating it', () => {
+    const citation = buildArticleCitationMarkdown('First Source')!
+    const once = syncGeneratedArticleReferences(`正文 ${citation}`)
+    const twice = syncGeneratedArticleReferences(once)
+
+    expect(twice.match(/<!-- article-references:start -->/g)).toHaveLength(1)
+    expect(stripGeneratedArticleReferences(twice)).toBe(`正文 ${citation}`)
   })
 })

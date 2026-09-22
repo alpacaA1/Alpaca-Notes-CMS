@@ -17,6 +17,16 @@ function renderControlledEditor(initialValue: string) {
   return screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
 }
 
+function renderControlledArticleEditor(initialValue: string) {
+  function Harness() {
+    const [value, setValue] = useState(initialValue)
+    return <MarkdownEditor value={value} onChange={setValue} allowArticleCitations />
+  }
+
+  render(<Harness />)
+  return screen.getByLabelText('Markdown 编辑器') as HTMLTextAreaElement
+}
+
 function renderControlledEditorWithUpload(
   initialValue: string,
   onUploadImage: (file: File) => Promise<{ markdown: string }>,
@@ -781,6 +791,40 @@ describe('markdown editor', () => {
     expect(screen.queryByRole('button', { name: '插入链接' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
     expect(screen.getByRole('menuitem', { name: '链接' })).toBeTruthy()
+  })
+
+  it('inserts an article citation with an optional cleaned link from the more-format menu', () => {
+    const editor = renderControlledArticleEditor('关系中的失配')
+    editor.focus()
+    editor.setSelectionRange(0, 0)
+
+    fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '引用文章' }))
+    fireEvent.change(screen.getByLabelText('引用文章名称'), { target: { value: 'The Power of Discord' } })
+    fireEvent.change(screen.getByLabelText('引用文章链接'), {
+      target: { value: 'https://example.com/discord?utm_source=chatgpt.com' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '插入引用' }))
+
+    expect(editor.value).toContain('[《The Power of Discord》](https://example.com/discord)')
+    expect(editor.value).toContain('<!-- article-citation -->')
+    expect(editor.value).not.toContain('utm_source')
+  })
+
+  it('validates article citation fields before insertion', () => {
+    const editor = renderControlledArticleEditor('')
+
+    fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: '引用文章' }))
+    fireEvent.click(screen.getByRole('button', { name: '插入引用' }))
+    expect(screen.getByRole('alert').textContent).toBe('请填写文章名称。')
+
+    fireEvent.change(screen.getByLabelText('引用文章名称'), { target: { value: '测试文章' } })
+    fireEvent.change(screen.getByLabelText('引用文章链接'), { target: { value: 'javascript:alert(1)' } })
+    fireEvent.click(screen.getByRole('button', { name: '插入引用' }))
+
+    expect(screen.getByRole('alert').textContent).toBe('链接需以 http:// 或 https:// 开头。')
+    expect(editor.value).toBe('')
   })
 
   it('keeps the pre-picker selection when focus shifts before the picker click handler runs', async () => {
