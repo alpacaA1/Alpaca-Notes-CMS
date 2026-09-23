@@ -16,7 +16,7 @@ import {
 } from './github-client'
 import { buildImageMarkdown, buildImageUploadDescriptor } from './editor/image-upload'
 import { listLocalDraftSummaries, readLocalDraft, removeLocalDraft, saveLocalDraft } from './editor/local-draft-store'
-import { stripGeneratedArticleReferences, syncGeneratedArticleReferences } from './editor/markdown-references'
+import { syncGeneratedArticleReferences } from './editor/markdown-references'
 import MarkdownEditor from './editor/markdown-editor'
 import PreviewPane from './editor/preview-pane'
 import { translateReadLaterContent } from './read-later/translate-client'
@@ -4022,7 +4022,7 @@ export default function App() {
         ...parsedTopicDocument,
         body: syncGeneratedArticleReferences(
           appendTopicBacklinksToMarkdown(
-            stripGeneratedArticleReferences(parsedTopicDocument.body),
+            parsedTopicDocument.body,
             (topicBacklinksByKey.get(topicNodeKey) || []).filter((backlink) => backlink.sourcePath !== topicPost.path),
           ),
         ),

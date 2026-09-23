@@ -806,8 +806,9 @@ describe('markdown editor', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: '插入引用' }))
 
-    expect(editor.value).toContain('[《The Power of Discord》](https://example.com/discord)')
-    expect(editor.value).toContain('<!-- article-citation -->')
+    expect(editor.value.startsWith('[^1]关系中的失配')).toBe(true)
+    expect(editor.value).toContain('1. <!-- article-reference:1 -->[《The Power of Discord》](<https://example.com/discord>)')
+    expect(editor.value).not.toContain('article-citation:')
     expect(editor.value).not.toContain('utm_source')
   })
 

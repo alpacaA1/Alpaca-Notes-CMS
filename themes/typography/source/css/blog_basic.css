@@ -3,6 +3,26 @@
 	word-break: break-all;
 }
 
+.article-citation-ref {
+	margin-left: 0.12em;
+	font-size: 0.72em;
+	line-height: 0;
+	vertical-align: super;
+}
+
+.article-citation-ref a {
+	color: #8d714d;
+	text-decoration: none;
+}
+
+.article-citation-ref a:hover {
+	text-decoration: underline;
+}
+
+.article-citation-target {
+	scroll-margin-top: 5rem;
+}
+
 #ds-thread {
 	margin: 0 30px!important
 }

@@ -5,10 +5,24 @@ const os = require('os');
 const path = require('path');
 
 const {
+  appendTopicBacklinksToMarkdown,
   applyTopicTransclusion,
   buildTopicTransclusionIndex,
   stripGeneratedTopicBacklinks,
 } = require('./topic-transclusion.js');
+
+test('keeps generated article references after topic backlinks', () => {
+  const articleReferences = '<!-- article-references:start -->\n## 引用文章\n\n1. 《示例》\n<!-- article-references:end -->';
+  const rendered = appendTopicBacklinksToMarkdown(`正文\n\n${articleReferences}`, [{
+    sourcePath: '_posts/source.md',
+    sourceTitle: '来源文章',
+    sourceDate: '2026-09-23 10:00:00',
+    sourceContentType: 'post',
+    excerpt: '一段摘录。',
+  }]);
+
+  assert.ok(rendered.indexOf('## 相关双链摘录') < rendered.indexOf('## 引用文章'));
+});
 
 function writeFile(filePath, content) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

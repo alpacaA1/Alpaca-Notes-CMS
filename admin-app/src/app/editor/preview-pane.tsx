@@ -780,7 +780,8 @@ function getActiveAnnotationNotePosition(article: HTMLElement, annotationId: str
 }
 
 function sanitizeLinkHref(linkHref: string) {
-  const trimmedHref = linkHref.trim()
+  const rawHref = linkHref.trim()
+  const trimmedHref = rawHref.startsWith('<') && rawHref.endsWith('>') ? rawHref.slice(1, -1).trim() : rawHref
 
   if (!trimmedHref) {
     return null
@@ -1112,12 +1113,12 @@ function renderBareUrls(markdown: string, startIndex: number) {
 
 function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
   const nodes: ReactNode[] = []
-  const pattern = /(\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]|\[([^\]]+)\]\(([^)]+)\)|==([^=]+)==|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
+  const pattern = /(\uE000(\d+)\uE001|\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]|\[([^\]]+)\]\(([^)]+)\)|==([^=]+)==|\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g
   let lastIndex = 0
   let matchIndex = 0
 
   for (const match of markdown.matchAll(pattern)) {
-    const [fullMatch, , wikiTargetKey, wikiLabel, linkLabel, linkHref, highlightText, boldText, italicText, codeText] = match
+    const [fullMatch, , articleReferenceNumber, wikiTargetKey, wikiLabel, linkLabel, linkHref, highlightText, boldText, italicText, codeText] = match
     const start = match.index || 0
 
     if (start > lastIndex) {
@@ -1126,7 +1127,15 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
       matchIndex = renderedText.nextMatchIndex
     }
 
-    if (wikiTargetKey) {
+    if (articleReferenceNumber) {
+      nodes.push(
+        <sup key={`inline-${matchIndex}`} className="preview-content__article-reference">
+          <a href={`#article-reference-${articleReferenceNumber}`} aria-label={`查看引用 ${articleReferenceNumber}`}>
+            {articleReferenceNumber}
+          </a>
+        </sup>,
+      )
+    } else if (wikiTargetKey) {
       const normalizedTargetKey = wikiTargetKey.trim()
       const parsedInternalReference = parseInternalReferenceTargetKey(normalizedTargetKey)
       const resolvedTitle = (
@@ -1200,6 +1209,42 @@ function renderTextInline(markdown: string, wikiLinkOptions?: WikiLinkRenderOpti
 function renderPlainTextInline(text: string): ReactNode[] {
   const renderedText = renderBareUrls(text, 0)
   return renderedText.nodes.length > 0 ? renderedText.nodes : [text]
+}
+
+function normalizeArticleReferenceMarkers(markdown: string) {
+  const validReferenceNumbers = new Set(
+    [...markdown.matchAll(/<!--\s*article-reference:(\d+)\s*-->/g)].map((match) => match[1]),
+  )
+  if (validReferenceNumbers.size === 0) {
+    return markdown
+  }
+
+  let isInCodeFence = false
+  let isInTopicBacklinks = false
+  return markdown.split('\n').map((line) => {
+    if (line.includes('<!-- topic-backlinks:start -->')) {
+      isInTopicBacklinks = true
+    }
+    if (/^\s*```/.test(line)) {
+      isInCodeFence = !isInCodeFence
+      return line
+    }
+    if (isInCodeFence || isInTopicBacklinks) {
+      if (line.includes('<!-- topic-backlinks:end -->')) {
+        isInTopicBacklinks = false
+      }
+      return line
+    }
+
+    return line.split(/(!?\[[^\]]*\]\([^)]*\)|`[^`]*`|<[^>]+>)/g).map((segment) => {
+      if (/^(?:!?\[[^\]]*\]\([^)]*\)|`[^`]*`|<[^>]+>)$/.test(segment)) {
+        return segment
+      }
+      return segment.replace(/\[\^(\d+)\]/g, (fullMatch, referenceNumber: string) => (
+        validReferenceNumbers.has(referenceNumber) ? `\uE000${referenceNumber}\uE001` : fullMatch
+      ))
+    }).join('')
+  }).join('\n')
 }
 
 function renderInline(markdown: string, previewImageUrls?: Record<string, string>, wikiLinkOptions?: WikiLinkRenderOptions): ReactNode[] {
@@ -1414,9 +1459,14 @@ function renderMarkdownListBlock(
     >
       {block.items.map((item, itemIndex) => {
         const task = isTaskList ? parseTaskListItem(item.content) : null
+        const articleReferenceNumber = item.content.match(/<!--\s*article-reference:(\d+)\s*-->/)?.[1]
 
         return (
-          <li key={`${keyPrefix}-item-${itemIndex}`} className={task ? 'preview-content__task-item' : undefined}>
+          <li
+            key={`${keyPrefix}-item-${itemIndex}`}
+            id={articleReferenceNumber ? `article-reference-${articleReferenceNumber}` : undefined}
+            className={task ? 'preview-content__task-item' : undefined}
+          >
             {task ? (
               <label className="preview-content__task-label">
                 <input type="checkbox" checked={task.checked} data-task-label={task.label} onChange={() => {}} />
@@ -2279,7 +2329,7 @@ function renderMarkdownContent(
   headingIdPrefix?: string,
   wikiLinkOptions?: WikiLinkRenderOptions,
 ) {
-  const normalizedMarkdown = normalizeMarkdownReferenceLinks(markdown)
+  const normalizedMarkdown = normalizeArticleReferenceMarkers(normalizeMarkdownReferenceLinks(markdown))
   const { lead, sections } = parseMarkdownHeadingSections(normalizedMarkdown, headingIdPrefix)
 
   if (sections.length === 0) {

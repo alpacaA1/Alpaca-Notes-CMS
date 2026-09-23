@@ -38,6 +38,35 @@ describe('PreviewPane', () => {
     expect(screen.queryByText(/\[1\]:/)).toBeNull()
   })
 
+  it('renders article references as linked superscript numbers', () => {
+    render(
+      <PreviewPane
+        title="文章引用"
+        date="2026-09-23 10:00:00"
+        markdown={'这里引用了一篇文章[^1]。\n\n<!-- article-references:start -->\n## 引用文章\n\n1. <!-- article-reference:1 -->《我们时代的神经症人格》\n<!-- article-references:end -->'}
+      />,
+    )
+
+    const referenceLink = screen.getByRole('link', { name: '查看引用 1' })
+    expect(referenceLink.closest('sup')?.className).toContain('preview-content__article-reference')
+    expect(referenceLink.getAttribute('href')).toBe('#article-reference-1')
+    expect(document.getElementById('article-reference-1')?.textContent).toContain('我们时代的神经症人格')
+  })
+
+  it('does not treat unmatched or code-like footnote text as an article reference', () => {
+    render(
+      <PreviewPane
+        title="普通脚注"
+        date="2026-09-23 10:00:00"
+        markdown={'普通[^9]，代码 `[^1]`。\n\n<!-- article-references:start -->\n## 引用文章\n\n1. <!-- article-reference:1 -->《示例》\n<!-- article-references:end -->'}
+      />,
+    )
+
+    expect(screen.queryByRole('link', { name: '查看引用 9' })).toBeNull()
+    expect(screen.queryByRole('link', { name: '查看引用 1' })).toBeNull()
+    expect(screen.getByText('[^1]').tagName).toBe('CODE')
+  })
+
   it('emits a task toggle when a preview checkbox is clicked', () => {
     const onToggleTask = vi.fn()
     render(

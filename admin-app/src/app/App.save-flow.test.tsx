@@ -112,7 +112,13 @@ tags:
 desc: 关于《影响力》的主题页
 ---
 
-这是一个主题文章。`
+这是一个主题文章[^1]。
+
+<!-- article-references:start -->
+## 引用文章
+
+1. <!-- article-reference:1 -->《主题来源》
+<!-- article-references:end -->`
 
 function createDeferredPromise<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
@@ -377,8 +383,8 @@ describe('App save flow', () => {
     })
     const savedContent = saveMarkdownFile.mock.calls[0]?.[1]?.content || ''
     expect(savedContent).toContain('## 引用文章')
-    expect(savedContent).toContain('1. [《Second Source》](https://example.com/second)')
-    expect(savedContent).toContain('2. 《First Source》')
+    expect(savedContent).toContain('1. <!-- article-reference:1 -->[《Second Source》](<https://example.com/second>)')
+    expect(savedContent).toContain('2. <!-- article-reference:2 -->《First Source》')
   })
 
   it('updates linked topic documents after saving a backlink source post', async () => {
@@ -414,6 +420,8 @@ describe('App save flow', () => {
       expect(file.content).toContain('<span class="topic-backlink-card__title">Updated source title</span>')
       expect(file.content).toContain('今天又想到 《影响力》 里讲的互惠原则。')
       expect(file.content).toContain('第二行继续解释这个判断。')
+      expect(file.content).toContain('这是一个主题文章[^1]。')
+      expect(file.content).toContain('1. <!-- article-reference:1 -->《主题来源》')
 
       return {
         path: file.path,

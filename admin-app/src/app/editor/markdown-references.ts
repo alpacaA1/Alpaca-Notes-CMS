@@ -18,7 +18,9 @@ export type ArticleCitation = {
 
 const REFERENCE_DEFINITION_PATTERN = /^\s{0,3}\[([^\]]+)\]:\s*(?:<([^>]+)>|(\S+))(?:\s+(?:"[^"]*"|'[^']*'|\([^)]*\)))?\s*$/
 const TRACKING_PARAMETER_PATTERN = /^(?:utm_[a-z0-9_]+|fbclid|gclid|mc_cid|mc_eid)$/i
-const ARTICLE_CITATION_PATTERN = /<!--\s*article-citation\s*-->/g
+const LEGACY_ARTICLE_CITATION_PATTERN = /<!--\s*article-citation\s*-->/g
+const PENDING_ARTICLE_CITATION_PATTERN = /\[\^(\d+)\]<!--\s*article-citation:([^\s]+)\s*-->/g
+const ARTICLE_REFERENCE_MARKER_PATTERN = /<!--\s*article-reference:(\d+)\s*-->/
 const GENERATED_ARTICLE_REFERENCES_START = '<!-- article-references:start -->'
 const GENERATED_ARTICLE_REFERENCES_END = '<!-- article-references:end -->'
 const GENERATED_ARTICLE_REFERENCES_PATTERN = /\n?<!-- article-references:start -->[\s\S]*?<!-- article-references:end -->\n?/g
@@ -239,6 +241,9 @@ export function cleanArticleCitationUrl(value: string): string | null {
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       return null
     }
+    if (parsedUrl.username || parsedUrl.password) {
+      return null
+    }
 
     const parameterKeys = [...parsedUrl.searchParams.keys()]
     parameterKeys.forEach((key) => {
@@ -246,7 +251,7 @@ export function cleanArticleCitationUrl(value: string): string | null {
         parsedUrl.searchParams.delete(key)
       }
     })
-    return parsedUrl.toString()
+    return parsedUrl.toString().replace(/\(/g, '%28').replace(/\)/g, '%29')
   } catch {
     return null
   }
@@ -259,35 +264,141 @@ export function buildArticleCitationMarkdown(title: string, url = ''): string | 
     return null
   }
 
-  const visibleCitation = normalizedUrl
-    ? `[《${escapeMarkdownLabel(normalizedTitle)}》](${normalizedUrl})`
-    : `《${escapeMarkdownText(normalizedTitle)}》`
-  return `${visibleCitation}<!-- article-citation -->`
+  const metadata = encodeURIComponent(JSON.stringify({ title: normalizedTitle, url: normalizedUrl }))
+  return `[^1]<!-- article-citation:${metadata} -->`
 }
 
 export function stripGeneratedArticleReferences(markdown: string) {
   return markdown.replace(GENERATED_ARTICLE_REFERENCES_PATTERN, '\n').replace(/\n{3,}/g, '\n\n').trimEnd()
 }
 
-function collectCitationMarkersOutsideCodeFences(markdown: string) {
-  const citationMarkdown: string[] = []
+type CitationOccurrence = {
+  citation: ArticleCitation
+  start: number
+  end: number
+  visiblePrefix: string
+  resolvedCitation?: ArticleCitation
+}
+
+function parseGeneratedArticleReferences(markdown: string) {
+  const references = new Map<number, ArticleCitation>()
+  const sectionStart = markdown.indexOf(GENERATED_ARTICLE_REFERENCES_START)
+  const sectionEnd = markdown.indexOf(GENERATED_ARTICLE_REFERENCES_END, sectionStart)
+  if (sectionStart < 0 || sectionEnd < 0) {
+    return references
+  }
+
+  markdown.slice(sectionStart, sectionEnd).split('\n').forEach((line) => {
+    const itemMatch = line.match(/^\s*(\d+)\.\s+(.*)$/)
+    if (!itemMatch) {
+      return
+    }
+
+    const referenceNumber = Number(itemMatch[1])
+    const content = itemMatch[2].replace(ARTICLE_REFERENCE_MARKER_PATTERN, '').trim()
+    const linkedStart = content.startsWith('[《') ? 0 : -1
+    if (linkedStart === 0) {
+      const labelEnd = content.indexOf('》]')
+      if (labelEnd > 2 && content[labelEnd + 2] === '(') {
+        const destination = parseMarkdownDestination(content, labelEnd + 2)
+        const url = destination ? cleanArticleCitationUrl(readDestinationUrl(destination.value)) : null
+        const title = normalizeCitationTitle(content.slice(2, labelEnd).replace(/\\([\\\[\]<>])/g, '$1'))
+        if (title && url) {
+          references.set(referenceNumber, { title, url })
+          return
+        }
+      }
+    }
+
+    const titleMatch = content.match(/^《([\s\S]+)》$/)
+    if (titleMatch) {
+      const title = normalizeCitationTitle(titleMatch[1].replace(/\\(.)/g, '$1'))
+      if (title) {
+        references.set(referenceNumber, { title, url: '' })
+      }
+    }
+  })
+
+  return references
+}
+
+function parsePendingArticleCitation(value: string): ArticleCitation | null {
+  try {
+    const parsed = JSON.parse(decodeURIComponent(value)) as Partial<ArticleCitation>
+    const title = normalizeCitationTitle(typeof parsed.title === 'string' ? parsed.title : '')
+    const url = cleanArticleCitationUrl(typeof parsed.url === 'string' ? parsed.url : '')
+    return title && url !== null ? { title, url } : null
+  } catch {
+    return null
+  }
+}
+
+function collectCitationOccurrences(markdown: string, references: Map<number, ArticleCitation>) {
+  const occurrences: CitationOccurrence[] = []
   let isInCodeFence = false
+  let lineOffset = 0
 
   markdown.split('\n').forEach((line) => {
     if (/^\s*```/.test(line)) {
       isInCodeFence = !isInCodeFence
+      lineOffset += line.length + 1
       return
     }
     if (isInCodeFence) {
+      lineOffset += line.length + 1
       return
     }
 
-    for (const match of line.matchAll(ARTICLE_CITATION_PATTERN)) {
-      citationMarkdown.push(line.slice(0, match.index).trimEnd())
+    const occupiedRanges: Array<{ start: number; end: number }> = []
+    for (const match of line.matchAll(PENDING_ARTICLE_CITATION_PATTERN)) {
+      const citation = parsePendingArticleCitation(match[2])
+      const start = match.index || 0
+      const end = start + match[0].length
+      occupiedRanges.push({ start, end })
+      if (citation) {
+        occurrences.push({ citation, start: lineOffset + start, end: lineOffset + end, visiblePrefix: '' })
+      }
     }
+
+    for (const match of line.matchAll(LEGACY_ARTICLE_CITATION_PATTERN)) {
+      const markerStart = match.index || 0
+      const markdownBeforeMarker = line.slice(0, markerStart).trimEnd()
+      const citation = parseArticleCitation(markdownBeforeMarker)
+      if (!citation) {
+        continue
+      }
+      const linkedStart = markdownBeforeMarker.lastIndexOf('[《')
+      const titleStart = markdownBeforeMarker.lastIndexOf('《')
+      const visibleStart = linkedStart >= 0 ? linkedStart : titleStart
+      if (visibleStart < 0) {
+        continue
+      }
+      const end = markerStart + match[0].length
+      occupiedRanges.push({ start: visibleStart, end })
+      occurrences.push({
+        citation,
+        start: lineOffset + visibleStart,
+        end: lineOffset + end,
+        visiblePrefix: markdownBeforeMarker.slice(visibleStart),
+      })
+    }
+
+    for (const match of line.matchAll(/\[\^(\d+)\]/g)) {
+      const start = match.index || 0
+      const end = start + match[0].length
+      if (occupiedRanges.some((range) => start >= range.start && end <= range.end)) {
+        continue
+      }
+      const citation = references.get(Number(match[1]))
+      if (citation) {
+        occurrences.push({ citation: { ...citation }, start: lineOffset + start, end: lineOffset + end, visiblePrefix: '' })
+      }
+    }
+
+    lineOffset += line.length + 1
   })
 
-  return citationMarkdown
+  return occurrences.sort((left, right) => left.start - right.start)
 }
 
 function parseArticleCitation(markdownBeforeMarker: string): ArticleCitation | null {
@@ -315,14 +426,10 @@ export function extractArticleCitations(markdown: string): ArticleCitation[] {
   const citations: ArticleCitation[] = []
   const citationsByTitle = new Map<string, ArticleCitation>()
   const citationsByUrl = new Map<string, ArticleCitation>()
+  const generatedReferences = parseGeneratedArticleReferences(markdown)
   const sourceMarkdown = stripGeneratedArticleReferences(markdown)
 
-  collectCitationMarkersOutsideCodeFences(sourceMarkdown).forEach((citationMarkdown) => {
-    const parsedCitation = parseArticleCitation(citationMarkdown)
-    if (!parsedCitation) {
-      return
-    }
-
+  collectCitationOccurrences(sourceMarkdown, generatedReferences).forEach(({ citation: parsedCitation }) => {
     const { title, url } = parsedCitation
     const titleKey = normalizeCitationTitleKey(title)
     const existing = (url ? citationsByUrl.get(url) : undefined) || citationsByTitle.get(titleKey)
@@ -346,20 +453,59 @@ export function extractArticleCitations(markdown: string): ArticleCitation[] {
 }
 
 export function syncGeneratedArticleReferences(markdown: string) {
+  const generatedReferences = parseGeneratedArticleReferences(markdown)
   const sourceMarkdown = stripGeneratedArticleReferences(markdown)
-  const citations = extractArticleCitations(sourceMarkdown)
+  const occurrences = collectCitationOccurrences(sourceMarkdown, generatedReferences)
+  const citations: ArticleCitation[] = []
+  const citationsByTitle = new Map<string, ArticleCitation>()
+  const citationsByUrl = new Map<string, ArticleCitation>()
+
+  occurrences.forEach((occurrence) => {
+    const { title, url } = occurrence.citation
+    const titleKey = normalizeCitationTitleKey(title)
+    const existing = (url ? citationsByUrl.get(url) : undefined) || citationsByTitle.get(titleKey)
+    if (existing) {
+      if (!existing.url && url) {
+        existing.url = url
+        citationsByUrl.set(url, existing)
+      }
+      occurrence.resolvedCitation = existing
+      return
+    }
+
+    const citation = { title, url }
+    citations.push(citation)
+    citationsByTitle.set(titleKey, citation)
+    if (url) {
+      citationsByUrl.set(url, citation)
+    }
+    occurrence.resolvedCitation = citation
+  })
+
   if (citations.length === 0) {
     return sourceMarkdown
   }
 
-  const referenceItems = citations.map((citation, index) => {
-    const title = `《${citation.title}》`
-    return citation.url
-      ? `${index + 1}. [${escapeMarkdownLabel(title)}](${citation.url})`
-      : `${index + 1}. ${escapeMarkdownText(title)}`
+  const citationNumbers = new Map(citations.map((citation, index) => [citation, index + 1]))
+  let normalizedSourceMarkdown = sourceMarkdown
+  ;[...occurrences].reverse().forEach((occurrence) => {
+    const referenceNumber = occurrence.resolvedCitation ? citationNumbers.get(occurrence.resolvedCitation) : undefined
+    if (!referenceNumber) {
+      return
+    }
+    const replacement = `${occurrence.visiblePrefix}[^${referenceNumber}]`
+    normalizedSourceMarkdown = `${normalizedSourceMarkdown.slice(0, occurrence.start)}${replacement}${normalizedSourceMarkdown.slice(occurrence.end)}`
   })
 
-  return `${sourceMarkdown}\n\n${GENERATED_ARTICLE_REFERENCES_START}\n## 引用文章\n\n${referenceItems.join('\n')}\n${GENERATED_ARTICLE_REFERENCES_END}`
+  const referenceItems = citations.map((citation, index) => {
+    const title = `《${citation.title}》`
+    const marker = `<!-- article-reference:${index + 1} -->`
+    return citation.url
+      ? `${index + 1}. ${marker}[${escapeMarkdownLabel(title)}](<${citation.url}>)`
+      : `${index + 1}. ${marker}${escapeMarkdownText(title)}`
+  })
+
+  return `${normalizedSourceMarkdown}\n\n${GENERATED_ARTICLE_REFERENCES_START}\n## 引用文章\n\n${referenceItems.join('\n')}\n${GENERATED_ARTICLE_REFERENCES_END}`
 }
 
 export function extractMarkdownExternalSources(markdown: string): MarkdownExternalSource[] {

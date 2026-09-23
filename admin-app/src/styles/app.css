@@ -5360,6 +5360,26 @@ textarea {
   transition: background 120ms ease;
 }
 
+.preview-content__article-reference {
+  margin-inline-start: 0.12em;
+  font-size: 0.72em;
+  line-height: 0;
+  vertical-align: super;
+}
+
+.preview-content__article-reference a {
+  color: var(--admin-accent);
+  text-decoration: none;
+}
+
+.preview-content__article-reference a:hover {
+  text-decoration: underline;
+}
+
+.preview-content li[id^='article-reference-'] {
+  scroll-margin-top: 5rem;
+}
+
 .preview-content__markdown-highlight:hover {
   background: rgba(245, 205, 104, 0.65);
 }

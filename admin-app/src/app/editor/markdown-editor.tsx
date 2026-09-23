@@ -6,7 +6,7 @@ import {
   searchInternalReferenceCandidates,
   type InternalReferenceCandidate,
 } from '../internal-links'
-import { buildArticleCitationMarkdown, cleanArticleCitationUrl } from './markdown-references'
+import { buildArticleCitationMarkdown, cleanArticleCitationUrl, syncGeneratedArticleReferences } from './markdown-references'
 
 const INDENT = '  '
 const LIST_INDENT = '    '
@@ -1092,9 +1092,8 @@ export default function MarkdownEditor({
 
   const openCitationPopover = () => {
     const selection = getToolbarSelection()
-    const selectedText = currentValueRef.current.slice(selection.start, selection.end).trim()
-    citationSelectionRef.current = selection
-    setCitationTitle(selectedText.replace(/^《\s*/, '').replace(/\s*》$/, ''))
+    citationSelectionRef.current = { start: selection.end, end: selection.end }
+    setCitationTitle('')
     setCitationUrl('')
     setCitationError('')
     setIsMoreMenuOpen(false)
@@ -1125,7 +1124,13 @@ export default function MarkdownEditor({
       return
     }
 
-    insertSnippet(markdown, citationSelectionRef.current ?? getToolbarSelection())
+    const selection = citationSelectionRef.current ?? getToolbarSelection()
+    const valueWithPendingCitation = `${currentValueRef.current.slice(0, selection.start)}${markdown}${currentValueRef.current.slice(selection.end)}`
+    const nextValue = syncGeneratedArticleReferences(valueWithPendingCitation)
+    const insertedReference = nextValue.slice(selection.start).match(/^\[\^\d+\]/)?.[0] || '[^1]'
+    const caret = selection.start + insertedReference.length
+    dispatchValueChange(nextValue, { start: caret, end: caret }, selection)
+    focusEditor()
     setIsCitationPopoverOpen(false)
     setCitationError('')
   }
@@ -1731,7 +1736,7 @@ export default function MarkdownEditor({
                   />
                 </label>
                 {citationError ? <p className="markdown-editor__citation-error" role="alert">{citationError}</p> : null}
-                <p className="markdown-editor__citation-note">文末会按正文首次出现顺序自动编号。</p>
+                <p className="markdown-editor__citation-note">在当前光标处插入上标引用，文末会按首次出现顺序自动编号。</p>
                 <div className="markdown-editor__citation-actions">
                   <button type="button" onClick={closeCitationPopover}>取消</button>
                   <button type="submit" className="is-primary">插入引用</button>

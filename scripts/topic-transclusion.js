@@ -3,6 +3,7 @@ const path = require('path');
 
 const GENERATED_TOPIC_BACKLINKS_START = '<!-- topic-backlinks:start -->';
 const GENERATED_TOPIC_BACKLINKS_END = '<!-- topic-backlinks:end -->';
+const GENERATED_ARTICLE_REFERENCES_START = '<!-- article-references:start -->';
 const WIKI_LINK_PATTERN = /\[\[([^[\]|]+?)(?:\|([^[\]]+?))?\]\]/g;
 const SCANNED_SOURCE_DIRS = ['_posts', '_knowledge'];
 
@@ -294,9 +295,14 @@ function appendTopicBacklinksToMarkdown(markdown, backlinks) {
     return cleanedMarkdown;
   }
 
-  return cleanedMarkdown.trim()
-    ? `${cleanedMarkdown}\n\n${backlinksMarkdown}`
-    : backlinksMarkdown;
+  const articleReferencesStart = cleanedMarkdown.indexOf(GENERATED_ARTICLE_REFERENCES_START);
+  if (articleReferencesStart >= 0) {
+    const body = cleanedMarkdown.slice(0, articleReferencesStart).trimEnd();
+    const articleReferences = cleanedMarkdown.slice(articleReferencesStart).trim();
+    return [body, backlinksMarkdown, articleReferences].filter(Boolean).join('\n\n');
+  }
+
+  return cleanedMarkdown.trim() ? `${cleanedMarkdown}\n\n${backlinksMarkdown}` : backlinksMarkdown;
 }
 
 function scanContentFiles(sourceDir) {
