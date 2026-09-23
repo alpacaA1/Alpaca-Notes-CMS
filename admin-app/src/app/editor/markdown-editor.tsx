@@ -775,6 +775,7 @@ export default function MarkdownEditor({
   allowArticleCitations = false,
 }: MarkdownEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const moreMenuRef = useRef<HTMLDivElement | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const citationTitleInputRef = useRef<HTMLInputElement | null>(null)
   const citationSelectionRef = useRef<SelectionRange | null>(null)
@@ -865,6 +866,28 @@ export default function MarkdownEditor({
       citationTitleInputRef.current?.select()
     }
   }, [isCitationPopoverOpen])
+
+  useEffect(() => {
+    if (!isMoreMenuOpen) return
+
+    const closeIfOutside = (event: PointerEvent | FocusEvent) => {
+      if (event.target instanceof Node && !moreMenuRef.current?.contains(event.target)) {
+        setIsMoreMenuOpen(false)
+      }
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMoreMenuOpen(false)
+    }
+
+    document.addEventListener('pointerdown', closeIfOutside)
+    document.addEventListener('focusin', closeIfOutside)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('pointerdown', closeIfOutside)
+      document.removeEventListener('focusin', closeIfOutside)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isMoreMenuOpen])
 
   useEffect(() => {
     if (isListDebugEnabled()) {
@@ -1681,7 +1704,7 @@ export default function MarkdownEditor({
           <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={insertTable} aria-label="插入表格"><EditorCommandIcon name="table" /><span>表格</span></button>
           <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={toggleTodo} aria-label="待办"><EditorCommandIcon name="todo" /><span>待办</span></button>
           <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} aria-label="高亮"><EditorCommandIcon name="highlight" /><span>高亮</span></button>
-          <div className="markdown-editor__more-menu">
+          <div className="markdown-editor__more-menu" ref={moreMenuRef}>
             <button type="button" className={`markdown-editor__format-button markdown-editor__format-button--more${isMoreMenuOpen ? ' is-active' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={() => setIsMoreMenuOpen((current) => !current)} aria-label="更多格式" aria-haspopup="menu" aria-expanded={isMoreMenuOpen}><EditorCommandIcon name="more" /></button>
             {isMoreMenuOpen ? <div className="markdown-editor__more-popover" role="menu">
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { insertLinkMarkdown(getToolbarSelection()); setIsMoreMenuOpen(false) }}><ToolbarIcon name="link" /><span>链接</span></button>

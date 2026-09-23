@@ -793,6 +793,21 @@ describe('markdown editor', () => {
     expect(screen.getByRole('menuitem', { name: '链接' })).toBeTruthy()
   })
 
+  it('closes the more-format menu when clicking outside or moving focus away', () => {
+    const editor = renderControlledEditor('hello world')
+    const moreButton = screen.getByRole('button', { name: '更多格式' })
+
+    fireEvent.click(moreButton)
+    expect(screen.getByRole('menuitem', { name: '链接' })).toBeTruthy()
+    fireEvent.pointerDown(editor)
+    expect(screen.queryByRole('menuitem', { name: '链接' })).toBeNull()
+
+    fireEvent.click(moreButton)
+    expect(screen.getByRole('menuitem', { name: '链接' })).toBeTruthy()
+    fireEvent.focusIn(editor)
+    expect(screen.queryByRole('menuitem', { name: '链接' })).toBeNull()
+  })
+
   it('inserts an article citation with an optional cleaned link from the more-format menu', () => {
     const editor = renderControlledArticleEditor('关系中的失配')
     editor.focus()
