@@ -808,13 +808,16 @@ describe('markdown editor', () => {
     expect(screen.queryByRole('menuitem', { name: '链接' })).toBeNull()
   })
 
-  it('inserts an article citation with an optional cleaned link from the more-format menu', () => {
+  it('inserts an article citation from the toolbar with an optional cleaned link', () => {
     const editor = renderControlledArticleEditor('关系中的失配')
     editor.focus()
     editor.setSelectionRange(0, 0)
 
+    expect(screen.getByRole('button', { name: '引用文章' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '引用文章' }))
+    expect(screen.queryByRole('menuitem', { name: '引用文章' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: '引用文章' }))
+    expect(screen.queryByRole('menu')).toBeNull()
     fireEvent.change(screen.getByLabelText('引用文章名称'), { target: { value: 'The Power of Discord' } })
     fireEvent.change(screen.getByLabelText('引用文章链接'), {
       target: { value: 'https://example.com/discord?utm_source=chatgpt.com' },
@@ -830,8 +833,7 @@ describe('markdown editor', () => {
   it('validates article citation fields before insertion', () => {
     const editor = renderControlledArticleEditor('')
 
-    fireEvent.click(screen.getByRole('button', { name: '更多格式' }))
-    fireEvent.click(screen.getByRole('menuitem', { name: '引用文章' }))
+    fireEvent.click(screen.getByRole('button', { name: '引用文章' }))
     fireEvent.click(screen.getByRole('button', { name: '插入引用' }))
     expect(screen.getByRole('alert').textContent).toBe('请填写文章名称。')
 

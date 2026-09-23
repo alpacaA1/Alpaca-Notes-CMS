@@ -1705,13 +1705,13 @@ export default function MarkdownEditor({
           <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={toggleTodo} aria-label="待办"><EditorCommandIcon name="todo" /><span>待办</span></button>
           <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={applyHighlight} aria-label="高亮"><EditorCommandIcon name="highlight" /><span>高亮</span></button>
           <div className="markdown-editor__more-menu" ref={moreMenuRef}>
+            {allowArticleCitations ? <button type="button" className="markdown-editor__format-button" onMouseDown={(event) => event.preventDefault()} onClick={openCitationPopover} aria-label="引用文章" aria-haspopup="dialog" aria-expanded={isCitationPopoverOpen}><ToolbarIcon name="cite" /><span>引用文章</span></button> : null}
             <button type="button" className={`markdown-editor__format-button markdown-editor__format-button--more${isMoreMenuOpen ? ' is-active' : ''}`} onMouseDown={(event) => event.preventDefault()} onClick={() => setIsMoreMenuOpen((current) => !current)} aria-label="更多格式" aria-haspopup="menu" aria-expanded={isMoreMenuOpen}><EditorCommandIcon name="more" /></button>
             {isMoreMenuOpen ? <div className="markdown-editor__more-popover" role="menu">
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { insertLinkMarkdown(getToolbarSelection()); setIsMoreMenuOpen(false) }}><ToolbarIcon name="link" /><span>链接</span></button>
               {onUploadImage ? <button type="button" role="menuitem" onMouseDown={(event) => { event.preventDefault(); handleUploadButtonMouseDown() }} onClick={() => { handleUploadButtonClick(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="image" /><span>{isUploadingImage ? '上传中' : '图片'}</span></button> : null}
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { applyCodeFormat(); setIsMoreMenuOpen(false) }}><ToolbarIcon name="code" /><span>代码</span></button>
               <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={() => { toggleLinePrefix('> '); setIsMoreMenuOpen(false) }}><ToolbarIcon name="quote" /><span>引用</span></button>
-              {allowArticleCitations ? <button type="button" role="menuitem" onMouseDown={(event) => event.preventDefault()} onClick={openCitationPopover}><ToolbarIcon name="cite" /><span>引用文章</span></button> : null}
             </div> : null}
             {isCitationPopoverOpen ? (
               <form
