@@ -7,6 +7,7 @@ export interface FlattenedTocItem {
   href: string
   normalizedPath: string
   fragment: string | null
+  parentLabel?: string | null
 }
 
 const PLACEHOLDER_CHAPTERS = new Set(['划线片段', '读书想法', '未知章节', '未知页码', '电子书章节'])
@@ -59,7 +60,7 @@ export function flattenToc(toc: BookTocItem[] | null | undefined): FlattenedTocI
   if (!toc || !Array.isArray(toc)) return []
   const result: FlattenedTocItem[] = []
 
-  function walk(items: BookTocItem[]) {
+  function walk(items: BookTocItem[], parentLabel: string | null = null) {
     for (const item of items) {
       if (!item) continue
       const label = (item.label || '').trim()
@@ -73,11 +74,12 @@ export function flattenToc(toc: BookTocItem[] | null | undefined): FlattenedTocI
           href: rawHref,
           normalizedPath,
           fragment: fragment || null,
+          parentLabel,
         })
       }
 
       if (item.subitems && Array.isArray(item.subitems)) {
-        walk(item.subitems)
+        walk(item.subitems, label || parentLabel)
       }
     }
   }
@@ -116,6 +118,7 @@ export interface ResolvedSectionContent {
   canonicalText: string
   strippedText: string
   associatedChapterTitle: string | null
+  associatedParentChapterTitle?: string | null
 }
 
 /**
@@ -150,6 +153,11 @@ export function matchQuoteInSection(
   return false
 }
 
+export interface ChapterResolutionResult {
+  chapterTitle: string
+  parentChapterTitle?: string | null
+}
+
 /**
  * Resolves the best chapter title for an annotation within a matched section.
  */
@@ -157,7 +165,7 @@ export function resolveChapterForMatchedQuote(
   quote: string,
   section: ResolvedSectionContent,
   flatToc: FlattenedTocItem[],
-): string | null {
+): ChapterResolutionResult | string | null {
   // 1. If section has DOM and multiple TOC fragments for this section, find nearest preceding anchor
   if (section.doc && flatToc.length > 0) {
     const fragmentItems = flatToc.filter(
@@ -189,7 +197,10 @@ export function resolveChapterForMatchedQuote(
           }
 
           if (bestFragmentItem) {
-            return bestFragmentItem.label
+            return {
+              chapterTitle: bestFragmentItem.label,
+              parentChapterTitle: bestFragmentItem.parentLabel || null,
+            }
           }
         }
       } catch {
@@ -200,7 +211,10 @@ export function resolveChapterForMatchedQuote(
 
   // 2. Use section's pre-associated chapter title from TOC
   if (section.associatedChapterTitle) {
-    return section.associatedChapterTitle
+    return {
+      chapterTitle: section.associatedChapterTitle,
+      parentChapterTitle: section.associatedParentChapterTitle || null,
+    }
   }
 
   // 3. Fallback: check section DOM heading tags (<h1>, <h2>, etc.)
@@ -271,6 +285,7 @@ export async function parseEpubForResolution(file: File | Blob): Promise<{
     // Determine associated chapter title for this section from TOC
     const matchingTocItem = flatToc.find((item) => matchesPath(item.normalizedPath, sectionId))
     let associatedChapterTitle = matchingTocItem ? matchingTocItem.label : null
+    let associatedParentChapterTitle = matchingTocItem ? (matchingTocItem.parentLabel || null) : null
 
     // If this section has an explicit heading, prioritize or record it
     if (!associatedChapterTitle && doc) {
@@ -297,6 +312,7 @@ export async function parseEpubForResolution(file: File | Blob): Promise<{
       canonicalText: canonicalizeFullText(textContent),
       strippedText: stripPunctuation(textContent),
       associatedChapterTitle,
+      associatedParentChapterTitle,
     })
   }
 
@@ -336,11 +352,15 @@ export async function resolveAnnotationsWithEpub(
     // Search across sections for full content match
     for (const section of sections) {
       if (matchQuoteInSection(ann.quote, section)) {
-        const resolvedChapter = resolveChapterForMatchedQuote(ann.quote, section, flatToc)
+        const res = resolveChapterForMatchedQuote(ann.quote, section, flatToc)
+        const resolvedChapter = typeof res === 'object' && res !== null ? res.chapterTitle : res
+        const resolvedParent = typeof res === 'object' && res !== null ? (res.parentChapterTitle || undefined) : undefined
+
         if (resolvedChapter && isMeaningfulChapter(resolvedChapter)) {
           const updated: BookAnnotation = {
             ...ann,
             chapter: resolvedChapter,
+            parentChapter: resolvedParent,
             updatedAt: ann.updatedAt || ann.createdAt || nowIso,
           }
           enrichedMap.set(ann.id, updated)

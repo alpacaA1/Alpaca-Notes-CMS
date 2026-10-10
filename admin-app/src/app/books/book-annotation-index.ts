@@ -35,6 +35,7 @@ export async function buildBookAnnotationIndex(books: StoredBookMeta[]): Promise
         const chapterTitle =
           cleanBookChapterTitle(annotation.chapter) ||
           (annotation.target?.pageNumber ? `第 ${annotation.target.pageNumber} 页` : null)
+        const parentChapterTitle = cleanBookChapterTitle(annotation.parentChapter) || null
 
         return {
           id: `${book.id}::${annotation.id}`,
@@ -50,6 +51,7 @@ export async function buildBookAnnotationIndex(books: StoredBookMeta[]): Promise
           sectionKey: 'articleExcerpt',
           sectionLabel: chapterTitle || '电子书章节',
           chapterTitle,
+          parentChapterTitle,
           quote: annotation.quote,
           prefix: '',
           suffix: '',
@@ -61,6 +63,7 @@ export async function buildBookAnnotationIndex(books: StoredBookMeta[]): Promise
             book.creator,
             format,
             chapterTitle || '',
+            parentChapterTitle || '',
             annotation.chapter,
             annotation.quote,
             annotation.note,

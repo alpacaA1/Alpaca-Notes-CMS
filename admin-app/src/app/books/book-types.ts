@@ -49,6 +49,7 @@ export type BookAnnotation = {
   note: string
   quote: string
   chapter: string
+  parentChapter?: string
   createdAt: string
   updatedAt: string
   target?: {

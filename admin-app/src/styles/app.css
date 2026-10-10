@@ -8143,6 +8143,19 @@ textarea {
   font-weight: 600;
 }
 
+.filter-select__option--indent-1 {
+  padding-left: 20px;
+}
+
+.filter-select__option--indent-1 .filter-select__option-label {
+  font-size: 0.81rem;
+  color: var(--admin-text-subtle, #5c554e);
+}
+
+.filter-select__option--indent-1.is-selected .filter-select__option-label {
+  color: var(--admin-warm, #c07d3e);
+}
+
 .filter-select__option-trail {
   display: inline-flex;
   align-items: center;
@@ -8247,6 +8260,14 @@ textarea {
 .admin-shell--dark .filter-select__option.is-selected {
   border-color: rgba(228, 163, 88, 0.28);
   background: rgba(212, 165, 106, 0.12);
+}
+
+.admin-shell--dark .filter-select__option--indent-1 .filter-select__option-label {
+  color: #a39c94;
+}
+
+.admin-shell--dark .filter-select__option--indent-1.is-selected .filter-select__option-label {
+  color: var(--admin-warm, #d4a574);
 }
 
 .admin-shell--dark .filter-select__option-trail,

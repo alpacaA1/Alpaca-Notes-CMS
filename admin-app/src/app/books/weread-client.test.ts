@@ -200,9 +200,34 @@ describe('weread-client', () => {
 
     const chapters = await fetchWeReadChapters('wrk-key', 'book-123')
     expect(chapters).toEqual({
-      1: '引言',
-      2: '第一章 认知偏差',
-      3: '第二章 启发式思考',
+      1: { title: '引言', parentTitle: undefined, level: 1 },
+      2: { title: '第一章 认知偏差', parentTitle: undefined, level: 1 },
+      3: { title: '第二章 启发式思考', parentTitle: undefined, level: 1 },
+    })
+  })
+
+  it('fetches and parses hierarchical chapter information with levels', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        data: [
+          { chapterUid: 1, title: '第5章 沟通', level: 1 },
+          { chapterUid: 2, title: '非言语沟通', level: 2 },
+          { chapterUid: 3, title: '言语沟通', level: 2 },
+        ],
+      }),
+    }) as unknown as typeof fetch
+
+    const chapters = await fetchWeReadChapters('wrk-key', 'book-456')
+    expect(chapters[2]).toEqual({
+      title: '非言语沟通',
+      parentTitle: '第5章 沟通',
+      level: 2,
+    })
+    expect(chapters[3]).toEqual({
+      title: '言语沟通',
+      parentTitle: '第5章 沟通',
+      level: 2,
     })
   })
 

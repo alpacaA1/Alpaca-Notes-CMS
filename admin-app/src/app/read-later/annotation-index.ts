@@ -23,6 +23,7 @@ export type ReadLaterAnnotationIndexItem = {
   sectionKey: ReadLaterAnnotation['sectionKey']
   sectionLabel: string
   chapterTitle?: string | null
+  parentChapterTitle?: string | null
   quote: string
   prefix: string
   suffix: string
@@ -132,23 +133,56 @@ export function extractPrecedingHeading(
 
   if (quoteIndex === -1) return null
 
+  return extractPrecedingHeadings(content, quote, prefix).chapterTitle
+}
+
+export function extractPrecedingHeadings(
+  content: string,
+  quote: string,
+  prefix?: string,
+): { chapterTitle: string | null; parentChapterTitle: string | null } {
+  let quoteIndex = -1
+  if (prefix) {
+    const combined = prefix + quote
+    const combinedIndex = content.indexOf(combined)
+    if (combinedIndex !== -1) {
+      quoteIndex = combinedIndex + prefix.length
+    }
+  }
+
+  if (quoteIndex === -1) {
+    quoteIndex = content.indexOf(quote)
+  }
+
+  if (quoteIndex === -1) return { chapterTitle: null, parentChapterTitle: null }
+
   const textBefore = content.slice(0, quoteIndex)
-  const headingRegex = /^#{1,6}\s+(.+)$/gm
+  const headingRegex = /^(#{1,6})\s+(.+)$/gm
   let lastHeading: string | null = null
+  let lastParentHeading: string | null = null
   let match: RegExpExecArray | null
 
   while ((match = headingRegex.exec(textBefore)) !== null) {
-    const rawHeading = match[1] || ''
+    const level = match[1].length
+    const rawHeading = match[2] || ''
     const cleaned = rawHeading
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .replace(/[*_`#]/g, '')
       .trim()
-    if (cleaned) {
+    if (!cleaned) continue
+
+    if (level <= 2) {
+      lastParentHeading = cleaned
+      lastHeading = cleaned
+    } else {
       lastHeading = cleaned
     }
   }
 
-  return lastHeading
+  const parentChapterTitle =
+    lastParentHeading && lastHeading && lastParentHeading !== lastHeading ? lastParentHeading : null
+
+  return { chapterTitle: lastHeading, parentChapterTitle }
 }
 
 export async function buildReadLaterAnnotationIndex(
@@ -165,7 +199,7 @@ export async function buildReadLaterAnnotationIndex(
       return item.annotations.map<ReadLaterAnnotationIndexItem>((annotation) => {
         const sectionText = sections[annotation.sectionKey] || item.body || ''
         const { prefix, suffix } = extractFullAnnotationContext(sectionText, annotation)
-        const chapterTitle = extractPrecedingHeading(sectionText, annotation.quote, prefix)
+        const { chapterTitle, parentChapterTitle } = extractPrecedingHeadings(sectionText, annotation.quote, prefix)
 
         return {
           id: `${item.path}::${annotation.id}`,
@@ -181,6 +215,7 @@ export async function buildReadLaterAnnotationIndex(
           sectionKey: annotation.sectionKey,
           sectionLabel: resolveSectionLabel(annotation.sectionKey),
           chapterTitle,
+          parentChapterTitle,
           quote: annotation.quote,
           prefix,
           suffix,
@@ -190,6 +225,7 @@ export async function buildReadLaterAnnotationIndex(
           searchText: normalizeSearchText([
             item.frontmatter.title,
             chapterTitle || '',
+            parentChapterTitle || '',
             item.frontmatter.source_name || '',
             item.frontmatter.external_url || '',
             ...item.frontmatter.tags,

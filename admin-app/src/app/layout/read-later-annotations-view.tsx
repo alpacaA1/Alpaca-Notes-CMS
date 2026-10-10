@@ -293,6 +293,49 @@ function renderOriginalHtmlContent(
   )
 }
 
+export function parseAnnotationChapterHierarchy(ann?: {
+  chapterTitle?: string | null
+  parentChapterTitle?: string | null
+  sectionLabel?: string | null
+  sourceType?: string
+} | null): { parentTitle: string | null; subTitle: string | null } {
+  if (!ann) return { parentTitle: null, subTitle: null }
+  let parent = (ann.parentChapterTitle || '').trim() || null
+  let sub = (ann.chapterTitle || (ann.sourceType === 'book' ? ann.sectionLabel : '') || '').trim() || null
+
+  if (!parent && sub) {
+    if (sub.includes(' · ')) {
+      const parts = sub.split(' · ')
+      parent = parts[0].trim() || null
+      sub = parts.slice(1).join(' · ').trim() || null
+    } else if (sub.includes(' / ')) {
+      const parts = sub.split(' / ')
+      parent = parts[0].trim() || null
+      sub = parts.slice(1).join(' / ').trim() || null
+    }
+  }
+
+  if (parent && sub && parent === sub) {
+    sub = null
+  }
+
+  return { parentTitle: parent, subTitle: sub }
+}
+
+export function getAnnotationChapterDisplay(ann?: {
+  chapterTitle?: string | null
+  parentChapterTitle?: string | null
+  sectionLabel?: string | null
+  sourceType?: string
+} | null): string | null {
+  if (!ann) return null
+  const { parentTitle, subTitle } = parseAnnotationChapterHierarchy(ann)
+  if (parentTitle && subTitle) {
+    return `${parentTitle} · ${subTitle}`
+  }
+  return parentTitle || subTitle || null
+}
+
 export default function ReadLaterAnnotationsView({
   annotations,
   isLoading,
@@ -409,29 +452,78 @@ export default function ReadLaterAnnotationsView({
 
   // Chapter options for current source selection
   const chapterOptions = useMemo(() => {
-    const relevant = selectedSourcePath === ALL_SOURCES
-      ? annotations
-      : annotations.filter((ann) => ann.postPath === selectedSourcePath)
-
-    const counts = new Map<string, number>()
-    const ordered: string[] = []
-
-    relevant.forEach((ann) => {
-      const rawChapter = (ann.chapterTitle || (ann.sourceType === 'book' ? ann.sectionLabel : '') || '').trim()
-      const chapter = rawChapter || '未分类章节'
-      if (!counts.has(chapter)) {
-        ordered.push(chapter)
-        counts.set(chapter, 0)
-      }
-      counts.set(chapter, (counts.get(chapter) || 0) + 1)
+    const relevant = annotations.filter((ann) => {
+      if (selectedSourcePath === ALL_SOURCES) return true
+      return ann.postPath === selectedSourcePath
     })
 
-    const options = [{ value: 'all', label: `全部章节 (${relevant.length})` }]
-    ordered.forEach((chapter) => {
-      const count = counts.get(chapter) || 0
+    if (relevant.length === 0) {
+      return [{ value: 'all', label: '全部章节 (0)', triggerLabel: '全部章节 (0)' }]
+    }
+
+    const parentGroups = new Map<string, { totalCount: number; subChapters: Map<string, number> }>()
+    const standalone = new Map<string, number>()
+    const orderedParents: string[] = []
+    const orderedStandalone: string[] = []
+
+    relevant.forEach((ann) => {
+      const { parentTitle, subTitle } = parseAnnotationChapterHierarchy(ann)
+
+      if (parentTitle && subTitle) {
+        if (!parentGroups.has(parentTitle)) {
+          orderedParents.push(parentTitle)
+          parentGroups.set(parentTitle, { totalCount: 0, subChapters: new Map() })
+        }
+        const group = parentGroups.get(parentTitle)!
+        group.totalCount += 1
+        group.subChapters.set(subTitle, (group.subChapters.get(subTitle) || 0) + 1)
+      } else {
+        const chapter = parentTitle || subTitle || '未分类章节'
+        if (!standalone.has(chapter)) {
+          orderedStandalone.push(chapter)
+          standalone.set(chapter, 0)
+        }
+        standalone.set(chapter, (standalone.get(chapter) || 0) + 1)
+      }
+    })
+
+    const options: FilterSelectOption[] = [
+      {
+        value: 'all',
+        label: `全部章节 (${relevant.length})`,
+        triggerLabel: `全部章节 (${relevant.length})`,
+      },
+    ]
+
+    orderedParents.forEach((parentTitle) => {
+      const group = parentGroups.get(parentTitle)!
       options.push({
-        value: chapter,
-        label: `${chapter} (${count})`,
+        value: `parent:${parentTitle}`,
+        label: `▾ ${parentTitle} (${group.totalCount})`,
+        triggerLabel: `${parentTitle} (${group.totalCount})`,
+        indent: 0,
+      })
+
+      const subEntries = Array.from(group.subChapters.entries())
+      subEntries.forEach(([subTitle, subCount], index) => {
+        const isLast = index === subEntries.length - 1
+        const prefix = isLast ? '└─ ' : '├─ '
+        options.push({
+          value: `sub:${parentTitle}::${subTitle}`,
+          label: `${prefix}${subTitle} (${subCount})`,
+          triggerLabel: `${parentTitle} · ${subTitle} (${subCount})`,
+          indent: 1,
+        })
+      })
+    })
+
+    orderedStandalone.forEach((chapterTitle) => {
+      const count = standalone.get(chapterTitle) || 0
+      options.push({
+        value: `chapter:${chapterTitle}`,
+        label: `${chapterTitle} (${count})`,
+        triggerLabel: `${chapterTitle} (${count})`,
+        indent: 0,
       })
     })
 
@@ -464,10 +556,30 @@ export default function ReadLaterAnnotationsView({
         }
 
         if (selectedChapter !== 'all') {
-          const rawChapter = (annotation.chapterTitle || (annotation.sourceType === 'book' ? annotation.sectionLabel : '') || '').trim()
-          const chapter = rawChapter || '未分类章节'
-          if (chapter !== selectedChapter) {
-            return false
+          const { parentTitle, subTitle } = parseAnnotationChapterHierarchy(annotation)
+
+          if (selectedChapter.startsWith('parent:')) {
+            const targetParent = selectedChapter.slice('parent:'.length)
+            if (parentTitle !== targetParent && subTitle !== targetParent) {
+              return false
+            }
+          } else if (selectedChapter.startsWith('sub:')) {
+            const payload = selectedChapter.slice('sub:'.length)
+            const [targetParent, targetSub] = payload.split('::')
+            if (parentTitle !== targetParent || subTitle !== targetSub) {
+              return false
+            }
+          } else if (selectedChapter.startsWith('chapter:')) {
+            const targetChapter = selectedChapter.slice('chapter:'.length)
+            const chapter = parentTitle || subTitle || '未分类章节'
+            if (chapter !== targetChapter) {
+              return false
+            }
+          } else {
+            const chapter = subTitle || parentTitle || '未分类章节'
+            if (chapter !== selectedChapter && parentTitle !== selectedChapter) {
+              return false
+            }
           }
         }
 
@@ -1085,10 +1197,10 @@ export default function ReadLaterAnnotationsView({
                       <div className="annotation-dashboard__item-meta">
                         <div className="annotation-dashboard__item-source-group">
                           <span className="annotation-dashboard__item-source" title={annotation.postTitle}>{annotation.postTitle}</span>
-                          {annotation.chapterTitle ? (
-                            <span className="annotation-dashboard__item-chapter" title={annotation.chapterTitle}>
+                          {getAnnotationChapterDisplay(annotation) ? (
+                            <span className="annotation-dashboard__item-chapter" title={getAnnotationChapterDisplay(annotation)!}>
                               <span className="annotation-dashboard__meta-divider">·</span>
-                              {annotation.chapterTitle}
+                              {getAnnotationChapterDisplay(annotation)}
                             </span>
                           ) : null}
                         </div>
@@ -1238,9 +1350,9 @@ export default function ReadLaterAnnotationsView({
                     <span className="annotation-dashboard__original-source-title">
                       {originalPayload?.title || selectedAnnotation.postTitle}
                     </span>
-                    {(originalPayload?.chapterTitle || selectedAnnotation.chapterTitle) ? (
+                    {(originalPayload?.chapterTitle || getAnnotationChapterDisplay(selectedAnnotation)) ? (
                       <span className="annotation-dashboard__original-chapter-badge">
-                        {originalPayload?.chapterTitle || selectedAnnotation.chapterTitle}
+                        {originalPayload?.chapterTitle || getAnnotationChapterDisplay(selectedAnnotation)}
                       </span>
                     ) : null}
                   </div>
@@ -1294,12 +1406,12 @@ export default function ReadLaterAnnotationsView({
                   <div className="annotation-dashboard__detail-card">
                     <div className="annotation-dashboard__detail-card-header">
                       <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
-                      {selectedAnnotation.chapterTitle ? (
+                      {getAnnotationChapterDisplay(selectedAnnotation) ? (
                         <div
                           className="annotation-dashboard__detail-source-badge"
-                          title={selectedAnnotation.chapterTitle}
+                          title={getAnnotationChapterDisplay(selectedAnnotation)!}
                         >
-                          <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.chapterTitle}</span>
+                          <span className="annotation-dashboard__detail-source-chapter">{getAnnotationChapterDisplay(selectedAnnotation)}</span>
                         </div>
                       ) : selectedAnnotation.sectionLabel ? (
                         <div
@@ -1370,7 +1482,7 @@ export default function ReadLaterAnnotationsView({
                         <div className="annotation-dashboard__context-footer">
                           <span className="annotation-dashboard__context-location">
                             {selectedAnnotation.postTitle}
-                            {selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : (selectedAnnotation.sectionLabel ? ` · ${selectedAnnotation.sectionLabel}` : '')}
+                            {getAnnotationChapterDisplay(selectedAnnotation) ? ` · ${getAnnotationChapterDisplay(selectedAnnotation)}` : (selectedAnnotation.sectionLabel ? ` · ${selectedAnnotation.sectionLabel}` : '')}
                           </span>
                           <button
                             type="button"
@@ -1449,7 +1561,7 @@ export default function ReadLaterAnnotationsView({
                       </p>
                       <div className="annotation-dashboard__quote-queue-meta">
                         <span className="annotation-dashboard__quote-queue-source">
-                          来源：《{item.postTitle}》{item.chapterTitle ? ` · ${item.chapterTitle}` : ''}
+                          来源：《{item.postTitle}》{getAnnotationChapterDisplay(item) ? ` · ${getAnnotationChapterDisplay(item)}` : ''}
                         </span>
                         {item.note.trim() ? (
                           <span className="annotation-dashboard__quote-queue-note">

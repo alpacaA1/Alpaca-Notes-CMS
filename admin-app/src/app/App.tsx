@@ -4148,6 +4148,7 @@ export default function App() {
     note?: string
     postTitle?: string
     chapterTitle?: string | null
+    parentChapterTitle?: string | null
   }) => {
     if (!session) {
       setError('请先登录后再引用到日记。')
@@ -4160,11 +4161,15 @@ export default function App() {
         postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
       const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
       const sourceTitle = annotation.postTitle || document?.frontmatter.title || '待读'
+      const formattedChapter =
+        annotation.parentChapterTitle && annotation.chapterTitle && annotation.parentChapterTitle !== annotation.chapterTitle
+          ? `${annotation.parentChapterTitle} · ${annotation.chapterTitle}`
+          : (annotation.chapterTitle || annotation.parentChapterTitle || undefined)
       const quoteBlock = formatHighlightQuoteForDiary({
         quote: annotation.quote,
         note: annotation.note,
         sourceTitle,
-        chapterTitle: annotation.chapterTitle,
+        chapterTitle: formattedChapter,
         date: now,
       })
 
@@ -4262,12 +4267,18 @@ export default function App() {
         postsByType.diary.length > 0 ? postsByType.diary : await buildDiaryIndex(session)
       const todayPost = findTodayDiaryPost(currentDiaryPosts, now)
 
-      const quoteItems: BatchHighlightQuoteItem[] = annotationsToQuote.map((item) => ({
-        quote: item.quote,
-        note: item.note,
-        sourceTitle: item.postTitle || document?.frontmatter.title || '待读',
-        chapterTitle: item.chapterTitle,
-      }))
+      const quoteItems: BatchHighlightQuoteItem[] = annotationsToQuote.map((item) => {
+        const formattedChapter =
+          item.parentChapterTitle && item.chapterTitle && item.parentChapterTitle !== item.chapterTitle
+            ? `${item.parentChapterTitle} · ${item.chapterTitle}`
+            : (item.chapterTitle || item.parentChapterTitle || undefined)
+        return {
+          quote: item.quote,
+          note: item.note,
+          sourceTitle: item.postTitle || document?.frontmatter.title || '待读',
+          chapterTitle: formattedChapter,
+        }
+      })
 
       const quoteBlock = formatBatchHighlightQuotesForDiary(quoteItems)
 

@@ -225,7 +225,13 @@ export interface WeReadChapterItem {
   level?: number
 }
 
-export async function fetchWeReadChapters(apiKey: string, bookId: string): Promise<Record<number, string>> {
+export interface WeReadChapterEntry {
+  title: string
+  parentTitle?: string
+  level?: number
+}
+
+export async function fetchWeReadChapters(apiKey: string, bookId: string): Promise<Record<number, WeReadChapterEntry>> {
   try {
     const data = await requestWeReadGateway<{
       data?: WeReadChapterItem[]
@@ -243,14 +249,20 @@ export async function fetchWeReadChapters(apiKey: string, bookId: string): Promi
             ? data.item
             : []
 
-    const map: Record<number, string> = {}
+    const map: Record<number, WeReadChapterEntry> = {}
+    let currentL1Title = ''
     for (const item of list) {
       if (!item) continue
       const rawUid = item.chapterUid ?? item.chapterId
       const uid = rawUid !== undefined && rawUid !== null ? Number(rawUid) : NaN
       const title = (item.title || item.chapterTitle || '').trim()
+      const level = typeof item.level === 'number' ? item.level : 1
+      if (level === 1 && title) {
+        currentL1Title = title
+      }
       if (!Number.isNaN(uid) && title) {
-        map[uid] = title
+        const parentTitle = level > 1 && currentL1Title && currentL1Title !== title ? currentL1Title : undefined
+        map[uid] = { title, parentTitle, level }
       }
     }
     return map
@@ -263,7 +275,7 @@ export function transformWeReadBookData(
   notebook: WeReadNotebookItem,
   bookmarks: WeReadBookmarkItem[],
   thoughts: WeReadThoughtItem[],
-  chapterMap: Record<number, string> = {},
+  chapterMap: Record<number, string | WeReadChapterEntry> = {},
 ): { meta: StoredBookMeta; annotations: BookAnnotation[] } {
   const rawBook = notebook.book || { title: '未命名微信读书', author: '未知作者' }
   const bookId = `weread-${notebook.bookId || rawBook.bookId || computeHashSeed(rawBook.title)}`
@@ -289,10 +301,15 @@ export function transformWeReadBookData(
     }
 
     const bmUid = bm.chapterUid !== undefined && bm.chapterUid !== null ? Number(bm.chapterUid) : NaN
+    const entry = !Number.isNaN(bmUid) ? chapterMap[bmUid] : null
     const resolvedChapter =
-      (!Number.isNaN(bmUid) && chapterMap[bmUid])
-        ? chapterMap[bmUid]
-        : (bm.chapterTitle?.trim() || '')
+      typeof entry === 'object' && entry !== null
+        ? entry.title
+        : typeof entry === 'string'
+          ? entry
+          : (bm.chapterTitle?.trim() || '')
+    const resolvedParent =
+      typeof entry === 'object' && entry !== null ? entry.parentTitle : undefined
 
     const annId = `wr-bm-${bm.bookmarkId || computeHashSeed(bm.markText)}`
     const ann: BookAnnotation = {
@@ -303,6 +320,7 @@ export function transformWeReadBookData(
       quote: bm.markText.trim(),
       note: '',
       chapter: resolvedChapter,
+      parentChapter: resolvedParent,
       createdAt: createdTimeIso,
       updatedAt: createdTimeIso,
     }
@@ -326,10 +344,15 @@ export function transformWeReadBookData(
     const thoughtAbstract = (thoughtData.abstract || '').trim()
     const thoughtContent = (thoughtData.content || '').trim()
     const thUid = thoughtData.chapterUid !== undefined && thoughtData.chapterUid !== null ? Number(thoughtData.chapterUid) : NaN
+    const thEntry = !Number.isNaN(thUid) ? chapterMap[thUid] : null
     const resolvedThoughtChapter =
-      (!Number.isNaN(thUid) && chapterMap[thUid])
-        ? chapterMap[thUid]
-        : (thoughtData.chapterTitle?.trim() || '')
+      typeof thEntry === 'object' && thEntry !== null
+        ? thEntry.title
+        : typeof thEntry === 'string'
+          ? thEntry
+          : (thoughtData.chapterTitle?.trim() || '')
+    const resolvedThoughtParent =
+      typeof thEntry === 'object' && thEntry !== null ? thEntry.parentTitle : undefined
 
     // Check if there is an existing bookmark with the exact same quote/abstract
     let matchedBookmark: BookAnnotation | null = null
@@ -349,6 +372,9 @@ export function transformWeReadBookData(
       if (!matchedBookmark.chapter && resolvedThoughtChapter) {
         matchedBookmark.chapter = resolvedThoughtChapter
       }
+      if (!matchedBookmark.parentChapter && resolvedThoughtParent) {
+        matchedBookmark.parentChapter = resolvedThoughtParent
+      }
     } else {
       // Create new annotation entry
       const annId = `wr-th-${thoughtData.thoughtId || computeHashSeed(thoughtContent + thoughtAbstract)}`
@@ -360,6 +386,7 @@ export function transformWeReadBookData(
         quote: thoughtAbstract,
         note: thoughtContent,
         chapter: resolvedThoughtChapter,
+        parentChapter: resolvedThoughtParent,
         createdAt: createdTimeIso,
         updatedAt: createdTimeIso,
       }
@@ -476,23 +503,29 @@ export async function enrichExistingWeReadAnnotations(
         continue
       }
 
-      const quoteToChapter = new Map<string, string>()
-      const idToChapter = new Map<string, string>()
+      const quoteToChapter = new Map<string, { chapter: string; parentChapter?: string }>()
+      const idToChapter = new Map<string, { chapter: string; parentChapter?: string }>()
 
       for (const bm of bookmarks) {
         if (!bm) continue
         const bmUid = bm.chapterUid !== undefined && bm.chapterUid !== null ? Number(bm.chapterUid) : NaN
+        const entry = !Number.isNaN(bmUid) ? chapterMap[bmUid] : null
         const chapter =
-          (!Number.isNaN(bmUid) && chapterMap[bmUid])
-            ? chapterMap[bmUid]
-            : (bm.chapterTitle?.trim() || '')
+          typeof entry === 'object' && entry !== null
+            ? entry.title
+            : typeof entry === 'string'
+              ? entry
+              : (bm.chapterTitle?.trim() || '')
+        const parentChapter =
+          typeof entry === 'object' && entry !== null ? entry.parentTitle : undefined
 
         if (chapter) {
+          const item = { chapter, parentChapter }
           if (bm.markText?.trim()) {
-            quoteToChapter.set(bm.markText.trim(), chapter)
+            quoteToChapter.set(bm.markText.trim(), item)
           }
           if (bm.bookmarkId) {
-            idToChapter.set(`wr-bm-${bm.bookmarkId}`, chapter)
+            idToChapter.set(`wr-bm-${bm.bookmarkId}`, item)
           }
         }
       }
@@ -501,17 +534,23 @@ export async function enrichExistingWeReadAnnotations(
         const thoughtData = th.thought || th
         if (!thoughtData) continue
         const thUid = thoughtData.chapterUid !== undefined && thoughtData.chapterUid !== null ? Number(thoughtData.chapterUid) : NaN
+        const thEntry = !Number.isNaN(thUid) ? chapterMap[thUid] : null
         const chapter =
-          (!Number.isNaN(thUid) && chapterMap[thUid])
-            ? chapterMap[thUid]
-            : (thoughtData.chapterTitle?.trim() || '')
+          typeof thEntry === 'object' && thEntry !== null
+            ? thEntry.title
+            : typeof thEntry === 'string'
+              ? thEntry
+              : (thoughtData.chapterTitle?.trim() || '')
+        const parentChapter =
+          typeof thEntry === 'object' && thEntry !== null ? thEntry.parentTitle : undefined
 
         if (chapter) {
+          const item = { chapter, parentChapter }
           if (thoughtData.abstract?.trim()) {
-            quoteToChapter.set(thoughtData.abstract.trim(), chapter)
+            quoteToChapter.set(thoughtData.abstract.trim(), item)
           }
           if (thoughtData.thoughtId) {
-            idToChapter.set(`wr-th-${thoughtData.thoughtId}`, chapter)
+            idToChapter.set(`wr-th-${thoughtData.thoughtId}`, item)
           }
         }
       }
@@ -526,13 +565,21 @@ export async function enrichExistingWeReadAnnotations(
           currentCh === '未知章节' ||
           currentCh === '电子书章节'
 
-        if (isPlaceholder) {
-          const resolved =
-            idToChapter.get(ann.id) ||
-            (ann.quote ? quoteToChapter.get(ann.quote.trim()) : undefined)
+        const resolved =
+          idToChapter.get(ann.id) ||
+          (ann.quote ? quoteToChapter.get(ann.quote.trim()) : undefined)
 
-          if (resolved) {
-            ann.chapter = resolved
+        if (resolved) {
+          let hasChange = false
+          if (isPlaceholder || ann.chapter !== resolved.chapter) {
+            ann.chapter = resolved.chapter
+            hasChange = true
+          }
+          if (resolved.parentChapter && ann.parentChapter !== resolved.parentChapter) {
+            ann.parentChapter = resolved.parentChapter
+            hasChange = true
+          }
+          if (hasChange) {
             ann.updatedAt = ann.updatedAt || ann.createdAt || nowIso
             await putBookAnnotation(ann)
             updatedCount++

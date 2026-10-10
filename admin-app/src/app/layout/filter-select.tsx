@@ -4,6 +4,8 @@ export type FilterSelectOption = {
   value: string
   label: string
   keywords?: string
+  indent?: number
+  triggerLabel?: string
 }
 
 type FilterSelectProps = {
@@ -69,12 +71,12 @@ export default function FilterSelect({
     }
 
     return normalizedOptions.filter((option) => {
-      const haystack = `${option.label} ${option.keywords || ''}`
+      const haystack = `${option.label} ${option.triggerLabel || ''} ${option.keywords || ''}`
       return normalizeText(haystack).includes(normalizedQuery)
     })
   }, [normalizedOptions, normalizedQuery])
   const selectedOption = normalizedOptions.find((option) => option.value === value) || null
-  const triggerText = selectedOption?.label || value || placeholder || '请选择'
+  const triggerText = selectedOption?.triggerLabel || selectedOption?.label || value || placeholder || '请选择'
   const searchLabel = `搜索${label}`
   const listboxLabel = `${label}选项`
   const resolvedSearchPlaceholder = searchPlaceholder || `筛选${label}`
@@ -288,8 +290,8 @@ export default function FilterSelect({
                     role="option"
                     aria-selected={isSelected}
                     tabIndex={0}
-                    className={`filter-select__option${isSelected ? ' is-selected' : ''}`}
-                    title={option.label}
+                    className={`filter-select__option${isSelected ? ' is-selected' : ''}${option.indent ? ` filter-select__option--indent-${option.indent}` : ''}`}
+                    title={option.triggerLabel || option.label}
                     onClick={() => {
                       if (!isConfirmingDelete) {
                         handleSelect(option.value)

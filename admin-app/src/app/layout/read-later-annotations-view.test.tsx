@@ -18,6 +18,7 @@ function createAnnotationIndexItem(overrides: Partial<ReadLaterAnnotationIndexIt
     sectionKey: overrides.sectionKey || 'articleExcerpt',
     sectionLabel: overrides.sectionLabel || '原文摘录',
     chapterTitle: overrides.chapterTitle ?? null,
+    parentChapterTitle: overrides.parentChapterTitle ?? null,
     quote: overrides.quote || '默认摘录',
     prefix: overrides.prefix || '',
     suffix: overrides.suffix || '',
@@ -820,6 +821,77 @@ describe('ReadLaterAnnotationsView', () => {
 
     // And second annotation's note draft should be shown in the comment area
     expect(screen.getByDisplayValue('这是第二条评论')).toBeTruthy()
+  })
+
+  it('supports hierarchical chapter grouping and filtering (major chapters and sub-chapters)', () => {
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-1',
+        parentChapterTitle: '第5章 沟通',
+        chapterTitle: '言语沟通',
+        quote: '言语沟通的第一条摘录',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-2',
+        parentChapterTitle: '第5章 沟通',
+        chapterTitle: '言语沟通',
+        quote: '言语沟通的第二条摘录',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-3',
+        parentChapterTitle: '第5章 沟通',
+        chapterTitle: '沟通障碍及其应对',
+        quote: '沟通障碍的摘录',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-4',
+        parentChapterTitle: '第6章 相互依赖',
+        chapterTitle: '社会交换',
+        quote: '社会交换理论的摘录',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    // Check card display has "第5章 沟通 · 言语沟通"
+    expect(screen.getAllByText(/第5章 沟通 · 言语沟通/).length).toBeGreaterThan(0)
+
+    // Open chapter dropdown
+    const chapterTrigger = screen.getByRole('button', { name: /章节/i })
+    fireEvent.click(chapterTrigger)
+
+    // Options should include parent chapter and sub-chapters with counts
+    expect(screen.getByRole('option', { name: /全部章节 \(4\)/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /第5章 沟通 \(3\)/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /言语沟通 \(2\)/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /沟通障碍及其应对 \(1\)/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /第6章 相互依赖 \(1\)/ })).toBeTruthy()
+    expect(screen.getByRole('option', { name: /社会交换 \(1\)/ })).toBeTruthy()
+
+    // Select parent chapter (第5章 沟通)
+    fireEvent.click(screen.getByRole('option', { name: /第5章 沟通 \(3\)/ }))
+
+    const listSection = screen.getByLabelText('批注列表区')
+    // Should show all 3 annotations belonging to chapter 5
+    expect(within(listSection).getByText('言语沟通的第一条摘录')).toBeTruthy()
+    expect(within(listSection).getByText('言语沟通的第二条摘录')).toBeTruthy()
+    expect(within(listSection).getByText('沟通障碍的摘录')).toBeTruthy()
+    expect(within(listSection).queryByText('社会交换理论的摘录')).toBeNull()
+
+    // Now select sub-chapter (沟通障碍及其应对)
+    fireEvent.click(chapterTrigger)
+    fireEvent.click(screen.getByRole('option', { name: /沟通障碍及其应对 \(1\)/ }))
+
+    // Should only show 1 annotation
+    expect(within(listSection).queryByText('言语沟通的第一条摘录')).toBeNull()
+    expect(within(listSection).getByText('沟通障碍的摘录')).toBeTruthy()
   })
 })
 
