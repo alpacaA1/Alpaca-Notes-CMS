@@ -14032,6 +14032,26 @@ textarea {
   color: var(--admin-warm, #c07d3e);
 }
 
+.annotation-dashboard__original-guide-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.annotation-dashboard__original-guide-action--primary {
+  background: var(--admin-warm, #c07d3e);
+  color: #fff;
+  border-color: var(--admin-warm, #c07d3e);
+  text-decoration: none;
+}
+
+.annotation-dashboard__original-guide-action--primary:hover {
+  background: #aa6e35;
+  color: #fff;
+  border-color: #aa6e35;
+}
+
 .annotation-dashboard__detail-body {
   padding: 14px 18px;
   display: flex;

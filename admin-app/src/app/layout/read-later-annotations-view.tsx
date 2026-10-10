@@ -11,6 +11,7 @@ export type OriginalContentPayload = {
   content: string
   chapterTitle?: string
   isHtml?: boolean
+  externalUrl?: string
 }
 
 type ReadLaterAnnotationsViewProps = {
@@ -180,6 +181,15 @@ export function findAnnotationRange(
     return { start: fallbackIdx, end: fallbackIdx + cleanQuote.length }
   }
 
+  // Fallback: search with trimmed whitespace or first segment
+  if (cleanQuote.length >= 10) {
+    const sub = cleanQuote.slice(0, Math.min(cleanQuote.length, 25))
+    const subIdx = fullText.indexOf(sub)
+    if (subIdx !== -1) {
+      return { start: subIdx, end: Math.min(fullText.length, subIdx + cleanQuote.length) }
+    }
+  }
+
   return null
 }
 
@@ -274,6 +284,21 @@ function renderOriginalHtmlContent(
         html.slice(0, idx) +
         `<mark id="annotation-original-target" class="annotation-dashboard__original-mark is-target">${cleanQuote}</mark>` +
         html.slice(idx + cleanQuote.length)
+    } else {
+      try {
+        const escaped = cleanQuote
+          .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\s+/g, '(?:\\s|&nbsp;|<[^>]+>)+')
+        const regex = new RegExp(`(${escaped})`, 'i')
+        if (regex.test(html)) {
+          processedHtml = html.replace(
+            regex,
+            '<mark id="annotation-original-target" class="annotation-dashboard__original-mark is-target">$1</mark>',
+          )
+        }
+      } catch {
+        // Fallback to DOM lookup
+      }
     }
   }
 
@@ -282,11 +307,26 @@ function renderOriginalHtmlContent(
       className="annotation-dashboard__original-html"
       dangerouslySetInnerHTML={{ __html: processedHtml }}
       ref={(el) => {
-        if (el && targetRef) {
-          const mark = el.querySelector('#annotation-original-target') as HTMLElement | null
-          if (mark) {
-            ;(targetRef as React.MutableRefObject<HTMLElement | null>).current = mark
+        if (!el || !targetRef) return
+        let mark = el.querySelector('#annotation-original-target') as HTMLElement | null
+        if (!mark && cleanQuote) {
+          const elements = el.querySelectorAll('p, div, li, h1, h2, h3, h4, h5, h6, blockquote')
+          const compactQuote = cleanQuote.replace(/[\s\p{P}]+/gu, '')
+          for (const item of Array.from(elements)) {
+            const itemText = (item.textContent || '').replace(/[\s\p{P}]+/gu, '')
+            if (
+              itemText &&
+              (itemText.includes(compactQuote) ||
+                (compactQuote.length >= 8 && itemText.includes(compactQuote.slice(0, 12))))
+            ) {
+              item.classList.add('annotation-dashboard__original-mark', 'is-target')
+              mark = item as HTMLElement
+              break
+            }
           }
+        }
+        if (mark) {
+          ;(targetRef as React.MutableRefObject<HTMLElement | null>).current = mark
         }
       }}
     />
@@ -601,9 +641,12 @@ export default function ReadLaterAnnotationsView({
     const currentAnn = annotations.find((item) => item.id === selectedAnnotationId)
     if (!currentAnn) return
 
-    const cacheKey = currentAnn.postPath
+    const cacheKey = currentAnn.sourceType === 'book'
+      ? `${currentAnn.postPath}::${currentAnn.id}`
+      : currentAnn.postPath
     if (contentCacheRef.current.has(cacheKey)) {
       setOriginalPayload(contentCacheRef.current.get(cacheKey) || null)
+      setIsOriginalLoading(false)
       return
     }
 
@@ -632,14 +675,41 @@ export default function ReadLaterAnnotationsView({
     }
   }, [annotations, onLoadOriginalContent, rightPaneMode, selectedAnnotationId])
 
+  // Sync or reset payload when selected annotation changes
+  useEffect(() => {
+    if (!selectedAnnotationId) {
+      setOriginalPayload(null)
+      return
+    }
+    const currentAnn = annotations.find((item) => item.id === selectedAnnotationId)
+    if (!currentAnn) {
+      setOriginalPayload(null)
+      return
+    }
+    const cacheKey = currentAnn.sourceType === 'book'
+      ? `${currentAnn.postPath}::${currentAnn.id}`
+      : currentAnn.postPath
+    if (contentCacheRef.current.has(cacheKey)) {
+      setOriginalPayload(contentCacheRef.current.get(cacheKey) || null)
+    } else {
+      setOriginalPayload(null)
+    }
+  }, [annotations, selectedAnnotationId])
+
   // Scroll to active highlight when in original mode
   useEffect(() => {
     if (rightPaneMode !== 'original' || !selectedAnnotationId) return
     const timer = window.setTimeout(() => {
-      if (targetHighlightRef.current && typeof targetHighlightRef.current.scrollIntoView === 'function') {
-        targetHighlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (targetHighlightRef.current) {
+        if (typeof targetHighlightRef.current.scrollIntoView === 'function') {
+          targetHighlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        } else if (originalScrollContainerRef.current && typeof originalScrollContainerRef.current.scrollTo === 'function') {
+          const container = originalScrollContainerRef.current
+          const targetTop = targetHighlightRef.current.offsetTop
+          container.scrollTo({ top: Math.max(0, targetTop - 120), behavior: 'smooth' })
+        }
       }
-    }, 80)
+    }, 100)
     return () => window.clearTimeout(timer)
   }, [rightPaneMode, selectedAnnotationId, originalPayload])
 
@@ -1385,16 +1455,44 @@ export default function ReadLaterAnnotationsView({
 
                       <div className="annotation-dashboard__original-fallback-guide">
                         <div className="annotation-dashboard__original-guide-content">
-                          <span className="annotation-dashboard__original-guide-title">需要沉浸翻阅整本书？</span>
-                          <span className="annotation-dashboard__original-guide-sub">可在书架关联本地 EPUB 文件，或打开全屏阅读器浏览</span>
+                          <span className="annotation-dashboard__original-guide-title">
+                            {originalPayload?.externalUrl || selectedAnnotation.bookId?.startsWith('weread-')
+                              ? '微信读书在线原文'
+                              : '需要沉浸翻阅整本书？'}
+                          </span>
+                          <span className="annotation-dashboard__original-guide-sub">
+                            {originalPayload?.externalUrl || selectedAnnotation.bookId?.startsWith('weread-')
+                              ? '当前划线来自微信读书同步。可直接前往微信读书网页版查看上下文，或关联本地 EPUB 文件以在后台就地阅读。'
+                              : '可在书架关联本地 EPUB 文件，或打开全屏阅读器浏览。'}
+                          </span>
                         </div>
-                        <button
-                          type="button"
-                          className="annotation-dashboard__original-guide-action"
-                          onClick={() => onOpenAnnotation(selectedAnnotation)}
-                        >
-                          打开全屏 ↗
-                        </button>
+                        <div className="annotation-dashboard__original-guide-actions">
+                          {(originalPayload?.externalUrl || selectedAnnotation.bookId?.startsWith('weread-')) ? (
+                            <a
+                              href={originalPayload?.externalUrl || `https://weread.qq.com/web/reader/${selectedAnnotation.bookId?.replace(/^weread-/, '')}`}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="annotation-dashboard__original-guide-action annotation-dashboard__original-guide-action--primary"
+                            >
+                              在微信读书中阅读 ↗
+                            </a>
+                          ) : (
+                            <button
+                              type="button"
+                              className="annotation-dashboard__original-guide-action annotation-dashboard__original-guide-action--primary"
+                              onClick={() => onOpenAnnotation(selectedAnnotation)}
+                            >
+                              打开全屏 ↗
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className="annotation-dashboard__original-guide-action"
+                            onClick={() => epubFileInputRef.current?.click()}
+                          >
+                            关联本地 EPUB
+                          </button>
+                        </div>
                       </div>
                     </div>
                   )}

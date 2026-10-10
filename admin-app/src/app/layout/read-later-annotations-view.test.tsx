@@ -893,5 +893,80 @@ describe('ReadLaterAnnotationsView', () => {
     expect(within(listSection).queryByText('言语沟通的第一条摘录')).toBeNull()
     expect(within(listSection).getByText('沟通障碍的摘录')).toBeTruthy()
   })
+
+  it('loads correct original text for newly selected sentence after filtering without stale cache', async () => {
+    const onLoadOriginalContent = vi.fn().mockImplementation((ann: ReadLaterAnnotationIndexItem) => {
+      if (ann.id === 'ann-1') {
+        return Promise.resolve({
+          title: '人际沟通',
+          chapterTitle: '言语沟通',
+          content: '<p>言语沟通的第一条摘录在此。</p>',
+          isHtml: true,
+        })
+      }
+      if (ann.id === 'ann-3') {
+        return Promise.resolve({
+          title: '人际沟通',
+          chapterTitle: '沟通障碍及其应对',
+          content: '<p>这是第二节。沟通障碍的摘录出现了。</p>',
+          isHtml: true,
+        })
+      }
+      return Promise.resolve(null)
+    })
+
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-1',
+        sourceType: 'book',
+        postPath: 'book:book-1',
+        chapterTitle: '言语沟通',
+        quote: '言语沟通的第一条摘录在此',
+        searchText: '人际沟通 言语沟通 言语沟通的第一条摘录在此',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-3',
+        sourceType: 'book',
+        postPath: 'book:book-1',
+        chapterTitle: '沟通障碍及其应对',
+        quote: '沟通障碍的摘录出现了',
+        searchText: '人际沟通 沟通障碍及其应对 沟通障碍的摘录出现了',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+        onLoadOriginalContent={onLoadOriginalContent}
+      />,
+    )
+
+    // 1. Initially on ann-1. Switch to original view to load ann-1
+    fireEvent.click(screen.getByRole('button', { name: '查看原文' }))
+    expect(await screen.findByText(/言语沟通的第一条摘录在此/)).toBeTruthy()
+    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[0])
+
+    // 2. Filter by chapter dropdown to "沟通障碍及其应对"
+    const chapterTrigger = screen.getByRole('button', { name: /章节/i })
+    fireEvent.click(chapterTrigger)
+    fireEvent.click(screen.getByRole('option', { name: /沟通障碍及其应对/ }))
+
+    // 3. Find sentence card and select it
+    const listSection = screen.getByLabelText('批注列表区')
+    const targetCard = within(listSection).getByText('沟通障碍的摘录出现了')
+    fireEvent.click(targetCard)
+
+    // 4. Now in detail mode for ann-3. Click "查看原文"
+    const openOriginalBtn = screen.getByRole('button', { name: '查看原文' })
+    fireEvent.click(openOriginalBtn)
+
+    // 5. Must fetch and display ann-3's content, NOT stale ann-1 content!
+    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[1])
+    expect(await screen.findByText(/沟通障碍的摘录出现了/)).toBeTruthy()
+    expect(screen.queryByText('言语沟通的第一条摘录在此。')).toBeNull()
+  })
 })
 

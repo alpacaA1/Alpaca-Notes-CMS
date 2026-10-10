@@ -229,30 +229,41 @@ export function resolveChapterForMatchedQuote(
   return null
 }
 
+const epubResolutionCache = new WeakMap<Blob, Promise<{
+  sections: ResolvedSectionContent[]
+  flatToc: FlattenedTocItem[]
+}>>()
+
 /**
  * Reads and indexes EPUB sections and TOC from a file blob.
  */
-export async function parseEpubForResolution(file: File | Blob): Promise<{
+export function parseEpubForResolution(file: File | Blob): Promise<{
   sections: ResolvedSectionContent[]
   flatToc: FlattenedTocItem[]
 }> {
-  const { makeBook } = await import('foliate-js/view.js')
+  const cached = epubResolutionCache.get(file)
+  if (cached) {
+    return cached
+  }
 
-  // Ensure file is wrapped with name if it's a bare Blob
-  const namedFile =
-    file instanceof File && file.name
-      ? file
-      : new File([file], 'book.epub', { type: 'application/epub+zip' })
+  const parsePromise = (async () => {
+    const { makeBook } = await import('foliate-js/view.js')
 
-  const book = await makeBook(namedFile)
-  const rawToc = (book.toc as BookTocItem[] | null) ?? []
-  const flatToc = flattenToc(rawToc)
+    // Ensure file is wrapped with name if it's a bare Blob
+    const namedFile =
+      file instanceof File && file.name
+        ? file
+        : new File([file], 'book.epub', { type: 'application/epub+zip' })
 
-  const rawSections = (book.sections as Array<{
-    id?: string
-    createDocument?: () => Promise<Document>
-    load?: () => Promise<Document | Element | string>
-  }>) ?? []
+    const book = await makeBook(namedFile)
+    const rawToc = (book.toc as BookTocItem[] | null) ?? []
+    const flatToc = flattenToc(rawToc)
+
+    const rawSections = (book.sections as Array<{
+      id?: string
+      createDocument?: () => Promise<Document>
+      load?: () => Promise<Document | Element | string>
+    }>) ?? []
 
   const sections: ResolvedSectionContent[] = []
   let lastKnownChapter: string | null = null
@@ -316,7 +327,11 @@ export async function parseEpubForResolution(file: File | Blob): Promise<{
     })
   }
 
-  return { sections, flatToc }
+    return { sections, flatToc }
+  })()
+
+  epubResolutionCache.set(file, parsePromise)
+  return parsePromise
 }
 
 /**

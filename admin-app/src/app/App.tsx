@@ -3706,9 +3706,6 @@ export default function App() {
     if (annotation.sourceType === 'book' && annotation.bookId) {
       setSuccessMessage(null)
       setError(null)
-      setAdminView('books')
-      setActivePostPath(null)
-      replaceDocument(null)
       try {
         const books = bookMetas.length > 0 ? bookMetas : await listBookMetas()
         const book = books.find((item) => item.id === annotation.bookId)
@@ -3717,8 +3714,17 @@ export default function App() {
         }
         const file = await getBookFile(book.id)
         if (!file) {
-          throw new Error('本地找不到这本书的文件，可能已被浏览器清理，请重新导入。')
+          if (book.id.startsWith('weread-')) {
+            const wereadBookId = book.id.replace(/^weread-/, '')
+            window.open(`https://weread.qq.com/web/reader/${wereadBookId}`, '_blank')
+            setSuccessMessage(`已在微信读书打开《${book.title}》。`)
+            return
+          }
+          throw new Error(`本地尚未载入《${book.title}》的文件，请在书架关联本地 EPUB/PDF。`)
         }
+        setAdminView('books')
+        setActivePostPath(null)
+        replaceDocument(null)
         const nextMeta: StoredBookMeta = { ...book, lastOpenedAt: new Date().toISOString() }
         void putBookMeta(nextMeta)
         setBookMetas(books)
@@ -3774,51 +3780,71 @@ export default function App() {
     }
   }
 
-  const handleLoadAnnotationOriginalContent = async (
-    annotation: ReadLaterAnnotationIndexItem,
-  ): Promise<{ title: string; content: string; chapterTitle?: string; isHtml?: boolean } | null> => {
-    if (annotation.sourceType === 'book' && annotation.bookId) {
-      try {
-        const file = await getBookFile(annotation.bookId)
-        if (file && file.blob && annotation.bookFormat !== 'pdf') {
-          const { parseEpubForResolution, matchQuoteInSection } = await import('./books/epub-chapter-resolver')
-          const { sections } = await parseEpubForResolution(file.blob)
-          const matchedSection = sections.find((s) => matchQuoteInSection(annotation.quote, s))
-          if (matchedSection) {
-            return {
-              title: annotation.postTitle,
-              chapterTitle: matchedSection.associatedChapterTitle || annotation.chapterTitle || undefined,
-              content: matchedSection.doc?.body?.innerHTML || matchedSection.textContent,
-              isHtml: Boolean(matchedSection.doc?.body?.innerHTML),
+  const handleLoadAnnotationOriginalContent = useCallback(
+    async (
+      annotation: ReadLaterAnnotationIndexItem,
+    ): Promise<{ title: string; content: string; chapterTitle?: string; isHtml?: boolean; externalUrl?: string } | null> => {
+      if (annotation.sourceType === 'book' && annotation.bookId) {
+        try {
+          const file = await getBookFile(annotation.bookId)
+          if (file && file.blob && annotation.bookFormat !== 'pdf') {
+            const { parseEpubForResolution, matchQuoteInSection } = await import('./books/epub-chapter-resolver')
+            const { sections } = await parseEpubForResolution(file.blob)
+            let matchedSection = sections.find((s) => matchQuoteInSection(annotation.quote, s))
+            if (!matchedSection && annotation.chapterTitle) {
+              matchedSection = sections.find(
+                (s) =>
+                  s.associatedChapterTitle === annotation.chapterTitle ||
+                  s.associatedParentChapterTitle === annotation.parentChapterTitle,
+              )
             }
+            if (matchedSection) {
+              return {
+                title: annotation.postTitle,
+                chapterTitle: matchedSection.associatedChapterTitle || annotation.chapterTitle || undefined,
+                content: matchedSection.doc?.body?.innerHTML || matchedSection.textContent,
+                isHtml: Boolean(matchedSection.doc?.body?.innerHTML),
+              }
+            }
+          }
+        } catch {
+          // Fallback to null
+        }
+        if (annotation.bookId.startsWith('weread-')) {
+          const wereadBookId = annotation.bookId.replace(/^weread-/, '')
+          return {
+            title: annotation.postTitle,
+            chapterTitle: annotation.chapterTitle || undefined,
+            content: '',
+            isHtml: false,
+            externalUrl: `https://weread.qq.com/web/reader/${wereadBookId}`,
+          }
+        }
+        return null
+      }
+
+      try {
+        const sourcePost = readLaterPosts.find((post) => post.path === annotation.postPath)
+        const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
+        const file = cachedFile || (session ? await fetchMarkdownFile(session, annotation.postPath) : null)
+        if (file) {
+          const item = parseReadLaterItem(file)
+          const { getEditableReadLaterSections } = await import('./read-later/parse-item')
+          const sections = getEditableReadLaterSections(item.body)
+          return {
+            title: item.frontmatter.title || annotation.postTitle,
+            chapterTitle: annotation.chapterTitle || undefined,
+            content: sections.articleExcerpt || item.body,
+            isHtml: false,
           }
         }
       } catch {
-        // Fallback to null
+        return null
       }
       return null
-    }
-
-    try {
-      const sourcePost = readLaterPosts.find((post) => post.path === annotation.postPath)
-      const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
-      const file = cachedFile || (session ? await fetchMarkdownFile(session, annotation.postPath) : null)
-      if (file) {
-        const item = parseReadLaterItem(file)
-        const { getEditableReadLaterSections } = await import('./read-later/parse-item')
-        const sections = getEditableReadLaterSections(item.body)
-        return {
-          title: item.frontmatter.title || annotation.postTitle,
-          chapterTitle: annotation.chapterTitle || undefined,
-          content: sections.articleExcerpt || item.body,
-          isHtml: false,
-        }
-      }
-    } catch {
-      return null
-    }
-    return null
-  }
+    },
+    [readLaterPosts, session],
+  )
 
   const handleClearActiveAnnotation = () => {
     setActiveAnnotationId(null)
