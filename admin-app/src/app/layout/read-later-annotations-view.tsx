@@ -1624,25 +1624,27 @@ export default function ReadLaterAnnotationsView({
 
               {/* Bottom Navigation (连续浏览) */}
               <footer className="annotation-dashboard__detail-nav">
-                <button
-                  type="button"
-                  className="annotation-dashboard__nav-btn"
-                  onClick={handlePrev}
-                  disabled={currentIndex <= 0}
-                >
-                  ‹ 上一条
-                </button>
-                <span className="annotation-dashboard__nav-position">
-                  {currentIndex >= 0 ? `${currentIndex + 1} / ${sortedAnnotations.length}` : '0 / 0'}
-                </span>
-                <button
-                  type="button"
-                  className="annotation-dashboard__nav-btn"
-                  onClick={handleNext}
-                  disabled={currentIndex < 0 || currentIndex >= sortedAnnotations.length - 1}
-                >
-                  下一条 ›
-                </button>
+                <div className="annotation-dashboard__detail-nav-inner">
+                  <button
+                    type="button"
+                    className="annotation-dashboard__nav-btn"
+                    onClick={handlePrev}
+                    disabled={currentIndex <= 0}
+                  >
+                    ‹ 上一条
+                  </button>
+                  <span className="annotation-dashboard__nav-position">
+                    {currentIndex >= 0 ? `${currentIndex + 1} / ${sortedAnnotations.length}` : '0 / 0'}
+                  </span>
+                  <button
+                    type="button"
+                    className="annotation-dashboard__nav-btn"
+                    onClick={handleNext}
+                    disabled={currentIndex < 0 || currentIndex >= sortedAnnotations.length - 1}
+                  >
+                    下一条 ›
+                  </button>
+                </div>
               </footer>
             </div>
           ) : (
