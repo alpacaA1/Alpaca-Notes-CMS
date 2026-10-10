@@ -772,7 +772,7 @@ describe('ReadLaterAnnotationsView', () => {
     expect(onOpenAnnotation).toHaveBeenCalledWith(annotations[0])
   })
 
-  it('clicking quote on middle column card switches to original view and selects annotation', async () => {
+  it('selecting annotation in middle column always defaults to detail mode even if previously in original mode', async () => {
     const onLoadOriginalContent = vi.fn().mockResolvedValue({
       title: '默认文章',
       content: '前面段落。\n\n时间是一个最奇妙的作者，它会在不知不觉中写下所有答案。\n\n后面段落。',
@@ -783,10 +783,12 @@ describe('ReadLaterAnnotationsView', () => {
       createAnnotationIndexItem({
         id: 'ann-1',
         quote: '第一条摘录',
+        note: '这是第一条评论',
       }),
       createAnnotationIndexItem({
         id: 'ann-2',
         quote: '时间是一个最奇妙的作者',
+        note: '这是第二条评论',
       }),
     ]
 
@@ -800,16 +802,24 @@ describe('ReadLaterAnnotationsView', () => {
       />,
     )
 
-    // Click the quote on the second card
-    const quoteElement = screen.getByText('时间是一个最奇妙的作者')
-    fireEvent.click(quoteElement)
+    // Initially, right pane should default to "批注详情"
+    expect(screen.getByRole('tab', { name: '批注详情' }).getAttribute('aria-selected')).toBe('true')
 
-    // Should switch to original mode
+    // User explicitly switches to "原文阅读"
+    fireEvent.click(screen.getByRole('tab', { name: '原文阅读' }))
     expect(screen.getByRole('tab', { name: '原文阅读' }).getAttribute('aria-selected')).toBe('true')
-    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[1])
+    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[0])
 
-    // Wait for content and mark
-    expect(await screen.findByLabelText('当前批注高亮：时间是一个最奇妙的作者')).toBeTruthy()
+    // Now user clicks on the second annotation card (via its quote text or container)
+    const secondQuote = screen.getByText('时间是一个最奇妙的作者')
+    fireEvent.click(secondQuote)
+
+    // Right pane MUST reset/default back to "批注详情", NOT remain in original mode
+    expect(screen.getByRole('tab', { name: '批注详情' }).getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByRole('tab', { name: '原文阅读' }).getAttribute('aria-selected')).toBe('false')
+
+    // And second annotation's note draft should be shown in the comment area
+    expect(screen.getByDisplayValue('这是第二条评论')).toBeTruthy()
   })
 })
 

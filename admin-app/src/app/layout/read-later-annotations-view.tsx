@@ -607,6 +607,7 @@ export default function ReadLaterAnnotationsView({
 
     if (!selectedAnnotationId || !sortedAnnotations.some((item) => item.id === selectedAnnotationId)) {
       setSelectedAnnotationId(sortedAnnotations[0].id)
+      setRightPaneMode('detail')
     }
   }, [selectedAnnotationId, sortedAnnotations])
 
@@ -689,6 +690,8 @@ export default function ReadLaterAnnotationsView({
 
   // Safe navigation with unsaved change check
   const requestSelectAnnotation = (targetId: string) => {
+    setRightPaneMode('detail')
+
     if (isMultiSelectMode) {
       toggleAnnotationSelection(targetId)
       setSelectedAnnotationId(targetId)
@@ -711,6 +714,7 @@ export default function ReadLaterAnnotationsView({
     if (pendingAnnotationId) {
       setSelectedAnnotationId(pendingAnnotationId)
       setPendingAnnotationId(null)
+      setRightPaneMode('detail')
     }
   }
 
@@ -1075,15 +1079,7 @@ export default function ReadLaterAnnotationsView({
                     ) : null}
 
                     <div className="annotation-dashboard__item-main">
-                      <p
-                        className="annotation-dashboard__item-quote"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          requestSelectAnnotation(annotation.id)
-                          setRightPaneMode('original')
-                        }}
-                        title="点击在右侧查看原文"
-                      >
+                      <p className="annotation-dashboard__item-quote">
                         {getAnnotationQuoteText(annotation.quote)}
                       </p>
                       <div className="annotation-dashboard__item-meta">

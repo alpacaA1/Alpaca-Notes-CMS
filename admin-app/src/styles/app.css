@@ -13579,13 +13579,7 @@ textarea {
   overflow: hidden;
   word-break: normal;
   overflow-wrap: break-word;
-  cursor: pointer;
   text-align: left;
-  transition: color 120ms ease;
-}
-
-.annotation-dashboard__item-quote:hover {
-  color: var(--admin-warm, #c07d3e);
 }
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
