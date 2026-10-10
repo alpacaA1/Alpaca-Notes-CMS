@@ -13639,10 +13639,14 @@ textarea {
   overflow-y: auto;
   padding: 16px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-content: start;
   background: transparent;
+}
+
+.annotation-dashboard__layout.is-sources-collapsed .annotation-dashboard__items-scroll {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .annotation-dashboard__item-card {
@@ -14099,21 +14103,20 @@ textarea {
 }
 
 .annotation-dashboard__original-fallback-guide {
-  margin-top: 28px;
+  margin-top: 24px;
   padding: 14px 16px;
   border-radius: 10px;
   background: var(--admin-surface-subtle, #f8f6f2);
   border: 1px solid var(--admin-line, #eceae5);
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .annotation-dashboard__original-guide-content {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .annotation-dashboard__original-guide-title {
@@ -14153,7 +14156,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .annotation-dashboard__original-guide-action--primary {
