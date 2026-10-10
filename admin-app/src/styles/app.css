@@ -13266,7 +13266,7 @@ textarea {
 }
 
 .annotation-dashboard__layout.is-sources-collapsed {
-  grid-template-columns: 0px clamp(340px, 28vw, 420px) minmax(460px, 1fr);
+  grid-template-columns: clamp(340px, 28vw, 420px) minmax(460px, 1fr);
 }
 
 /* Stealth Scrollbars for Annotation Dashboard */
@@ -14926,7 +14926,7 @@ textarea {
   }
 
   .annotation-dashboard__layout.is-sources-collapsed {
-    grid-template-columns: 0px 320px minmax(260px, 1fr);
+    grid-template-columns: 320px minmax(260px, 1fr);
   }
 
   .post-dashboard__knowledge-carousel {
