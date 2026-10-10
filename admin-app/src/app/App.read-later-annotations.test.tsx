@@ -207,7 +207,7 @@ describe('App read-later annotations view', () => {
     expect(within(listSection).getByText('交互上的提醒')).toBeTruthy()
 
     // Test Open Original Read Later Item
-    const openOriginalBtn = within(detailSection).getByRole('button', { name: /打开原文/ })
+    const openOriginalBtn = within(detailSection).getByRole('button', { name: /打开全文|打开原文/ })
     fireEvent.click(openOriginalBtn)
 
     // Should navigate to reader / editor view

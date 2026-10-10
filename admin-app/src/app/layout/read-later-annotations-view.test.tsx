@@ -337,7 +337,8 @@ describe('ReadLaterAnnotationsView', () => {
     // 2. "我们时代的神经症人格" (latest highlight at 2026-09-08T10:00:00.000Z)
     // 3. "旧书" (latest highlight at 2025-01-01T10:00:00.000Z)
     const sourceRail = screen.getByLabelText('来源文章列表')
-    const sourceButtons = within(sourceRail).getAllByRole('button')
+    const sourceList = sourceRail.querySelector('.annotation-dashboard__sources-list')!
+    const sourceButtons = within(sourceList as HTMLElement).getAllByRole('button')
     // Index 0 is "全部来源"
     expect(within(sourceButtons[1]).getByText('最新文章')).toBeTruthy()
     expect(within(sourceButtons[2]).getByText('我们时代的神经症人格')).toBeTruthy()
@@ -752,9 +753,8 @@ describe('ReadLaterAnnotationsView', () => {
     expect(screen.getByRole('tab', { name: '批注详情' })).toBeTruthy()
     expect(screen.getByRole('tab', { name: '原文阅读' })).toBeTruthy()
 
-    // Click "查看原文" in detail actions
-    const openOriginalBtn = screen.getByRole('button', { name: '查看原文' })
-    fireEvent.click(openOriginalBtn)
+    // Switch to original view via tab
+    fireEvent.click(screen.getByRole('tab', { name: '原文阅读' }))
 
     // Does NOT call onOpenAnnotation (which would have navigated the full page away!)
     expect(onOpenAnnotation).not.toHaveBeenCalled()
@@ -767,8 +767,8 @@ describe('ReadLaterAnnotationsView', () => {
     expect(await screen.findByLabelText('当前批注高亮：系统1的运行是无意识且快速的')).toBeTruthy()
     expect(document.querySelector('.annotation-dashboard__original-chapter-badge')?.textContent).toBe('第一章 两个系统')
 
-    // Clicking "全屏" calls onOpenAnnotation for users who explicitly want full-screen reader
-    const fullscreenBtn = screen.getByRole('button', { name: /全屏/ })
+    // Clicking "打开全文" calls onOpenAnnotation for users who explicitly want full-screen reader
+    const fullscreenBtn = screen.getByRole('button', { name: /打开全文/ })
     fireEvent.click(fullscreenBtn)
     expect(onOpenAnnotation).toHaveBeenCalledWith(annotations[0])
   })
@@ -945,7 +945,7 @@ describe('ReadLaterAnnotationsView', () => {
     )
 
     // 1. Initially on ann-1. Switch to original view to load ann-1
-    fireEvent.click(screen.getByRole('button', { name: '查看原文' }))
+    fireEvent.click(screen.getByRole('tab', { name: '原文阅读' }))
     expect(await screen.findByText(/言语沟通的第一条摘录在此/)).toBeTruthy()
     expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[0])
 
@@ -959,14 +959,53 @@ describe('ReadLaterAnnotationsView', () => {
     const targetCard = within(listSection).getByText('沟通障碍的摘录出现了')
     fireEvent.click(targetCard)
 
-    // 4. Now in detail mode for ann-3. Click "查看原文"
-    const openOriginalBtn = screen.getByRole('button', { name: '查看原文' })
-    fireEvent.click(openOriginalBtn)
+    // 4. Now in detail mode for ann-3. Switch to original tab
+    fireEvent.click(screen.getByRole('tab', { name: '原文阅读' }))
 
     // 5. Must fetch and display ann-3's content, NOT stale ann-1 content!
     expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[1])
     expect(await screen.findByText(/沟通障碍的摘录出现了/)).toBeTruthy()
     expect(screen.queryByText('言语沟通的第一条摘录在此。')).toBeNull()
+  })
+
+  it('supports collapsing and expanding left source rail and persists preference', () => {
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-1',
+        postTitle: '我弥留之际',
+        quote: '在缺乏爱的地方，任何节制都是不可能的。',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    const sourceRail = screen.getByLabelText('来源文章列表')
+    expect(sourceRail.classList.contains('is-collapsed')).toBe(false)
+    expect(screen.queryByRole('button', { name: '展开来源文章' })).toBeNull()
+
+    // Click collapse button in sources header
+    const collapseBtn = screen.getByRole('button', { name: '收起来源文章' })
+    fireEvent.click(collapseBtn)
+
+    expect(sourceRail.classList.contains('is-collapsed')).toBe(true)
+    expect(window.localStorage.getItem('alpaca-annotations-sources-collapsed')).toBe('true')
+
+    // An expand button should now appear in the middle column controls
+    const expandBtn = screen.getByRole('button', { name: '展开来源文章' })
+    expect(expandBtn).toBeTruthy()
+
+    // Click expand button
+    fireEvent.click(expandBtn)
+    expect(sourceRail.classList.contains('is-collapsed')).toBe(false)
+    expect(window.localStorage.getItem('alpaca-annotations-sources-collapsed')).toBe('false')
+    expect(screen.queryByRole('button', { name: '展开来源文章' })).toBeNull()
   })
 })
 

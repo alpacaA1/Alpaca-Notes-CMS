@@ -30,6 +30,7 @@ type ReadLaterAnnotationsViewProps = {
 const ALL_SOURCES = '__all_sources__'
 const STORAGE_KEY_COMMENT_STATUS = 'alpaca-annotations-filter-comment-status'
 const STORAGE_KEY_SORT_ORDER = 'alpaca-annotations-sort-order'
+const STORAGE_KEY_SOURCES_COLLAPSED = 'alpaca-annotations-sources-collapsed'
 
 const COMMENT_STATUS_OPTIONS = [
   { value: 'all', label: '全部' },
@@ -400,8 +401,19 @@ export default function ReadLaterAnnotationsView({
     }
   }
 
+  const [isSourcesCollapsed, setIsSourcesCollapsed] = useState<boolean>(() =>
+    readStoredPreference(STORAGE_KEY_SOURCES_COLLAPSED, 'false', ['true', 'false']) === 'true',
+  )
   const [selectedSourcePath, setSelectedSourcePath] = useState(ALL_SOURCES)
   const [sourceSearch, setSourceSearch] = useState('')
+
+  const handleToggleSourcesCollapsed = () => {
+    setIsSourcesCollapsed((prev) => {
+      const next = !prev
+      savePreference(STORAGE_KEY_SOURCES_COLLAPSED, String(next))
+      return next
+    })
+  }
   const [commentStatus, setCommentStatus] = useState<CommentFilterStatus>(() =>
     readStoredPreference(STORAGE_KEY_COMMENT_STATUS, 'all', ['all', 'has-note', 'no-note']),
   )
@@ -1081,11 +1093,24 @@ export default function ReadLaterAnnotationsView({
       </header>
 
       {/* Main 3-Column Workspace */}
-      <div className="annotation-dashboard__layout">
+      <div className={`annotation-dashboard__layout${isSourcesCollapsed ? ' is-sources-collapsed' : ''}`}>
         {/* Left Column: 来源文章 */}
-        <aside className="annotation-dashboard__col-sources" aria-label="来源文章列表">
+        <aside className={`annotation-dashboard__col-sources${isSourcesCollapsed ? ' is-collapsed' : ''}`} aria-label="来源文章列表">
           <div className="annotation-dashboard__sources-header">
-            <h2 className="annotation-dashboard__col-title">来源文章</h2>
+            <div className="annotation-dashboard__sources-header-main">
+              <h2 className="annotation-dashboard__col-title">来源文章</h2>
+              <button
+                type="button"
+                className="annotation-dashboard__sources-toggle-btn"
+                onClick={handleToggleSourcesCollapsed}
+                title="收起来源文章"
+                aria-label="收起来源文章"
+              >
+                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M10 3.5L5.5 8 10 12.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
             <div className="annotation-dashboard__sources-search-wrap">
               <svg className="annotation-dashboard__sources-search-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor">
                 <circle cx="7" cy="7" r="4.5" strokeWidth="1.5" />
@@ -1159,6 +1184,21 @@ export default function ReadLaterAnnotationsView({
         <section className="annotation-dashboard__col-list" aria-label="批注列表区">
           <div className="annotation-dashboard__list-controls">
             <div className="annotation-dashboard__list-filters">
+              {isSourcesCollapsed ? (
+                <button
+                  type="button"
+                  className="annotation-dashboard__sources-expand-btn"
+                  onClick={handleToggleSourcesCollapsed}
+                  title="展开来源文章"
+                  aria-label="展开来源文章"
+                >
+                  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                    <path d="M6 3.5L10.5 8 6 12.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span>来源</span>
+                </button>
+              ) : null}
+
               <div className="annotation-dashboard__select-wrap">
                 <span className="annotation-dashboard__select-prefix">评论状态</span>
                 <FilterSelect
@@ -1372,20 +1412,6 @@ export default function ReadLaterAnnotationsView({
                 </div>
 
                 <div className="annotation-dashboard__detail-actions">
-                  {rightPaneMode === 'detail' ? (
-                    <button
-                      type="button"
-                      className="annotation-dashboard__open-original-btn"
-                      onClick={() => setRightPaneMode('original')}
-                      title="在右侧模块查看原文"
-                    >
-                      <span>查看原文</span>
-                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
-                        <path d="M6 3.5l4.5 4.5-4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
-                  ) : null}
-
                   {onQuoteAnnotationToDiary ? (
                     <button
                       type="button"
@@ -1400,10 +1426,10 @@ export default function ReadLaterAnnotationsView({
                     type="button"
                     className="annotation-dashboard__fullscreen-btn"
                     onClick={() => onOpenAnnotation(selectedAnnotation)}
-                    title="全屏打开原文"
-                    aria-label="全屏打开原文"
+                    title="在文章或电子书阅读器中打开全文"
+                    aria-label="打开全文"
                   >
-                    <span>全屏</span>
+                    <span>打开全文</span>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
                       <path d="M6.5 3.5H12.5V9.5" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M12.5 3.5L6 10" strokeLinecap="round" strokeLinejoin="round" />
