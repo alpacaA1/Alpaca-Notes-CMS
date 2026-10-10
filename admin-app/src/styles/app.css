@@ -13682,9 +13682,8 @@ textarea {
 .annotation-dashboard__item-card.is-selected {
   background: #ffffff;
   border-color: var(--admin-warm, #c07d3e);
-  border-left: 3.5px solid var(--admin-warm, #c07d3e);
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(141, 113, 77, 0.15);
+  box-shadow: 0 4px 16px rgba(141, 113, 77, 0.14);
 }
 
 .annotation-dashboard__item-main {
@@ -14233,10 +14232,9 @@ textarea {
 
 .annotation-dashboard__detail-quote-box {
   position: relative;
-  padding: 16px 20px 18px 18px;
+  padding: 16px 18px 18px;
   border-radius: 10px;
   border: 1px solid var(--admin-line, #eceae5);
-  border-left: 3.5px solid var(--admin-warm, #8d714d);
   background: var(--admin-surface-strong, #ffffff);
   box-shadow: 0 2px 10px rgba(44, 37, 30, 0.035);
   transition: border-color 150ms ease, box-shadow 150ms ease;
@@ -14259,7 +14257,6 @@ textarea {
 .admin-shell--dark .annotation-dashboard__detail-quote-box {
   background: rgba(255, 255, 255, 0.035);
   border-color: rgba(255, 255, 255, 0.08);
-  border-left-color: var(--admin-warm, #d4a574);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
 }
 
@@ -16138,7 +16135,6 @@ textarea {
 .admin-shell--dark .annotation-dashboard__item-card.is-selected {
   background: rgba(212, 165, 116, 0.1);
   border-color: #d4a574;
-  border-left-color: #d4a574;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
