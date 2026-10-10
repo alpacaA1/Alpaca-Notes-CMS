@@ -3774,6 +3774,52 @@ export default function App() {
     }
   }
 
+  const handleLoadAnnotationOriginalContent = async (
+    annotation: ReadLaterAnnotationIndexItem,
+  ): Promise<{ title: string; content: string; chapterTitle?: string; isHtml?: boolean } | null> => {
+    if (annotation.sourceType === 'book' && annotation.bookId) {
+      try {
+        const file = await getBookFile(annotation.bookId)
+        if (file && file.blob && annotation.bookFormat !== 'pdf') {
+          const { parseEpubForResolution, matchQuoteInSection } = await import('./books/epub-chapter-resolver')
+          const { sections } = await parseEpubForResolution(file.blob)
+          const matchedSection = sections.find((s) => matchQuoteInSection(annotation.quote, s))
+          if (matchedSection) {
+            return {
+              title: annotation.postTitle,
+              chapterTitle: matchedSection.associatedChapterTitle || annotation.chapterTitle || undefined,
+              content: matchedSection.doc?.body?.innerHTML || matchedSection.textContent,
+              isHtml: Boolean(matchedSection.doc?.body?.innerHTML),
+            }
+          }
+        }
+      } catch {
+        // Fallback to null
+      }
+      return null
+    }
+
+    try {
+      const sourcePost = readLaterPosts.find((post) => post.path === annotation.postPath)
+      const cachedFile = readCachedMarkdownFile(annotation.postPath, sourcePost?.sha)
+      const file = cachedFile || (session ? await fetchMarkdownFile(session, annotation.postPath) : null)
+      if (file) {
+        const item = parseReadLaterItem(file)
+        const { getEditableReadLaterSections } = await import('./read-later/parse-item')
+        const sections = getEditableReadLaterSections(item.body)
+        return {
+          title: item.frontmatter.title || annotation.postTitle,
+          chapterTitle: annotation.chapterTitle || undefined,
+          content: sections.articleExcerpt || item.body,
+          isHtml: false,
+        }
+      }
+    } catch {
+      return null
+    }
+    return null
+  }
+
   const handleClearActiveAnnotation = () => {
     setActiveAnnotationId(null)
     setEditingAnnotationId(null)
@@ -5735,6 +5781,7 @@ export default function App() {
             search={search}
             onSearchChange={setSearch}
             onOpenAnnotation={(annotation) => { void handleOpenReadLaterAnnotation(annotation) }}
+            onLoadOriginalContent={handleLoadAnnotationOriginalContent}
             onQuoteAnnotationToDiary={(annotation) => { void handleQuoteAnnotationToDiary(annotation) }}
             onBatchQuoteAnnotationsToDiary={handleBatchQuoteAnnotationsToDiary}
             onSaveAnnotationComment={(annotation, note) => { void handleSaveAnnotationComment(annotation, note) }}

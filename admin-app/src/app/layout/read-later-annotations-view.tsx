@@ -6,12 +6,20 @@ import FilterSelect from './filter-select'
 export type CommentFilterStatus = 'all' | 'has-note' | 'no-note'
 export type AnnotationSortOrder = 'updated-desc' | 'updated-asc' | 'source-asc'
 
+export type OriginalContentPayload = {
+  title: string
+  content: string
+  chapterTitle?: string
+  isHtml?: boolean
+}
+
 type ReadLaterAnnotationsViewProps = {
   annotations: ReadLaterAnnotationIndexItem[]
   isLoading: boolean
   search: string
   onSearchChange?: (value: string) => void
   onOpenAnnotation: (annotation: ReadLaterAnnotationIndexItem) => void
+  onLoadOriginalContent?: (annotation: ReadLaterAnnotationIndexItem) => Promise<OriginalContentPayload | null> | OriginalContentPayload | null
   onQuoteAnnotationToDiary?: (annotation: ReadLaterAnnotationIndexItem) => void
   onSaveAnnotationComment?: (annotation: ReadLaterAnnotationIndexItem, note: string) => Promise<void> | void
   onOpenWeReadSync?: () => void
@@ -134,11 +142,154 @@ export function formatAnnotationTime(
   return `${year}-${month}-${day} ${hours}:${minutes}`
 }
 
+export function findAnnotationRange(
+  fullText: string,
+  quote: string,
+  prefix?: string,
+  suffix?: string,
+): { start: number; end: number } | null {
+  const cleanQuote = quote.trim()
+  if (!cleanQuote) return null
+
+  // Try matching with prefix/suffix context
+  let searchFrom = 0
+  while (searchFrom < fullText.length) {
+    const start = fullText.indexOf(cleanQuote, searchFrom)
+    if (start === -1) break
+    const end = start + cleanQuote.length
+    const prefixMatches = !prefix || fullText.slice(Math.max(0, start - prefix.length), start) === prefix
+    const suffixMatches = !suffix || fullText.slice(end, end + suffix.length) === suffix
+    if (prefixMatches && suffixMatches) {
+      return { start, end }
+    }
+    searchFrom = start + 1
+  }
+
+  // Fallback: simple indexOf
+  const fallbackIdx = fullText.indexOf(cleanQuote)
+  if (fallbackIdx !== -1) {
+    return { start: fallbackIdx, end: fallbackIdx + cleanQuote.length }
+  }
+
+  return null
+}
+
+function renderOriginalArticleProse(
+  fullText: string,
+  annotation: ReadLaterAnnotationIndexItem,
+  targetRef: React.RefObject<HTMLElement>,
+) {
+  const range = findAnnotationRange(fullText, annotation.quote, annotation.prefix, annotation.suffix)
+
+  if (!range) {
+    const paragraphs = fullText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+    return (
+      <div className="annotation-dashboard__original-prose">
+        <div className="annotation-dashboard__original-quote-callout" ref={targetRef as React.RefObject<HTMLDivElement>}>
+          <span className="annotation-dashboard__original-callout-badge">当前定位划线</span>
+          <p className="annotation-dashboard__original-callout-text">{annotation.quote}</p>
+        </div>
+        {paragraphs.map((p, idx) => {
+          if (p.startsWith('#')) {
+            const level = Math.min((p.match(/^#+/)?.[0] || '#').length, 6)
+            const text = p.replace(/^#+\s*/, '')
+            return <h4 key={`h-${idx}`} className={`annotation-dashboard__original-heading annotation-dashboard__original-heading--h${level}`}>{text}</h4>
+          }
+          return <p key={`p-${idx}`} className="annotation-dashboard__original-p">{p}</p>
+        })}
+      </div>
+    )
+  }
+
+  const before = fullText.slice(0, range.start)
+  const targetQuote = fullText.slice(range.start, range.end)
+  const after = fullText.slice(range.end)
+
+  const lastDoubleNewline = before.lastIndexOf('\n\n')
+  const beforeParagraphsText = lastDoubleNewline !== -1 ? before.slice(0, lastDoubleNewline) : ''
+  const currentParagraphBefore = lastDoubleNewline !== -1 ? before.slice(lastDoubleNewline + 2) : before
+
+  const nextDoubleNewline = after.indexOf('\n\n')
+  const currentParagraphAfter = nextDoubleNewline !== -1 ? after.slice(0, nextDoubleNewline) : after
+  const afterParagraphsText = nextDoubleNewline !== -1 ? after.slice(nextDoubleNewline + 2) : ''
+
+  const beforeParagraphs = beforeParagraphsText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+  const afterParagraphs = afterParagraphsText.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)
+
+  return (
+    <div className="annotation-dashboard__original-prose">
+      {beforeParagraphs.map((p, idx) => {
+        if (p.startsWith('#')) {
+          const level = Math.min((p.match(/^#+/)?.[0] || '#').length, 6)
+          const text = p.replace(/^#+\s*/, '')
+          return <h4 key={`before-h-${idx}`} className={`annotation-dashboard__original-heading annotation-dashboard__original-heading--h${level}`}>{text}</h4>
+        }
+        return <p key={`before-${idx}`} className="annotation-dashboard__original-p">{p}</p>
+      })}
+
+      <p className="annotation-dashboard__original-p annotation-dashboard__original-p--active">
+        {currentParagraphBefore}
+        <mark
+          ref={targetRef as React.RefObject<HTMLElement>}
+          className="annotation-dashboard__original-mark is-target"
+          aria-label={`当前批注高亮：${targetQuote}`}
+        >
+          {targetQuote}
+        </mark>
+        {currentParagraphAfter}
+      </p>
+
+      {afterParagraphs.map((p, idx) => {
+        if (p.startsWith('#')) {
+          const level = Math.min((p.match(/^#+/)?.[0] || '#').length, 6)
+          const text = p.replace(/^#+\s*/, '')
+          return <h4 key={`after-h-${idx}`} className={`annotation-dashboard__original-heading annotation-dashboard__original-heading--h${level}`}>{text}</h4>
+        }
+        return <p key={`after-${idx}`} className="annotation-dashboard__original-p">{p}</p>
+      })}
+    </div>
+  )
+}
+
+function renderOriginalHtmlContent(
+  html: string,
+  quote: string,
+  targetRef: React.RefObject<HTMLElement>,
+) {
+  const cleanQuote = quote.trim()
+  let processedHtml = html
+  if (cleanQuote) {
+    const idx = html.indexOf(cleanQuote)
+    if (idx !== -1) {
+      processedHtml =
+        html.slice(0, idx) +
+        `<mark id="annotation-original-target" class="annotation-dashboard__original-mark is-target">${cleanQuote}</mark>` +
+        html.slice(idx + cleanQuote.length)
+    }
+  }
+
+  return (
+    <div
+      className="annotation-dashboard__original-html"
+      dangerouslySetInnerHTML={{ __html: processedHtml }}
+      ref={(el) => {
+        if (el && targetRef) {
+          const mark = el.querySelector('#annotation-original-target') as HTMLElement | null
+          if (mark) {
+            ;(targetRef as React.MutableRefObject<HTMLElement | null>).current = mark
+          }
+        }
+      }}
+    />
+  )
+}
+
 export default function ReadLaterAnnotationsView({
   annotations,
   isLoading,
   search,
   onOpenAnnotation,
+  onLoadOriginalContent,
   onQuoteAnnotationToDiary,
   onBatchQuoteAnnotationsToDiary,
   onSaveAnnotationComment,
@@ -165,6 +316,14 @@ export default function ReadLaterAnnotationsView({
   const [sortOrder, setSortOrder] = useState<AnnotationSortOrder>(() =>
     readStoredPreference(STORAGE_KEY_SORT_ORDER, 'updated-desc', ['updated-desc', 'updated-asc', 'source-asc']),
   )
+  const [selectedChapter, setSelectedChapter] = useState('all')
+  const [rightPaneMode, setRightPaneMode] = useState<'detail' | 'original'>('detail')
+  const [originalPayload, setOriginalPayload] = useState<OriginalContentPayload | null>(null)
+  const [isOriginalLoading, setIsOriginalLoading] = useState(false)
+  const contentCacheRef = useRef<Map<string, OriginalContentPayload>>(new Map())
+  const targetHighlightRef = useRef<HTMLElement | null>(null)
+  const originalScrollContainerRef = useRef<HTMLDivElement | null>(null)
+
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
   const [isSavingComment, setIsSavingComment] = useState(false)
@@ -234,6 +393,49 @@ export default function ReadLaterAnnotationsView({
     }
   }, [selectedSourcePath, sourceOptions])
 
+  // Reset selected chapter if selected source changes
+  useEffect(() => {
+    setSelectedChapter('all')
+  }, [selectedSourcePath])
+
+  // Chapter options for current source selection
+  const chapterOptions = useMemo(() => {
+    const relevant = selectedSourcePath === ALL_SOURCES
+      ? annotations
+      : annotations.filter((ann) => ann.postPath === selectedSourcePath)
+
+    const counts = new Map<string, number>()
+    const ordered: string[] = []
+
+    relevant.forEach((ann) => {
+      const rawChapter = (ann.chapterTitle || (ann.sourceType === 'book' ? ann.sectionLabel : '') || '').trim()
+      const chapter = rawChapter || '未分类章节'
+      if (!counts.has(chapter)) {
+        ordered.push(chapter)
+        counts.set(chapter, 0)
+      }
+      counts.set(chapter, (counts.get(chapter) || 0) + 1)
+    })
+
+    const options = [{ value: 'all', label: `全部章节 (${relevant.length})` }]
+    ordered.forEach((chapter) => {
+      const count = counts.get(chapter) || 0
+      options.push({
+        value: chapter,
+        label: `${chapter} (${count})`,
+      })
+    })
+
+    return options
+  }, [annotations, selectedSourcePath])
+
+  // Reset selected chapter if invalid
+  useEffect(() => {
+    if (selectedChapter !== 'all' && !chapterOptions.some((opt) => opt.value === selectedChapter)) {
+      setSelectedChapter('all')
+    }
+  }, [chapterOptions, selectedChapter])
+
   const normalizedQuery = useMemo(() => normalizeSearchText(search), [search])
 
   // Filter annotations
@@ -252,14 +454,73 @@ export default function ReadLaterAnnotationsView({
           return false
         }
 
+        if (selectedChapter !== 'all') {
+          const rawChapter = (annotation.chapterTitle || (annotation.sourceType === 'book' ? annotation.sectionLabel : '') || '').trim()
+          const chapter = rawChapter || '未分类章节'
+          if (chapter !== selectedChapter) {
+            return false
+          }
+        }
+
         if (normalizedQuery && !annotation.searchText.includes(normalizedQuery)) {
           return false
         }
 
         return true
       }),
-    [annotations, commentStatus, normalizedQuery, selectedSourcePath],
+    [annotations, commentStatus, normalizedQuery, selectedChapter, selectedSourcePath],
   )
+
+  // Fetch original content when in 'original' mode
+  useEffect(() => {
+    if (rightPaneMode !== 'original' || !selectedAnnotationId || !onLoadOriginalContent) {
+      return
+    }
+
+    const currentAnn = annotations.find((item) => item.id === selectedAnnotationId)
+    if (!currentAnn) return
+
+    const cacheKey = currentAnn.postPath
+    if (contentCacheRef.current.has(cacheKey)) {
+      setOriginalPayload(contentCacheRef.current.get(cacheKey) || null)
+      return
+    }
+
+    let cancelled = false
+    setIsOriginalLoading(true)
+
+    Promise.resolve(onLoadOriginalContent(currentAnn))
+      .then((payload) => {
+        if (cancelled) return
+        if (payload) {
+          contentCacheRef.current.set(cacheKey, payload)
+          setOriginalPayload(payload)
+        } else {
+          setOriginalPayload(null)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOriginalPayload(null)
+      })
+      .finally(() => {
+        if (!cancelled) setIsOriginalLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [annotations, onLoadOriginalContent, rightPaneMode, selectedAnnotationId])
+
+  // Scroll to active highlight when in original mode
+  useEffect(() => {
+    if (rightPaneMode !== 'original' || !selectedAnnotationId) return
+    const timer = window.setTimeout(() => {
+      if (targetHighlightRef.current && typeof targetHighlightRef.current.scrollIntoView === 'function') {
+        targetHighlightRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+    }, 80)
+    return () => window.clearTimeout(timer)
+  }, [rightPaneMode, selectedAnnotationId, originalPayload])
 
   // Sort annotations
   const sortedAnnotations = useMemo(() => {
@@ -723,6 +984,16 @@ export default function ReadLaterAnnotationsView({
                 />
               </div>
 
+              <div className="annotation-dashboard__select-wrap">
+                <span className="annotation-dashboard__select-prefix">章节</span>
+                <FilterSelect
+                  label="章节"
+                  value={selectedChapter}
+                  options={chapterOptions}
+                  onChange={setSelectedChapter}
+                />
+              </div>
+
               <button
                 type="button"
                 className={`annotation-dashboard__multi-select-btn${isMultiSelectMode ? ' is-active' : ''}`}
@@ -795,7 +1066,15 @@ export default function ReadLaterAnnotationsView({
                     ) : null}
 
                     <div className="annotation-dashboard__item-main">
-                      <p className="annotation-dashboard__item-quote">
+                      <p
+                        className="annotation-dashboard__item-quote"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          requestSelectAnnotation(annotation.id)
+                          setRightPaneMode('original')
+                        }}
+                        title="点击在右侧查看原文"
+                      >
                         {getAnnotationQuoteText(annotation.quote)}
                       </p>
                       <div className="annotation-dashboard__item-meta">
@@ -884,8 +1163,42 @@ export default function ReadLaterAnnotationsView({
             <div className="annotation-dashboard__detail-pane">
               {/* Detail Header */}
               <div className="annotation-dashboard__detail-header">
-                <h2 className="annotation-dashboard__detail-title">批注详情</h2>
+                <div className="annotation-dashboard__mode-tabs" role="tablist" aria-label="视图切换">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightPaneMode === 'detail'}
+                    className={`annotation-dashboard__mode-tab${rightPaneMode === 'detail' ? ' is-active' : ''}`}
+                    onClick={() => setRightPaneMode('detail')}
+                  >
+                    批注详情
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={rightPaneMode === 'original'}
+                    className={`annotation-dashboard__mode-tab${rightPaneMode === 'original' ? ' is-active' : ''}`}
+                    onClick={() => setRightPaneMode('original')}
+                  >
+                    原文阅读
+                  </button>
+                </div>
+
                 <div className="annotation-dashboard__detail-actions">
+                  {rightPaneMode === 'detail' ? (
+                    <button
+                      type="button"
+                      className="annotation-dashboard__open-original-btn"
+                      onClick={() => setRightPaneMode('original')}
+                      title="在右侧模块查看原文"
+                    >
+                      <span>查看原文</span>
+                      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
+                        <path d="M6 3.5l4.5 4.5-4.5 4.5" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  ) : null}
+
                   {onQuoteAnnotationToDiary ? (
                     <button
                       type="button"
@@ -895,12 +1208,15 @@ export default function ReadLaterAnnotationsView({
                       引用到今日日记
                     </button>
                   ) : null}
+
                   <button
                     type="button"
-                    className="annotation-dashboard__open-original-btn"
+                    className="annotation-dashboard__fullscreen-btn"
                     onClick={() => onOpenAnnotation(selectedAnnotation)}
+                    title="全屏打开原文"
+                    aria-label="全屏打开原文"
                   >
-                    <span>打开原文</span>
+                    <span>全屏</span>
                     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6">
                       <path d="M6.5 3.5H12.5V9.5" strokeLinecap="round" strokeLinejoin="round" />
                       <path d="M12.5 3.5L6 10" strokeLinecap="round" strokeLinejoin="round" />
@@ -910,102 +1226,156 @@ export default function ReadLaterAnnotationsView({
                 </div>
               </div>
 
-              {/* Scrollable Detail Body */}
-              <div className="annotation-dashboard__detail-body">
-                {/* 完整摘录 */}
-                <div className="annotation-dashboard__detail-card">
-                  <div className="annotation-dashboard__detail-card-header">
-                    <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
-                    {selectedAnnotation.chapterTitle ? (
-                      <div
-                        className="annotation-dashboard__detail-source-badge"
-                        title={selectedAnnotation.chapterTitle}
-                      >
-                        <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.chapterTitle}</span>
-                      </div>
-                    ) : selectedAnnotation.sectionLabel ? (
-                      <div
-                        className="annotation-dashboard__detail-source-badge"
-                        title={selectedAnnotation.sectionLabel}
-                      >
-                        <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.sectionLabel}</span>
-                      </div>
+              {rightPaneMode === 'original' ? (
+                /* Original Reading Pane (就地跳转原文) */
+                <div className="annotation-dashboard__original-pane" ref={originalScrollContainerRef}>
+                  <div className="annotation-dashboard__original-header">
+                    <span className="annotation-dashboard__original-source-title">
+                      {originalPayload?.title || selectedAnnotation.postTitle}
+                    </span>
+                    {(originalPayload?.chapterTitle || selectedAnnotation.chapterTitle) ? (
+                      <span className="annotation-dashboard__original-chapter-badge">
+                        {originalPayload?.chapterTitle || selectedAnnotation.chapterTitle}
+                      </span>
                     ) : null}
                   </div>
-                  <div className="annotation-dashboard__detail-quote-box">
-                    <p className="annotation-dashboard__detail-quote-text">
-                      {getAnnotationQuoteText(selectedAnnotation.quote)}
-                    </p>
-                  </div>
-                </div>
 
-                {/* 我的评论 */}
-                <div className="annotation-dashboard__detail-card">
-                  <h3 className="annotation-dashboard__detail-section-title">我的评论</h3>
-                  <div className="annotation-dashboard__comment-editor">
-                    <textarea
-                      ref={commentTextareaRef}
-                      className="annotation-dashboard__comment-textarea"
-                      placeholder="写下你的想法..."
-                      value={noteDraft}
-                      rows={3}
-                      onChange={(e) => setNoteDraft(e.target.value)}
-                    />
-                    <div className="annotation-dashboard__comment-editor-footer">
-                      <span className="annotation-dashboard__comment-counter">
-                        {noteDraft.length}/500
-                      </span>
-                      <div className="annotation-dashboard__comment-actions">
-                        <button
-                          type="button"
-                          className="annotation-dashboard__comment-cancel-btn"
-                          onClick={handleCancelComment}
-                          disabled={!isCommentDirty || isSavingComment}
-                        >
-                          取消
-                        </button>
-                        <button
-                          type="button"
-                          className="annotation-dashboard__comment-save-btn"
-                          onClick={() => { void handleSaveComment() }}
-                          disabled={!isCommentDirty || isSavingComment}
-                        >
-                          {isSavingComment ? '保存中…' : '保存评论'}
-                        </button>
+                  {isOriginalLoading ? (
+                    <div className="annotation-dashboard__original-loading">
+                      <div className="annotation-dashboard__loading-bar" />
+                      <p>正在读取原文内容…</p>
+                    </div>
+                  ) : originalPayload && originalPayload.content ? (
+                    originalPayload.isHtml ? (
+                      renderOriginalHtmlContent(originalPayload.content, selectedAnnotation.quote, targetHighlightRef)
+                    ) : (
+                      renderOriginalArticleProse(originalPayload.content, selectedAnnotation, targetHighlightRef)
+                    )
+                  ) : (
+                    <div className="annotation-dashboard__original-fallback">
+                      <div className="annotation-dashboard__original-fallback-card">
+                        <div className="annotation-dashboard__original-fallback-badge">
+                          <span>划线上下文预览</span>
+                        </div>
+                        <p className="annotation-dashboard__original-fallback-quote">
+                          {selectedAnnotation.prefix ? <span className="annotation-dashboard__context-prefix">{selectedAnnotation.prefix}</span> : null}
+                          <mark ref={targetHighlightRef as React.RefObject<HTMLElement>} className="annotation-dashboard__original-mark is-target">
+                            {getAnnotationQuoteText(selectedAnnotation.quote)}
+                          </mark>
+                          {selectedAnnotation.suffix ? <span className="annotation-dashboard__context-suffix">{selectedAnnotation.suffix}</span> : null}
+                        </p>
+                        <div className="annotation-dashboard__original-fallback-info">
+                          <p>如需阅读整本电子书排版，可在书架关联本地文件或打开全屏阅读器。</p>
+                          <button
+                            type="button"
+                            className="annotation-dashboard__original-fallback-action"
+                            onClick={() => onOpenAnnotation(selectedAnnotation)}
+                          >
+                            打开全屏阅读器 ↗
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-
-                {/* 上下文：仅在存在 prefix 或 suffix 时展示，只有摘录本身时隐藏整个区块 */}
-                {Boolean((selectedAnnotation.prefix && selectedAnnotation.prefix.trim().length > 0) || (selectedAnnotation.suffix && selectedAnnotation.suffix.trim().length > 0)) ? (
+              ) : (
+                /* Detail Pane Body */
+                <div className="annotation-dashboard__detail-body">
+                  {/* 完整摘录 */}
                   <div className="annotation-dashboard__detail-card">
-                    <h3 className="annotation-dashboard__detail-section-title">上下文</h3>
-                    <div className="annotation-dashboard__context-box">
-                      <p className="annotation-dashboard__context-content">
-                        {selectedAnnotation.prefix ? <span>{selectedAnnotation.prefix}</span> : null}
-                        <mark className="annotation-dashboard__context-mark">
-                          {getAnnotationQuoteText(selectedAnnotation.quote)}
-                        </mark>
-                        {selectedAnnotation.suffix ? <span>{selectedAnnotation.suffix}</span> : null}
-                      </p>
-                      <div className="annotation-dashboard__context-footer">
-                        <span className="annotation-dashboard__context-location">
-                          {selectedAnnotation.postTitle}
-                          {selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : (selectedAnnotation.sectionLabel ? ` · ${selectedAnnotation.sectionLabel}` : '')}
-                        </span>
-                        <button
-                          type="button"
-                          className="annotation-dashboard__context-add-note-btn"
-                          onClick={() => commentTextareaRef.current?.focus()}
+                    <div className="annotation-dashboard__detail-card-header">
+                      <h3 className="annotation-dashboard__detail-section-title">完整摘录</h3>
+                      {selectedAnnotation.chapterTitle ? (
+                        <div
+                          className="annotation-dashboard__detail-source-badge"
+                          title={selectedAnnotation.chapterTitle}
                         >
-                          添加笔记 ✎
-                        </button>
+                          <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.chapterTitle}</span>
+                        </div>
+                      ) : selectedAnnotation.sectionLabel ? (
+                        <div
+                          className="annotation-dashboard__detail-source-badge"
+                          title={selectedAnnotation.sectionLabel}
+                        >
+                          <span className="annotation-dashboard__detail-source-chapter">{selectedAnnotation.sectionLabel}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="annotation-dashboard__detail-quote-box">
+                      <p className="annotation-dashboard__detail-quote-text">
+                        {getAnnotationQuoteText(selectedAnnotation.quote)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* 我的评论 */}
+                  <div className="annotation-dashboard__detail-card">
+                    <h3 className="annotation-dashboard__detail-section-title">我的评论</h3>
+                    <div className="annotation-dashboard__comment-editor">
+                      <textarea
+                        ref={commentTextareaRef}
+                        className="annotation-dashboard__comment-textarea"
+                        placeholder="写下你的想法..."
+                        value={noteDraft}
+                        rows={3}
+                        onChange={(e) => setNoteDraft(e.target.value)}
+                      />
+                      <div className="annotation-dashboard__comment-editor-footer">
+                        <span className="annotation-dashboard__comment-counter">
+                          {noteDraft.length}/500
+                        </span>
+                        <div className="annotation-dashboard__comment-actions">
+                          <button
+                            type="button"
+                            className="annotation-dashboard__comment-cancel-btn"
+                            onClick={handleCancelComment}
+                            disabled={!isCommentDirty || isSavingComment}
+                          >
+                            取消
+                          </button>
+                          <button
+                            type="button"
+                            className="annotation-dashboard__comment-save-btn"
+                            onClick={() => { void handleSaveComment() }}
+                            disabled={!isCommentDirty || isSavingComment}
+                          >
+                            {isSavingComment ? '保存中…' : '保存评论'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
-                ) : null}
-              </div>
+
+                  {/* 上下文：仅在存在 prefix 或 suffix 时展示，只有摘录本身时隐藏整个区块 */}
+                  {Boolean((selectedAnnotation.prefix && selectedAnnotation.prefix.trim().length > 0) || (selectedAnnotation.suffix && selectedAnnotation.suffix.trim().length > 0)) ? (
+                    <div className="annotation-dashboard__detail-card">
+                      <h3 className="annotation-dashboard__detail-section-title">上下文</h3>
+                      <div className="annotation-dashboard__context-box">
+                        <p className="annotation-dashboard__context-content">
+                          {selectedAnnotation.prefix ? <span>{selectedAnnotation.prefix}</span> : null}
+                          <mark className="annotation-dashboard__context-mark">
+                            {getAnnotationQuoteText(selectedAnnotation.quote)}
+                          </mark>
+                          {selectedAnnotation.suffix ? <span>{selectedAnnotation.suffix}</span> : null}
+                        </p>
+                        <div className="annotation-dashboard__context-footer">
+                          <span className="annotation-dashboard__context-location">
+                            {selectedAnnotation.postTitle}
+                            {selectedAnnotation.chapterTitle ? ` · ${selectedAnnotation.chapterTitle}` : (selectedAnnotation.sectionLabel ? ` · ${selectedAnnotation.sectionLabel}` : '')}
+                          </span>
+                          <button
+                            type="button"
+                            className="annotation-dashboard__context-add-note-btn"
+                            onClick={() => commentTextareaRef.current?.focus()}
+                          >
+                            添加笔记 ✎
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
 
               {/* Bottom Navigation (连续浏览) */}
               <footer className="annotation-dashboard__detail-nav">

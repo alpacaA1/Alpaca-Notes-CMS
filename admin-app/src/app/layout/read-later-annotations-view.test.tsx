@@ -664,5 +664,152 @@ describe('ReadLaterAnnotationsView', () => {
     fireEvent.change(hiddenInput, { target: { files: [mockFile] } })
     expect(onEnrichFromEpub).toHaveBeenCalledWith([mockFile])
   })
+
+  it('filters annotations by chapter and updates when chapter is selected', () => {
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-ch1',
+        postPath: 'source/items/book-1.md',
+        postTitle: '思考，快与慢',
+        chapterTitle: '第一章 两个系统',
+        quote: '系统1的运行是无意识且快速的。',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-ch2',
+        postPath: 'source/items/book-1.md',
+        postTitle: '思考，快与慢',
+        chapterTitle: '第二章 启发式与偏见',
+        quote: '启发式是捷径，也是偏见的根源。',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-other',
+        postPath: 'source/items/other.md',
+        postTitle: '另一本书',
+        chapterTitle: '引言',
+        quote: '阅读是一座随身携带的避难所。',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+      />,
+    )
+
+    // Chapter filter is present
+    expect(screen.getByRole('button', { name: '筛选章节' })).toBeTruthy()
+
+    // Filter by '第一章 两个系统'
+    fireEvent.click(screen.getByRole('button', { name: '筛选章节' }))
+    fireEvent.click(screen.getByRole('option', { name: /第一章 两个系统/ }))
+
+    const listSection = screen.getByLabelText('批注列表区')
+    expect(within(listSection).getByText('系统1的运行是无意识且快速的。')).toBeTruthy()
+    expect(within(listSection).queryByText('启发式是捷径，也是偏见的根源。')).toBeNull()
+    expect(within(listSection).queryByText('阅读是一座随身携带的避难所。')).toBeNull()
+
+    // Filter by '全部章节'
+    fireEvent.click(screen.getByRole('button', { name: '筛选章节' }))
+    fireEvent.click(screen.getByRole('option', { name: /全部章节/ }))
+    expect(within(listSection).getByText('系统1的运行是无意识且快速的。')).toBeTruthy()
+    expect(within(listSection).getByText('启发式是捷径，也是偏见的根源。')).toBeTruthy()
+  })
+
+  it('supports in-place original reading in right pane without full page navigation', async () => {
+    const onOpenAnnotation = vi.fn()
+    const onLoadOriginalContent = vi.fn().mockResolvedValue({
+      title: '思考，快与慢',
+      chapterTitle: '第一章 两个系统',
+      content: '人们往往低估了直觉的力量。系统1的运行是无意识且快速的，它负责对环境做出快速评估。\n\n而系统2则需要分配更多的注意力。',
+      isHtml: false,
+    })
+
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-1',
+        postPath: 'source/items/book-1.md',
+        postTitle: '思考，快与慢',
+        chapterTitle: '第一章 两个系统',
+        quote: '系统1的运行是无意识且快速的',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={onOpenAnnotation}
+        onLoadOriginalContent={onLoadOriginalContent}
+      />,
+    )
+
+    // Initially in detail mode
+    expect(screen.getByRole('tab', { name: '批注详情' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: '原文阅读' })).toBeTruthy()
+
+    // Click "查看原文" in detail actions
+    const openOriginalBtn = screen.getByRole('button', { name: '查看原文' })
+    fireEvent.click(openOriginalBtn)
+
+    // Does NOT call onOpenAnnotation (which would have navigated the full page away!)
+    expect(onOpenAnnotation).not.toHaveBeenCalled()
+
+    // Right pane is now in original reading mode
+    expect(screen.getByRole('tab', { name: '原文阅读' }).getAttribute('aria-selected')).toBe('true')
+    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[0])
+
+    // Wait for content to render
+    expect(await screen.findByLabelText('当前批注高亮：系统1的运行是无意识且快速的')).toBeTruthy()
+    expect(document.querySelector('.annotation-dashboard__original-chapter-badge')?.textContent).toBe('第一章 两个系统')
+
+    // Clicking "全屏" calls onOpenAnnotation for users who explicitly want full-screen reader
+    const fullscreenBtn = screen.getByRole('button', { name: /全屏/ })
+    fireEvent.click(fullscreenBtn)
+    expect(onOpenAnnotation).toHaveBeenCalledWith(annotations[0])
+  })
+
+  it('clicking quote on middle column card switches to original view and selects annotation', async () => {
+    const onLoadOriginalContent = vi.fn().mockResolvedValue({
+      title: '默认文章',
+      content: '前面段落。\n\n时间是一个最奇妙的作者，它会在不知不觉中写下所有答案。\n\n后面段落。',
+      isHtml: false,
+    })
+
+    const annotations = [
+      createAnnotationIndexItem({
+        id: 'ann-1',
+        quote: '第一条摘录',
+      }),
+      createAnnotationIndexItem({
+        id: 'ann-2',
+        quote: '时间是一个最奇妙的作者',
+      }),
+    ]
+
+    render(
+      <ReadLaterAnnotationsView
+        annotations={annotations}
+        isLoading={false}
+        search=""
+        onOpenAnnotation={vi.fn()}
+        onLoadOriginalContent={onLoadOriginalContent}
+      />,
+    )
+
+    // Click the quote on the second card
+    const quoteElement = screen.getByText('时间是一个最奇妙的作者')
+    fireEvent.click(quoteElement)
+
+    // Should switch to original mode
+    expect(screen.getByRole('tab', { name: '原文阅读' }).getAttribute('aria-selected')).toBe('true')
+    expect(onLoadOriginalContent).toHaveBeenCalledWith(annotations[1])
+
+    // Wait for content and mark
+    expect(await screen.findByLabelText('当前批注高亮：时间是一个最奇妙的作者')).toBeTruthy()
+  })
 })
 
