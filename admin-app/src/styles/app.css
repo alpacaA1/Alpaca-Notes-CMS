@@ -13257,7 +13257,7 @@ textarea {
 
 .annotation-dashboard__layout {
   display: grid;
-  grid-template-columns: 230px clamp(380px, 28vw, 480px) minmax(480px, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr) clamp(360px, 26vw, 420px);
   flex: 1;
   min-height: 0;
   height: 100%;
@@ -13266,7 +13266,7 @@ textarea {
 }
 
 .annotation-dashboard__layout.is-sources-collapsed {
-  grid-template-columns: clamp(420px, 32vw, 540px) minmax(480px, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(380px, 28vw, 440px);
 }
 
 /* Stealth Scrollbars for Annotation Dashboard */
@@ -13637,28 +13637,29 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  align-content: start;
   background: transparent;
 }
 
 .annotation-dashboard__item-card {
   appearance: none;
+  position: relative;
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
   width: 100%;
+  min-height: 120px;
+  height: 100%;
   margin: 0;
-  padding: 13px 15px;
-  min-height: 60px;
-  height: auto;
+  padding: 14px 16px;
   flex-shrink: 0;
   box-sizing: border-box;
   border: 1px solid var(--admin-line, #e7e4dc);
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--admin-surface-strong, #ffffff);
   color: inherit;
   text-align: left;
@@ -13670,16 +13671,16 @@ textarea {
 .annotation-dashboard__item-card:hover:not(.is-selected) {
   background: #ffffff;
   border-color: rgba(141, 113, 77, 0.35);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(44, 38, 30, 0.06);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(44, 38, 30, 0.07);
 }
 
 .annotation-dashboard__item-card.is-selected {
   background: #ffffff;
   border-color: var(--admin-warm, #c07d3e);
   border-left: 3.5px solid var(--admin-warm, #c07d3e);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(141, 113, 77, 0.12);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(141, 113, 77, 0.15);
 }
 
 .annotation-dashboard__item-main {
@@ -13687,7 +13688,8 @@ textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .annotation-dashboard__item-quote {
@@ -13695,17 +13697,17 @@ textarea {
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 0.89rem;
+  font-size: 0.91rem;
   font-weight: 500;
   color: var(--admin-text, #282421);
-  line-height: 1.64;
+  line-height: 1.66;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 4;
   overflow: hidden;
   word-break: normal;
   overflow-wrap: break-word;
-  text-align: left;
+  text-align: justify;
 }
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
@@ -13717,12 +13719,15 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  font-size: 0.78rem;
+  gap: 8px;
+  font-size: 0.76rem;
   color: var(--admin-muted, #7c7770);
   line-height: 1.3;
   white-space: nowrap;
   overflow: hidden;
+  padding-top: 10px;
+  border-top: 1px solid var(--admin-line, #f0ede6);
+  margin-top: auto;
 }
 
 .annotation-dashboard__item-source-group {
@@ -13788,7 +13793,8 @@ textarea {
   flex-direction: column;
   min-height: 0;
   height: 100%;
-  background: var(--admin-bg, #fbfaf8);
+  background: var(--admin-panel-bg, #fff);
+  border-left: 1px solid var(--admin-line, #eceae5);
   overflow: hidden;
 }
 
@@ -13798,16 +13804,19 @@ textarea {
   height: 100%;
   min-height: 0;
   overflow-y: auto;
+  background: var(--admin-panel-bg, #fff);
 }
 
 .annotation-dashboard__detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  gap: 8px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--admin-line, #eceae5);
   background: var(--admin-panel-bg, #fff);
   flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .annotation-dashboard__detail-title {
@@ -13921,11 +13930,9 @@ textarea {
   flex-direction: column;
   min-height: 0;
   width: 100%;
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 20px 24px 48px;
+  padding: 16px 16px 48px;
   box-sizing: border-box;
-  background: transparent;
+  background: var(--admin-panel-bg, #fff);
 }
 
 .annotation-dashboard__original-header {
@@ -14164,12 +14171,10 @@ textarea {
 
 .annotation-dashboard__detail-body {
   width: 100%;
-  max-width: 740px;
-  margin: 0 auto;
-  padding: 24px 20px 48px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
   box-sizing: border-box;
 }
 
@@ -14411,7 +14416,7 @@ textarea {
 
 /* Detail Bottom Nav */
 .annotation-dashboard__detail-nav {
-  padding: 10px 24px;
+  padding: 10px 16px;
   border-top: 1px solid var(--admin-line, #eceae5);
   background: var(--admin-panel-bg, #fff);
   margin-top: auto;
@@ -14426,8 +14431,6 @@ textarea {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  max-width: 740px;
-  margin: 0 auto;
 }
 
 .annotation-dashboard__nav-btn {
@@ -14475,11 +14478,12 @@ textarea {
 }
 
 .annotation-dashboard__state-empty {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 48px 16px;
+  padding: 60px 16px;
   text-align: center;
   color: var(--admin-muted, #857f77);
 }
@@ -14607,8 +14611,12 @@ textarea {
 }
 
 .annotation-dashboard__item-checkbox {
-  width: 17px;
-  height: 17px;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  width: 18px;
+  height: 18px;
   border: 1.5px solid var(--admin-line-strong, #c8c3ba);
   border-radius: 4px;
   display: inline-flex;
@@ -14617,7 +14625,6 @@ textarea {
   background: #fff;
   color: #fff;
   flex-shrink: 0;
-  margin-right: 4px;
   cursor: pointer;
   transition: all 120ms ease;
 }
@@ -14940,11 +14947,11 @@ textarea {
   }
 
   .annotation-dashboard__layout {
-    grid-template-columns: 200px 360px minmax(320px, 1fr);
+    grid-template-columns: 200px minmax(0, 1fr) 340px;
   }
 
   .annotation-dashboard__layout.is-sources-collapsed {
-    grid-template-columns: 380px minmax(320px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 360px;
   }
 
   .post-dashboard__knowledge-carousel {
