@@ -69,8 +69,17 @@ function normalizeSearchText(value: string) {
     .toLowerCase()
 }
 
-function getAnnotationQuoteText(quote: string) {
-  return quote.trim() || '未命名高亮'
+export function cleanAnnotationQuoteNoise(quote: string): string {
+  if (!quote) return ''
+  return quote
+    .replace(/\[插图\]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+export function getAnnotationQuoteText(quote: string) {
+  const cleaned = cleanAnnotationQuoteNoise(quote)
+  return cleaned || quote.trim() || '未命名高亮'
 }
 
 export function getAnnotationTimestamp(annotation: ReadLaterAnnotationIndexItem): number {
@@ -1253,27 +1262,31 @@ export default function ReadLaterAnnotationsView({
                     )
                   ) : (
                     <div className="annotation-dashboard__original-fallback">
-                      <div className="annotation-dashboard__original-fallback-card">
-                        <div className="annotation-dashboard__original-fallback-badge">
-                          <span>划线上下文预览</span>
+                      <div className="annotation-dashboard__original-leaf">
+                        <div className="annotation-dashboard__original-leaf-spine" aria-hidden="true" />
+                        <div className="annotation-dashboard__original-leaf-body">
+                          <p className="annotation-dashboard__original-fallback-quote">
+                            {selectedAnnotation.prefix ? <span className="annotation-dashboard__context-prefix">{selectedAnnotation.prefix}</span> : null}
+                            <mark ref={targetHighlightRef as React.RefObject<HTMLElement>} className="annotation-dashboard__original-mark is-target">
+                              {getAnnotationQuoteText(selectedAnnotation.quote)}
+                            </mark>
+                            {selectedAnnotation.suffix ? <span className="annotation-dashboard__context-suffix">{selectedAnnotation.suffix}</span> : null}
+                          </p>
                         </div>
-                        <p className="annotation-dashboard__original-fallback-quote">
-                          {selectedAnnotation.prefix ? <span className="annotation-dashboard__context-prefix">{selectedAnnotation.prefix}</span> : null}
-                          <mark ref={targetHighlightRef as React.RefObject<HTMLElement>} className="annotation-dashboard__original-mark is-target">
-                            {getAnnotationQuoteText(selectedAnnotation.quote)}
-                          </mark>
-                          {selectedAnnotation.suffix ? <span className="annotation-dashboard__context-suffix">{selectedAnnotation.suffix}</span> : null}
-                        </p>
-                        <div className="annotation-dashboard__original-fallback-info">
-                          <p>如需阅读整本电子书排版，可在书架关联本地文件或打开全屏阅读器。</p>
-                          <button
-                            type="button"
-                            className="annotation-dashboard__original-fallback-action"
-                            onClick={() => onOpenAnnotation(selectedAnnotation)}
-                          >
-                            打开全屏阅读器 ↗
-                          </button>
+                      </div>
+
+                      <div className="annotation-dashboard__original-fallback-guide">
+                        <div className="annotation-dashboard__original-guide-content">
+                          <span className="annotation-dashboard__original-guide-title">需要沉浸翻阅整本书？</span>
+                          <span className="annotation-dashboard__original-guide-sub">可在书架关联本地 EPUB 文件，或打开全屏阅读器浏览</span>
                         </div>
+                        <button
+                          type="button"
+                          className="annotation-dashboard__original-guide-action"
+                          onClick={() => onOpenAnnotation(selectedAnnotation)}
+                        >
+                          打开全屏 ↗
+                        </button>
                       </div>
                     </div>
                   )}

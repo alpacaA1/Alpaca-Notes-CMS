@@ -13545,13 +13545,13 @@ textarea {
 }
 
 .annotation-dashboard__item-card.is-selected {
-  background: var(--admin-warm-soft, #f4efe9);
-  border: none;
+  background: var(--admin-surface, #ffffff);
+  border-left: 3px solid var(--admin-warm, #c07d3e);
   border-bottom: 1px solid var(--admin-line, #eceae5);
   border-radius: 0;
   margin: 0;
   padding: 13px 18px;
-  box-shadow: none;
+  box-shadow: 0 2px 8px rgba(44, 40, 37, 0.04);
 }
 
 .annotation-dashboard__item-main {
@@ -13559,18 +13559,18 @@ textarea {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .annotation-dashboard__item-quote {
   margin: 0;
-  font-size: 0.92rem;
+  font-size: 0.89rem;
   font-weight: 500;
-  color: var(--admin-text, #1f1f1f);
-  line-height: 1.48;
+  color: var(--admin-text, #282421);
+  line-height: 1.64;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   overflow: hidden;
   word-break: normal;
   overflow-wrap: break-word;
@@ -13578,6 +13578,7 @@ textarea {
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
   font-weight: 600;
+  color: var(--admin-text, #1c1a18);
 }
 
 .annotation-dashboard__item-meta {
@@ -13641,11 +13642,7 @@ textarea {
 }
 
 .annotation-dashboard__item-chevron {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--admin-muted, #aba59c);
-  flex-shrink: 0;
+  display: none;
 }
 
 .annotation-dashboard__item-chevron svg {
@@ -13880,22 +13877,22 @@ textarea {
 .annotation-dashboard__original-heading--h6 { font-size: 0.95rem; }
 
 .annotation-dashboard__original-mark.is-target {
-  background: rgba(212, 165, 116, 0.38);
-  border-bottom: 2px solid #b87b3e;
+  background: rgba(212, 165, 116, 0.28);
   border-radius: 3px;
-  padding: 2px 4px;
-  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.22);
+  padding: 1px 5px;
+  color: var(--admin-text, #24201d);
+  box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.15);
   animation: annotation-pulse 1.8s ease-out 1;
 }
 
 @keyframes annotation-pulse {
   0% {
-    background: rgba(212, 165, 116, 0.7);
-    box-shadow: 0 0 0 6px rgba(212, 165, 116, 0.4);
+    background: rgba(212, 165, 116, 0.6);
+    box-shadow: 0 0 0 5px rgba(212, 165, 116, 0.3);
   }
   100% {
-    background: rgba(212, 165, 116, 0.38);
-    box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.22);
+    background: rgba(212, 165, 116, 0.28);
+    box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.15);
   }
 }
 
@@ -13944,64 +13941,84 @@ textarea {
 }
 
 .annotation-dashboard__original-fallback {
-  padding: 10px 0;
-}
-
-.annotation-dashboard__original-fallback-card {
-  padding: 16px 18px;
-  border-radius: 8px;
-  background: var(--admin-bg, #fbfaf8);
-  border: 1px solid var(--admin-line, #eceae5);
+  padding: 8px 4px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  justify-content: space-between;
 }
 
-.annotation-dashboard__original-fallback-badge {
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--admin-warm, #c07d3e);
+.annotation-dashboard__original-leaf {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 24px;
+}
+
+.annotation-dashboard__original-leaf-spine {
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--admin-warm, #c07d3e), rgba(212, 165, 116, 0.35));
 }
 
 .annotation-dashboard__original-fallback-quote {
   margin: 0;
-  font-size: 0.94rem;
-  line-height: 1.7;
-  color: var(--admin-text, #2c2825);
+  font-size: 1rem;
+  line-height: 1.95;
+  color: var(--admin-text, #282421);
+  text-align: justify;
+  letter-spacing: 0.015em;
 }
 
-.annotation-dashboard__original-fallback-info {
+.annotation-dashboard__original-fallback-guide {
+  margin-top: 28px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--admin-surface-subtle, #f8f6f2);
+  border: 1px solid var(--admin-line, #eceae5);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--admin-line, #eceae5);
-  font-size: 0.8rem;
+  gap: 16px;
+}
+
+.annotation-dashboard__original-guide-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.annotation-dashboard__original-guide-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--admin-text, #2c2825);
+}
+
+.annotation-dashboard__original-guide-sub {
+  font-size: 0.76rem;
   color: var(--admin-muted, #7c776f);
 }
 
-.annotation-dashboard__original-fallback-info p {
-  margin: 0;
-}
-
-.annotation-dashboard__original-fallback-action {
+.annotation-dashboard__original-guide-action {
   appearance: none;
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
-  border: 1px solid var(--admin-line, #e2dfd8);
-  border-radius: 6px;
+  padding: 5px 12px;
+  border: 1px solid var(--admin-line, #ded9cd);
+  border-radius: 7px;
   background: #fff;
-  color: var(--admin-text, #1f1f1f);
+  color: var(--admin-text, #2c2825);
   font-size: 0.8rem;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   transition: all 120ms ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
-.annotation-dashboard__original-fallback-action:hover {
+.annotation-dashboard__original-guide-action:hover {
   border-color: var(--admin-warm, #c07d3e);
   color: var(--admin-warm, #c07d3e);
 }
@@ -15884,29 +15901,46 @@ textarea {
 }
 
 .admin-shell--dark .annotation-dashboard__original-mark.is-target {
-  background: rgba(212, 165, 116, 0.45);
-  border-bottom-color: #d4a574;
-  box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.25);
+  background: rgba(212, 165, 116, 0.4);
+  color: #ede8e1;
+  box-shadow: 0 0 0 2px rgba(212, 165, 116, 0.2);
 }
 
-.admin-shell--dark .annotation-dashboard__original-fallback-card {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.08);
+.admin-shell--dark .annotation-dashboard__original-leaf-spine {
+  background: linear-gradient(180deg, #d4a574, rgba(212, 165, 116, 0.25));
 }
 
 .admin-shell--dark .annotation-dashboard__original-fallback-quote {
   color: #ede8e1;
 }
 
-.admin-shell--dark .annotation-dashboard__original-fallback-info {
+.admin-shell--dark .annotation-dashboard__original-fallback-guide {
+  background: rgba(255, 255, 255, 0.03);
   border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .annotation-dashboard__original-guide-title {
+  color: #ede8e1;
+}
+
+.admin-shell--dark .annotation-dashboard__original-guide-sub {
   color: #9c958a;
 }
 
-.admin-shell--dark .annotation-dashboard__original-fallback-action {
+.admin-shell--dark .annotation-dashboard__original-guide-action {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.14);
   color: #ede8e1;
+}
+
+.admin-shell--dark .annotation-dashboard__original-guide-action:hover {
+  border-color: #d4a574;
+  color: #d4a574;
+}
+
+.admin-shell--dark .annotation-dashboard__item-card.is-selected {
+  background: rgba(212, 165, 116, 0.08);
+  border-left-color: #d4a574;
 }
 
 .admin-shell :is(
