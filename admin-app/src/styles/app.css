@@ -13522,13 +13522,15 @@ textarea {
 .annotation-dashboard__item-card {
   appearance: none;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
   margin: 0;
   padding: 13px 18px;
-  min-height: 72px;
+  min-height: 60px;
+  height: auto;
+  flex-shrink: 0;
   box-sizing: border-box;
   border: none;
   border-bottom: 1px solid var(--admin-line, #eceae5);
@@ -13564,6 +13566,9 @@ textarea {
 
 .annotation-dashboard__item-quote {
   margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
   font-size: 0.89rem;
   font-weight: 500;
   color: var(--admin-text, #282421);
@@ -13574,6 +13579,13 @@ textarea {
   overflow: hidden;
   word-break: normal;
   overflow-wrap: break-word;
+  cursor: pointer;
+  text-align: left;
+  transition: color 120ms ease;
+}
+
+.annotation-dashboard__item-quote:hover {
+  color: var(--admin-warm, #c07d3e);
 }
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
@@ -13780,24 +13792,6 @@ textarea {
   height: 12px;
 }
 
-.annotation-dashboard__item-quote {
-  appearance: none;
-  background: transparent;
-  border: none;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
-  transition: color 120ms ease;
-  font-family: inherit;
-  font-size: inherit;
-  line-height: inherit;
-  color: inherit;
-  margin: 0;
-}
-
-.annotation-dashboard__item-quote:hover {
-  color: var(--admin-warm, #c07d3e);
-}
 
 .annotation-dashboard__original-pane {
   flex: 1;
@@ -14476,6 +14470,7 @@ textarea {
   white-space: nowrap;
   flex-shrink: 0;
   margin-left: 10px;
+  margin-top: 2px;
 }
 
 .annotation-dashboard__batch-bar {
