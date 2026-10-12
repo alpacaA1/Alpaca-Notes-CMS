@@ -1314,20 +1314,21 @@ export default function ReadLaterAnnotationsView({
                             </span>
                           ) : null}
                         </div>
-                        {hasComment ? (
-                          <span className="annotation-dashboard__item-has-comment">
-                            <svg className="annotation-dashboard__comment-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5.5l-3 2.5v-9.5a1 1 0 0 1 1-1Z" />
-                            </svg>
-                            已有评论
-                          </span>
-                        ) : null}
+                        <div className="annotation-dashboard__item-meta-extra">
+                          {hasComment ? (
+                            <span className="annotation-dashboard__item-has-comment" title="已添加笔记评论">
+                              <svg className="annotation-dashboard__comment-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                <path d="M2.5 3.5h11a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H5.5l-3 2.5v-9.5a1 1 0 0 1 1-1Z" />
+                              </svg>
+                              <span>已有评论</span>
+                            </span>
+                          ) : null}
+                          {formattedTime ? (
+                            <span className="annotation-dashboard__item-time">{formattedTime}</span>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-
-                    {formattedTime ? (
-                      <span className="annotation-dashboard__item-time">{formattedTime}</span>
-                    ) : null}
 
                     {!isMultiSelectMode ? (
                       <span className="annotation-dashboard__item-chevron" aria-hidden="true">

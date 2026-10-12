@@ -13637,10 +13637,11 @@ textarea {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 16px;
+  padding: 18px 20px 32px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-auto-rows: minmax(170px, 1fr);
+  gap: 16px;
   align-content: start;
   background: transparent;
 }
@@ -13656,10 +13657,10 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
   width: 100%;
-  min-height: 120px;
+  min-height: 170px;
   height: 100%;
   margin: 0;
-  padding: 14px 16px;
+  padding: 18px 20px 16px;
   flex-shrink: 0;
   box-sizing: border-box;
   border: 1px solid var(--admin-line, #e7e4dc);
@@ -13668,31 +13669,31 @@ textarea {
   color: inherit;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(44, 38, 30, 0.035);
-  transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+  box-shadow: 0 1px 4px rgba(44, 38, 30, 0.04);
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  outline: none;
 }
 
 .annotation-dashboard__item-card:hover:not(.is-selected) {
   background: #ffffff;
-  border-color: rgba(141, 113, 77, 0.35);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(44, 38, 30, 0.07);
+  border-color: rgba(141, 113, 77, 0.45);
+  box-shadow: 0 4px 14px rgba(44, 38, 30, 0.07);
 }
 
 .annotation-dashboard__item-card.is-selected {
   background: #ffffff;
-  border-color: var(--admin-warm, #c07d3e);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(141, 113, 77, 0.14);
+  border-color: var(--admin-warm, #8d714d);
+  box-shadow: 0 0 0 1px var(--admin-warm, #8d714d), 0 4px 18px rgba(141, 113, 77, 0.12);
 }
 
 .annotation-dashboard__item-main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
 }
 
 .annotation-dashboard__item-quote {
@@ -13700,10 +13701,10 @@ textarea {
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 0.91rem;
-  font-weight: 500;
+  font-size: 0.94rem;
+  font-weight: 450;
   color: var(--admin-text, #282421);
-  line-height: 1.66;
+  line-height: 1.72;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -13711,26 +13712,29 @@ textarea {
   word-break: normal;
   overflow-wrap: break-word;
   text-align: justify;
+  flex: 1;
+  min-height: 0;
 }
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
   font-weight: 600;
-  color: var(--admin-text, #1c1a18);
+  color: var(--admin-text, #161412);
 }
 
 .annotation-dashboard__item-meta {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  font-size: 0.76rem;
+  gap: 10px;
+  font-size: 0.77rem;
   color: var(--admin-muted, #7c7770);
-  line-height: 1.3;
+  line-height: 1.4;
   white-space: nowrap;
-  overflow: hidden;
-  padding-top: 10px;
+  padding-top: 11px;
   border-top: 1px solid var(--admin-line, #f0ede6);
   margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
 }
 
 .annotation-dashboard__item-source-group {
@@ -13749,6 +13753,8 @@ textarea {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-weight: 500;
+  color: var(--admin-muted-strong, #5c5750);
 }
 
 .annotation-dashboard__item-chapter {
@@ -13768,17 +13774,33 @@ textarea {
   flex-shrink: 0;
 }
 
+.annotation-dashboard__item-meta-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
 .annotation-dashboard__item-has-comment {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: var(--admin-muted, #8e8880);
-  font-size: 0.76rem;
+  color: var(--admin-warm, #8d714d);
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .annotation-dashboard__comment-icon {
   width: 12px;
   height: 12px;
+}
+
+.annotation-dashboard__item-time {
+  font-size: 0.75rem;
+  color: var(--admin-muted, #8e8880);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .annotation-dashboard__item-chevron {
@@ -14645,15 +14667,6 @@ textarea {
 
 .annotation-dashboard__item-card.is-checked.is-selected {
   background: #f5eee4;
-}
-
-.annotation-dashboard__item-time {
-  font-size: 0.78rem;
-  color: var(--admin-muted, #857f77);
-  white-space: nowrap;
-  flex-shrink: 0;
-  margin-left: 10px;
-  margin-top: 2px;
 }
 
 .annotation-dashboard__batch-bar {
@@ -16128,14 +16141,14 @@ textarea {
 
 .admin-shell--dark .annotation-dashboard__item-card:hover:not(.is-selected) {
   background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(212, 165, 116, 0.35);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(212, 165, 116, 0.45);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 
 .admin-shell--dark .annotation-dashboard__item-card.is-selected {
   background: rgba(212, 165, 116, 0.1);
   border-color: #d4a574;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 0 1px #d4a574, 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 .admin-shell--dark .annotation-dashboard__col-list,
