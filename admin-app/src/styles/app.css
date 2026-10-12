@@ -13640,7 +13640,7 @@ textarea {
   padding: 18px 20px 32px;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-auto-rows: minmax(170px, 1fr);
+  grid-auto-rows: 200px;
   gap: 16px;
   align-content: start;
   background: transparent;
@@ -13657,10 +13657,11 @@ textarea {
   flex-direction: column;
   justify-content: space-between;
   width: 100%;
-  min-height: 170px;
-  height: 100%;
+  height: 200px;
+  min-height: 200px;
+  max-height: 200px;
   margin: 0;
-  padding: 18px 20px 16px;
+  padding: 16px 18px 14px;
   flex-shrink: 0;
   box-sizing: border-box;
   border: 1px solid var(--admin-line, #e7e4dc);
@@ -13672,6 +13673,7 @@ textarea {
   box-shadow: 0 1px 4px rgba(44, 38, 30, 0.04);
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
   outline: none;
+  overflow: hidden;
 }
 
 .annotation-dashboard__item-card:hover:not(.is-selected) {
@@ -13693,7 +13695,9 @@ textarea {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
+  height: 100%;
+  overflow: hidden;
 }
 
 .annotation-dashboard__item-quote {
@@ -13701,19 +13705,19 @@ textarea {
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 0.94rem;
+  font-size: 0.93rem;
   font-weight: 450;
   color: var(--admin-text, #282421);
-  line-height: 1.72;
+  line-height: 1.68;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   overflow: hidden;
+  text-overflow: ellipsis;
   word-break: normal;
   overflow-wrap: break-word;
   text-align: justify;
-  flex: 1;
-  min-height: 0;
+  max-height: 110px;
 }
 
 .annotation-dashboard__item-card.is-selected .annotation-dashboard__item-quote {
