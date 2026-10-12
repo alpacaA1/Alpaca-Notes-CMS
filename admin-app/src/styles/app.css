@@ -13705,10 +13705,12 @@ textarea {
   padding: 0;
   border: none;
   background: transparent;
-  font-size: 0.93rem;
-  font-weight: 450;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
+  font-size: 0.94rem;
+  font-weight: 500;
   color: var(--admin-text, #282421);
   line-height: 1.68;
+  letter-spacing: 0.015em;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -14000,10 +14002,11 @@ textarea {
 }
 
 .annotation-dashboard__original-prose {
-  font-family: inherit;
-  font-size: 0.92rem;
-  line-height: 1.85;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
+  font-size: 0.95rem;
+  line-height: 1.88;
   color: var(--admin-text, #2c2825);
+  letter-spacing: 0.015em;
 }
 
 .annotation-dashboard__original-p {
@@ -14019,6 +14022,7 @@ textarea {
 
 .annotation-dashboard__original-heading {
   margin: 22px 0 10px;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
   font-weight: 600;
   color: var(--admin-text, #1f1f1f);
   line-height: 1.4;
@@ -14052,9 +14056,11 @@ textarea {
 }
 
 .annotation-dashboard__original-html {
-  font-size: 0.92rem;
-  line-height: 1.85;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
+  font-size: 0.95rem;
+  line-height: 1.88;
   color: var(--admin-text, #2c2825);
+  letter-spacing: 0.015em;
 }
 
 .annotation-dashboard__original-html p {
@@ -14079,9 +14085,12 @@ textarea {
 
 .annotation-dashboard__original-callout-text {
   margin: 4px 0 0;
-  font-size: 0.9rem;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
+  font-size: 0.94rem;
   font-weight: 500;
   color: var(--admin-text, #1f1f1f);
+  line-height: 1.7;
+  letter-spacing: 0.012em;
 }
 
 .annotation-dashboard__original-loading {
@@ -14120,8 +14129,9 @@ textarea {
 
 .annotation-dashboard__original-fallback-quote {
   margin: 0;
-  font-size: 1rem;
-  line-height: 1.95;
+  font-family: var(--admin-serif, 'Noto Serif SC', 'Songti SC', Georgia, serif);
+  font-size: 1.02rem;
+  line-height: 1.9;
   color: var(--admin-text, #282421);
   text-align: justify;
   letter-spacing: 0.015em;
