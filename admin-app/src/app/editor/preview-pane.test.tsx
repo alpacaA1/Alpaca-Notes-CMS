@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import PreviewPane, { resolvePreviewImageSrc } from './preview-pane'
 
@@ -289,6 +289,91 @@ describe('PreviewPane', () => {
     expect(layoutScrollTo).toHaveBeenCalledWith({ top: 412, behavior: 'smooth' })
     expect(windowScrollTo).not.toHaveBeenCalled()
     expect(container.querySelector('.preview-post-outline__panel')?.className).toContain('preview-post-outline__panel')
+  })
+
+  it('scrolls the enclosing layout to top (0) when clicking 回到顶部 in outline', () => {
+    const { container } = render(
+      <div data-testid="preview-scroll-shell" style={{ overflowY: 'auto', maxHeight: '640px' }}>
+        <PreviewPane
+          title="文章目录"
+          date="2026-05-09 10:00:00"
+          markdown={`导语内容。
+
+## 需求背景
+内容。`}
+        />
+      </div>,
+    )
+
+    const scrollShell = screen.getByTestId('preview-scroll-shell') as HTMLElement
+    const topLink = screen.getByRole('link', { name: '回到顶部' })
+    const layoutScrollTo = vi.fn()
+
+    Object.defineProperty(scrollShell, 'scrollTo', {
+      configurable: true,
+      value: layoutScrollTo,
+    })
+    Object.defineProperty(scrollShell, 'scrollTop', {
+      configurable: true,
+      value: 300,
+      writable: true,
+    })
+
+    fireEvent.click(topLink)
+
+    expect(layoutScrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' })
+  })
+
+  it('displays the correct outline eyebrow according to contentType', () => {
+    const { rerender } = render(
+      <PreviewPane
+        title="文章标题"
+        date="2026-05-09 10:00:00"
+        contentType="post"
+        markdown="## 第一节"
+      />,
+    )
+    expect(screen.getByText('文章')).toBeTruthy()
+
+    rerender(
+      <PreviewPane
+        title="待读标题"
+        date="2026-05-09 10:00:00"
+        contentType="read-later"
+        markdown="## 第一节"
+        showReadLaterOutline
+      />,
+    )
+    expect(screen.getByText('待读')).toBeTruthy()
+  })
+
+  it('strips redundant leading title heading from post outline and collapsible sections', () => {
+    const { container } = render(
+      <PreviewPane
+        title="配方数据更新与版本切换 PRD"
+        date="2026-05-09 14:27:37"
+        contentType="post"
+        markdown={`# 配方数据更新与版本切换 PRD
+
+## 1. 背景与目标
+背景内容。
+
+## 2. 功能点
+功能点内容。`}
+      />,
+    )
+
+    // Outline should contain section 1 and 2, but NOT duplicate the title
+    const outline = container.querySelector('.preview-post-outline')
+    expect(outline).toBeTruthy()
+    expect(screen.getByRole('link', { name: '1. 背景与目标' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: '2. 功能点' })).toBeTruthy()
+    expect(within(outline as HTMLElement).queryByRole('link', { name: '配方数据更新与版本切换 PRD' })).toBeNull()
+
+    // Body should only have section summaries for 1 and 2, not for the duplicate title
+    const summaries = container.querySelectorAll('.preview-heading-group__summary-heading')
+    const summaryTexts = Array.from(summaries).map((el) => el.textContent?.trim())
+    expect(summaryTexts).toEqual(['1. 背景与目标', '2. 功能点'])
   })
 
   it('renders markdown images whose URLs contain parentheses', () => {

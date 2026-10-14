@@ -6540,7 +6540,7 @@ textarea {
 
 .preview-content__header--reader {
   gap: 8px;
-  padding-top: 0;
+  padding-top: 4px;
   padding-bottom: 22px;
   border-bottom-color: rgba(126, 111, 92, 0.2);
 }
@@ -6548,7 +6548,7 @@ textarea {
 .preview-content.preview-content--reader .preview-content__header--reader h1 {
   max-width: 18em;
   font-size: clamp(1.9rem, 2.7vw, 2.7rem);
-  line-height: 1.12;
+  line-height: 1.22;
 }
 
 .preview-content__date {

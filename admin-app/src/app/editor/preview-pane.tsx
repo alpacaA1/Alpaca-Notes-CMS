@@ -14,7 +14,7 @@ import {
   removeDiaryMarkdownHighlight,
   type HighlightContext,
 } from '../diary/diary-highlight'
-import { cleanHeadingTitle, extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections } from '../read-later/parse-item'
+import { cleanHeadingTitle, extractMarkdownHeadings, getReadLaterOutline, getReadLaterSectionAnchorId, parseReadLaterSections, stripInlineMarkdown } from '../read-later/parse-item'
 import { normalizeMarkdownReferenceLinks } from './markdown-references'
 
 type ReadLaterAnnotationAction = 'highlight' | 'note'
@@ -392,6 +392,24 @@ function scrollToOutlineTarget(
   }
 
   const activeScrollContainer = scrollContainer ?? findClosestScrollContainer(pane)
+  if (targetId === rootId) {
+    if (isWindowScrollContainer(activeScrollContainer)) {
+      if (typeof activeScrollContainer.scrollTo === 'function') {
+        activeScrollContainer.scrollTo({ top: 0, behavior: 'smooth' })
+        return true
+      }
+      return true
+    }
+
+    if (typeof activeScrollContainer.scrollTo === 'function') {
+      activeScrollContainer.scrollTo({ top: 0, behavior: 'smooth' })
+      return true
+    }
+
+    activeScrollContainer.scrollTop = 0
+    return true
+  }
+
   if (isWindowScrollContainer(activeScrollContainer)) {
     const nextTop = activeScrollContainer.scrollY + target.getBoundingClientRect().top - 108
     if (typeof activeScrollContainer.scrollTo === 'function') {
@@ -2368,6 +2386,59 @@ function getTopicBacklinkTypeLabel(contentType: ContentType) {
   return '文章'
 }
 
+function getOutlineEyebrowLabel(contentType: ContentType) {
+  if (contentType === 'read-later') {
+    return '待读'
+  }
+  if (contentType === 'diary') {
+    return '日记'
+  }
+  if (contentType === 'knowledge') {
+    return '知识点'
+  }
+  return '文章'
+}
+
+export function stripRedundantLeadingTitleHeading(markdown: string, title?: string): string {
+  if (!title?.trim()) {
+    return markdown
+  }
+
+  const normalizedTitle = stripInlineMarkdown(title).trim().toLowerCase()
+  if (!normalizedTitle) {
+    return markdown
+  }
+
+  const lines = markdown.split('\n')
+  let firstContentLineIndex = -1
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim().length > 0) {
+      firstContentLineIndex = i
+      break
+    }
+  }
+
+  if (firstContentLineIndex === -1) {
+    return markdown
+  }
+
+  const match = lines[firstContentLineIndex].match(/^(#{1,6})\s+(.*)$/)
+  if (!match) {
+    return markdown
+  }
+
+  const headingText = stripInlineMarkdown(match[2]).trim().toLowerCase()
+  if (headingText === normalizedTitle) {
+    const remainingLines = lines.slice(firstContentLineIndex + 1)
+    if (remainingLines.length > 0 && remainingLines[0].trim().length === 0) {
+      remainingLines.shift()
+    }
+    return remainingLines.join('\n')
+  }
+
+  return markdown
+}
+
 function decodeHtmlEntities(value: string) {
   return value.replace(/&(amp|lt|gt|quot|#39);/g, (entity) => HTML_ENTITY_MAP[entity] || entity)
 }
@@ -2696,14 +2767,21 @@ export default function PreviewPane({
     kind: 'section' as const,
   })) ?? []
   const articleRootId = isReadLater ? READ_LATER_ROOT_ID : POST_PREVIEW_ROOT_ID
+  const displayMarkdown = useMemo(() => {
+    if (contentType === 'post' || contentType === 'pitch' || contentType === 'private') {
+      return stripRedundantLeadingTitleHeading(activeMarkdown, title)
+    }
+    return activeMarkdown
+  }, [activeMarkdown, contentType, title])
+  const outlineEyebrow = getOutlineEyebrowLabel(contentType)
   const postHeadingIdPrefix = isPreviewPost && contentFormat === 'markdown' ? POST_PREVIEW_HEADING_PREFIX : undefined
   const postOutlineItems = useMemo(
     () => (
       postHeadingIdPrefix
-        ? normalizeOutlineLevels(extractMarkdownHeadings(activeMarkdown, postHeadingIdPrefix))
+        ? normalizeOutlineLevels(extractMarkdownHeadings(displayMarkdown, postHeadingIdPrefix))
         : []
     ),
-    [activeMarkdown, postHeadingIdPrefix],
+    [displayMarkdown, postHeadingIdPrefix],
   )
   const shouldShowPostOutline = isPreviewPost && postOutlineItems.length > 0
   const readLaterOutlineItems = useMemo(
@@ -3457,7 +3535,7 @@ export default function PreviewPane({
           <aside className={`preview-post-outline${usesReaderBodyStyle ? ' preview-post-outline--reader' : ''}${shouldShowReadLaterOutline ? ' preview-post-outline--read-later' : ''}`} aria-label="文章目录">
             <div ref={postOutlinePanelRef} className="preview-post-outline__panel">
               <div className="preview-post-outline__header">
-                <p className="preview-post-outline__eyebrow">RSS 正文</p>
+                <p className="preview-post-outline__eyebrow">{outlineEyebrow}</p>
                 <h2>导航</h2>
               </div>
               <nav className="preview-post-outline__nav" aria-label="文章目录">
@@ -3620,7 +3698,7 @@ export default function PreviewPane({
               </div>
             </>
           ) : (
-            renderContentBlocks(activeMarkdown, contentFormat, previewImageUrls, postHeadingIdPrefix, wikiLinkOptions)
+            renderContentBlocks(displayMarkdown, contentFormat, previewImageUrls, postHeadingIdPrefix, wikiLinkOptions)
           )}
         </article>
         {shouldShowTopicBacklinksDrawer ? (
