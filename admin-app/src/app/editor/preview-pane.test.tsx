@@ -870,6 +870,39 @@ Dynamic wallpaper by Kenny Kuh and Luke Barker.
       expect(orderedList).not.toBeNull()
       expect(orderedList?.getAttribute('start')).toBe('3')
     })
+
+    it('renders markdown tables inside a preview-table-wrapper with preview-table class', () => {
+      const markdown = `| 功能点 | 功能描述 |
+| --- | --- |
+| 统一持久化 | 均支持 JSON、DB，配方与草稿态 |
+| 配方体系 | 配方发布看哈希、配方模板看版本 |`
+
+      const { container } = render(
+        <PreviewPane
+          title="表格测试"
+          date="2026-10-15 14:00:00"
+          markdown={markdown}
+        />,
+      )
+
+      const wrapper = container.querySelector('.preview-table-wrapper')
+      expect(wrapper).not.toBeNull()
+
+      const table = wrapper?.querySelector('table.preview-table')
+      expect(table).not.toBeNull()
+
+      const headers = wrapper?.querySelectorAll('th')
+      expect(headers?.length).toBe(2)
+      expect(headers?.[0].textContent).toBe('功能点')
+      expect(headers?.[1].textContent).toBe('功能描述')
+
+      const rows = wrapper?.querySelectorAll('tbody tr')
+      expect(rows?.length).toBe(2)
+
+      const firstRowCells = rows?.[0].querySelectorAll('td')
+      expect(firstRowCells?.[0].textContent).toBe('统一持久化')
+      expect(firstRowCells?.[1].textContent).toBe('均支持 JSON、DB，配方与草稿态')
+    })
   })
 
   describe('resolvePreviewImageSrc', () => {

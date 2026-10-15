@@ -2069,24 +2069,26 @@ function renderBlocks(
       index -= 1
 
       nodes.push(
-        <table key={`table-${nodes.length}`}>
-          <thead>
-            <tr>
+        <div key={`table-wrapper-${nodes.length}`} className="preview-table-wrapper">
+          <table className="preview-table">
+            <thead>
+              <tr>
                 {headers.map((header, headerIndex) => (
-                <th key={`table-head-${headerIndex}`}>{renderInline(header, previewImageUrls, wikiLinkOptions)}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr key={`table-row-${rowIndex}`}>
-                {row.map((cell, cellIndex) => (
-                  <td key={`table-cell-${rowIndex}-${cellIndex}`}>{renderInline(cell, previewImageUrls, wikiLinkOptions)}</td>
+                  <th key={`table-head-${headerIndex}`}>{renderInline(header, previewImageUrls, wikiLinkOptions)}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>,
+            </thead>
+            <tbody>
+              {rows.map((row, rowIndex) => (
+                <tr key={`table-row-${rowIndex}`}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={`table-cell-${rowIndex}-${cellIndex}`}>{renderInline(cell, previewImageUrls, wikiLinkOptions)}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
       )
       continue
     }
