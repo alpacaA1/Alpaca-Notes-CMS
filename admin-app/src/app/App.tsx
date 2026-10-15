@@ -825,6 +825,44 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleGlobalKeyDown)
   }, [])
 
+  const currentDocumentTitle = document?.frontmatter.title?.trim()
+  const activeBookTitle = activeBook?.meta.title?.trim()
+
+  useEffect(() => {
+    let nextTitle = 'Alpaca Notes Admin'
+
+    if (isQuickCheckinMode) {
+      nextTitle = '快速打卡'
+    } else if (adminView === 'editor') {
+      if (document) {
+        nextTitle = currentDocumentTitle || '未命名草稿'
+      } else if (activePostPath) {
+        const openingPost = posts.find((p) => p.path === activePostPath)
+        if (openingPost?.title) {
+          nextTitle = openingPost.title
+        }
+      }
+    } else if (adminView === 'books') {
+      nextTitle = activeBookTitle || '电子书'
+    } else if (adminView === 'movies') {
+      nextTitle = '观影笔记'
+    } else if (adminView === 'people') {
+      nextTitle = '人物卡'
+    } else if (adminView === 'annotations') {
+      nextTitle = '批注库'
+    } else if (adminView === 'trash') {
+      nextTitle = '废纸篓'
+    } else if (adminView === 'series') {
+      nextTitle = '合集视图'
+    } else if (adminView === 'feeds') {
+      nextTitle = '订阅源'
+    }
+
+    if (window.document.title !== nextTitle) {
+      window.document.title = nextTitle
+    }
+  }, [adminView, currentDocumentTitle, activeBookTitle, Boolean(document), activePostPath, posts, isQuickCheckinMode])
+
   const deferredSearch = useDeferredValue(search)
   const filteredPosts = useMemo(
     () =>

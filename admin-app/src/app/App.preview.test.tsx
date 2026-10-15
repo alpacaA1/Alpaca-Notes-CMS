@@ -615,9 +615,11 @@ describe('App preview mode', () => {
     await waitFor(() => {
       expect(screen.getByText('Preview supported post')).toBeTruthy()
     })
+    expect(window.document.title).toBe('Alpaca Notes Admin')
 
     fireEvent.click(screen.getByRole('button', { name: /preview supported post/i }))
     await screen.findByLabelText('Markdown 编辑器')
+    expect(window.document.title).toBe('Preview supported post')
 
     fireEvent.click(screen.getByRole('button', { name: '预览' }))
 
