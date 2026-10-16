@@ -19612,6 +19612,35 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   color: #ede6dc;
 }
 
+.admin-shell--dark .quick-checkin__header {
+  background: rgba(28, 26, 23, 0.88);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .quick-checkin__title {
+  color: #ede6dc;
+}
+
+.admin-shell--dark .quick-checkin__nav-link {
+  color: var(--admin-muted, #a09585);
+}
+
+.admin-shell--dark .quick-checkin__nav-link:hover {
+  color: #ede6dc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .quick-checkin__nav-toggle {
+  background: rgba(212, 165, 106, 0.12);
+  border-color: rgba(212, 165, 106, 0.25);
+  color: var(--admin-warm, #d4a56a);
+}
+
+.admin-shell--dark .quick-checkin__nav-toggle:hover {
+  background: rgba(212, 165, 106, 0.2);
+  border-color: rgba(212, 165, 106, 0.35);
+}
+
 .admin-shell--dark .quick-checkin__nav-close {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
@@ -19623,16 +19652,65 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   color: #ffffff;
 }
 
+.admin-shell--dark .quick-checkin__section-title {
+  color: #ede6dc;
+}
+
 .admin-shell--dark .quick-checkin__chip {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.08);
   color: #dcd4c8;
 }
 
+.admin-shell--dark .quick-checkin__chip:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
 .admin-shell--dark .quick-checkin__chip.is-selected {
+  background: #a97042 !important;
+  border-color: #a97042 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(169, 112, 66, 0.35);
+}
+
+/* 情绪强度 1-10 按钮深色模式适配 */
+.admin-shell--dark .quick-checkin__intensity-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #dcd4c8;
+}
+
+.admin-shell--dark .quick-checkin__intensity-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.admin-shell--dark .quick-checkin__intensity-btn.is-selected {
   background: #a97042;
   border-color: #a97042;
   color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(169, 112, 66, 0.35);
+}
+
+.admin-shell--dark .quick-checkin__intensity-hint {
+  color: var(--admin-muted, #a09585);
+}
+
+/* 手风琴触发器与展开 */
+.admin-shell--dark .quick-checkin__accordion-trigger {
+  color: var(--admin-muted, #b3a898);
+}
+
+.admin-shell--dark .quick-checkin__accordion-trigger:hover {
+  color: #ede6dc;
+}
+
+.admin-shell--dark .quick-checkin__accordion-chevron {
+  color: var(--admin-muted, #a09585);
 }
 
 .admin-shell--dark .quick-checkin__textarea,
@@ -19641,6 +19719,196 @@ foliate-view *::part(container)::-webkit-scrollbar-thumb:hover {
   border-color: rgba(255, 255, 255, 0.1);
   color: #ede6dc;
 }
+
+.admin-shell--dark .quick-checkin__textarea::placeholder,
+.admin-shell--dark .quick-checkin__custom-input::placeholder {
+  color: rgba(255, 255, 255, 0.32);
+}
+
+.admin-shell--dark .quick-checkin__textarea:focus,
+.admin-shell--dark .quick-checkin__custom-input:focus {
+  border-color: var(--admin-warm, #d4a56a);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .quick-checkin__privacy-note {
+  color: var(--admin-muted, #a09585);
+}
+
+.admin-shell--dark .quick-checkin__submit-btn:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.32) !important;
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.32);
+  box-shadow: none;
+}
+
+.admin-shell--dark .quick-checkin__outbox-banner {
+  background: rgba(212, 165, 116, 0.1);
+  border-color: rgba(212, 165, 116, 0.28);
+  color: #e5b986;
+}
+
+.admin-shell--dark .quick-checkin__back-btn {
+  color: var(--admin-warm, #d4a56a);
+}
+
+.admin-shell--dark .quick-checkin__back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .quick-checkin__header-subheading {
+  color: #ede6dc;
+}
+
+.admin-shell--dark .quick-checkin__drawer-subtitle {
+  color: var(--admin-muted, #a09585);
+}
+
+.admin-shell--dark .quick-checkin__custom-form {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Movie Journal Dark Mode */
+.admin-shell--dark .movie-journal {
+  --film-ink: #ede6dc;
+  --film-muted: #a09585;
+  --film-paper: #1c1a17;
+  --film-amber: #d4a56a;
+}
+
+.admin-shell--dark .movie-journal__rail {
+  border-right-color: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(145deg, #221f1b, #1c1a17);
+}
+
+.admin-shell--dark .movie-journal__filters--rail {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .movie-journal__filters button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .movie-journal__gallery {
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .movie-journal__detail {
+  background: #1e1b18;
+}
+
+.admin-shell--dark .movie-journal__meta-grid {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .movie-journal__meta-grid input,
+.admin-shell--dark .movie-journal__meta-grid select,
+.admin-shell--dark .movie-journal__cover-url input {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-shell--dark .movie-journal__reflection textarea {
+  background: repeating-linear-gradient(180deg, transparent, transparent 32px, rgba(255, 255, 255, 0.04) 32px, rgba(255, 255, 255, 0.04) 33px);
+}
+
+.admin-shell--dark .movie-journal__tmdb-results {
+  background: #25221e;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.admin-shell--dark .movie-journal__tmdb-results button:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* People Book Dark Mode */
+.admin-shell--dark .people-book {
+  --people-ink: #ede6dc;
+  --people-muted: #a09585;
+  --people-line: rgba(255, 255, 255, 0.08);
+  --people-warm: #d4a56a;
+  background: #1c1a17;
+}
+
+.admin-shell--dark .people-book__rail {
+  background: linear-gradient(145deg, #221f1b, #1c1a17);
+  border-right-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .people-book__detail {
+  background: #1e1b18;
+}
+
+.admin-shell--dark .people-book__notes-canvas {
+  background: #1e1b18;
+}
+
+.admin-shell--dark .people-book__notes-canvas > textarea,
+.admin-shell--dark .people-book__notes-canvas .editor-textarea--editor-canvas {
+  background: repeating-linear-gradient(180deg, transparent, transparent 40px, rgba(255, 255, 255, 0.04) 40px, rgba(255, 255, 255, 0.04) 41px);
+}
+
+.admin-shell--dark .people-book__moment-composer-card {
+  background: #25221e;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .people-book__moment-composer .movie-date-picker__trigger {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ede6dc;
+}
+
+.admin-shell--dark .people-book__moment-field input,
+.admin-shell--dark .people-book__moment-field textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #ede6dc;
+}
+
+.admin-shell--dark .people-book__moment-field input:focus,
+.admin-shell--dark .people-book__moment-field textarea:focus {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .people-book__moment-card {
+  background: #25221e;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.admin-shell--dark .people-book__moment-date {
+  background: rgba(212, 165, 106, 0.15);
+  color: #d4a56a;
+}
+
+.admin-shell--dark .people-book__incorporate-box input {
+  background: #2a2622;
+  border-color: rgba(212, 165, 106, 0.3);
+  color: #ede6dc;
+}
+
+.admin-shell--dark .people-book__birthday-field .movie-date-picker__panel,
+.admin-shell--dark .people-book__moment-composer .movie-date-picker__panel,
+.admin-shell--dark .people-book__meta-grid .filter-select__panel,
+.admin-shell--dark .people-book__meta-grid .taxonomy-multi-select__panel {
+  background: #25221e;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 20px 42px rgba(0, 0, 0, 0.35);
+}
+
+/* WeRead Sync Dialog Dark Mode */
+.admin-shell--dark .weread-sync__book-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.admin-shell--dark .weread-sync__book-item.is-selected {
+  background: rgba(212, 165, 106, 0.15);
+}
+
+.admin-shell--dark .weread-sync__book-tag {
+  background: rgba(212, 165, 106, 0.15);
+  color: #d4a56a;
+}
+
 
 
 .admin-shell :is(button, input, textarea, select):focus,
